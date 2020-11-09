@@ -68,20 +68,7 @@ class VAxisArray(VBaseArrayContainer):
     def shape(self):
         return self._data[list(self._data.keys())[0]].shape
 
-
-class VPairwiseArray:
-    """
-    Class for obsp and varp
-    """
-
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: ArrayLike_2D):
-        self._parent = parent
-        self._axis = axis
-        self._data = data
-
-    @property
-    def shape(self):
-        return self._data.shape
+    # TODO : check that all shapes in self._data are the same
 
 
 class VLayersArrays(VBaseArrayContainer):
@@ -107,3 +94,24 @@ class VLayersArrays(VBaseArrayContainer):
     @property
     def name(self):
         return "layers"
+
+    @property
+    def shape(self):
+        return self._data[list(self._data.keys())[0]].shape
+
+    # TODO : check that all shapes in self._data are the same
+
+
+class VPairwiseArray:
+    """
+    Class for obsp and varp
+    """
+
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: ArrayLike_2D):
+        self._parent = parent
+        self._axis = axis
+        self._data = data
+
+    @property
+    def shape(self):
+        return self._data.shape

@@ -5,8 +5,10 @@
 # ====================================================
 # imports
 import os
+import sys
 import logging.config
 import inspect
+import traceback
 from pathlib import Path
 
 from ..NameUtils import LoggingLevel
@@ -55,7 +57,7 @@ class _VLogger:
         :return: the formatted message
         """
         # Get the name of the file that called the logger for displaying where the message came from
-        frames = inspect.stack()
+        frames = inspect.stack(0)
         caller_filename = frames[0].filename
         index = 0
 
@@ -63,6 +65,7 @@ class _VLogger:
             index += 1
             caller_filename = frames[index].filename
 
+        # TODO : should go 1 up in the stack to get the file name from which the error was called, it stop at error.py here ???
         caller = os.path.splitext(os.path.basename(caller_filename))[0]
 
         # return base message

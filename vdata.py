@@ -76,17 +76,14 @@ class VData:
 
     @property
     def n_obs(self) -> int:
-        # TODO
         return self.obs.shape[0] if self.obs is not None else 0
 
     @property
     def n_vars(self) -> int:
-        # TODO
         return self.var.shape[0] if self.var is not None else 0
 
     @property
     def n_time_points(self) -> int:
-        # TODO
         return len(self.time_points) if self.time_points is not None else 0
 
     def _check_formats(self, X: Optional[ArrayLike_2D],
@@ -131,7 +128,7 @@ class VData:
                 # convert X to array :
                 X = np.reshape(np.array(X), (1, X.shape[0], X.shape[1]))
             elif X.ndim == 2:
-                X = np.reshape(X, (1, X.shape[0], X.shape[1]))
+                X = np.reshape(X, (X.shape[0], X.shape[1], 1))
 
         # obs
         if obs is not None and not isinstance(obs, pd.DataFrame):
@@ -227,6 +224,44 @@ class VData:
         :param df_obs: If X was supplied as a pandas DataFrame, index of observations
         :param df_var: If X was supplied as a pandas DataFrame, index of variables
         """
+        # if time points are not given, assign default values 0, 1, 2, ...
+        last_attr = 'time points'
+        for attr in ('X', 'layers', 'obsm', 'varm'):
+            dataset = getattr(self, attr)
+            if dataset is not None:
+                if self.time_points is None:
+                    self.time_points = range(dataset.shape[2])
+                    last_attr = attr
+
+                elif len(self.time_points) != dataset.shape[2]:
+                    raise IncoherenceError(f"{last_attr} and {attr} have different numbers of time points.")
+
+        # check consistent number of time points everywhere
+        else:
+            if self.X is not None:
+                if self.n_time_points > self.X.shape[2]:
+                    raise IncoherenceError(f"Too many time points for X with depth {self.X.shape[2]}.")
+                elif self.n_time_points < self.X.shape[2]:
+                    raise IncoherenceError(f"Not enough time points for X with depth {self.X.shape[2]}.")
+
+            if self.layers is not None:
+                if self.n_time_points > self.layers.shape[2]:
+                    raise IncoherenceError(f"Too many time points for layers with depth {self.layers.shape[2]}.")
+                elif self.n_time_points < self.layers.shape[2]:
+                    raise IncoherenceError(f"Not enough time points for layers with depth {self.layers.shape[2]}.")
+
+            if self.obsm is not None:
+                if self.n_time_points > self.obsm.shape[2]:
+                    raise IncoherenceError(f"Too many time points for obsm with depth {self.obsm.shape[2]}.")
+                elif self.n_time_points < self.obsm.shape[2]:
+                    raise IncoherenceError(f"Not enough time points for obsm with depth {self.obsm.shape[2]}.")
+
+            if self.varm is not None:
+                if self.n_time_points > self.varm.shape[2]:
+                    raise IncoherenceError(f"Too many time points for varm with depth {self.varm.shape[2]}.")
+                elif self.n_time_points < self.varm.shape[2]:
+                    raise IncoherenceError(f"Not enough time points for varm with depth {self.varm.shape[2]}.")
+
         # if X was given as a dataframe, check that obs and X match in row names
         if self.obs is None and df_obs is not None:
             self.obs = pd.DataFrame({"cell_name": df_obs})
@@ -277,10 +312,10 @@ class VData:
         # check coherence between X, obs, vars and time points
         if self.X is not None and self.n_obs:
             if self.X.shape[0] != self.n_obs:
-                raise IncoherenceError(f"X has different number of lines than obs.")
+                raise IncoherenceError(f"X has different number of lines than obs ({self.X.shape[0]} vs {self.n_obs}).")
 
             if self.X.shape[1] != self.n_vars:
-                raise IncoherenceError(f"X has different number of columns than var.")
+                raise IncoherenceError(f"X has different number of columns than var ({self.X.shape[1]} vs {self.n_vars}).")
 
             if self.X.shape[2] != self.n_time_points:
                 raise IncoherenceError(f"X has different depth than the number of time points.")
@@ -294,5 +329,3 @@ class VData:
             for layer_name, layer in self.layers.items():
                 if layer.shape != (self.n_obs, self.n_vars):
                     raise IncoherenceError(f"X and layer '{layer_name}' have different shapes.")
-
-        # TODO : check coherence with timepoints
