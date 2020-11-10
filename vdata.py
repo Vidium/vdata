@@ -232,37 +232,37 @@ class VData:
             dataset = getattr(self, attr)
             if dataset is not None:
                 if self.time_points is None:
-                    self.time_points = range(dataset.shape[2])
+                    self.time_points = range(dataset.shape[0])
                     last_attr = attr
 
-                elif len(self.time_points) != dataset.shape[2]:
+                elif len(self.time_points) != dataset.shape[0]:
                     raise IncoherenceError(f"{last_attr} and {attr} have different numbers of time points.")
 
         # check consistent number of time points everywhere
         else:
             if self.X is not None:
-                if self.n_time_points > self.X.shape[2]:
-                    raise IncoherenceError(f"Too many time points for X with depth {self.X.shape[2]}.")
-                elif self.n_time_points < self.X.shape[2]:
-                    raise IncoherenceError(f"Not enough time points for X with depth {self.X.shape[2]}.")
+                if self.n_time_points > self.X.shape[0]:
+                    raise IncoherenceError(f"Too many time points for X with depth {self.X.shape[0]}.")
+                elif self.n_time_points < self.X.shape[0]:
+                    raise IncoherenceError(f"Not enough time points for X with depth {self.X.shape[0]}.")
 
             if self.layers is not None:
-                if self.n_time_points > self.layers.shape[2]:
-                    raise IncoherenceError(f"Too many time points for layers with depth {self.layers.shape[2]}.")
-                elif self.n_time_points < self.layers.shape[2]:
-                    raise IncoherenceError(f"Not enough time points for layers with depth {self.layers.shape[2]}.")
+                if self.n_time_points > self.layers.shape[0]:
+                    raise IncoherenceError(f"Too many time points for layers with depth {self.layers.shape[0]}.")
+                elif self.n_time_points < self.layers.shape[0]:
+                    raise IncoherenceError(f"Not enough time points for layers with depth {self.layers.shape[0]}.")
 
             if self.obsm is not None:
-                if self.n_time_points > self.obsm.shape[2]:
-                    raise IncoherenceError(f"Too many time points for obsm with depth {self.obsm.shape[2]}.")
-                elif self.n_time_points < self.obsm.shape[2]:
-                    raise IncoherenceError(f"Not enough time points for obsm with depth {self.obsm.shape[2]}.")
+                if self.n_time_points > self.obsm.shape[0]:
+                    raise IncoherenceError(f"Too many time points for obsm with depth {self.obsm.shape[0]}.")
+                elif self.n_time_points < self.obsm.shape[0]:
+                    raise IncoherenceError(f"Not enough time points for obsm with depth {self.obsm.shape[0]}.")
 
             if self.varm is not None:
-                if self.n_time_points > self.varm.shape[2]:
-                    raise IncoherenceError(f"Too many time points for varm with depth {self.varm.shape[2]}.")
-                elif self.n_time_points < self.varm.shape[2]:
-                    raise IncoherenceError(f"Not enough time points for varm with depth {self.varm.shape[2]}.")
+                if self.n_time_points > self.varm.shape[0]:
+                    raise IncoherenceError(f"Too many time points for varm with depth {self.varm.shape[0]}.")
+                elif self.n_time_points < self.varm.shape[0]:
+                    raise IncoherenceError(f"Not enough time points for varm with depth {self.varm.shape[0]}.")
 
         # if X was given as a dataframe, check that obs and X match in row names
         if self.obs is None and df_obs is not None:
