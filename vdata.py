@@ -42,6 +42,8 @@ class VData:
 
         self.dtype = dtype
 
+        self._n_obs, self._n_vars = 0, 0
+
         # check formats of arguments
         self.X, self.obs, self.obsm, self.obsp, self.var, self.varm, self.varp, \
             self.layers, self.uns, self.time_points, df_obs, df_var = self._check_formats(X, obs, obsm, obsp, var, varm, varp, layers, uns, time_points)
@@ -76,11 +78,11 @@ class VData:
 
     @property
     def n_obs(self) -> int:
-        return self.obs.shape[0] if self.obs is not None else 0
+        return self._n_obs
 
     @property
     def n_vars(self) -> int:
-        return self.var.shape[0] if self.var is not None else 0
+        return self._n_vars
 
     @property
     def n_time_points(self) -> int:
@@ -264,17 +266,21 @@ class VData:
 
         # if X was given as a dataframe, check that obs and X match in row names
         if self.obs is None and df_obs is not None:
-            self.obs = pd.DataFrame({"cell_name": df_obs})
+            self.obs = pd.DataFrame(index=df_obs)
         elif self.obs is not None and df_obs is not None:
             if self.obs.index != df_obs:
                 raise VValueError("Indexes in dataFrames X and obs do not match.")
 
         # if X was given as a dataframe, check that var row names match X col names
         if self.var is None and df_var is not None:
-            self.var = pd.DataFrame({"gene_name": df_var})
+            self.var = pd.DataFrame(index=df_var)
         elif self.var is not None and df_var is not None:
             if self.var.index != df_var:
                 raise VValueError("Columns in dataFrame X does not match var's index.")
+
+        # if no X but layers were supplied, take first layer as X
+        if self.X is None and self.layers is not None:
+            self.X = self.layers.values[0]
 
         # check necessary data was supplied
         if self.X is not None:
@@ -287,11 +293,35 @@ class VData:
             elif self.time_points is None:
                 raise NotEnoughDataError("Missing time points data.")
 
+            self._n_obs = self.X.shape[0]
+            self._n_vars = self.X.shape[1]
+
+        else:
+            if self.obs is not None:
+                self._n_obs = self.obs.shape[0]
+
+            if self.var is not None:
+                self._n_vars = self.var.shape[0]
+
         if self.obs is None and (self.obsm is not None or self.obsp is not None):
             raise NotEnoughDataError("obs data was not supplied but obsm or obsp were.")
 
         if self.var is None and (self.varm is not None or self.varp is not None):
             raise NotEnoughDataError("var data was not supplied but varm or varp were.")
+
+        # check coherence between X, obs, vars and time points
+        if self.X is not None and self.n_obs:
+            if self.X.shape[0] != self.n_obs:
+                raise IncoherenceError(f"X has different number of lines than obs ({self.X.shape[0]} vs {self.n_obs}).")
+
+            if self.X.shape[1] != self.n_vars:
+                raise IncoherenceError(f"X has different number of columns than var ({self.X.shape[1]} vs {self.n_vars}).")
+
+        # check coherence between X and layers
+        if self.X is not None and self.layers is not None:
+            for layer_name, layer in self.layers.items():
+                if layer.shape != (self.n_obs, self.n_vars):
+                    raise IncoherenceError(f"X and layer '{layer_name}' have different shapes.")
 
         # check coherence between obs, obsm and obsp shapes
         if self.obs is not None and self.n_obs:
@@ -308,24 +338,3 @@ class VData:
 
             if self.varp is not None and self.n_vars != self.varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_vars} vs {self.varp.shape[0]})")
-
-        # check coherence between X, obs, vars and time points
-        if self.X is not None and self.n_obs:
-            if self.X.shape[0] != self.n_obs:
-                raise IncoherenceError(f"X has different number of lines than obs ({self.X.shape[0]} vs {self.n_obs}).")
-
-            if self.X.shape[1] != self.n_vars:
-                raise IncoherenceError(f"X has different number of columns than var ({self.X.shape[1]} vs {self.n_vars}).")
-
-            if self.X.shape[2] != self.n_time_points:
-                raise IncoherenceError(f"X has different depth than the number of time points.")
-
-        # if no X but layers were supplied, take first layer as X
-        if self.X is None and self.layers is not None:
-            self.X = self.layers.values[0]
-
-        # check coherence between X and layers
-        if self.X is not None and self.layers is not None:
-            for layer_name, layer in self.layers.items():
-                if layer.shape != (self.n_obs, self.n_vars):
-                    raise IncoherenceError(f"X and layer '{layer_name}' have different shapes.")

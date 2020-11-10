@@ -18,3 +18,7 @@ genes = pd.DataFrame({"name": ["a", "b", "c"]})
 
 a = VData(X=expr_matrix, obs=cells, var=genes, log_level="INFO", dtype=np.float64)
 print(a)
+
+expr_matrix = pd.DataFrame({"a": [0, 10, 0, 15], "b": [10, 0, 9, 2], "c": [20, 15, 16, 16]}, index=[1, 2, 3, 4])
+a = VData(X=expr_matrix, log_level="INFO", dtype=np.float64)
+print(a.obs)
