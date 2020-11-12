@@ -7,17 +7,24 @@
 import numpy as np
 import pandas as pd
 
-from .vdata import VData
+from .core.vdata import VData
 
 # ====================================================
 # code
 
-expr_matrix = np.array([[0, 10, 20], [10, 0, 15], [0, 9, 16], [15, 2, 16]])
-cells = pd.DataFrame({"name": [1, 2, 3, 4]})
-genes = pd.DataFrame({"name": ["a", "b", "c"]})
+# expr_matrix = pd.DataFrame({"a": [0, 10, 0, 15], "b": [10, 0, 9, 2], "c": [20, 15, 16, 16]}, index=[1, 2, 3, 4])
+expr_matrix = np.array([[[0, 10, 20], [10, 0, 15], [0, 9, 16], [15, 2, 16]]])
+obs = pd.DataFrame({"cell_name": ["c1", "c2", "c3", "c4"], "batch": [1, 1, 2, 2]}, index=[1, 2, 3, 4])
+obsm = {'umap': np.zeros((1, 4, 2))}
+obsp = {'connect': np.zeros((4, 4))}
+var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]}, index=["a", "b", "c"])
+varm = {}
+varp = {'correlation': np.zeros((3, 3))}
+layers = {'spliced': np.zeros((1, 4, 3))}
+uns = {'color': ["#c1c1c1"]}
+time_points = ["5h"]
 
-# a = VData(X=expr_matrix, obs=cells, var=genes, log_level="INFO", dtype=np.float64)
 
-expr_matrix = pd.DataFrame({"a": [0, 10, 0, 15], "b": [10, 0, 9, 2], "c": [20, 15, 16, 16]}, index=[1, 2, 3, 4])
-a = VData(X=expr_matrix, log_level="INFO", dtype=np.float64)
-print(a.X.shape)
+a = VData(X=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, layers=layers, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
+print(a)
+print(a.varp)

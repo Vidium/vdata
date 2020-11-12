@@ -1,0 +1,313 @@
+# coding: utf-8
+# Created on 11/4/20 10:40 AM
+# Author : matteo
+
+# ====================================================
+# imports
+import abc
+from abc import ABC
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
+from typing_extensions import Literal
+
+from . import vdata
+from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike
+from ..IO.errors import ShapeError, IncoherenceError
+
+
+# ====================================================
+# code
+class VBaseArrayContainer(ABC):
+    """
+    Base abstract class for Arrays linked to a VData object (obsm, obsp, varm, varp, layers).
+    All Arrays have a '_parent' attribute for linking them to a VData and a '_data' dictionary
+    attribute for storing 2D/3D arrays.
+    """
+
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, ArrayLike]]):
+        self._parent = parent
+        self._data = self._check_init_data(data)
+
+    @abc.abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    def __getitem__(self, item: str) -> ArrayLike:
+        """
+        Get specific array-like in _data
+        :param item: key in _data
+        :return: array-like stored in _data under given key
+        """
+        if self._data and item in self._data.keys():
+            return self._data[item]
+
+        else:
+            raise AttributeError(f"{self.name} array has no attribute '{item}'")
+
+    @abc.abstractmethod
+    def __setitem__(self, key: str, value: ArrayLike) -> None:
+        """
+        Set specific array-like in _data. The given array-like must have the correct shape.
+        :param key: key for storing array-like in _data
+        :param value: an array-like to store
+        """
+        pass
+
+    def __len__(self) -> int:
+        """
+        Length of the Array : the number of array-like objects in _data
+        :return: number of array-like objects in _data
+        """
+        return len(self._data.keys()) if self._data is not None else 0
+
+    @abc.abstractmethod
+    def _check_init_data(self, data: Optional[Dict[str, ArrayLike]]) -> Optional[Dict[str, ArrayLike]]:
+        """
+        Function for checking, at Array creation, that the supplied data has the correct format.
+        :param data: dictionary of array-like objects.
+        :return: dictionary of array-like objects
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> str:
+        """
+        Name for the Array.
+        :return: name of the array
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def shape(self) -> Union[Tuple[int, int, int], Tuple[int, int]]:
+        """
+        The shape of the Array is computed from the shape of the array-like objects it contains.
+        See __len__ for getting the number of array-like objects it contains.
+        :return: shape of the contained array-like objects.
+        """
+        pass
+
+    def keys(self) -> Union[Tuple, KeysView]:
+        """
+        KeysView of keys for getting the array-like objects.
+        :return: KeysView of this Array.
+        """
+        return self._data.keys() if self._data is not None else ()
+
+    def values(self) -> Union[Tuple, ValuesView]:
+        """
+        ValuesView of array-like objects in this Array
+        :return:ValuesView of this Array.
+        """
+        return self._data.values() if self._data is not None else ()
+
+    def items(self) -> Union[Tuple, ItemsView]:
+        """
+        ItemsView of pairs of keys and array-like objects in this Array.
+        :return: ItemsView of this Array.
+        """
+        return self._data.items() if self._data is not None else ()
+
+
+class VBase3DArrayContainer(VBaseArrayContainer, ABC):
+    """
+    Base abstract class for arrays linked to a VData object that contain 3D array-like objects (obsm, varm, layers)
+    It is based on VBaseArrayContainer and defines some functions shared by obsm, varm and layers.
+    """
+    def __setitem__(self, key: str, value: ArrayLike_3D) -> None:
+        """
+        Set specific array-like in _data. The given array-like must have the same shape as the parent
+        VData X array-like.
+        :param key: key for storing array-like in _data
+        :param value: an array-like to store
+        """
+        # first check that value has the correct shape
+        if value.shape == self._parent.shape():
+            if self._data is None:
+                self._data = {}
+            self._data[key] = value
+
+        else:
+            raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, expected {self._parent.shape()}")
+
+    def _check_init_data(self, data: Optional[Dict[str, ArrayLike_3D]]) -> Optional[Dict[str, ArrayLike_3D]]:
+        """
+        Function for checking, at Array creation, that the supplied data has the correct format :
+            - all array-like objects in 'data' have the same shape
+            - the shape of the array-like objects in 'data' match the parent vdata object's size
+        :return: the data (dictionary of array-like objects), if correct
+        """
+        if data is None or not len(data):
+            return None
+
+        else:
+            _shape = self._parent.shape()
+
+            for array_index, array in data.items():
+                if _shape != array.shape:
+                    if _shape[0] != array.shape[0]:
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[0]} time point{'s' if array.shape[0] > 1 else ''}, should have {_shape[0]}.")
+
+                    elif self.name in ("layers", "obsm") and _shape[1] != array.shape[1]:
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[1]} observations, should have {_shape[1]}.")
+
+                    elif self.name in ("layers", "varm"):
+                        raise IncoherenceError(f"{self.name} '{array_index}' has  {array.shape[2]} variables, should have {_shape[2]}.")
+
+            return data
+
+    @property
+    def shape(self) -> Tuple[int, int, int]:
+        """
+        The shape of the Array is computed from the shape of the array-like objects it contains.
+        See __len__ for getting the number of array-like objects it contains.
+        :return: shape of the contained array-like objects.
+        """
+        if self._data is not None:
+            return self._data[list(self._data.keys())[0]].shape
+        else:
+            s1 = self._parent.n_obs if self.name in ("layers", "obsm") else self._parent.n_var
+            s2 = self._parent.n_var if self.name == "layers" else 0
+            return self._parent.n_time_points, s1, s2
+
+
+class VAxisArray(VBase3DArrayContainer):
+    """
+    Class for obsm and varm.
+    These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any) and (n_var, any) respectively.
+    The arrays-like objects can be accessed from the parent VData object by :
+        VData.obsm['<array_name>'])
+        VData.varm['<array_name>'])
+    """
+
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Dict[str, ArrayLike_3D]):
+        self._axis = axis
+        super().__init__(parent, data)
+
+    def __repr__(self) -> str:
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"VAxisArray of {self.name} with keys : {list_of_keys}."
+        else:
+            return f"Empty VAxisArray of {self.name}."
+
+    @property
+    def name(self):
+        """
+        Name for the Array, either obsm or varm.
+        :return: name of the array
+        """
+        return f"{self._axis}m"
+
+
+class VLayersArrays(VBase3DArrayContainer):
+    """
+    Class for layers.
+    This object contains any number of 3D array-like objects, with shapes (n_time_points, n_obs, n_var).
+    The arrays-like objects can be accessed from the parent VData object by :
+        VData.layers['<array_name>']
+    """
+
+    def __init__(self, parent: "vdata.VData", data: Dict[str, ArrayLike_3D]):
+        super().__init__(parent, data)
+
+    def __repr__(self) -> str:
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"VLayersArrays of layers with keys : {list_of_keys}."
+        else:
+            return f"Empty VLayersArrays of layers."
+
+    @property
+    def name(self):
+        """
+        Name for the Array : layers.
+        :return: name of the array
+        """
+        return "layers"
+
+
+class VPairwiseArray(VBaseArrayContainer):
+    """
+    Class for obsp and varp.
+    This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs) and (n_time_points, n_var, n_var)
+    respectively.
+    The arrays-like objects can be accessed from the parent VData object by :
+        VData.obsp['<array_name>']
+        VData.obsp['<array_name>']
+    """
+
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Dict[str, ArrayLike_2D]):
+        self._axis = axis
+        super().__init__(parent, data)
+
+    def __repr__(self) -> str:
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"VPairwiseArray of {self.name} with keys : {list_of_keys}."
+        else:
+            return f"Empty VPairwiseArray of {self.name}."
+
+    def __setitem__(self, key, value):
+        """
+        Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
+        for obsm and (n_var, n_var) for varm.
+        :param key: key for storing array-like in _data
+        :param value: an array-like to store
+        """
+        # first check that value has the correct shape
+        shape_parent = getattr(self._parent, f"n_{self._axis}")
+
+        if value.shape[0] == value.shape[1]:
+            if value.shape[0] == shape_parent:
+                self._data[key] = value
+
+            else:
+                raise IncoherenceError(f"The supplied array-like object has incorrect shape {value.shape}, expected ({shape_parent}, {shape_parent})")
+
+        else:
+            raise ShapeError("The supplied array-like object is not square.")
+
+    def _check_init_data(self, data: Optional[Dict[str, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
+        """
+        Function for checking, at Array creation, that the supplied data has the correct format:
+            - all array-like objects in 'data' are square
+            - their shape match the parent VData object's n_obs or n_var
+        :param data: dictionary of array-like objects.
+        :return: the data (dictionary of array-like objects), if correct
+        """
+        if data is None or not len(data):
+            return None
+
+        shape_parent = getattr(self._parent, f"n_{self._axis}")
+
+        for array_index, array in data.items():
+            if array.shape[0] != array.shape[1]:
+                raise ShapeError(f"The array-like object '{array_index}' supplied to {self.name} is not square.")
+
+            if array.shape[0] != shape_parent:
+                raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape {array.shape}, it should have shape ({shape_parent}, {shape_parent})")
+
+        else:
+            return data
+
+    @property
+    def name(self):
+        """
+        Name for the Array, either obsp or varp.
+        :return: name of the array
+        """
+        return f"{self._axis}p"
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        """
+        The shape of the Array is computed from the shape of the array-like objects it contains.
+        See __len__ for getting the number of array-like objects it contains.
+        :return: shape of the contained array-like objects.
+        """
+        if self._data is not None:
+            return self._data[list(self._data.keys())[0]].shape
+
+        else:
+            return (self._parent.n_obs, self._parent.n_obs) if self._axis == "obs" else (self._parent.n_var, self._parent.n_var)

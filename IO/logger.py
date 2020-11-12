@@ -5,10 +5,10 @@
 # ====================================================
 # imports
 import os
-import sys
+# import sys
 import logging.config
 import inspect
-import traceback
+# import traceback
 from pathlib import Path
 
 from ..NameUtils import LoggingLevel
@@ -41,12 +41,12 @@ class _VLogger:
         # get logger
         self.logger = logging.getLogger('root.vlogger')
 
-    def re_init(self, logger_level: LoggingLevel) -> None:
+    def set_level(self, logger_level: LoggingLevel) -> None:
         """
         Re-init the logger, for setting new minimal logging level
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
-        self.__init__(logger_level)
+        self.logger.setLevel(logger_level)
 
     @staticmethod
     def _getBaseMsg(msg: str) -> str:
@@ -65,7 +65,7 @@ class _VLogger:
             index += 1
             caller_filename = frames[index].filename
 
-        # TODO : should go 1 up in the stack to get the file name from which the error was called, it stop at error.py here ???
+        # TODO : should go 1 up in the stack to get the file name from which the error was called, it stops at error.py here, why ???
         caller = os.path.splitext(os.path.basename(caller_filename))[0]
 
         # return base message

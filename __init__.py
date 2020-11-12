@@ -2,8 +2,8 @@
 # Created on 11/4/20 10:35 AM
 # Author : matteo
 
-# ====================================================
-# imports
+"""Annotated multivariate observation data."""
 
 # ====================================================
-# code
+# imports
+from .core.vdata import VData
