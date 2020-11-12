@@ -93,11 +93,11 @@ class VData:
             self._n_vars = df_var.shape[0]
 
         # create arrays linked to VData
-        self.obsm = VAxisArray(self, 'obs', data=_obsm) if _obsm is not None else None
-        self.obsp = VPairwiseArray(self, 'obs', data=_obsp) if _obsp is not None else None
-        self.varm = VAxisArray(self, 'var', data=_varm) if _varm is not None else None
-        self.varp = VPairwiseArray(self, 'var', data=_varp) if _varp is not None else None
-        self.layers = VLayersArrays(self, data=_layers) if _layers is not None else None
+        self.obsm = VAxisArray(self, 'obs', data=_obsm)
+        self.obsp = VPairwiseArray(self, 'obs', data=_obsp)
+        self.varm = VAxisArray(self, 'var', data=_varm)
+        self.varp = VPairwiseArray(self, 'var', data=_varp)
+        self.layers = VLayersArrays(self, data=_layers)
 
         # finish initializing VData
         self._init_data(df_obs, df_var)
@@ -364,24 +364,23 @@ class VData:
         if self.X is None and self.layers is not None:
             self.X = list(self.layers.values())[0]
 
+        # TODO : this should not be needed, keeping this in case a bug pops out
         # check necessary data was supplied
-        if self.X is not None:
-            if self.obs is None:
-                raise NotEnoughDataError("Missing obs data.")
-
-            elif self.var is None:
-                raise NotEnoughDataError("Missing var data.")
-
-            elif self.time_points is None:
-                raise NotEnoughDataError("Missing time points data.")
-
-        # todo : could this be removed ? do we really need obs for setting obsm and obsp ?
-        if self.obs is None and (self.obsm is not None or self.obsp is not None):
-            raise NotEnoughDataError("obs data was not supplied but obsm or obsp were.")
-
-        # todo : could this be removed ? same for var
-        if self.var is None and (self.varm is not None or self.varp is not None):
-            raise NotEnoughDataError("var data was not supplied but varm or varp were.")
+        # if self.X is not None:
+        #     if self.obs is None:
+        #         raise NotEnoughDataError("Missing obs data.")
+        #
+        #     elif self.var is None:
+        #         raise NotEnoughDataError("Missing var data.")
+        #
+        #     elif self.time_points is None:
+        #         raise NotEnoughDataError("Missing time points data.")
+        #
+        # if self.obs is None and (self.obsm is not None or self.obsp is not None):
+        #     raise NotEnoughDataError("obs data was not supplied but obsm or obsp were.")
+        #
+        # if self.var is None and (self.varm is not None or self.varp is not None):
+        #     raise NotEnoughDataError("var data was not supplied but varm or varp were.")
 
         # check coherence between X, obs, vars and time points
         if self.X is not None:
