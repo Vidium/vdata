@@ -28,3 +28,5 @@ time_points = ["5h"]
 a = VData(X=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, layers=layers, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
 print(a)
 print(a.varp)
+
+a.write("/home/matteo/Desktop/test.p")

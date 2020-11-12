@@ -5,9 +5,12 @@
 # ====================================================
 # imports
 import sys
+import os
+import pickle
 import pandas as pd
 import numpy as np
 from scipy import sparse
+from pathlib import Path
 from typing import Optional, Union, Dict, List, Tuple, Any
 
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
@@ -409,3 +412,19 @@ class VData:
 
             if self.varp is not None and self.n_var != self.varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self.varp.shape[0]})")
+
+    def write(self, file: Union[str, Path]) -> None:
+        """
+        Save this VData object as pickle object.
+        :param file: path to save the VData
+        """
+        # make sure file is a path
+        if not isinstance(file, Path):
+            file = Path(file)
+
+        # make sure the path exists
+        if not os.path.exists(os.path.dirname(file)):
+            raise VValueError(f"The path {os.path.dirname(file)} does not exist.")
+
+        with open(file, 'wb') as save_file:
+            pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
