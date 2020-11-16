@@ -15,7 +15,7 @@ from typing import Optional, Union, Dict, List, Tuple, Any
 
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
-from ..IO.errors import VTypeError, NotEnoughDataError, IncoherenceError, VValueError
+from ..IO.errors import VTypeError, IncoherenceError, VValueError  # NotEnoughDataError
 from ..IO.logger import generalLogger
 
 
@@ -31,10 +31,10 @@ class VData:
                  X: Optional[ArrayLike_2D] = None,
                  obs: Optional[pd.DataFrame] = None,
                  obsm: Optional[Dict[Any, ArrayLike]] = None,
-                 obsp: Optional[Dict[str, ArrayLike]] = None,
+                 obsp: Optional[Dict[Any, ArrayLike]] = None,
                  var: Optional[pd.DataFrame] = None,
                  varm: Optional[Dict[Any, ArrayLike]] = None,
-                 varp: Optional[Dict[str, ArrayLike]] = None,
+                 varp: Optional[Dict[Any, ArrayLike]] = None,
                  layers: Optional[Dict[Any, ArrayLike]] = None,
                  uns: Optional[Dict] = None,
                  time_points: Optional[Union[List[Union[str, DType]], np.ndarray]] = None,
