@@ -43,14 +43,6 @@ class ShapeError(BaseError):
     pass
 
 
-# todo : might not be usefull, check in vdata
-class NotEnoughDataError(BaseError):
-    """
-    Custom errors for missing data.
-    """
-    pass
-
-
 class IncoherenceError(BaseError):
     """
     Custom error for incoherent data formats.

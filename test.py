@@ -22,10 +22,10 @@ varm = {}
 varp = {'correlation': np.zeros((3, 3))}
 layers = {'spliced': np.zeros((1, 4, 3))}
 uns = {'color': ["#c1c1c1"]}
-time_points = ["5h"]
+time_points = pd.DataFrame({"value": [5], "unit": ["hour"]})
 
 
-a = VData(X=expr_matrix, obs=obs, obsm=obsm, varm=varm, layers=layers, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
+a = VData(data=expr_matrix, obs=obs, obsm=obsm, var=var, varm=varm, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
 print(a)
 print(a.varp)
 
