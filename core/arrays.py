@@ -6,7 +6,7 @@
 # imports
 import abc
 from abc import ABC
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any
 from typing_extensions import Literal
 
 from . import vdata
@@ -130,7 +130,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
         else:
             raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, expected {self._parent.shape()}")
 
-    def _check_init_data(self, data: Optional[Dict[str, ArrayLike_3D]]) -> Optional[Dict[str, ArrayLike_3D]]:
+    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, ArrayLike_3D]]:
         """
         Function for checking, at Array creation, that the supplied data has the correct format :
             - all array-like objects in 'data' have the same shape
@@ -141,6 +141,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             return None
 
         else:
+            _data = {}
             _shape = self._parent.shape()
 
             for array_index, array in data.items():
@@ -154,7 +155,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
                     elif self.name in ("layers", "varm"):
                         raise IncoherenceError(f"{self.name} '{array_index}' has  {array.shape[2]} variables, should have {_shape[2]}.")
 
-            return data
+                    else:
+                        _data[str(array_index)] = array
+
+                else:
+                    _data[str(array_index)] = array
+
+            return _data
 
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -163,7 +170,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
         See __len__ for getting the number of array-like objects it contains.
         :return: shape of the contained array-like objects.
         """
-        if self._data is not None:
+        if self._data is not None and len(self):
             return self._data[list(self._data.keys())[0]].shape
         else:
             s1 = self._parent.n_obs if self.name in ("layers", "obsm") else self._parent.n_var
@@ -268,7 +275,7 @@ class VPairwiseArray(VBaseArrayContainer):
         else:
             raise ShapeError("The supplied array-like object is not square.")
 
-    def _check_init_data(self, data: Optional[Dict[str, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
+    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
         """
         Function for checking, at Array creation, that the supplied data has the correct format:
             - all array-like objects in 'data' are square
@@ -279,17 +286,21 @@ class VPairwiseArray(VBaseArrayContainer):
         if data is None or not len(data):
             return None
 
-        shape_parent = getattr(self._parent, f"n_{self._axis}")
-
-        for array_index, array in data.items():
-            if array.shape[0] != array.shape[1]:
-                raise ShapeError(f"The array-like object '{array_index}' supplied to {self.name} is not square.")
-
-            if array.shape[0] != shape_parent:
-                raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape {array.shape}, it should have shape ({shape_parent}, {shape_parent})")
-
         else:
-            return data
+            shape_parent = getattr(self._parent, f"n_{self._axis}")
+            _data = {}
+
+            for array_index, array in data.items():
+                if array.shape[0] != array.shape[1]:
+                    raise ShapeError(f"The array-like object '{array_index}' supplied to {self.name} is not square.")
+
+                elif array.shape[0] != shape_parent:
+                    raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape {array.shape}, it should have shape ({shape_parent}, {shape_parent})")
+
+                else:
+                    _data[str(array_index)] = array
+
+            return _data
 
     @property
     def name(self):

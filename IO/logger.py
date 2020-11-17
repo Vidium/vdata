@@ -117,6 +117,14 @@ class _VLogger:
         """
         self.logger.error(self._getBaseMsg(msg))
 
+    def uncaught_error(self, msg: str) -> None:
+        """
+        Log and uncaught (not originating from a custom error class) error message (level 40)
+
+        :param msg: the message to be logged
+        """
+        self.logger.error(f"[UNCAUGHT] {msg}")
+
     def critical(self, msg: str) -> None:
         """
         Log a critical message (level 50)

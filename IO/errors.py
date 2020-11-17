@@ -10,7 +10,7 @@ from .logger import generalLogger
 # ====================================================
 # code
 # Errors
-class BaseError(Exception):
+class VBaseError(Exception):
     """
     Base class for custom error. Error messages are redirected to the logger instead of being printed directly.
     """
@@ -22,28 +22,28 @@ class BaseError(Exception):
         return ""
 
 
-class VTypeError(BaseError):
+class VTypeError(VBaseError):
     """
     Custom error for type errors.
     """
     pass
 
 
-class VValueError(BaseError):
+class VValueError(VBaseError):
     """
     Custom error for value errors.
     """
     pass
 
 
-class ShapeError(BaseError):
+class ShapeError(VBaseError):
     """
     Custom error for errors in variable shapes.
     """
     pass
 
 
-class IncoherenceError(BaseError):
+class IncoherenceError(VBaseError):
     """
     Custom error for incoherent data formats.
     """
