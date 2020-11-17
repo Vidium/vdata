@@ -189,7 +189,7 @@ class VData:
     @obsm.setter
     def obsm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
         if data is None:
-            self._obsm = None
+            self._obsm = VAxisArray(self, 'obs', None)
 
         else:
             if not isinstance(data, dict):
@@ -227,7 +227,7 @@ class VData:
     @obsp.setter
     def obsp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
         if data is None:
-            self._obsp = None
+            self._obsp = VPairwiseArray(self, 'obs', None)
 
         else:
             if not isinstance(data, dict):
@@ -264,7 +264,7 @@ class VData:
     @varm.setter
     def varm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
         if data is None:
-            self._varm = None
+            self._varm = VAxisArray(self, 'var', None)
 
         else:
             if not isinstance(data, dict):
@@ -304,7 +304,7 @@ class VData:
     @varp.setter
     def varp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
         if data is None:
-            self._varp = None
+            self._varp = VPairwiseArray(self, 'var', None)
 
         else:
             if not isinstance(data, dict):
@@ -353,7 +353,7 @@ class VData:
     @layers.setter
     def layers(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike]]]) -> None:
         if data is None:
-            self._layers = None
+            self._layers = VLayersArrays(self, None)
 
         else:
             if isinstance(data, (np.ndarray, sparse.spmatrix, pd.DataFrame)):

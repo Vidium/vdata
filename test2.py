@@ -21,11 +21,11 @@ print(a)
 print(a.time_points)
 
 print('--------------------------')
-GPU_data = {"RNA": {"0h": np.zeros((10, 10)),
-                    "5h": np.zeros((10, 10))},
-            "Protein": {"0h": np.zeros((10, 10)),
-                        "5h": np.zeros((10, 10))}}
+GPU_data_2 = {"RNA": {"0h": np.zeros((10, 10)),
+                      "5h": np.zeros((10, 10))},
+              "Protein": {"0h": np.zeros((10, 10)),
+                          "5h": np.zeros((10, 10))}}
 
-a = read_from_GPU(GPU_data, log_level="DEBUG")
+a = read_from_GPU(GPU_data_2, log_level="DEBUG")
 print(a)
 print(a.time_points)

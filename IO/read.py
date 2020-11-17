@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from scipy import sparse
 from pathlib import Path
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List, cast
 
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, ArrayLike_2D, LoggingLevel
@@ -42,7 +42,7 @@ def read(file: Union[Path, str]) -> VData:
     return vdata
 
 
-def read_from_GPU(data: Dict[str, Dict[DType, ArrayLike_2D]], obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
+def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
                   dtype: DType = np.float32, log_level: LoggingLevel = "INFO") -> VData:
     """
     Load a simulation's recorded information into a VData object.
@@ -96,14 +96,12 @@ def read_from_GPU(data: Dict[str, Dict[DType, ArrayLike_2D]], obs: Optional[pd.D
 
         # if time points not given, try to guess them
         if time_points is None:
-            if all([isinstance(_time_points[i], (int, float)) for i in range(len(_time_points))]):
-                TP_df = pd.DataFrame({"value": _time_points})
-
-            else:
-                TP_df_data = {"value": [], "unit": []}
+            if all([isinstance(_time_points[i], str) for i in range(len(_time_points))]):
+                TP_df_data: Dict[str, List[Union[float, str]]] = {"value": [], "unit": []}
                 del_unit = False
 
                 for tp in _time_points:
+                    tp = cast(str, tp)          # for typing
                     if tp.endswith("s"):
                         try:
                             TP_df_data["value"].append(float(tp[:-1]))
@@ -154,6 +152,9 @@ def read_from_GPU(data: Dict[str, Dict[DType, ArrayLike_2D]], obs: Optional[pd.D
                     TP_df_data = {"value": _time_points}
 
                 TP_df = pd.DataFrame(TP_df_data)
+
+            else:
+                TP_df = pd.DataFrame({"value": _time_points})
 
             return VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype, log_level=log_level)
 
