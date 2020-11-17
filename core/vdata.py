@@ -23,7 +23,6 @@ from ..IO.logger import generalLogger, Tb
 
 # ====================================================
 # code
-# TODO : define getters and setters for data in VData !!
 class VData:
     """
     A VData object stores data points in matrices of observations x variables in the same way as the AnnData object,
@@ -51,7 +50,10 @@ class VData:
                 debug_hook(exception_type, exception, traceback)
             else:
                 Tb.trace = traceback
-                print(exception)
+                if not issubclass(exception_type, VBaseError):
+                    self.logger.uncaught_error(exception)
+                else:
+                    print(exception)
 
         sys.excepthook = exception_handler
 
@@ -599,7 +601,7 @@ class VData:
 
         self._obs = obs
         self._var = var
-        self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
+        self._uns = dict(zip([str(k) for k in uns.keys()], uns.values())) if uns is not None else None
         self._time_points = time_points
 
         return layers, obsm, obsp, varm, varp, df_obs, df_var
@@ -616,9 +618,8 @@ class VData:
             for attr in ('layers', 'obsm', 'varm'):
                 dataset = getattr(self, attr)
                 if dataset is not None:
-                    print(dataset)
                     if len(self._time_points) != dataset.shape[0]:
-                        raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but only {len(self._time_points)} {'was' if len(self._time_points) == 1 else 'were'} given.")
+                        raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but {len(self._time_points)} {'was' if len(self._time_points) == 1 else 'were'} given.")
 
         # if data was given as a dataframe, check that obs and data match in row names
         if self._obs is None and df_obs is not None:
