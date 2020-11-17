@@ -18,11 +18,12 @@ from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
 from ..IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
-from ..IO.logger import generalLogger
+from ..IO.logger import generalLogger, Tb
 
 
 # ====================================================
 # code
+# TODO : define getters and setters for data in VData !!
 class VData:
     """
     A VData object stores data points in matrices of observations x variables in the same way as the AnnData object,
@@ -44,8 +45,10 @@ class VData:
         # disable traceback messages, except if the loggingLevel is set to DEBUG
         def exception_handler(exception_type, exception, traceback, debug_hook=sys.excepthook):
             if log_level == 'DEBUG':
+                Tb.trace = traceback
                 debug_hook(exception_type, exception, traceback)
             else:
+                Tb.trace = traceback
                 print(exception)
 
         sys.excepthook = exception_handler

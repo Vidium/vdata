@@ -5,16 +5,19 @@
 # ====================================================
 # imports
 import os
-# import sys
 import logging.config
 import inspect
-# import traceback
 from pathlib import Path
+from types import TracebackType
 
 from ..NameUtils import LoggingLevel
 
 
 # ====================================================
+class Tb:
+    trace: TracebackType = None
+
+
 # code
 class _VLogger:
     """
@@ -57,19 +60,29 @@ class _VLogger:
         :return: the formatted message
         """
         # Get the name of the file that called the logger for displaying where the message came from
-        frames = inspect.stack(0)
-        caller_filename = frames[0].filename
-        index = 0
+        if Tb.trace is None:
+            frames = inspect.stack(0)
 
-        while index < len(frames) - 1 and caller_filename.endswith("logger.py"):
-            index += 1
-            caller_filename = frames[index].filename
+            caller_filename = frames[0].filename
+            index = 0
 
-        # TODO : should go 1 up in the stack to get the file name from which the error was called, it stops at error.py here, why ???
-        caller = os.path.splitext(os.path.basename(caller_filename))[0]
+            while index < len(frames) - 1 and (caller_filename.endswith("logger.py") or caller_filename.endswith("errors.py")):
+                index += 1
+                caller_filename = frames[index].filename
 
-        # return base message
-        return f"[{caller}.py] {msg}"
+            caller = os.path.splitext(os.path.basename(caller_filename))[0]
+
+            # return base message
+            return f"[{caller}.py] {msg}"
+
+        else:
+            caller = None
+
+            while Tb.trace is not None:
+                caller = Tb.trace.tb_frame.f_code.co_filename
+                Tb.trace = Tb.trace.tb_next
+
+            return f"[{os.path.basename(caller)}] {msg}"
 
     def debug(self, msg: str) -> None:
         """
