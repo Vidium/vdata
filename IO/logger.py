@@ -9,13 +9,14 @@ import logging.config
 import inspect
 from pathlib import Path
 from types import TracebackType
+from typing import Optional
 
 from ..NameUtils import LoggingLevel
 
 
 # ====================================================
 class Tb:
-    trace: TracebackType = None
+    trace: Optional[TracebackType] = None
 
 
 # code
@@ -76,7 +77,7 @@ class _VLogger:
             return f"[{caller}.py] {msg}"
 
         else:
-            caller = None
+            caller = ""
 
             while Tb.trace is not None:
                 caller = Tb.trace.tb_frame.f_code.co_filename

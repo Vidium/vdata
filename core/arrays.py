@@ -180,7 +180,7 @@ class VAxisArray(VBase3DArrayContainer):
         VData.varm['<array_name>'])
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Dict[str, ArrayLike_3D]):
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_3D]]):
         self._axis = axis
         super().__init__(parent, data)
 
@@ -208,7 +208,7 @@ class VLayersArrays(VBase3DArrayContainer):
         VData.layers['<array_name>']
     """
 
-    def __init__(self, parent: "vdata.VData", data: Dict[str, ArrayLike_3D]):
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, ArrayLike_3D]]):
         super().__init__(parent, data)
 
     def __repr__(self) -> str:
@@ -237,7 +237,7 @@ class VPairwiseArray(VBaseArrayContainer):
         VData.obsp['<array_name>']
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Dict[str, ArrayLike_2D]):
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_2D]]):
         self._axis = axis
         super().__init__(parent, data)
 

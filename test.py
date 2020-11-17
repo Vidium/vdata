@@ -18,7 +18,7 @@ obs = pd.DataFrame({"cell_name": ["c1", "c2", "c3", "c4"], "batch": [1, 1, 2, 2]
 obsm = {'umap': np.zeros((1, 4, 2))}
 obsp = {'connect': np.zeros((4, 4))}
 var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]}, index=["a", "b", "c"])
-varm = {}
+varm = None
 varp = {'correlation': np.zeros((3, 3))}
 layers = {'spliced': np.zeros((1, 4, 3))}
 uns = {'color': ["#c1c1c1"]}
