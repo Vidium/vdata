@@ -6,7 +6,8 @@
 # imports
 import abc
 from abc import ABC
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Literal
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any
+from typing_extensions import Literal
 
 from . import vdata
 from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike
