@@ -12,7 +12,7 @@ import numpy as np
 from anndata import AnnData
 from scipy import sparse
 from pathlib import Path
-from typing import Optional, Union, Dict, List, Tuple, Any
+from typing import Optional, Union, Dict, Tuple, Any
 
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
@@ -43,13 +43,13 @@ class VData:
                  log_level: LoggingLevel = "INFO"):
         # disable traceback messages, except if the loggingLevel is set to DEBUG
         def exception_handler(exception_type, exception, traceback, debug_hook=sys.excepthook):
+            Tb.trace = traceback
+
             if log_level == 'DEBUG':
-                Tb.trace = traceback
                 if not issubclass(exception_type, VBaseError):
                     self.logger.uncaught_error(exception)
                 debug_hook(exception_type, exception, traceback)
             else:
-                Tb.trace = traceback
                 if not issubclass(exception_type, VBaseError):
                     self.logger.uncaught_error(exception)
                 else:
@@ -281,11 +281,13 @@ class VData:
                 else:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
                         raise VTypeError(
-                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
+                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, "
+                            f"scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim not in (2, 3):
                         raise VTypeError(
-                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
+                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, "
+                            f"scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim == 2:
                         if isinstance(arr, np.ndarray):
@@ -669,6 +671,7 @@ class VData:
             if self._varp is not None and self.n_var != self._varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
 
+    # TODO : replace this by function for saving to h5 files
     def write(self, file: Union[str, Path]) -> None:
         """
         Save this VData object as pickle object.
@@ -684,3 +687,7 @@ class VData:
 
         with open(file, 'wb') as save_file:
             pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # TODO
+    def write_to_csv(self, file: Union[str, Path]) -> None:
+        pass

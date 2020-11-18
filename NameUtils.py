@@ -7,8 +7,7 @@
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from typing import Union
-from typing_extensions import Literal
+from typing import Union, Literal
 
 # ====================================================
 # types

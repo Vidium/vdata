@@ -19,12 +19,13 @@ from ..core.vdata import VData
 
 # ====================================================
 # code
+# TODO : replace by function for reading h5 files
 def read(file: Union[Path, str]) -> VData:
     """
     Load a pickled VData object.
     Example :
-    >>> import vdata
-    >>> vdata.read("/path/to/file.p")
+    '>>> import vdata
+    '>>> vdata.read("/path/to/file.p")
 
     :param file: path to a saved VData object
     """
@@ -40,6 +41,11 @@ def read(file: Union[Path, str]) -> VData:
         vdata = pickle.load(save_file)
 
     return vdata
+
+
+# TODO
+def read_from_csv():
+    pass
 
 
 def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
