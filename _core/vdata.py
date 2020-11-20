@@ -6,6 +6,7 @@
 # imports
 import sys
 import os
+import h5py
 import pickle
 import pandas as pd
 import numpy as np
@@ -19,7 +20,7 @@ from ..utils import is_in
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
 from .._IO.logger import generalLogger, Tb
-
+from .._IO.write import write_data
 
 # ====================================================
 # code
@@ -657,7 +658,7 @@ class VData:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
 
     # TODO : replace this by function for saving to h5 files
-    def write(self, file: Union[str, Path]) -> None:
+    def write_pickle(self, file: Union[str, Path]) -> None:
         """
         Save this VData object as pickle object.
 
@@ -673,6 +674,36 @@ class VData:
 
         with open(file, 'wb') as save_file:
             pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def write(self, file: Union[str, Path]) -> None:
+        """
+        Save this VData object in HDF5 file format.
+
+        :param file: path to save the VData
+        """
+        # make sure file is a path
+        if not isinstance(file, Path):
+            file = Path(file)
+
+        # make sure the path exists
+        if not os.path.exists(os.path.dirname(file)):
+            os.makedirs(os.path.dirname(file))
+
+        with h5py.File(file, 'w') as save_file:
+            # save layers
+            write_data(self.layers.data, save_file, 'layers')
+            # save obs
+            write_data(self.obs, save_file, 'obs')
+            write_data(self.obsm.data, save_file, 'obsm')
+            write_data(self.obsp.data, save_file, 'obsp')
+            # save var
+            write_data(self.var, save_file, 'var')
+            write_data(self.varm.data, save_file, 'varm')
+            write_data(self.varp.data, save_file, 'varp')
+            # save time points
+            write_data(self.time_points, save_file, 'time_points')
+            # save uns
+            write_data(self.uns, save_file, 'uns')
 
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                      index: bool = True, header: bool = True) -> None:

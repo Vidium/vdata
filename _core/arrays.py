@@ -108,6 +108,14 @@ class VBaseArrayContainer(ABC):
         """
         pass
 
+    @property
+    def data(self) -> Optional[Dict[str, ArrayLike]]:
+        """
+        Data of the Array.
+        :return: name of the array
+        """
+        return self._data
+
     def keys(self) -> Union[Tuple, KeysView]:
         """
         KeysView of keys for getting the array-like objects.
