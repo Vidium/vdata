@@ -123,7 +123,13 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.error(f"[UNCAUGHT] {msg}")
+        last = None
+        while Tb.trace is not None:
+            last = Tb.trace.tb_frame
+            Tb.trace = Tb.trace.tb_next
+
+        # last.f_globals['__package__']
+        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'}] {msg}")
 
     def critical(self, msg: str) -> None:
         """

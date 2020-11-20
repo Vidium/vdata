@@ -288,8 +288,9 @@ class VAxisArray(VBase3DArrayContainer):
                 return None
 
         else:
+            _col_names: Dict[str, Collection] = {}
+
             if col_names is None:
-                _col_names = {}
                 for k, v in self._data.items():
                     _col_names[k] = range(v.shape[2])
                 return _col_names
@@ -302,7 +303,6 @@ class VAxisArray(VBase3DArrayContainer):
                     raise VValueError("'col_names' must be the same as 'data' keys.")
 
                 else:
-                    _col_names = {}
                     for k, v in col_names.items():
                         _col_names[str(k)] = list(v)
                     return _col_names
@@ -332,6 +332,8 @@ class VAxisArray(VBase3DArrayContainer):
         :param arr_name: the name of the array in obsm or varm
         :return: columns for the Array
         """
+        if arr_name is None:
+            raise VValueError("No array-like name supplied.")
         return self._col_names[arr_name] if self._col_names is not None else []
 
 
@@ -411,7 +413,7 @@ class VPairwiseArray(VBaseArrayContainer):
         else:
             return f"Empty VPairwiseArray of {self.name}."
 
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: str, value: ArrayLike_2D) -> None:
         """
         Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
         for obsm and (n_var, n_var) for varm.
@@ -423,6 +425,8 @@ class VPairwiseArray(VBaseArrayContainer):
 
         if value.shape[0] == value.shape[1]:
             if value.shape[0] == shape_parent:
+                if self._data is None:
+                    self._data = {}
                 self._data[key] = value
 
             else:

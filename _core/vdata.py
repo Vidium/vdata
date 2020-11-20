@@ -426,8 +426,6 @@ class VData:
         being converted into custom arrays for maintaining coherence with this VData object.
         :return: Arrays in correct format.
         """
-
-
         df_obs, df_var = None, None
         layers = None
 
@@ -676,7 +674,6 @@ class VData:
         with open(file, 'wb') as save_file:
             pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # TODO
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                      index: bool = True, header: bool = True) -> None:
         """
