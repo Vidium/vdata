@@ -14,7 +14,7 @@ from typing import Union, Optional, Dict, List, cast
 
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, ArrayLike_2D, LoggingLevel
-from ..core.vdata import VData
+from .._core.vdata import VData
 
 
 # ====================================================

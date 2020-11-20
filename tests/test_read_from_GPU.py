@@ -6,7 +6,7 @@
 # imports
 import numpy as np
 
-from .IO.read import read_from_GPU
+from .._IO.read import read_from_GPU
 
 
 # ====================================================

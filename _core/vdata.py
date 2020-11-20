@@ -17,8 +17,8 @@ from typing import Optional, Union, Dict, Tuple, Any
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
-from ..IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError
-from ..IO.logger import generalLogger, Tb
+from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
+from .._IO.logger import generalLogger, Tb
 
 
 # ====================================================
@@ -167,6 +167,18 @@ class VData:
         """
         return self._n_time_points
 
+    @staticmethod
+    def _reshape_to_3D(arr: ArrayLike_2D):
+        """
+        Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
+        """
+        if isinstance(arr, np.ndarray):
+            return np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
+        elif isinstance(arr, pd.DataFrame):
+            return np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
+        else:
+            return arr.reshape((1, arr.shape[0], arr.shape[1]))
+
     @property
     def obs(self) -> pd.DataFrame:
         return self._obs
@@ -211,12 +223,7 @@ class VData:
                         raise VTypeError(f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        if isinstance(arr, np.ndarray):
-                            data[arr_index] = np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
-                        elif isinstance(arr, pd.DataFrame):
-                            data[arr_index] = np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
-                        else:
-                            data[arr_index] = arr.reshape((1, arr.shape[0], arr.shape[1]))
+                        data[arr_index] = self._reshape_to_3D(arr)
 
             self._obsm = VAxisArray(self, 'obs', data)
 
@@ -290,12 +297,7 @@ class VData:
                             f"scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim == 2:
-                        if isinstance(arr, np.ndarray):
-                            data[arr_index] = np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
-                        elif isinstance(arr, pd.DataFrame):
-                            data[arr_index] = np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
-                        else:
-                            data[arr_index] = arr.reshape((1, arr.shape[0], arr.shape[1]))
+                        data[arr_index] = self._reshape_to_3D(arr)
 
             self._varm = VAxisArray(self, 'var', data)
 
@@ -380,12 +382,7 @@ class VData:
                         raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        if isinstance(arr, np.ndarray):
-                            data[arr_index] = np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
-                        elif isinstance(arr, pd.DataFrame):
-                            data[arr_index] = np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
-                        else:
-                            data[arr_index] = arr.reshape((1, arr.shape[0], arr.shape[1]))
+                        data[arr_index] = self._reshape_to_3D(arr)
 
             self._layers = VLayersArrays(self, data)
 
@@ -429,6 +426,8 @@ class VData:
         being converted into custom arrays for maintaining coherence with this VData object.
         :return: Arrays in correct format.
         """
+
+
         df_obs, df_var = None, None
         layers = None
 
@@ -456,10 +455,10 @@ class VData:
 
             # import data from AnnData
             if is_in(data.X, list(data.layers.values())):
-                layers = dict(data.layers.values())
+                layers = dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items())
 
             else:
-                layers = dict({"data": data.X}, **dict(data.layers.values()))
+                layers = dict({"data":  self._reshape_to_3D(data.X)}, **dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items()))
 
             obs, obsm, obsp = data.obs, dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
@@ -479,15 +478,12 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
-                    layers = {"data": np.reshape(np.array(data, dtype=self._dtype), (1, data.shape[0], data.shape[1]))}
+                    layers = {"data": self._reshape_to_3D(np.array(data, dtype=self._dtype))}
 
                 # data is an array
                 elif isinstance(data, (np.ndarray, sparse.spmatrix)):
                     if data.ndim == 2:
-                        if isinstance(data, np.ndarray):
-                            reshaped_data = np.reshape(data, (1, data.shape[0], data.shape[1]))
-                        else:
-                            reshaped_data = data.reshape((1, data.shape[0], data.shape[1]))
+                        reshaped_data = self._reshape_to_3D(data)
 
                         layers = {"data": reshaped_data}
 
@@ -507,10 +503,7 @@ class VData:
                             if nb_time_points > 1:
                                 raise VTypeError(f"Layer '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
 
-                            if isinstance(data, np.ndarray):
-                                value = np.reshape(value, (1, value.shape[0], value.shape[1]))
-                            else:
-                                value = value.reshape((1, value.shape[0], value.shape[1]))
+                            value = self._reshape_to_3D(value)
 
                         layers[str(key)] = value
 
@@ -532,10 +525,7 @@ class VData:
                             if nb_time_points > 1:
                                 raise VTypeError(f"obsm '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
 
-                            if isinstance(value, np.ndarray):
-                                value = np.reshape(value, (1, value.shape[0], value.shape[1]))
-                            else:
-                                value = value.reshape((1, value.shape[0], value.shape[1]))
+                            value = self._reshape_to_3D(value)
 
                         obsm[str(key)] = value
 
@@ -569,10 +559,7 @@ class VData:
                             if nb_time_points > 1:
                                 raise VTypeError(f"varm '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
 
-                            if isinstance(value, np.ndarray):
-                                value = np.reshape(value, (1, value.shape[0], value.shape[1]))
-                            else:
-                                value = value.reshape((1, value.shape[0], value.shape[1]))
+                            value = self._reshape_to_3D(value)
 
                         varm[str(key)] = value
 
@@ -675,6 +662,7 @@ class VData:
     def write(self, file: Union[str, Path]) -> None:
         """
         Save this VData object as pickle object.
+
         :param file: path to save the VData
         """
         # make sure file is a path
@@ -689,5 +677,32 @@ class VData:
             pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     # TODO
-    def write_to_csv(self, file: Union[str, Path]) -> None:
-        pass
+    def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
+                     index: bool = True, header: bool = True) -> None:
+        """
+        Save layers, time_points, obs, obsm, obsp, var, varm and varp to csv files in a directory.
+        3D matrices are converted to 2D matrices with an added "time point" column to keep track of time.
+
+        :param directory: path to a directory for saving the matrices
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        """
+        # make sure directory is a path
+        if not isinstance(directory, Path):
+            directory = Path(directory)
+
+        # make sure the directory exists and is empty
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        if len(os.listdir(directory)):
+            raise VPathError("The directory is not empty.")
+
+        # save matrices
+        self.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
+        self.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
+        self.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
+
+        for dataset in (self.layers, self.obsm, self.obsp, self.varm, self.varp):
+            dataset.to_csv(directory, sep, na_rep, index, header)

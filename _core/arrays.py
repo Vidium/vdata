@@ -4,14 +4,18 @@
 
 # ====================================================
 # imports
+import os
 import abc
+import numpy as np
+import pandas as pd
 from abc import ABC
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any
+from pathlib import Path
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection
 from typing_extensions import Literal
 
 from . import vdata
 from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike
-from ..IO.errors import ShapeError, IncoherenceError
+from .._IO.errors import ShapeError, IncoherenceError, VValueError, VTypeError
 
 
 # ====================================================
@@ -24,6 +28,10 @@ class VBaseArrayContainer(ABC):
     """
 
     def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, ArrayLike]]):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param data: a dictionary of array-like objects to store in this Array
+        """
         self._parent = parent
         self._data = self._check_init_data(data)
 
@@ -84,6 +92,19 @@ class VBaseArrayContainer(ABC):
         The shape of the Array is computed from the shape of the array-like objects it contains.
         See __len__ for getting the number of array-like objects it contains.
         :return: shape of the contained array-like objects.
+        """
+        pass
+
+    @abc.abstractmethod
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True) -> None:
+        """
+        Save the Array in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
         """
         pass
 
@@ -163,6 +184,27 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
 
             return _data
 
+    @abc.abstractmethod
+    def get_idx_names(self) -> Collection:
+        """
+        Get index for the Array :
+            - names of obs for layers and obsm
+            - names of var for varm
+        :return: index for the Array
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_col_names(self, arr_name: Optional[str]) -> Collection:
+        """
+        Get columns for the Array :
+            - names of var for layers
+            - names of the columns for each array-like in obsm and varm
+        :param arr_name: the name of the array in obsm or varm
+        :return: columns for the Array
+        """
+        pass
+
     @property
     def shape(self) -> Tuple[int, int, int]:
         """
@@ -177,6 +219,31 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             s2 = self._parent.n_var if self.name == "layers" else 0
             return self._parent.n_time_points, s1, s2
 
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True) -> None:
+        """
+        Save the Array in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        """
+        # create sub directory for storing arrays
+        os.makedirs(directory / self.name)
+
+        idx = self.get_idx_names()
+
+        for arr_name, arr in self.items():
+            col = self.get_col_names(arr_name)
+            # cast array in 2D
+            arr_2D = arr.reshape((arr.shape[1]*arr.shape[0], arr.shape[2]))
+            # add time point information
+            time_point_col = np.array(np.repeat(self._parent.time_points['value'], arr.shape[1]))
+            arr_2D = np.concatenate((time_point_col[:, None], arr_2D), axis=1)
+            # save array
+            pd.DataFrame(arr_2D, index=pd.Series(np.repeat(idx, self._parent.n_time_points)), columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
 
 class VAxisArray(VBase3DArrayContainer):
     """
@@ -187,9 +254,16 @@ class VAxisArray(VBase3DArrayContainer):
         VData.varm['<array_name>'])
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_3D]]):
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_3D]] = None,
+                 col_names: Optional[Dict[str, Collection]] = None):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param data: a dictionary of array-like objects to store in this Array
+        :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
+        """
         self._axis = axis
         super().__init__(parent, data)
+        self._col_names = self._check_col_names(col_names)
 
     def __repr__(self) -> str:
         if len(self):
@@ -198,6 +272,41 @@ class VAxisArray(VBase3DArrayContainer):
         else:
             return f"Empty VAxisArray of {self.name}."
 
+    def _check_col_names(self, col_names: Optional[Dict[str, Collection]]) -> Optional[Dict[str, Collection]]:
+        """
+        Function for checking that the supplied col names are of the right format :
+            - same keys in 'col_names' as in 'data'
+            - values in col_names are list of names for the columns of the array-like objects in 'data'.
+        :param col_names: dictionary of column names per array-like object in 'data'
+        :return: a properly formatted dictionary of column names per array-like object in 'data'
+        """
+        if self._data is None:
+            if col_names is not None:
+                raise VValueError("Can't set col names if no data is supplied.")
+
+            else:
+                return None
+
+        else:
+            if col_names is None:
+                _col_names = {}
+                for k, v in self._data.items():
+                    _col_names[k] = range(v.shape[2])
+                return _col_names
+
+            else:
+                if not isinstance(col_names, dict):
+                    raise VTypeError("'col_names' must be a dictionary with same keys as 'data' and values as lists of column names for 'data'.")
+
+                elif col_names.keys() != self._data.keys():
+                    raise VValueError("'col_names' must be the same as 'data' keys.")
+
+                else:
+                    _col_names = {}
+                    for k, v in col_names.items():
+                        _col_names[str(k)] = list(v)
+                    return _col_names
+
     @property
     def name(self):
         """
@@ -205,6 +314,25 @@ class VAxisArray(VBase3DArrayContainer):
         :return: name of the array
         """
         return f"{self._axis}m"
+
+    def get_idx_names(self) -> pd.Index:
+        """
+        Get index for the Array :
+            - names of obs for layers and obsm
+            - names of var for varm
+        :return: index for the Array
+        """
+        return getattr(self._parent, self._axis).index
+
+    def get_col_names(self, arr_name: Optional[str]) -> Collection:
+        """
+        Get columns for the Array :
+            - names of var for layers
+            - names of the columns for each array-like in obsm and varm
+        :param arr_name: the name of the array in obsm or varm
+        :return: columns for the Array
+        """
+        return self._col_names[arr_name] if self._col_names is not None else []
 
 
 class VLayersArrays(VBase3DArrayContainer):
@@ -216,6 +344,10 @@ class VLayersArrays(VBase3DArrayContainer):
     """
 
     def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, ArrayLike_3D]]):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param data: a dictionary of array-like objects to store in this Array
+        """
         super().__init__(parent, data)
 
     def __repr__(self) -> str:
@@ -226,12 +358,31 @@ class VLayersArrays(VBase3DArrayContainer):
             return f"Empty VLayersArrays of layers."
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name for the Array : layers.
         :return: name of the array
         """
         return "layers"
+
+    def get_idx_names(self) -> pd.Index:
+        """
+        Get index for the Array :
+            - names of obs for layers and obsm
+            - names of var for varm
+        :return: index for the Array
+        """
+        return self._parent.obs.index
+
+    def get_col_names(self, arr_name: Optional[str]) -> pd.Index:
+        """
+        Get columns for the Array :
+            - names of var for layers
+            - names of the columns for each array-like in obsm and varm
+        :param arr_name: the name of the array in obsm or varm
+        :return: columns for the Array
+        """
+        return self._parent.var.index
 
 
 class VPairwiseArray(VBaseArrayContainer):
@@ -244,7 +395,12 @@ class VPairwiseArray(VBaseArrayContainer):
         VData.obsp['<array_name>']
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_2D]]):
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, ArrayLike_2D]]):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param axis: the axis this Array must conform to (obs or var)
+        :param data: a dictionary of array-like objects to store in this Array
+        """
         self._axis = axis
         super().__init__(parent, data)
 
@@ -255,7 +411,7 @@ class VPairwiseArray(VBaseArrayContainer):
         else:
             return f"Empty VPairwiseArray of {self.name}."
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         """
         Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
         for obsm and (n_var, n_var) for varm.
@@ -303,7 +459,7 @@ class VPairwiseArray(VBaseArrayContainer):
             return _data
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name for the Array, either obsp or varp.
         :return: name of the array
@@ -322,3 +478,21 @@ class VPairwiseArray(VBaseArrayContainer):
 
         else:
             return (self._parent.n_obs, self._parent.n_obs) if self._axis == "obs" else (self._parent.n_var, self._parent.n_var)
+
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True) -> None:
+        """
+        Save the Array in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        """
+        # create sub directory for storing arrays
+        os.makedirs(directory / self.name)
+
+        idx = getattr(self._parent, self._axis).index
+
+        for arr_name, arr in self.items():
+            pd.DataFrame(arr, index=idx, columns=idx).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)

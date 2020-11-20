@@ -48,3 +48,10 @@ class IncoherenceError(VBaseError):
     Custom error for incoherent data formats.
     """
     pass
+
+
+class VPathError(VBaseError):
+    """
+    Custom error for path errors.
+    """
+    pass
