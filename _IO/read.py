@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import os
+import h5py
 import pickle
 import pandas as pd
 import numpy as np
@@ -20,7 +21,7 @@ from .._core.vdata import VData
 # ====================================================
 # code
 # TODO : replace by function for reading h5 files
-def read(file: Union[Path, str]) -> VData:
+def read_pickle(file: Union[Path, str]) -> VData:
     """
     Load a pickled VData object.
     Example :
@@ -43,8 +44,32 @@ def read(file: Union[Path, str]) -> VData:
     return vdata
 
 
+def read(file: Union[Path, str]) -> VData:
+    """
+    TODO
+    """
+    # make sure file is a path
+    if not isinstance(file, Path):
+        file = Path(file)
+
+    # make sure the path exists
+    if not os.path.exists(file):
+        raise VValueError(f"The path {file} does not exist.")
+
+    # import data from file
+    with h5py.File(file, "r") as importFile:
+        keys = [k for k in importFile.keys()]
+
+        print(keys)
+
+    return VData()
+
+
 # TODO
-def read_from_csv():
+def read_from_csv(directory: Union[Path, str]) -> VData:
+    """
+    TODO
+    """
     pass
 
 

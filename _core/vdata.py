@@ -41,7 +41,7 @@ class VData:
                  time_points: Optional[pd.DataFrame] = None,
                  uns: Optional[Dict] = None,
                  dtype: DType = np.float32,
-                 log_level: LoggingLevel = "INFO"):
+                 log_level: LoggingLevel = "WARNING"):
         # disable traceback messages, except if the loggingLevel is set to DEBUG
         def exception_handler(exception_type, exception, traceback, debug_hook=sys.excepthook):
             Tb.trace = traceback
@@ -438,8 +438,11 @@ class VData:
             self._dtype = DTypes[self._dtype]
 
         # time_points
-        if time_points is not None and not isinstance(time_points, pd.DataFrame):
-            raise VTypeError("'time points' must be a pandas DataFrame.")
+        if time_points is not None:
+            if not isinstance(time_points, pd.DataFrame):
+                raise VTypeError("'time points' must be a pandas DataFrame.")
+            else:
+                time_points = self._check_df_types(time_points)
 
         nb_time_points = 1 if time_points is None else len(time_points)
 
@@ -507,8 +510,11 @@ class VData:
                         layers[str(key)] = value
 
             # obs
-            if obs is not None and not isinstance(obs, pd.DataFrame):
-                raise VTypeError("obs must be a pandas DataFrame.")
+            if obs is not None:
+                if not isinstance(obs, pd.DataFrame):
+                    raise VTypeError("obs must be a pandas DataFrame.")
+                else:
+                    obs = self._check_df_types(obs)
 
             # obsm
             if obsm is not None:
@@ -541,8 +547,11 @@ class VData:
                     raise VTypeError("obsp must be a dictionary of 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
             # var
-            if var is not None and not isinstance(var, pd.DataFrame):
-                raise VTypeError("var must be a pandas DataFrame.")
+            if var is not None:
+                if not isinstance(var, pd.DataFrame):
+                    raise VTypeError("var must be a pandas DataFrame.")
+                else:
+                    var = self._check_df_types(var)
 
             # varm
             if varm is not None:
@@ -593,6 +602,25 @@ class VData:
         self._time_points = time_points
 
         return layers, obsm, obsp, varm, varp, df_obs, df_var
+
+    def _check_df_types(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Function for coercing data types of the columns and of the index in a pandas DataFrame.
+        """
+        # check index : convert to correct dtype if it is not a string type
+        try:
+            df.index.astype(self._dtype)
+        except TypeError:
+            df.index.astype(np.dtype('O'))
+
+        # check columns : convert to correct dtype if it is not a string type
+        for col_name in df.columns:
+            try:
+                df[col_name].astype(self._dtype)
+            except ValueError:
+                df[col_name].astype(np.dtype('O'))
+
+        return df
 
     def _init_data(self, df_obs: Optional[pd.Index], df_var: Optional[pd.Index]) -> None:
         """
