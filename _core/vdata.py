@@ -22,6 +22,7 @@ from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, 
 from .._IO.logger import generalLogger, Tb
 from .._IO.write import write_data
 
+
 # ====================================================
 # code
 class VData:
@@ -29,7 +30,7 @@ class VData:
     A VData object stores data points in matrices of observations x variables in the same way as the AnnData object,
     but also accounts for the time information. The 2D matrices in AnnData are replaced by 3D matrices here.
     """
-
+    # TODO : add support for backed data on .h5 file
     def __init__(self,
                  data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]] = None,
                  obs: Optional[pd.DataFrame] = None,
@@ -67,6 +68,7 @@ class VData:
             self.logger.set_level(log_level)
 
         self._dtype = dtype
+        self._log_level = log_level
 
         self._obs = None
         self._var = None
@@ -79,26 +81,35 @@ class VData:
         # set number of obs and vars from available data
         self._n_obs, self._n_vars, self._n_time_points = 0, 0, 0
 
+        # if 'layers' is set, get all sizes from there
         if _layers is not None:
             self._n_time_points, self._n_obs, self._n_vars = list(_layers.values())[0].shape
-        elif self._obs is not None:
-            self._n_obs = self._obs.shape[0]
-        elif _obsm is not None:
-            self._n_obs = list(_obsm.values())[0].shape[0]
-        elif _obsp is not None:
-            self._n_obs = list(_obsp.values())[0].shape[0]
-        elif df_obs is not None:
-            self._n_obs = df_obs.shape[0]
-        elif self._var is not None:
-            self._n_vars = self._var.shape[0]
-        elif _varm is not None:
-            self._n_vars = list(_varm.values())[0].shape[0]
-        elif _varp is not None:
-            self._n_vars = list(_varp.values())[0].shape[0]
-        elif df_var is not None:
-            self._n_vars = df_var.shape[0]
-        elif self._time_points is not None:
-            self._n_time_points = len(self._time_points)
+
+        # otherwise, check other arrays to get the sizes
+        else:
+            # set obs size
+            if self._obs is not None:
+                self._n_obs = self._obs.shape[0]
+            elif _obsm is not None:
+                self._n_obs = list(_obsm.values())[0].shape[0]
+            elif _obsp is not None:
+                self._n_obs = list(_obsp.values())[0].shape[0]
+            elif df_obs is not None:
+                self._n_obs = df_obs.shape[0]
+
+            # set var size
+            if self._var is not None:
+                self._n_vars = self._var.shape[0]
+            elif _varm is not None:
+                self._n_vars = list(_varm.values())[0].shape[0]
+            elif _varp is not None:
+                self._n_vars = list(_varp.values())[0].shape[0]
+            elif df_var is not None:
+                self._n_vars = df_var.shape[0]
+
+            # set time_points size
+            if self._time_points is not None:
+                self._n_time_points = len(self._time_points)
 
         # create arrays linked to VData
         self._layers = VLayersArrays(self, data=_layers)
@@ -116,14 +127,14 @@ class VData:
         :return: a description of this Vdata object
         """
         if self.is_empty:
-            repr_str = f"Empty Vdata object ({self.n_obs} obs x {self.n_var} vars)."
+            repr_str = f"Empty Vdata object ({self.n_obs} obs x {self.n_var} vars over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''})."
         else:
             repr_str = f"Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''}"
 
-            for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
-                keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
-                if len(keys) > 0:
-                    repr_str += f"\n    {attr}: {str(list(keys))[1:-1]}"
+        for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
+            keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
+            if len(keys) > 0:
+                repr_str += f"\n    {attr}: {str(list(keys))[1:-1]}"
 
         return repr_str
 
@@ -133,7 +144,7 @@ class VData:
         Is this Vdata object empty ? (no obs or no vars)
         :return: Vdata empty ?
         """
-        return True if self.n_obs == 0 or self.n_var == 0 else False
+        return True if self.n_obs == 0 or self.n_var == 0 or self.n_time_points == 0 else False
 
     @property
     def n_obs(self) -> int:
@@ -633,7 +644,7 @@ class VData:
         if self._time_points is not None:
             for attr in ('layers', 'obsm', 'varm'):
                 dataset = getattr(self, attr)
-                if dataset is not None:
+                if len(dataset):
                     if len(self._time_points) != dataset.shape[0]:
                         raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but {len(self._time_points)} {'was' if len(self._time_points) == 1 else 'were'} given.")
 
@@ -684,8 +695,9 @@ class VData:
 
             if self._varp is not None and self.n_var != self._varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
+    # --------------------------------------------------------------------
 
-    # TODO : replace this by function for saving to h5 files
+    # TODO : deprecated, remove
     def write_pickle(self, file: Union[str, Path]) -> None:
         """
         Save this VData object as pickle object.
@@ -732,6 +744,9 @@ class VData:
             write_data(self.time_points, save_file, 'time_points')
             # save uns
             write_data(self.uns, save_file, 'uns')
+            # save descriptive data about the VData object
+            write_data(self._dtype, save_file, 'dtype')
+            write_data(self._log_level, save_file, 'log_level')
 
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                      index: bool = True, header: bool = True) -> None:

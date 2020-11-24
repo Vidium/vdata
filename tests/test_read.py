@@ -9,5 +9,5 @@ from .._IO.read import read
 
 # ====================================================
 # code
-vdata = read("/home/matteo/Desktop/vdata.h5")
+vdata = read("/home/matteo/Desktop/vdata.h5", log_level='DEBUG')
 print(vdata)

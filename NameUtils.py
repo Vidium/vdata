@@ -4,6 +4,7 @@
 
 # ====================================================
 # imports
+import h5py
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -25,7 +26,7 @@ DTypes = {int: int,
           float: float,
           "float": np.float32,
           "float16": np.float16,
-          "float34": np.float32,
+          "float32": np.float32,
           "float64": np.float64,
           "float128": np.float128,
           np.int: np.int64,
@@ -41,7 +42,9 @@ DTypes = {int: int,
           np.float64: np.float64,
           np.float128: np.float128}
 
-DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64", "float128"], int, float, np.dtype]
+DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64", "float128"], int, float, np.int_, np.float_]
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+H5Group = Union[h5py.File, h5py.Group, h5py.Dataset]

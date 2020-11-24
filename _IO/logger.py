@@ -33,14 +33,12 @@ class _VLogger:
     The default minimal level for logging is <INFO>.
     """
 
-    def __init__(self, logger_level: LoggingLevel = "INFO"):
+    def __init__(self, logger_level: LoggingLevel = "WARNING"):
         """
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
-        self.log_level = logger_level
-
         # load configuration from logging.conf
-        logging.config.fileConfig(Path(os.path.dirname(__file__)) / "logger.conf", defaults={'log_level': self.log_level})
+        logging.config.fileConfig(Path(os.path.dirname(__file__)) / "logger.conf", defaults={'log_level': logger_level})
 
         # get logger
         self.logger = logging.getLogger('root.vlogger')
@@ -51,6 +49,8 @@ class _VLogger:
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         self.logger.setLevel(logger_level)
+        for handler in self.logger.handlers:
+            handler.setLevel(logger_level)
 
     @staticmethod
     def _getBaseMsg(msg: str) -> str:
@@ -60,6 +60,8 @@ class _VLogger:
         :param msg: the message to be logged
         :return: the formatted message
         """
+        # TODO : add error type to the message [file.py - VValueError]
+
         # Get the name of the file that called the logger for displaying where the message came from
         if Tb.trace is None:
             frames = inspect.stack(0)
