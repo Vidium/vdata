@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from scipy import sparse
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast
+from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable
 
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
@@ -191,7 +191,7 @@ class H5GroupReader:
         """
         self.group = group
 
-    def __getitem__(self, key: Union[str, slice]) -> Union['H5GroupReader', np.ndarray]:
+    def __getitem__(self, key: Union[str, slice, ellipsis]) -> Union['H5GroupReader', np.ndarray]:
         """
         Get a sub-group from the group, identified by a key
 
@@ -289,11 +289,14 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None, log_level: Optio
     if not os.path.exists(file):
         raise VValueError(f"The path {file} does not exist.")
 
-    data: Dict[str, Optional[Union[ArrayLike, Dict]]] = {'layers': None,
-                                                         'obs': None, 'obsm': None, 'obsp': None,
-                                                         'var': None, 'varm': None, 'varp': None,
-                                                         'time_points': None,
-                                                         'uns': None}
+    data_dfs: Dict[str, Optional[pd.DataFrame]] = {'obs': None,
+                                                   'var': None,
+                                                   'time_points': None}
+
+    data_arrays: Dict[str, Optional[Dict[str, ArrayLike]]] = {'layers': None,
+                                                              'obsm': None, 'obsp': None,
+                                                              'varm': None, 'varp': None}
+    uns: Optional[Dict] = None
 
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:
@@ -301,31 +304,37 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None, log_level: Optio
             generalLogger.info(f"reading {key}")
 
             if key in ("obs", "var", "time_points"):
-                data[key] = read_h5_dataframe(importFile[key])
-                generalLogger.debug(spacer + "\n" + str(data[key]))
+                data_dfs[key] = read_h5_dataframe(importFile[key])
+                generalLogger.debug(spacer + "\n" + str(data_dfs[key]))
 
             elif key in ('layers', 'obsm', 'obsp', 'varm', 'varp'):
-                data[key] = {}
+                data_arrays[key] = {}
                 for dataset_key in importFile[key].keys():
-                    data[key][dataset_key] = read_h5_array(importFile[key][dataset_key])
-                generalLogger.debug(spacer + "\n" + str(data[key]))
+                    data_arrays[key] = {dataset_key: read_h5_array(importFile[key][dataset_key])}
+                generalLogger.debug(spacer + "\n" + str(data_arrays[key]))
 
             elif key == 'uns':
-                data['uns'] = read_h5_dict(importFile[key])
-                generalLogger.debug(spacer + "\n" + str(data['uns']))
+                uns = read_h5_dict(importFile[key])
+                generalLogger.debug(spacer + "\n" + str(uns))
 
             elif key == 'dtype':
                 dtype = DTypes[str(importFile[key][...])]
                 generalLogger.debug(spacer + str(dtype))
 
             elif key == 'log_level':
-                log_level = str(importFile[key][...])
-                generalLogger.debug(spacer + log_level)
+                log_level = importFile[key][...]
+                generalLogger.debug(spacer + str(log_level))
 
             else:
                 generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    return VData(data['layers'], data['obs'], data['obsm'], data['obsp'], data['var'], data['varm'], data['varp'], data['time_points'], data['uns'], dtype, log_level)
+    if log_level is None:
+        log_level = "WARNING"
+
+    return VData(data_arrays['layers'],
+                 data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
+                 data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
+                 data_dfs['time_points'], uns, dtype, log_level)
 
 
 def read_h5_dict(group: H5GroupReader) -> Dict:
@@ -334,12 +343,12 @@ def read_h5_dict(group: H5GroupReader) -> Dict:
 
     :param group: a H5GroupReader from which to read a dictionary
     """
-    func_ = {'dict': read_h5_dict,
-             'DF': read_h5_dataframe,
-             'series': read_h5_series,
-             'array': read_h5_array,
-             'value': read_h5_value,
-             'type': read_h5_value}
+    func_: Dict[str, Callable] = {'dict': read_h5_dict,
+                                  'DF': read_h5_dataframe,
+                                  'series': read_h5_series,
+                                  'array': read_h5_array,
+                                  'value': read_h5_value,
+                                  'type': read_h5_value}
 
     data = {}
 
@@ -404,11 +413,15 @@ def read_h5_array(group: H5GroupReader) -> np.ndarray:
     """
     arr = group[:]
 
-    # fix string arrays (object type to strings)
-    if arr.dtype.type is np.object_:
-        return arr.astype(np.str_)
+    if isinstance(arr, np.ndarray):
+        # fix string arrays (object type to strings)
+        if arr.dtype.type is np.object_:
+            return arr.astype(np.str_)
 
-    return arr
+        return arr
+
+    else:
+        raise VTypeError("Group is not an array.")
 
 
 def read_h5_value(group: H5GroupReader) -> Union[str, int, float, bool, type]:
@@ -418,5 +431,4 @@ def read_h5_value(group: H5GroupReader) -> Union[str, int, float, bool, type]:
 
     :param group: a H5GroupReader from which to read an array
     """
-    print(group[...], type(group[...]))
     return cast(Union[str, int, float, bool, type], group[...])
