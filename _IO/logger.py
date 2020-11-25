@@ -63,7 +63,6 @@ class _VLogger:
         :param msg: the message to be logged
         :return: the formatted message
         """
-        # TODO : add error type to the message [file.py - VValueError]
 
         # Get the name of the file that called the logger for displaying where the message came from
         if Tb.trace is None:

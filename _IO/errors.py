@@ -55,3 +55,10 @@ class VPathError(VBaseError):
     Custom error for path errors.
     """
     pass
+
+
+class VAttributeError(VBaseError):
+    """
+    Custom error for attribute errors.
+    """
+    pass

@@ -11,5 +11,4 @@ from .._IO.errors import VTypeError
 # ====================================================
 # code
 vdata = read_from_csv("/home/matteo/Desktop/vdata", log_level='DEBUG')
-raise ValueError('test')
 print(vdata)

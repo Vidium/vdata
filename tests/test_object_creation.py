@@ -28,12 +28,10 @@ time_points = pd.DataFrame({"value": [5], "unit": ["hour"]})
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, var=var, varm=varm, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
 print(a)
 
-a.obsm = {"test": np.zeros((1, 4, 2))}
-a.layers = {"spliced": np.array((8, 8))}
-
-print(a)
-print(a.layers)
+print(a.dtype)
+print(a.layers['data'].dtype)
+a.dtype = np.int32
+print(a.dtype)
+print(a.layers['data'].dtype)
 
 # a._varm['test'] = np.zeros((2, 2, 2))
-
-# a.write("/home/matteo/Desktop/test.p")

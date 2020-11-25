@@ -14,8 +14,8 @@ from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
 from typing_extensions import Literal
 
 from . import vdata
-from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike
-from .._IO.errors import ShapeError, IncoherenceError, VValueError, VTypeError
+from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike, DType
+from .._IO.errors import ShapeError, IncoherenceError, VValueError, VTypeError, VAttributeError
 
 
 # ====================================================
@@ -49,7 +49,7 @@ class VBaseArrayContainer(ABC):
             return self._data[item]
 
         else:
-            raise AttributeError(f"{self.name} array has no attribute '{item}'")
+            raise VAttributeError(f"{self.name} array has no attribute '{item}'")
 
     @abc.abstractmethod
     def __setitem__(self, key: str, value: ArrayLike) -> None:
@@ -75,6 +75,15 @@ class VBaseArrayContainer(ABC):
         :return: dictionary of array-like objects
         """
         pass
+
+    def update_dtype(self, type_: DType) -> None:
+        """
+        Function for updating the data type of array-like objects contained in the Array.
+        :param type_: the new data type
+        """
+        if self._data is not None:
+            for arr_name, arr in self._data.items():
+                self._data[arr_name] = arr.astype(type_)
 
     @property
     @abc.abstractmethod
@@ -185,10 +194,10 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
                         raise IncoherenceError(f"{self.name} '{array_index}' has  {array.shape[2]} variables, should have {_shape[2]}.")
 
                     else:
-                        _data[str(array_index)] = array
+                        _data[str(array_index)] = array.astype(self._parent.dtype)
 
                 else:
-                    _data[str(array_index)] = array
+                    _data[str(array_index)] = array.astype(self._parent.dtype)
 
             return _data
 
@@ -466,7 +475,7 @@ class VPairwiseArray(VBaseArrayContainer):
                     raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape {array.shape}, it should have shape ({shape_parent}, {shape_parent})")
 
                 else:
-                    _data[str(array_index)] = array
+                    _data[str(array_index)] = array.astype(self._parent.dtype)
 
             return _data
 

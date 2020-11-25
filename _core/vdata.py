@@ -398,6 +398,35 @@ class VData:
 
             self._layers = VLayersArrays(self, data)
 
+    # special ------------------------------------------------------------
+    @property
+    def dtype(self) -> DType:
+        return self._dtype
+
+    @dtype.setter
+    def dtype(self, type_: DType) -> None:
+        self._dtype = type_
+        # update dtype of linked Arrays
+        self.layers.update_dtype(type_)
+        self.obsm.update_dtype(type_)
+        self.obsp.update_dtype(type_)
+        self.varm.update_dtype(type_)
+        self.varp.update_dtype(type_)
+
+        self.logger.info(f"Set type {type_} for VData object.")
+
+    @property
+    def log_level(self) -> LoggingLevel:
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, level: LoggingLevel) -> None:
+        self._log_level = level
+        # update logger's level
+        self.logger.set_level(level)
+
+        self.logger.info(f"Set level '{level}' for vdata logger.")
+
     # aliases ------------------------------------------------------------
     @property
     def cells(self) -> pd.DataFrame:
@@ -441,7 +470,6 @@ class VData:
         df_obs, df_var = None, None
         layers = None
 
-        # TODO : propagate dtype to obsm, obsp, layers, varm, varp
         # first, check dtype is correct because it will be needed right away
         if self._dtype not in DTypes.keys():
             raise VTypeError(f"Incorrect data type '{self._dtype}', should be in {list(DTypes.keys())}")
