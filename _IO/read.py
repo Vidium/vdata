@@ -6,7 +6,6 @@
 # imports
 import os
 import h5py
-import pickle
 import pandas as pd
 import numpy as np
 from scipy import sparse
@@ -23,37 +22,75 @@ spacer = "  " + u'\u21B3' + " "
 
 # ====================================================
 # code
-# TODO : deprecated, remove
-def read_pickle(file: Union[Path, str]) -> VData:
+# CSV file format ---------------------------------------------------------------------------------
+def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_level: LoggingLevel = 'WARNING') -> VData:
     """
-    Load a pickled VData object.
-    Example :
-    '>>> import vdata
-    '>>> vdata.read("/path/to/file.p")
+    Function for reading data from csv datasets and building a VData object.
 
-    :param file: path to a saved VData object
+    :param directory: a path to a directory containing csv datasets.
+        The directory should have the format, for any combination of the following datasets :
+            ⊦ layers
+                ⊦ <...>.csv
+            ⊦ obsm
+                ⊦ <...>.csv
+            ⊦ obsp
+                ⊦ <...>.csv
+            ⊦ varm
+                ⊦ <...>.csv
+            ⊦ varp
+                ⊦ <...>.csv
+            ⊦ obs.csv
+            ⊦ time_points.csv
+            ⊦ var.csv
+    :param dtype: data type to force on the newly built VData object.
+    :param log_level: logger level to force on the newly built VData object.
     """
-    # make sure file is a path
-    if not isinstance(file, Path):
-        file = Path(file)
+    generalLogger.set_level(log_level)
+
+    # make sure directory is a path
+    if not isinstance(directory, Path):
+        directory = Path(directory)
 
     # make sure the path exists
-    if not os.path.exists(file):
-        raise VValueError(f"The path {file} does not exist.")
+    if not os.path.exists(directory):
+        raise VValueError(f"The path {directory} does not exist.")
 
-    with open(file, 'rb') as save_file:
-        vdata = pickle.load(save_file)
+    data_dfs: Dict[str, Optional[pd.DataFrame]] = {'obs': None,
+                                                   'var': None,
+                                                   'time_points': None}
 
-    return vdata
+    data_arrays: Dict[str, Optional[Dict[str, ArrayLike]]] = {'layers': None,
+                                                              'obsm': None, 'obsp': None,
+                                                              'varm': None, 'varp': None}
 
+    # import the data
+    for f in os.listdir(directory):
+        generalLogger.info(f"reading {f}")
 
-# CSV file format ---------------------------------------------------------------------------------
-# TODO
-def read_from_csv(directory: Union[Path, str]) -> VData:
-    """
-    TODO
-    """
-    pass
+        if f.endswith('.csv'):
+            data_dfs[f[:-4]] = pd.read_csv(directory / f, index_col=0)
+
+        else:
+            dataset_dict = {}
+            for dataset in os.listdir(directory / f):
+                generalLogger.debug(f"{spacer} {dataset}")
+                # load csv as pandas DataFrame
+                df = pd.read_csv(directory / f / dataset, index_col=0)
+                if f in ('layers', 'obsm', 'varm'):
+                    # convert DataFrame to 3D array
+                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1) for i in pd.Categorical(df.Time_point).categories])
+                else:
+                    # convert DataFrame to 2D array
+                    arr = np.array(df)
+
+                dataset_dict[dataset[:-4]] = arr
+
+            data_arrays[f] = dataset_dict
+
+    return VData(data_arrays['layers'],
+                 data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
+                 data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
+                 data_dfs['time_points'], dtype=dtype, log_level=log_level)
 
 
 # GPU output --------------------------------------------------------------------------------------
@@ -191,7 +228,7 @@ class H5GroupReader:
         """
         self.group = group
 
-    def __getitem__(self, key: Union[str, slice, ellipsis]) -> Union['H5GroupReader', np.ndarray]:
+    def __getitem__(self, key: Union[str, slice, 'ellipsis']) -> Union['H5GroupReader', np.ndarray]:
         """
         Get a sub-group from the group, identified by a key
 

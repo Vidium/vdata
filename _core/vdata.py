@@ -662,13 +662,6 @@ class VData:
             if not self._var.index.equals(df_var):
                 raise VValueError("Columns in dataFrame 'data' does not match 'var''s index.")
 
-        # TODO : do we ALWAYS want to have obs/var for setting obsm/varm and obsp/varp ?
-        # if self.obs is None and (self.obsm is not None or self.obsp is not None):
-        #     raise NotEnoughDataError("obs data was not supplied but obsm or obsp were.")
-        #
-        # if self.var is None and (self.varm is not None or self.varp is not None):
-        #     raise NotEnoughDataError("var data was not supplied but varm or varp were.")
-
         # check coherence between layers, obs, var and time points
         if self._layers is not None:
             for layer_name, layer in self._layers.items():
@@ -696,24 +689,6 @@ class VData:
             if self._varp is not None and self.n_var != self._varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
     # --------------------------------------------------------------------
-
-    # TODO : deprecated, remove
-    def write_pickle(self, file: Union[str, Path]) -> None:
-        """
-        Save this VData object as pickle object.
-
-        :param file: path to save the VData
-        """
-        # make sure file is a path
-        if not isinstance(file, Path):
-            file = Path(file)
-
-        # make sure the path exists
-        if not os.path.exists(os.path.dirname(file)):
-            raise VValueError(f"The path {os.path.dirname(file)} does not exist.")
-
-        with open(file, 'wb') as save_file:
-            pickle.dump(self, save_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def write(self, file: Union[str, Path]) -> None:
         """

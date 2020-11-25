@@ -4,10 +4,10 @@
 
 # ====================================================
 # imports
-from .._IO.read import read
+from .._IO.read import read_from_csv
 
 
 # ====================================================
 # code
-vdata = read("/home/matteo/Desktop/vdata.h5", log_level='DEBUG')
+vdata = read_from_csv("/home/matteo/Desktop/vdata", log_level='DEBUG')
 print(vdata)

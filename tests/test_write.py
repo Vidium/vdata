@@ -30,4 +30,4 @@ time_points = pd.DataFrame({"value": [5], "unit": ["hour"]})
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
 print(a)
 
-a.write("/home/matteo/Desktop/vdata.h5")
+a.write_to_csv("/home/matteo/Desktop/vdata")
