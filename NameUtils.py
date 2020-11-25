@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from typing import Union
+from typing import Union, Sequence
 from typing_extensions import Literal
 
 # ====================================================
@@ -48,3 +48,6 @@ LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 H5Group = Union[h5py.File, h5py.Group, h5py.Dataset]
+
+Slicer = Union[Sequence[Union[int, float, str]], range]
+PreSlicer = Union[int, float, str, Slicer, slice, 'ellipsis', range]

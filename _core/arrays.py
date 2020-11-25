@@ -372,7 +372,7 @@ class VLayersArrays(VBase3DArrayContainer):
     def __repr__(self) -> str:
         if len(self):
             list_of_keys = "'" + "','".join(self.keys()) + "'"
-            return f"VLayersArrays of layers with keys : {list_of_keys}."
+            return f"VLayersArrays with keys : {list_of_keys}."
         else:
             return f"Empty VLayersArrays of layers."
 

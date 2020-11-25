@@ -12,11 +12,13 @@ import numpy as np
 from anndata import AnnData
 from scipy import sparse
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, Any
+from builtins import Ellipsis
+from typing import Optional, Union, Dict, Tuple, Any, Sequence
 
+from . import view
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
-from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
+from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
 from .._IO.logger import generalLogger, Tb, original_excepthook
 from .._IO.write import write_data
@@ -138,6 +140,30 @@ class VData:
 
         return repr_str
 
+    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'view.ViewVData':
+        """
+        TODO + typing
+        """
+        obs_slicer = None
+        var_slicer = None
+        time_points_slicer = None
+
+        if isinstance(index, (int, float)):
+            obs_slicer = slice(index, index+1)
+            var_slicer = ...
+            time_points_slicer = ...
+
+        elif isinstance(index, type(Ellipsis)):
+            pass
+
+        return view.ViewVData(self, obs_slicer, var_slicer, time_points_slicer)
+
+    def __setitem__(self, key, value):
+        """
+        TODO + typing
+        """
+        print(key, value)
+
     @property
     def is_empty(self) -> bool:
         """
@@ -178,6 +204,13 @@ class VData:
         :return: VData's number of time points
         """
         return self._n_time_points
+
+    def shape(self) -> Tuple[int, int, int]:
+        """
+        Shape of this VData object.
+        :return: VData's shape
+        """
+        return self.n_time_points, self.n_obs, self.n_var
 
     @staticmethod
     def _reshape_to_3D(arr: ArrayLike_2D):
@@ -444,13 +477,6 @@ class VData:
     def genes(self, df: pd.DataFrame) -> None:
         self.var = df
     # --------------------------------------------------------------------
-
-    def shape(self) -> Tuple[int, int, int]:
-        """
-        Shape of this VData object.
-        :return: VData's shape
-        """
-        return self.n_time_points, self.n_obs, self.n_var
 
     def _check_formats(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]],
                        obs: Optional[pd.DataFrame], obsm: Optional[Dict[Any, ArrayLike]], obsp: Optional[Dict[Any, ArrayLike]],
