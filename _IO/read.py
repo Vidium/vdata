@@ -145,7 +145,7 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
 
             check_tp = True
 
-            _data[data_type] = np.array([matrix for matrix in TP_matrices.values()])
+            _data[data_type] = np.array([matrix.values for matrix in TP_matrices.values()])
 
         # if time points not given, try to guess them
         if time_points is None:

@@ -7,7 +7,6 @@
 import sys
 import os
 import h5py
-import pickle
 import pandas as pd
 import numpy as np
 from anndata import AnnData
@@ -19,7 +18,7 @@ from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
-from .._IO.logger import generalLogger, Tb
+from .._IO.logger import generalLogger, Tb, original_excepthook
 from .._IO.write import write_data
 
 
@@ -44,8 +43,9 @@ class VData:
                  dtype: DType = np.float32,
                  log_level: LoggingLevel = "WARNING"):
         # disable traceback messages, except if the loggingLevel is set to DEBUG
-        def exception_handler(exception_type, exception, traceback, debug_hook=sys.excepthook):
+        def exception_handler(exception_type, exception, traceback, debug_hook=original_excepthook):
             Tb.trace = traceback
+            Tb.exception = exception_type
 
             if log_level == 'DEBUG':
                 if not issubclass(exception_type, VBaseError):

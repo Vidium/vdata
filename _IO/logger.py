@@ -5,18 +5,21 @@
 # ====================================================
 # imports
 import os
+import sys
 import logging.config
 import inspect
 from pathlib import Path
 from types import TracebackType
-from typing import Optional
+from typing import Optional, Type
 
+from . import errors
 from ..NameUtils import LoggingLevel
 
 
 # ====================================================
 class Tb:
     trace: Optional[TracebackType] = None
+    exception: Type[BaseException] = BaseException
 
 
 # code
@@ -85,7 +88,7 @@ class _VLogger:
                 caller = Tb.trace.tb_frame.f_code.co_filename
                 Tb.trace = Tb.trace.tb_next
 
-            return f"[{os.path.basename(caller)}] {msg}"
+            return f"[{os.path.basename(caller)} : {Tb.exception.__name__}] {msg}"
 
     def debug(self, msg: str) -> None:
         """
@@ -118,6 +121,7 @@ class _VLogger:
         :param msg: the message to be logged
         """
         self.logger.error(self._getBaseMsg(msg))
+        quit()
 
     def uncaught_error(self, msg: str) -> None:
         """
@@ -131,7 +135,7 @@ class _VLogger:
             Tb.trace = Tb.trace.tb_next
 
         # last.f_globals['__package__']
-        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'}] {msg}")
+        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} : {Tb.exception.__name__}] {msg}")
 
     def critical(self, msg: str) -> None:
         """
@@ -143,3 +147,19 @@ class _VLogger:
 
 
 generalLogger = _VLogger()
+
+
+# basic definition of the excepthook for proper behavior of the logger
+# this will be updated by vdata.py as soon as the user creates a VData (and sets a logger level)
+def exception_handler(exception_type, exception, traceback):
+    Tb.trace = traceback
+    Tb.exception = exception_type
+
+    if not issubclass(exception_type, errors.VBaseError):
+        generalLogger.uncaught_error(exception)
+    else:
+        print(exception)
+
+
+original_excepthook = sys.excepthook
+sys.excepthook = exception_handler
