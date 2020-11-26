@@ -125,21 +125,21 @@ class VBaseArrayContainer(ABC):
         """
         return self._data
 
-    def keys(self) -> Union[Tuple, KeysView]:
+    def keys(self) -> Union[Tuple[()], KeysView]:
         """
         KeysView of keys for getting the array-like objects.
         :return: KeysView of this Array.
         """
         return self._data.keys() if self._data is not None else ()
 
-    def values(self) -> Union[Tuple, ValuesView]:
+    def values(self) -> Union[Tuple[()], ValuesView]:
         """
         ValuesView of array-like objects in this Array
         :return:ValuesView of this Array.
         """
         return self._data.values() if self._data is not None else ()
 
-    def items(self) -> Union[Tuple, ItemsView]:
+    def items(self) -> Union[Tuple[()], ItemsView]:
         """
         ItemsView of pairs of keys and array-like objects in this Array.
         :return: ItemsView of this Array.
@@ -259,7 +259,8 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             time_point_col = np.array(np.repeat(self._parent.time_points['value'], arr.shape[1]))
             arr_2D = np.concatenate((time_point_col[:, None], arr_2D), axis=1)
             # save array
-            pd.DataFrame(arr_2D, index=pd.Series(np.repeat(idx, self._parent.n_time_points)), columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            pd.DataFrame(arr_2D, index=pd.Series(np.repeat(idx, self._parent.n_time_points)),
+                         columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
 
 class VAxisArray(VBase3DArrayContainer):

@@ -13,12 +13,12 @@ from anndata import AnnData
 from scipy import sparse
 from pathlib import Path
 from builtins import Ellipsis
-from typing import Optional, Union, Dict, Tuple, Any, Sequence
+from typing import Optional, Union, Dict, Tuple, Any
 
 from . import view
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
-from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer
+from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer, Slicer
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
 from .._IO.logger import generalLogger, Tb, original_excepthook
 from .._IO.write import write_data
@@ -142,27 +142,43 @@ class VData:
 
     def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'view.ViewVData':
         """
-        TODO + typing
+        Get a view of this VData object with the usual sub-setting mechanics.
+        :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
+            An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis '...'.
+            Single indexes and 2-tuples of indexes are converted to a 3-tuple :
+                * single index --> (index, ..., ...)
+                * 2-tuple      --> (index[0], index[1], ...)
+            The first element in the 3-tuple is the list of observations to view, the second element is the list of
+            variables to view and the third element is the list of time points to view.
+
+            The values ':' or '...' are shortcuts for 'take all values in the axis'.
+
+            Example:
+                * VData[:] or VData[...]                            --> view all
+                * VData[:, 'gene_a'] or VData[:, 'gene_a', :]       --> view all observations and time points for variable 'gene_a'
+                * VData[('cell_1', 'cell_9'), range(0, 10), 0]      --> view observations 'cell_1' and 'cell_2' with variables
+                                                                        0 to 9 on time point 0
         """
-        obs_slicer = None
-        var_slicer = None
-        time_points_slicer = None
+        if not isinstance(index, tuple):
+            index = (index, ..., ...)
 
-        if isinstance(index, (int, float)):
-            obs_slicer = slice(index, index+1)
-            var_slicer = ...
-            time_points_slicer = ...
+        elif len(index) == 2:
+            index = (index[0], index[1], ...)
 
-        elif isinstance(index, type(Ellipsis)):
-            pass
+        obs_slicer = index[0]
+        var_slicer = index[1]
+        time_points_slicer = index[2]
 
-        return view.ViewVData(self, obs_slicer, var_slicer, time_points_slicer)
+        def check_slicer(slicer: PreSlicer) -> Slicer:
+            if isinstance(slicer, type(Ellipsis)):
+                return slice(None, None, None)
 
-    def __setitem__(self, key, value):
-        """
-        TODO + typing
-        """
-        print(key, value)
+            elif isinstance(slicer, (int, float, str)):
+                return [slicer]
+            # I have to ignore the type for mypy here because technically type(Ellipsis) is not the same as ellipsis but 'ellipsis' causes an error
+            return slicer   # type: ignore
+
+        return view.ViewVData(self, check_slicer(obs_slicer), check_slicer(var_slicer), check_slicer(time_points_slicer))
 
     @property
     def is_empty(self) -> bool:
