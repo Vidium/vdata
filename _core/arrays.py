@@ -146,6 +146,9 @@ class VBaseArrayContainer(ABC):
         """
         return self._data.items() if self._data is not None else ()
 
+    def dict_copy(self) -> Dict[str, ArrayLike_3D]:
+        return dict(self._data) if self._data is not None else dict()
+
 
 class VBase3DArrayContainer(VBaseArrayContainer, ABC):
     """

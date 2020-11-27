@@ -181,6 +181,7 @@ class VData:
 
         return view.ViewVData(self, check_slicer(time_points_slicer), check_slicer(obs_slicer), check_slicer(var_slicer))
 
+    # Shapes -------------------------------------------------------------
     @property
     def is_empty(self) -> bool:
         """
@@ -241,6 +242,7 @@ class VData:
         else:
             return arr.reshape((1, arr.shape[0], arr.shape[1]))
 
+    # DataFrames ---------------------------------------------------------
     @property
     def time_points(self) -> pd.DataFrame:
         return self._time_points
@@ -341,6 +343,7 @@ class VData:
         else:
             self._var = df
 
+    # Arrays -------------------------------------------------------------
     @property
     def varm(self) -> VAxisArray:
         return self._varm
@@ -493,7 +496,7 @@ class VData:
     @genes.setter
     def genes(self, df: pd.DataFrame) -> None:
         self.var = df
-    # --------------------------------------------------------------------
+    # init functions -----------------------------------------------------
 
     def _check_formats(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]],
                        obs: Optional[pd.DataFrame], obsm: Optional[Dict[Any, ArrayLike]], obsp: Optional[Dict[Any, ArrayLike]],
@@ -759,7 +762,7 @@ class VData:
 
             if self._varp is not None and self.n_var != self._varp.shape[0]:
                 raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
-    # --------------------------------------------------------------------
+    # writing ------------------------------------------------------------
 
     def write(self, file: Union[str, Path]) -> None:
         """
@@ -823,3 +826,15 @@ class VData:
 
         for dataset in (self.layers, self.obsm, self.obsp, self.varm, self.varp):
             dataset.to_csv(directory, sep, na_rep, index, header)
+
+    # copy ---------------------------------------------------------------
+    def copy(self) -> 'VData':
+        """
+        Build an actual copy of this VData object and not a view.
+        """
+        return VData(self.layers.dict_copy(),
+                     self.obs, self.obsm.dict_copy(), self.obsp.dict_copy(),
+                     self.var, self.varm.dict_copy(), self.varp.dict_copy(),
+                     self.time_points,
+                     self.uns,
+                     self.dtype, self.log_level)

@@ -365,6 +365,7 @@ class ViewVData:
 
         return ViewVData(self._parent, time_points_slicer, obs_slicer, var_slicer)
 
+    # Shapes -------------------------------------------------------------
     @property
     def is_empty(self) -> bool:
         """
@@ -404,7 +405,7 @@ class ViewVData:
         """
         return self.n_time_points, self.n_obs, self.n_var
 
-    # DataFrames ------------------------------------------------------------
+    # DataFrames ---------------------------------------------------------
     @property
     def time_points(self) -> pd.DataFrame:
         return self._parent.time_points[self._time_points_slicer]
@@ -466,7 +467,7 @@ class ViewVData:
     def uns(self) -> Optional[Dict]:
         return self._parent.uns
 
-    # Arrays ------------------------------------------------------------
+    # Arrays -------------------------------------------------------------
     @property
     def layers(self) -> ViewVLayersArrays:
         return ViewVLayersArrays(self._parent.layers, self._time_points_array_slicer, self._obs_array_slicer, self._var_array_slicer)
