@@ -148,15 +148,16 @@ class VData:
             Single indexes and 2-tuples of indexes are converted to a 3-tuple :
                 * single index --> (index, ..., ...)
                 * 2-tuple      --> (index[0], index[1], ...)
-            The first element in the 3-tuple is the list of observations to view, the second element is the list of
-            variables to view and the third element is the list of time points to view.
+
+            The first element in the 3-tuple is the list of time points to view, the second element is the list of
+            observations to view and the third element is the list of variables to view.
 
             The values ':' or '...' are shortcuts for 'take all values in the axis'.
 
             Example:
                 * VData[:] or VData[...]                            --> view all
-                * VData[:, 'gene_a'] or VData[:, 'gene_a', :]       --> view all observations and time points for variable 'gene_a'
-                * VData[('cell_1', 'cell_9'), range(0, 10), 0]      --> view observations 'cell_1' and 'cell_2' with variables
+                * VData[:, 'cell_1'] or VData[:, 'cell_1', :]       --> view all time points and variables for observation 'cell_1'
+                * VData[0, ('cell_1', 'cell_9'), range(0, 10)]      --> view observations 'cell_1' and 'cell_2' with variables
                                                                         0 to 9 on time point 0
         """
         if not isinstance(index, tuple):
@@ -165,9 +166,9 @@ class VData:
         elif len(index) == 2:
             index = (index[0], index[1], ...)
 
-        obs_slicer = index[0]
-        var_slicer = index[1]
-        time_points_slicer = index[2]
+        time_points_slicer = index[0]
+        obs_slicer = index[1]
+        var_slicer = index[2]
 
         def check_slicer(slicer: PreSlicer) -> Slicer:
             if isinstance(slicer, type(Ellipsis)):
@@ -178,7 +179,7 @@ class VData:
             # I have to ignore the type for mypy here because technically type(Ellipsis) is not the same as ellipsis but 'ellipsis' causes an error
             return slicer   # type: ignore
 
-        return view.ViewVData(self, check_slicer(obs_slicer), check_slicer(var_slicer), check_slicer(time_points_slicer))
+        return view.ViewVData(self, check_slicer(time_points_slicer), check_slicer(obs_slicer), check_slicer(var_slicer))
 
     @property
     def is_empty(self) -> bool:
@@ -187,6 +188,15 @@ class VData:
         :return: Vdata empty ?
         """
         return True if self.n_obs == 0 or self.n_var == 0 or self.n_time_points == 0 else False
+
+    @property
+    def n_time_points(self) -> int:
+        """
+        Number of time points in this VData object. n_time_points can be extracted directly from self.time_points or from the
+        nb of time points in the layers. If no data was given, a default list of time points was created with integer values.
+        :return: VData's number of time points
+        """
+        return self._n_time_points
 
     @property
     def n_obs(self) -> int:
@@ -212,15 +222,6 @@ class VData:
         """
         return self._n_vars
 
-    @property
-    def n_time_points(self) -> int:
-        """
-        Number of time points in this VData object. n_time_points can be extracted directly from self.time_points or from the
-        nb of time points in the layers. If no data was given, a default list of time points was created with integer values.
-        :return: VData's number of time points
-        """
-        return self._n_time_points
-
     def shape(self) -> Tuple[int, int, int]:
         """
         Shape of this VData object.
@@ -239,6 +240,21 @@ class VData:
             return np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
         else:
             return arr.reshape((1, arr.shape[0], arr.shape[1]))
+
+    @property
+    def time_points(self) -> pd.DataFrame:
+        return self._time_points
+
+    @time_points.setter
+    def time_points(self, df: pd.DataFrame) -> None:
+        if not isinstance(df, pd.DataFrame):
+            raise VTypeError("'time points' must be a pandas DataFrame.")
+
+        elif df.shape[0] != self.n_time_points:
+            raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
+
+        else:
+            self._time_points = df
 
     @property
     def obs(self) -> pd.DataFrame:
@@ -383,21 +399,6 @@ class VData:
                     raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
             self._varp = VPairwiseArray(self, 'var', data)
-
-    @property
-    def time_points(self) -> pd.DataFrame:
-        return self._time_points
-
-    @time_points.setter
-    def time_points(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'time points' must be a pandas DataFrame.")
-
-        elif df.shape[0] != self.n_time_points:
-            raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
-
-        else:
-            self._time_points = df
 
     @property
     def uns(self) -> Optional[Dict]:

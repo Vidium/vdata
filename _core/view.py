@@ -73,7 +73,7 @@ class ViewVLayersArrays(ViewBaseArray):
     A view of a VLayersArrays object.
     """
 
-    def __init__(self, arrays: VLayersArrays, obs_slicer: np.ndarray, var_slicer: np.ndarray, time_points_slicer: np.ndarray):
+    def __init__(self, arrays: VLayersArrays, time_points_slicer: np.ndarray, obs_slicer: np.ndarray, var_slicer: np.ndarray):
         """
         :param arrays: a VLayersArrays object to build a view on
         :param obs_slicer: the list of observations to view
@@ -117,7 +117,7 @@ class ViewVAxisArray(ViewBaseArray):
     A view of a VAxisArray object.
     """
 
-    def __init__(self, arrays: VAxisArray, axis_slicer: np.ndarray, time_points_slicer: np.ndarray):
+    def __init__(self, arrays: VAxisArray, time_points_slicer: np.ndarray, axis_slicer: np.ndarray):
         """
         :param arrays: a VAxisArray object to build a view on
         :param axis_slicer: the list of observations/variables to view
@@ -203,7 +203,7 @@ class ViewVData:
     A view of a VData object.
     """
 
-    def __init__(self, parent: 'vdata.VData', obs_slicer: Slicer, var_slicer: Slicer, time_points_slicer: Slicer):
+    def __init__(self, parent: 'vdata.VData', time_points_slicer: Slicer, obs_slicer: Slicer, var_slicer: Slicer):
         """
         :param parent: a VData object to build a view of
         :param obs_slicer: the list of observations to view
@@ -212,6 +212,22 @@ class ViewVData:
         """
         self._parent = parent
         # DataFrame slicers
+        # time points -------------------------
+        if self._parent.time_points is None:
+            self._time_points_slicer = np.array([False] * self._parent.n_time_points)
+        else:
+            if not isinstance(time_points_slicer, slice):
+                if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
+                    self._time_points_slicer = time_points_slicer
+                else:
+                    time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
+                    self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
+            elif time_points_slicer == slice(None, None, None):
+                self._time_points_slicer = np.array([True] * self._parent.n_time_points)
+            else:
+                time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)), dtype=self._parent.time_points.index.dtype)
+                self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
+
         # obs -------------------------
         if self._parent.obs is None:
             self._obs_slicer = np.array([False] * self._parent.n_obs)
@@ -244,26 +260,10 @@ class ViewVData:
                 var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
                 self._var_slicer = np.isin(self._parent.var.index, var_slicer)
 
-        # time points -------------------------
-        if self._parent.time_points is None:
-            self._time_points_slicer = np.array([False] * self._parent.n_time_points)
-        else:
-            if not isinstance(time_points_slicer, slice):
-                if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
-                    self._time_points_slicer = time_points_slicer
-                else:
-                    time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
-                    self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
-            elif time_points_slicer == slice(None, None, None):
-                self._time_points_slicer = np.array([True] * self._parent.n_time_points)
-            else:
-                time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)), dtype=self._parent.time_points.index.dtype)
-                self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
-
         # array slicers
+        self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
         self._obs_array_slicer = np.where(self._obs_slicer)[0]
         self._var_array_slicer = np.where(self._var_slicer)[0]
-        self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
 
     def __repr__(self) -> str:
         """
@@ -295,9 +295,31 @@ class ViewVData:
             index = (index[0], index[1], ...)
 
         # get slicers
-        obs_slicer = index[0]
-        var_slicer = index[1]
-        time_points_slicer = index[2]
+        time_points_slicer = index[0]
+        obs_slicer = index[1]
+        var_slicer = index[2]
+
+        # check time points slicer --------------------------------------------------------------------------
+        if isinstance(time_points_slicer, type(Ellipsis)) or time_points_slicer == slice(None, None, None):
+            time_points_slicer = self._time_points_slicer
+
+        elif isinstance(time_points_slicer, (int, float, str)):
+            if self._parent.time_points is not None and time_points_slicer in self._parent.time_points.index:
+                time_points_slicer = np.array([time_points_slicer],
+                                              dtype=self._parent.time_points.index.dtype) if self._time_points_slicer[list(self._parent.time_points.index).index(time_points_slicer)] else []
+            else:
+                time_points_slicer = []
+
+        else:
+            # convert slice to range for following steps
+            if isinstance(time_points_slicer, slice):
+                time_points_slicer = slice_to_range(time_points_slicer, len(self._time_points_slicer))
+
+            # convert slicer to index's type
+            time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
+
+            # restrict time_points_slicer to elements already selected in this view
+            time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer) & self._time_points_slicer
 
         # check obs slicer ----------------------------------------------------------------------------------
         if isinstance(obs_slicer, type(Ellipsis)) or obs_slicer == slice(None, None, None):
@@ -341,29 +363,7 @@ class ViewVData:
             # restrict var_slicer to elements already selected in this view
             var_slicer = np.isin(self._parent.var.index, var_slicer) & self._var_slicer
 
-        # check time points slicer --------------------------------------------------------------------------
-        if isinstance(time_points_slicer, type(Ellipsis)) or time_points_slicer == slice(None, None, None):
-            time_points_slicer = self._time_points_slicer
-
-        elif isinstance(time_points_slicer, (int, float, str)):
-            if self._parent.time_points is not None and time_points_slicer in self._parent.time_points.index:
-                time_points_slicer = np.array([time_points_slicer],
-                                              dtype=self._parent.time_points.index.dtype) if self._time_points_slicer[list(self._parent.time_points.index).index(time_points_slicer)] else []
-            else:
-                time_points_slicer = []
-
-        else:
-            # convert slice to range for following steps
-            if isinstance(time_points_slicer, slice):
-                time_points_slicer = slice_to_range(time_points_slicer, len(self._time_points_slicer))
-
-            # convert slicer to index's type
-            time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
-
-            # restrict time_points_slicer to elements already selected in this view
-            time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer) & self._time_points_slicer
-
-        return ViewVData(self._parent, obs_slicer, var_slicer, time_points_slicer)
+        return ViewVData(self._parent, time_points_slicer, obs_slicer, var_slicer)
 
     @property
     def is_empty(self) -> bool:
@@ -372,6 +372,14 @@ class ViewVData:
         :return: is view empty ?
         """
         return True if self.n_obs == 0 or self.n_var == 0 or self.n_time_points == 0 else False
+
+    @property
+    def n_time_points(self) -> int:
+        """
+        Number of time points in this view of a VData object.
+        :return: number of time points in this view
+        """
+        return int(np.sum(self._time_points_slicer))
 
     @property
     def n_obs(self) -> int:
@@ -389,14 +397,6 @@ class ViewVData:
         """
         return int(np.sum(self._var_slicer))
 
-    @property
-    def n_time_points(self) -> int:
-        """
-        Number of time points in this view of a VData object.
-        :return: number of time points in this view
-        """
-        return int(np.sum(self._time_points_slicer))
-
     def shape(self) -> Tuple[int, int, int]:
         """
         Shape of this view of a VData object.
@@ -405,6 +405,25 @@ class ViewVData:
         return self.n_time_points, self.n_obs, self.n_var
 
     # DataFrames ------------------------------------------------------------
+    @property
+    def time_points(self) -> pd.DataFrame:
+        return self._parent.time_points[self._time_points_slicer]
+
+    @time_points.setter
+    def time_points(self, df: pd.DataFrame) -> None:
+        if not isinstance(df, pd.DataFrame):
+            raise VTypeError("'time_points' must be a pandas DataFrame.")
+
+        elif df.columns != self._parent.time_points.columns:
+            raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' it replaces.")
+
+        elif df.shape[0] != self.n_time_points:
+            raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
+
+        else:
+            df.index = self._parent.time_points[self._time_points_slicer].index
+            self._parent.time_points[self._time_points_slicer] = df
+
     @property
     def obs(self) -> pd.DataFrame:
         return self._parent.obs[self._obs_slicer]
@@ -444,32 +463,13 @@ class ViewVData:
             self._parent.var[self._var_slicer] = df
 
     @property
-    def time_points(self) -> pd.DataFrame:
-        return self._parent.time_points[self._time_points_slicer]
-
-    @time_points.setter
-    def time_points(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'time_points' must be a pandas DataFrame.")
-
-        elif df.columns != self._parent.time_points.columns:
-            raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' it replaces.")
-
-        elif df.shape[0] != self.n_time_points:
-            raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
-
-        else:
-            df.index = self._parent.time_points[self._time_points_slicer].index
-            self._parent.time_points[self._time_points_slicer] = df
-
-    @property
     def uns(self) -> Optional[Dict]:
         return self._parent.uns
 
     # Arrays ------------------------------------------------------------
     @property
     def layers(self) -> ViewVLayersArrays:
-        return ViewVLayersArrays(self._parent.layers, self._obs_array_slicer, self._var_array_slicer, self._time_points_array_slicer)
+        return ViewVLayersArrays(self._parent.layers, self._time_points_array_slicer, self._obs_array_slicer, self._var_array_slicer)
 
     @layers.setter
     def layers(self, *_: Any) -> NoReturn:
@@ -477,7 +477,7 @@ class ViewVData:
 
     @property
     def obsm(self) -> ViewVAxisArray:
-        return ViewVAxisArray(self._parent.obsm, self._obs_array_slicer, self._time_points_array_slicer)
+        return ViewVAxisArray(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
 
     @obsm.setter
     def obsm(self, *_: Any) -> NoReturn:
@@ -493,7 +493,7 @@ class ViewVData:
 
     @property
     def varm(self) -> ViewVAxisArray:
-        return ViewVAxisArray(self._parent.varm, self._var_array_slicer, self._time_points_array_slicer)
+        return ViewVAxisArray(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
 
     @varm.setter
     def varm(self, *_: Any) -> NoReturn:
