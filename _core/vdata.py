@@ -675,11 +675,11 @@ class VData:
         # if time points are not given, assign default values 0, 1, 2, ...
         if time_points is None:
             if layers is not None:
-                time_points = pd.DataFrame(range(list(layers.values())[0].shape[0]))
+                time_points = pd.DataFrame({'value': range(list(layers.values())[0].shape[0])})
             elif obsm is not None:
-                time_points = pd.DataFrame(range(list(obsm.values())[0].shape[0]))
+                time_points = pd.DataFrame({'value': range(list(obsm.values())[0].shape[0])})
             elif varm is not None:
-                time_points = pd.DataFrame(range(list(varm.values())[0].shape[0]))
+                time_points = pd.DataFrame({'value': range(list(varm.values())[0].shape[0])})
 
         self._obs = obs
         self._var = var
