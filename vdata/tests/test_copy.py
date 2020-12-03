@@ -1,20 +1,17 @@
 # coding: utf-8
-# Created on 11/25/20 3:41 PM
+# Created on 11/27/20 9:39 AM
 # Author : matteo
 
 # ====================================================
 # imports
-import os
 import numpy as np
 import pandas as pd
 
-from .._core.vdata import VData
+from vdata._core import VData
+
 
 # ====================================================
 # code
-os.system('rm -rf /home/matteo/Desktop/vdata')
-
-
 expr_matrix = np.array([[[0, 10, 20], [10, 0, 15], [0, 9, 16], [15, 2, 16]],
                         [[0, 10, 20], [10, 0, 15], [0, 9, 16], [15, 2, 16]],
                         [[0, 10, 20], [10, 0, 15], [0, 9, 16], [15, 2, 16]]])
@@ -32,38 +29,18 @@ time_points = pd.DataFrame({"value": [5, 10, 15], "unit": ["hour", "hour", "hour
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
 print(a)
 
-v = a[1, ('a', 'c')]
-print(v)
+b = a.copy()
+print(b)
 
-new_var = pd.DataFrame({'gene_name': ['ng1', 'ng3']})
-print(v.var)
-print(new_var)
-v.var = new_var
+a.obs = pd.DataFrame({"cell_name": ["c10", "c20", "c30", "c40"],
+                      "batch": [10, 10, 20, 20],
+                      "cat": pd.Series(["A", "B", "C", 10], dtype="category", index=[10, 20, 30, 40])},
+                     index=[10, 20, 30, 40])
 
-print(v.var)
-print(a.var)
+print(a.obs)
+print(b.obs)
 
-print(v.layers['data'])
-v.layers['data'] = np.array([[[100, 200]], [[300, 400]], [[500, 600]]])
-print(v.layers['data'])
+a.layers['data'] *= 3
+
 print(a.layers['data'])
-
-print('----------------------------------------------------')
-v = a[(1, 4), ('a', 'c')]
-print(v)
-print(v.obsm['umap'])
-v.obsm['umap'] = np.array([[[1, 2], [-1, -2]], [[3, 4], [-3, -4]], [[5, 6], [-5, -6]]])
-print(v.obsm['umap'])
-print(a.obsm['umap'])
-
-print('----------------------------------------------------')
-print(v.obsp['connect'])
-v.obsp['connect'] = np.array([[1, 2], [3, 4]])
-print(v.obsp['connect'])
-print(a.obsp['connect'])
-
-print('----------------------------------------------------')
-vv = v[1, 'a', :2]
-print(vv)
-
-print(a[1:3, ('a', 'b'), :2])
+print(b.layers['data'])

@@ -378,7 +378,7 @@ class VLayersArrays(VBase3DArrayContainer):
             list_of_keys = "'" + "','".join(self.keys()) + "'"
             return f"VLayersArrays with keys : {list_of_keys}."
         else:
-            return f"Empty VLayersArrays of layers."
+            return "Empty VLayersArrays of layers."
 
     @property
     def name(self) -> str:

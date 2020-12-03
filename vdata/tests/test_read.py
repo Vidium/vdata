@@ -7,7 +7,7 @@
 import scanpy
 
 from .._IO.read import read_from_csv, read
-from .._core.vdata import VData
+from vdata._core import VData
 
 
 # ====================================================
