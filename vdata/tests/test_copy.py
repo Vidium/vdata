@@ -7,7 +7,7 @@
 import numpy as np
 import pandas as pd
 
-from vdata._core import VData
+from .._core.vdata import VData
 
 
 # ====================================================
@@ -37,10 +37,13 @@ a.obs = pd.DataFrame({"cell_name": ["c10", "c20", "c30", "c40"],
                       "cat": pd.Series(["A", "B", "C", 10], dtype="category", index=[10, 20, 30, 40])},
                      index=[10, 20, 30, 40])
 
+# should be different
 print(a.obs)
 print(b.obs)
 
+
 a.layers['data'] *= 3
 
+# should be different
 print(a.layers['data'])
 print(b.layers['data'])

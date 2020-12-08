@@ -7,7 +7,7 @@
 import numpy as np
 import pandas as pd
 
-from vdata._core import VData
+from .._core.vdata import VData
 
 # ====================================================
 # code
