@@ -13,8 +13,8 @@ from typing_extensions import Literal
 
 # ====================================================
 # types
-ArrayLike_2D = Union[np.ndarray, sparse.spmatrix, pd.DataFrame]
-ArrayLike_3D = Union[np.ndarray, sparse.spmatrix]
+ArrayLike_2D = Union[np.ndarray, pd.DataFrame]
+ArrayLike_3D = np.ndarray
 ArrayLike = Union[ArrayLike_2D, ArrayLike_3D]
 
 DTypes = {int: int,

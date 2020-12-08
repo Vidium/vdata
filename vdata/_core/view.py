@@ -90,9 +90,7 @@ class ViewVLayersArrays(ViewBaseArray):
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        return np.array([self._arrays[array_name][TP][self._obs_slicer, self._var_slicer] for TP in self._time_points_slicer]).reshape((len(self._time_points_slicer),
-                                                                                                                                        len(self._obs_slicer),
-                                                                                                                                        len(self._var_slicer)))
+        return self._arrays[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)]
 
     def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
         """
@@ -108,8 +106,7 @@ class ViewVLayersArrays(ViewBaseArray):
             raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape ({len(self._time_points_slicer)}, {len(self._obs_slicer)}, {len(self._var_slicer)})")
 
         else:
-            for TP in self._time_points_slicer:
-                self._arrays[array_name][TP][self._obs_slicer, self._var_slicer] = values[TP].flatten()
+            self._arrays[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)] = values
 
 
 class ViewVAxisArray(ViewBaseArray):
@@ -132,9 +129,7 @@ class ViewVAxisArray(ViewBaseArray):
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        return np.array([self._arrays[array_name][TP][self._axis_slicer] for TP in self._time_points_slicer]).reshape((len(self._time_points_slicer),
-                                                                                                                       len(self._axis_slicer),
-                                                                                                                       self._arrays[array_name].shape[2]))
+        return self._arrays[array_name][np.ix_(self._time_points_slicer, self._axis_slicer)]
 
     def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
         """
@@ -152,8 +147,7 @@ class ViewVAxisArray(ViewBaseArray):
             raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape {array_shape}")
 
         else:
-            for TP in self._time_points_slicer:
-                self._arrays[array_name][TP][self._axis_slicer] = values[TP]
+            self._arrays[array_name][np.ix_(self._time_points_slicer, self._axis_slicer)] = values
 
 
 class ViewVPairwiseArray(ViewBaseArray):
@@ -174,7 +168,7 @@ class ViewVPairwiseArray(ViewBaseArray):
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        return self._arrays[array_name][self._axis_slicer][:, self._axis_slicer]
+        return self._arrays[array_name][np.ix_(self._axis_slicer, self._axis_slicer)]
 
     def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
         """
@@ -192,10 +186,7 @@ class ViewVPairwiseArray(ViewBaseArray):
             raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape {array_shape}")
 
         else:
-            values = np.array(values)
-            for (index_i, i) in enumerate(self._axis_slicer):
-                for (index_j, j) in enumerate(self._axis_slicer):
-                    self._arrays[array_name][i, j] = values[index_i, index_j]
+            self._arrays[array_name][np.ix_(self._axis_slicer, self._axis_slicer)] = values
 
 
 class ViewVData:

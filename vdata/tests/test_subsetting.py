@@ -32,7 +32,7 @@ time_points = pd.DataFrame({"value": [5, 10, 15], "unit": ["hour", "hour", "hour
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
 print(a)
 
-v = a[1, (1, 3)]
+v = a[1, :, ('a', 'c')]
 print(v)
 
 new_var = pd.DataFrame({'gene_name': ['ng1', 'ng3']})
@@ -44,12 +44,15 @@ print(v.var)
 print(a.var)
 
 print(v.layers['data'])
-v.layers['data'] = np.array([[[100, 200]], [[300, 400]], [[500, 600]]])
+v.layers['data'] = np.array([[[-1, 200],
+                              [100, 150],
+                              [-1, 160],
+                              [150, 160]]])
 print(v.layers['data'])
 print(a.layers['data'])
 
 print('----------------------------------------------------')
-v = a[(1, 4), ('a', 'c')]
+v = a[:, (1, 4), ('a', 'c')]
 print(v)
 print(v.obsm['umap'])
 v.obsm['umap'] = np.array([[[1, 2], [-1, -2]], [[3, 4], [-3, -4]], [[5, 6], [-5, -6]]])
@@ -66,4 +69,4 @@ print('----------------------------------------------------')
 vv = v[1, 'a', :2]
 print(vv)
 
-print(a[1:3, ('a', 'b'), :2])
+print(a[:2, 1:3, ('a', 'b')])

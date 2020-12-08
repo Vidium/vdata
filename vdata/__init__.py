@@ -10,3 +10,5 @@ from ._core.vdata import VData
 from ._IO.read import read, read_from_GPU, read_from_csv
 
 __all__ = ["VData", "read", "read_from_GPU", "read_from_csv"]
+
+# TODO : remove all references to sparse matrices
