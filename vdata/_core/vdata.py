@@ -9,6 +9,7 @@ import os
 import h5py
 import pandas as pd
 import numpy as np
+import traceback
 from anndata import AnnData
 from scipy import sparse
 from pathlib import Path
@@ -45,19 +46,21 @@ class VData:
                  dtype: DType = np.float32,
                  log_level: LoggingLevel = "WARNING"):
         # disable traceback messages, except if the loggingLevel is set to DEBUG
-        def exception_handler(exception_type, exception, traceback, debug_hook=original_excepthook):
-            Tb.trace = traceback
+        def exception_handler(exception_type, exception, traceback_, debug_hook=original_excepthook):
+            Tb.trace = traceback_
             Tb.exception = exception_type
 
             if log_level == 'DEBUG':
                 if not issubclass(exception_type, VBaseError):
                     self.logger.uncaught_error(exception)
-                debug_hook(exception_type, exception, traceback)
+                debug_hook(exception_type, exception, traceback_)
             else:
                 if not issubclass(exception_type, VBaseError):
                     self.logger.uncaught_error(exception)
                 else:
                     print(exception)
+
+            traceback.print_tb(traceback_)
 
         sys.excepthook = exception_handler
 

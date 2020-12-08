@@ -83,6 +83,7 @@ class _VLogger:
             return f"[{caller}.py] {msg}"
 
         else:
+            traceback.print_tb(Tb.trace)
             caller = ""
 
             while Tb.trace is not None:
@@ -130,6 +131,8 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
+        traceback.print_tb(Tb.trace)
+
         last = None
         while Tb.trace is not None:
             last = Tb.trace.tb_frame
@@ -160,9 +163,6 @@ def exception_handler(exception_type, exception, traceback_):
         generalLogger.uncaught_error(exception)
     else:
         print(exception)
-
-    traceback.print_tb(traceback_)
-
 
 original_excepthook = sys.excepthook
 sys.excepthook = exception_handler

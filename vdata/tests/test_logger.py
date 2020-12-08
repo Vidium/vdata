@@ -5,10 +5,14 @@
 # ====================================================
 # imports
 from .._IO.logger import generalLogger
+from .._IO.errors import VValueError
+
 generalLogger.set_level("WARNING")
 
 # ====================================================
 # code
-a=1/0
+# a=1/0
 
-generalLogger.error("test")
+# generalLogger.error("test")
+
+raise VValueError("second test")
