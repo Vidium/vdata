@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from vdata._core import VData
+from vdata._core.vdata import VData
 
 # ====================================================
 # code
@@ -32,7 +32,7 @@ time_points = pd.DataFrame({"value": [5, 10, 15], "unit": ["hour", "hour", "hour
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
 print(a)
 
-v = a[1, ('a', 'c')]
+v = a[1, (1, 3)]
 print(v)
 
 new_var = pd.DataFrame({'gene_name': ['ng1', 'ng3']})

@@ -41,10 +41,11 @@ class _VLogger:
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         # load configuration from logging.conf
-        logging.config.fileConfig(Path(os.path.dirname(__file__)) / "logger.conf", defaults={'log_level': logger_level})
+        logging.config.fileConfig(Path(os.path.dirname(__file__)) / "logger.conf", defaults={'log_level': logger_level},
+                                  disable_existing_loggers=False)
 
         # get logger
-        self.logger = logging.getLogger('root.vlogger')
+        self.logger = logging.getLogger('vdata.vlogger')
 
     def set_level(self, logger_level: LoggingLevel) -> None:
         """
