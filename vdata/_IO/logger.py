@@ -8,6 +8,7 @@ import os
 import sys
 import logging.config
 import inspect
+import traceback
 from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
@@ -151,14 +152,16 @@ generalLogger = _VLogger()
 
 # basic definition of the excepthook for proper behavior of the logger
 # this will be updated by vdata.py as soon as the user creates a VData (and sets a logger level)
-def exception_handler(exception_type, exception, traceback):
-    Tb.trace = traceback
+def exception_handler(exception_type, exception, traceback_):
+    Tb.trace = traceback_
     Tb.exception = exception_type
 
     if not issubclass(exception_type, errors.VBaseError):
         generalLogger.uncaught_error(exception)
     else:
         print(exception)
+
+    traceback.print_tb(traceback_)
 
 
 original_excepthook = sys.excepthook
