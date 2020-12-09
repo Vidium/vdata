@@ -204,52 +204,43 @@ class ViewVData:
         self._parent = parent
         # DataFrame slicers
         # time points -------------------------
-        if self._parent.time_points is None:
-            self._time_points_slicer = np.array([False] * self._parent.n_time_points)
-        else:
-            if not isinstance(time_points_slicer, slice):
-                if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
-                    self._time_points_slicer = time_points_slicer
-                else:
-                    time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
-                    self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
-            elif time_points_slicer == slice(None, None, None):
-                self._time_points_slicer = np.array([True] * self._parent.n_time_points)
+        if not isinstance(time_points_slicer, slice):
+            if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
+                self._time_points_slicer = time_points_slicer
             else:
-                time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)), dtype=self._parent.time_points.index.dtype)
+                time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.index.dtype)
                 self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
+        elif time_points_slicer == slice(None, None, None):
+            self._time_points_slicer = np.array([True] * self._parent.n_time_points)
+        else:
+            time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)), dtype=self._parent.time_points.index.dtype)
+            self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
 
         # obs -------------------------
-        if self._parent.obs is None:
-            self._obs_slicer = np.array([False] * self._parent.n_obs)
-        else:
-            if not isinstance(obs_slicer, slice):
-                if isinstance(obs_slicer, np.ndarray) and obs_slicer.dtype == np.bool:
-                    self._obs_slicer = obs_slicer
-                else:
-                    obs_slicer = np.array(obs_slicer, dtype=self._parent.obs.index.dtype)
-                    self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
-            elif obs_slicer == slice(None, None, None):
-                self._obs_slicer = np.array([True] * self._parent.n_obs)
+        if not isinstance(obs_slicer, slice):
+            if isinstance(obs_slicer, np.ndarray) and obs_slicer.dtype == np.bool:
+                self._obs_slicer = obs_slicer
             else:
-                obs_slicer = np.array(slice_to_range(obs_slicer, len(self._parent.obs)), dtype=self._parent.obs.index.dtype)
+                obs_slicer = np.array(obs_slicer, dtype=self._parent.obs.index.dtype)
                 self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
+        elif obs_slicer == slice(None, None, None):
+            self._obs_slicer = np.array([True] * self._parent.n_obs)
+        else:
+            obs_slicer = np.array(slice_to_range(obs_slicer, len(self._parent.obs)), dtype=self._parent.obs.index.dtype)
+            self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
 
         # var -------------------------
-        if self._parent.var is None:
-            self._var_slicer = np.array([False] * self._parent.n_var)
-        else:
-            if not isinstance(var_slicer, slice):
-                if isinstance(var_slicer, np.ndarray) and var_slicer.dtype == np.bool:
-                    self._var_slicer = var_slicer
-                else:
-                    var_slicer = np.array(var_slicer, dtype=self._parent.var.index.dtype)
-                    self._var_slicer = np.isin(self._parent.var.index, var_slicer)
-            elif var_slicer == slice(None, None, None):
-                self._var_slicer = np.array([True] * self._parent.n_var)
+        if not isinstance(var_slicer, slice):
+            if isinstance(var_slicer, np.ndarray) and var_slicer.dtype == np.bool:
+                self._var_slicer = var_slicer
             else:
-                var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
+                var_slicer = np.array(var_slicer, dtype=self._parent.var.index.dtype)
                 self._var_slicer = np.isin(self._parent.var.index, var_slicer)
+        elif var_slicer == slice(None, None, None):
+            self._var_slicer = np.array([True] * self._parent.n_var)
+        else:
+            var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
+            self._var_slicer = np.isin(self._parent.var.index, var_slicer)
 
         # array slicers
         self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
@@ -295,7 +286,7 @@ class ViewVData:
             time_points_slicer = self._time_points_slicer
 
         elif isinstance(time_points_slicer, (int, float, str)):
-            if self._parent.time_points is not None and time_points_slicer in self._parent.time_points.index:
+            if time_points_slicer in self._parent.time_points.index:
                 time_points_slicer = np.array([time_points_slicer],
                                               dtype=self._parent.time_points.index.dtype) if self._time_points_slicer[list(self._parent.time_points.index).index(time_points_slicer)] else []
             else:
@@ -317,7 +308,7 @@ class ViewVData:
             obs_slicer = self._obs_slicer
 
         elif isinstance(obs_slicer, (int, float, str)):
-            if self._parent.obs is not None and obs_slicer in self._parent.obs.index:
+            if obs_slicer in self._parent.obs.index:
                 obs_slicer = np.array([obs_slicer], dtype=self._parent.obs.index.dtype) if self._obs_slicer[list(self._parent.obs.index).index(obs_slicer)] else []
             else:
                 obs_slicer = []
@@ -338,7 +329,7 @@ class ViewVData:
             var_slicer = self._var_slicer
 
         elif isinstance(var_slicer, (int, float, str)):
-            if self._parent.var is not None and var_slicer in self._parent.var.index:
+            if var_slicer in self._parent.var.index:
                 var_slicer = np.array([var_slicer], dtype=self._parent.var.index.dtype) if self._var_slicer[list(self._parent.var.index).index(var_slicer)] else []
             else:
                 var_slicer = []

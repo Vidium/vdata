@@ -28,7 +28,12 @@ layers = {'spliced': np.zeros((3, 4, 3))}
 uns = {'color': ["#c1c1c1"], 'str': "test string", "int": 2}
 time_points = pd.DataFrame({"value": [5, 10, 15], "unit": ["hour", "hour", "hour"]})
 
+a = VData(data=expr_matrix, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
+print(a[:])
+v = a[:, (1, 4), ('a', 'c')]
+print(v)
 
+print('----------------------------------------------------')
 a = VData(data=expr_matrix, obs=obs, obsm=obsm, obsp=obsp, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
 print(a)
 
@@ -66,7 +71,8 @@ print(v.obsp['connect'])
 print(a.obsp['connect'])
 
 print('----------------------------------------------------')
-vv = v[1, 'a', :2]
+print(v)
+vv = v[:2, 1, 'a']
 print(vv)
 
 print(a[:2, 1:3, ('a', 'b')])

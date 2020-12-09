@@ -116,6 +116,16 @@ class VData:
             if self._time_points is not None:
                 self._n_time_points = len(self._time_points)
 
+        # make sure a pandas DataFrame is set to .obs, .var and .time_points, even if no data was supplied
+        if self._obs is None:
+            self._obs = pd.DataFrame(index=range(self.n_obs))
+
+        if self._var is None:
+            self._var = pd.DataFrame(index=range(self.n_var))
+
+        if self._time_points is None:
+            self._time_points = pd.DataFrame(index=range(self._n_time_points))
+
         # create arrays linked to VData
         self._layers = VLayersArrays(self, data=_layers)
         self._obsm = VAxisArray(self, 'obs', data=_obsm)
@@ -277,6 +287,22 @@ class VData:
             self._obs = df
 
     @property
+    def var(self) -> pd.DataFrame:
+        return self._var
+
+    @var.setter
+    def var(self, df: pd.DataFrame) -> None:
+        if not isinstance(df, pd.DataFrame):
+            raise VTypeError("'var' must be a pandas DataFrame.")
+
+        elif df.shape[0] != self.n_var:
+            raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
+
+        else:
+            self._var = df
+
+    # Arrays -------------------------------------------------------------
+    @property
     def obsm(self) -> VAxisArray:
         return self._obsm
 
@@ -287,22 +313,27 @@ class VData:
 
         else:
             if not isinstance(data, dict):
-                raise VTypeError("'obsm' should be set with a dictionary of 3D array-like objects (numpy array, scipy sparse matrix).")
+                raise VTypeError(
+                    "'obsm' should be set with a dictionary of 3D array-like objects (numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
-                        raise VTypeError(f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(
+                            f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
 
                     elif arr.ndim != 3:
-                        raise VTypeError(f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(
+                            f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
 
                 else:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
-                        raise VTypeError(f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        raise VTypeError(
+                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim not in (2, 3):
-                        raise VTypeError(f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        raise VTypeError(
+                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim == 2:
                         data[arr_index] = self._reshape_to_3D(arr)
@@ -320,33 +351,20 @@ class VData:
 
         else:
             if not isinstance(data, dict):
-                raise VTypeError("'obsp' should be set with a dictionary of 2D array-like objects (numpy array, scipy sparse matrix).")
+                raise VTypeError(
+                    "'obsp' should be set with a dictionary of 2D array-like objects (numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
-                    raise VTypeError(f"'{arr_index}' array for obsp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError(
+                        f"'{arr_index}' array for obsp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
                 elif arr.ndim != 2:
-                    raise VTypeError(f"'{arr_index}' array for obsm should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError(
+                        f"'{arr_index}' array for obsm should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
 
             self._obsp = VPairwiseArray(self, 'obs', data)
 
-    @property
-    def var(self) -> pd.DataFrame:
-        return self._var
-
-    @var.setter
-    def var(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'var' must be a pandas DataFrame.")
-
-        elif df.shape[0] != self.n_var:
-            raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
-
-        else:
-            self._var = df
-
-    # Arrays -------------------------------------------------------------
     @property
     def varm(self) -> VAxisArray:
         return self._varm
@@ -726,16 +744,16 @@ class VData:
                         raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but {len(self._time_points)} {'was' if len(self._time_points) == 1 else 'were'} given.")
 
         # if data was given as a dataframe, check that obs and data match in row names
-        if self._obs is None and df_obs is not None:
+        if self._obs.empty and df_obs is not None:
             self._obs = pd.DataFrame(index=df_obs)
-        elif self._obs is not None and df_obs is not None:
+        elif df_obs is not None:
             if not self._obs.index.equals(df_obs):
                 raise VValueError("Indexes in dataFrames 'data' and 'obs' do not match.")
 
         # if data was given as a dataframe, check that var row names match data col names
-        if self._var is None and df_var is not None:
+        if self._var.empty and df_var is not None:
             self._var = pd.DataFrame(index=df_var)
-        elif self._var is not None and df_var is not None:
+        elif df_var is not None:
             if not self._var.index.equals(df_var):
                 raise VValueError("Columns in dataFrame 'data' does not match 'var''s index.")
 
@@ -751,20 +769,18 @@ class VData:
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables {layer.shape[2]}, should be {self.n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
-        if self._obs is not None:
-            if self._obsm is not None and self.n_obs != self._obsm.shape[1]:
-                raise IncoherenceError(f"obs and obsm have different lengths ({self.n_obs} vs {self._obsm.shape[1]})")
+        if self._obsm is not None and self.n_obs != self._obsm.shape[1]:
+            raise IncoherenceError(f"obs and obsm have different lengths ({self.n_obs} vs {self._obsm.shape[1]})")
 
-            if self._obsp is not None and self.n_obs != self._obsp.shape[0]:
-                raise IncoherenceError(f"obs and obsp have different lengths ({self.n_obs} vs {self._obsp.shape[0]})")
+        if self._obsp is not None and self.n_obs != self._obsp.shape[0]:
+            raise IncoherenceError(f"obs and obsp have different lengths ({self.n_obs} vs {self._obsp.shape[0]})")
 
         # check coherence between var, varm, varp shapes
-        if self._var is not None:
-            if self._varm is not None and self.n_var != self._varm.shape[1]:
-                raise IncoherenceError(f"var and varm have different lengths ({self.n_var} vs {self._varm.shape[1]})")
+        if self._varm is not None and self.n_var != self._varm.shape[1]:
+            raise IncoherenceError(f"var and varm have different lengths ({self.n_var} vs {self._varm.shape[1]})")
 
-            if self._varp is not None and self.n_var != self._varp.shape[0]:
-                raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
+        if self._varp is not None and self.n_var != self._varp.shape[0]:
+            raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
     # writing ------------------------------------------------------------
 
     def write(self, file: Union[str, Path]) -> None:
