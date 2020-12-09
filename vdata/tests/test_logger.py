@@ -7,11 +7,14 @@
 from .._IO.logger import generalLogger
 from .._IO.errors import VValueError
 
-generalLogger.set_level("WARNING")
+generalLogger.set_level("DEBUG")
 
 # ====================================================
 # code
 # a=1/0
+
+generalLogger.warning("hello")
+generalLogger.info('world')
 
 # generalLogger.error("test")
 
