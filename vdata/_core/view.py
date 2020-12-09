@@ -448,6 +448,7 @@ class ViewVData:
 
     @property
     def obs(self) -> pd.DataFrame:
+
         return self._parent.obs[self._obs_slicer]
 
     @obs.setter
