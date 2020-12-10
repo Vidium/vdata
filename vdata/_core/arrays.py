@@ -16,6 +16,7 @@ from typing_extensions import Literal
 from . import vdata
 from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike, DType
 from .._IO.errors import ShapeError, IncoherenceError, VValueError, VTypeError, VAttributeError
+from .._IO.logger import generalLogger
 
 
 # ====================================================
@@ -191,25 +192,33 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             _shape = self._parent.shape()
 
             for array_index, array in data.items():
-                if _shape != array.shape:
-                    if _shape[0] != array.shape[0]:
-                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[0]} "
-                                               f"time point{'s' if array.shape[0] > 1 else ''}, "
+                array_shape = (array.shape[0], [array[i].shape[0] for i in range(len(array))], array[0].shape[1])
+
+                if _shape != array_shape:
+
+                    if _shape[0] != array_shape[0]:
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array_shape[0]} "
+                                               f"time point{'s' if array_shape[0] > 1 else ''}, "
                                                f"should have {_shape[0]}.")
 
-                    elif self.name in ("layers", "obsm") and _shape[1] != array.shape[1]:
-                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[1]} observations, "
-                                               f"should have {_shape[1]}.")
+                    elif self.name in ("layers", "obsm") and _shape[1] != array_shape[1]:
+                        for i in range(len(array)):
+                            if _shape[1][i] != array_shape[1][i]:
+                                raise IncoherenceError(f"{self.name} '{array_index}' at time point {i} has"
+                                                       f" {array_shape[1][i]} observations, "
+                                                       f"should have {_shape[1][i]}.")
 
                     elif self.name in ("layers", "varm"):
-                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[2]} variables, "
+                        raise IncoherenceError(f"{self.name} '{array_index}' has  {array_shape[2]} variables, "
                                                f"should have {_shape[2]}.")
 
                     else:
-                        _data[str(array_index)] = array.astype(self._parent.dtype)
+                        _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array],
+                                                           dtype=object)
 
                 else:
-                    _data[str(array_index)] = array.astype(self._parent.dtype)
+                    print(array)
+                    _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array], dtype=object)
 
             return _data
 
@@ -294,6 +303,7 @@ class VAxisArray(VBase3DArrayContainer):
         :param data: a dictionary of array-like objects to store in this Array
         :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
         """
+        generalLogger.debug(f"Creating {axis}m VAxisArray.")
         self._axis = axis
         super().__init__(parent, data)
         self._col_names = self._check_col_names(col_names)
@@ -384,6 +394,7 @@ class VLayersArrays(VBase3DArrayContainer):
         :param parent: the parent VData object this Array is linked to
         :param data: a dictionary of array-like objects to store in this Array
         """
+        generalLogger.debug(f"Creating VLayersArrays.")
         super().__init__(parent, data)
 
     def __repr__(self) -> str:
@@ -438,6 +449,7 @@ class VPairwiseArray(VBaseArrayContainer):
         :param axis: the axis this Array must conform to (obs or var)
         :param data: a dictionary of array-like objects to store in this Array
         """
+        generalLogger.debug(f"Creating {axis}p VPairwiseArray.")
         self._axis = axis
         super().__init__(parent, data)
 

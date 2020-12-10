@@ -4,14 +4,23 @@
 
 # ====================================================
 # imports
+import numpy as np
+
 from .._core.dataframe import TemporalDataFrame
+from .._core.vdata import VData
 
 # ====================================================
 # code
-data = {'ID': ['C1.1', 'C1.2', 'C2.1', 'C2.2'], 'data': ['a', 'b', 'c', 'd']}
-TPID = [0, 0, 1, 1]
+expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
+v = VData(data=expr_matrix, log_level="DEBUG")
 
-obs = TemporalDataFrame(data, TPID)
+data = {'TP': [0, 0, 1, 1], 'ID': ['C1.1', 'C1.2', 'C2.1', 'C2.2'], 'data': [2, 10, 5, 15]}
+
+obs = TemporalDataFrame(v, data, time_col='TP')
 print(obs)
-print(obs[0])
-print(obs[:, [True, False, False, True]])
+
+print(obs[:, obs.data > 7])
+
+
+
+

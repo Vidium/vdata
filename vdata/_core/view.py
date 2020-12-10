@@ -14,25 +14,13 @@ from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, NoReturn
 from . import vdata
 from .arrays import VLayersArrays, VAxisArray, VPairwiseArray, VBaseArrayContainer
 from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
+from ..utils import slice_to_range
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
 
 
 # ====================================================
 # code
-def slice_to_range(s: slice, max_stop: int) -> range:
-    """
-    Convert a slice to a range
-    :param s: a slice to convert
-    :param max_stop: if s.stop is None, the stop value for the range
-    """
-    start = s.start if s.start is not None else 0
-    stop = s.stop if s.stop is not None else max_stop
-    step = s.step if s.step is not None else 1
-
-    return range(start, stop, step)
-
-
-class ViewBaseArray(ABC):
+class ViewBaseArray:
     """
     A base view of a VBaseArrayContainer.
     This class is used to create views on VLayersArrays, VAxisArrays and VPairwiseArrays.
@@ -297,8 +285,8 @@ class ViewVData:
 
         return repr_str
 
-    def __getitem__(self,
-                    index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
+
+    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]])\
             -> 'ViewVData':
         """
         Get a subset of a view of a VData object.
