@@ -146,7 +146,11 @@ class VBaseArrayContainer(ABC):
         """
         return self._data.items() if self._data is not None else ()
 
-    def dict_copy(self) -> Dict[str, ArrayLike_3D]:
+    def dict_copy(self) -> Dict[str, ArrayLike]:
+        """
+        Build a copy of this Array in dict format.
+        :return: Dictionary of (keys, ArrayLike) in this Array.
+        """
         return dict(self._data) if self._data is not None else dict()
 
 
@@ -169,7 +173,8 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             self._data[key] = value
 
         else:
-            raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, expected {self._parent.shape()}")
+            raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, "
+                             f"expected {self._parent.shape()}")
 
     def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, ArrayLike_3D]]:
         """
@@ -188,13 +193,17 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             for array_index, array in data.items():
                 if _shape != array.shape:
                     if _shape[0] != array.shape[0]:
-                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[0]} time point{'s' if array.shape[0] > 1 else ''}, should have {_shape[0]}.")
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[0]} "
+                                               f"time point{'s' if array.shape[0] > 1 else ''}, "
+                                               f"should have {_shape[0]}.")
 
                     elif self.name in ("layers", "obsm") and _shape[1] != array.shape[1]:
-                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[1]} observations, should have {_shape[1]}.")
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[1]} observations, "
+                                               f"should have {_shape[1]}.")
 
                     elif self.name in ("layers", "varm"):
-                        raise IncoherenceError(f"{self.name} '{array_index}' has  {array.shape[2]} variables, should have {_shape[2]}.")
+                        raise IncoherenceError(f"{self.name} '{array_index}' has {array.shape[2]} variables, "
+                                               f"should have {_shape[2]}.")
 
                     else:
                         _data[str(array_index)] = array.astype(self._parent.dtype)
@@ -263,19 +272,22 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             arr_2D = np.concatenate((time_point_col[:, None], arr_2D), axis=1)
             # save array
             pd.DataFrame(arr_2D, index=pd.Series(np.repeat(idx, self._parent.n_time_points)),
-                         columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+                         columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv",
+                                                                    sep, na_rep, index=index, header=header)
 
 
 class VAxisArray(VBase3DArrayContainer):
     """
     Class for obsm and varm.
-    These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any) and (n_var, any) respectively.
+    These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any)
+        and (n_var, any) respectively.
     The arrays-like objects can be accessed from the parent VData object by :
         VData.obsm['<array_name>'])
         VData.varm['<array_name>'])
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[str, ArrayLike_3D]] = None,
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'],
+                 data: Optional[Dict[str, ArrayLike_3D]] = None,
                  col_names: Optional[Dict[str, Collection]] = None):
         """
         :param parent: the parent VData object this Array is linked to
@@ -318,7 +330,8 @@ class VAxisArray(VBase3DArrayContainer):
 
             else:
                 if not isinstance(col_names, dict):
-                    raise VTypeError("'col_names' must be a dictionary with same keys as 'data' and values as lists of column names for 'data'.")
+                    raise VTypeError("'col_names' must be a dictionary with same keys as 'data' and values as lists "
+                                     "of column names for 'data'.")
 
                 elif col_names.keys() != self._data.keys():
                     raise VValueError("'col_names' must be the same as 'data' keys.")
@@ -411,7 +424,8 @@ class VLayersArrays(VBase3DArrayContainer):
 class VPairwiseArray(VBaseArrayContainer):
     """
     Class for obsp and varp.
-    This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs) and (n_time_points, n_var, n_var)
+    This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs)
+        and (n_time_points, n_var, n_var)
     respectively.
     The arrays-like objects can be accessed from the parent VData object by :
         VData.obsp['<array_name>']
@@ -451,7 +465,8 @@ class VPairwiseArray(VBaseArrayContainer):
                 self._data[key] = value
 
             else:
-                raise IncoherenceError(f"The supplied array-like object has incorrect shape {value.shape}, expected ({shape_parent}, {shape_parent})")
+                raise IncoherenceError(f"The supplied array-like object has incorrect shape {value.shape}, "
+                                       f"expected ({shape_parent}, {shape_parent})")
 
         else:
             raise ShapeError("The supplied array-like object is not square.")
@@ -476,7 +491,8 @@ class VPairwiseArray(VBaseArrayContainer):
                     raise ShapeError(f"The array-like object '{array_index}' supplied to {self.name} is not square.")
 
                 elif array.shape[0] != shape_parent:
-                    raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape {array.shape}, it should have shape ({shape_parent}, {shape_parent})")
+                    raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape "
+                                           f"{array.shape}, it should have shape ({shape_parent}, {shape_parent})")
 
                 else:
                     _data[str(array_index)] = array.astype(self._parent.dtype)
@@ -502,7 +518,8 @@ class VPairwiseArray(VBaseArrayContainer):
             return self._data[list(self._data.keys())[0]].shape
 
         else:
-            return (self._parent.n_obs, self._parent.n_obs) if self._axis == "obs" else (self._parent.n_var, self._parent.n_var)
+            return (self._parent.n_obs, self._parent.n_obs) \
+                if self._axis == "obs" else (self._parent.n_var, self._parent.n_var)
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
@@ -520,4 +537,5 @@ class VPairwiseArray(VBaseArrayContainer):
         idx = getattr(self._parent, self._axis).index
 
         for arr_name, arr in self.items():
-            pd.DataFrame(arr, index=idx, columns=idx).to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            pd.DataFrame(arr, index=idx, columns=idx).to_csv(f"{directory / self.name / arr_name}.csv",
+                                                             sep, na_rep, index=index, header=header)

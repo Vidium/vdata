@@ -6,12 +6,14 @@
 # imports
 import pandas as pd
 import numpy as np
+import abc
+from abc import ABC
 from scipy import sparse
 from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, NoReturn, Any, Optional
 
 from . import vdata
 from .arrays import VLayersArrays, VAxisArray, VPairwiseArray, VBaseArrayContainer
-from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D
+from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
 
 
@@ -30,7 +32,7 @@ def slice_to_range(s: slice, max_stop: int) -> range:
     return range(start, stop, step)
 
 
-class ViewBaseArray:
+class ViewBaseArray(ABC):
     """
     A base view of a VBaseArrayContainer.
     This class is used to create views on VLayersArrays, VAxisArrays and VPairwiseArrays.
@@ -48,6 +50,24 @@ class ViewBaseArray:
         :return: a description of this view
         """
         return f"View of {self._arrays}"
+
+    @abc.abstractmethod
+    def __getitem__(self, array_name: str) -> ArrayLike:
+        """
+        Get a specific Array in this view.
+        :param array_name: the name of the Array to get
+        """
+        pass
+
+    @abc.abstractmethod
+    def __setitem__(self, array_name: str, values: ArrayLike) -> None:
+        """
+        Set values for a specific Array in this view with an array-like object.
+        Shapes of the view and of the array-like object must match.
+        :param array_name: the name of the Array for which to set values
+        :param values: an array-like object of values with shape matching the view's.
+        """
+        pass
 
     def keys(self) -> Union[Tuple[()], KeysView]:
         """
@@ -67,13 +87,21 @@ class ViewBaseArray:
         """
         return self._arrays.items()
 
+    def dict_copy(self) -> Dict[str, ArrayLike]:
+        """
+        Build an actual copy of this Array view in dict format.
+        :return: Dictionary of (keys, ArrayLike) in this Array view.
+        """
+        return dict([(arr, self[arr]) for arr in self._arrays.keys()])
+
 
 class ViewVLayersArrays(ViewBaseArray):
     """
     A view of a VLayersArrays object.
     """
 
-    def __init__(self, arrays: VLayersArrays, time_points_slicer: np.ndarray, obs_slicer: np.ndarray, var_slicer: np.ndarray):
+    def __init__(self, arrays: VLayersArrays, time_points_slicer: np.ndarray,
+                 obs_slicer: np.ndarray, var_slicer: np.ndarray):
         """
         :param arrays: a VLayersArrays object to build a view on
         :param obs_slicer: the list of observations to view
@@ -103,7 +131,8 @@ class ViewVLayersArrays(ViewBaseArray):
             raise VTypeError("Values must be a 3D array-like object (numpy array or scipy sparse matrix)")
 
         elif not values.shape == (len(self._time_points_slicer), len(self._obs_slicer), len(self._var_slicer)):
-            raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape ({len(self._time_points_slicer)}, {len(self._obs_slicer)}, {len(self._var_slicer)})")
+            raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape "
+                             f"({len(self._time_points_slicer)}, {len(self._obs_slicer)}, {len(self._var_slicer)})")
 
         else:
             self._arrays[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)] = values
@@ -170,7 +199,7 @@ class ViewVPairwiseArray(ViewBaseArray):
         """
         return self._arrays[array_name][np.ix_(self._axis_slicer, self._axis_slicer)]
 
-    def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
+    def __setitem__(self, array_name: str, values: ArrayLike_2D) -> None:
         """
         Set values for a specific Array in this view with an array-like object.
         Shapes of the view and of the array-like object must match.
@@ -180,7 +209,8 @@ class ViewVPairwiseArray(ViewBaseArray):
         array_shape = (len(self._axis_slicer), len(self._axis_slicer))
 
         if not isinstance(values, (np.ndarray, sparse.spmatrix)):
-            raise VTypeError("Values must be a 2D array-like object (pandas DataFrame, numpy array or scipy sparse matrix)")
+            raise VTypeError("Values must be a 2D array-like object "
+                             "(pandas DataFrame, numpy array or scipy sparse matrix)")
 
         elif not values.shape == array_shape:
             raise ShapeError(f"Cannot set values, array-like object {values.shape} should have shape {array_shape}")
@@ -213,7 +243,8 @@ class ViewVData:
         elif time_points_slicer == slice(None, None, None):
             self._time_points_slicer = np.array([True] * self._parent.n_time_points)
         else:
-            time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)), dtype=self._parent.time_points.index.dtype)
+            time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)),
+                                          dtype=self._parent.time_points.index.dtype)
             self._time_points_slicer = np.isin(self._parent.time_points.index, time_points_slicer)
 
         # obs -------------------------
@@ -253,9 +284,11 @@ class ViewVData:
         :return: a description of this view
         """
         if self.is_empty:
-            repr_str = f"Empty view of a Vdata object ({self.n_obs} obs x {self.n_var} vars over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''})."
+            repr_str = f"Empty view of a Vdata object ({self.n_obs} obs x {self.n_var} vars over " \
+                       f"{self.n_time_points} time point{'s' if self.n_time_points > 1 else ''})."
         else:
-            repr_str = f"View of a Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''}"
+            repr_str = f"View of a Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over " \
+                       f"{self.n_time_points} time point{'s' if self.n_time_points > 1 else ''}"
 
         for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
             keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
@@ -264,7 +297,9 @@ class ViewVData:
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'ViewVData':
+    def __getitem__(self,
+                    index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
+            -> 'ViewVData':
         """
         Get a subset of a view of a VData object.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
@@ -288,7 +323,8 @@ class ViewVData:
         elif isinstance(time_points_slicer, (int, float, str)):
             if time_points_slicer in self._parent.time_points.index:
                 time_points_slicer = np.array([time_points_slicer],
-                                              dtype=self._parent.time_points.index.dtype) if self._time_points_slicer[list(self._parent.time_points.index).index(time_points_slicer)] else []
+                                              dtype=self._parent.time_points.index.dtype) \
+                    if self._time_points_slicer[list(self._parent.time_points.index).index(time_points_slicer)] else []
             else:
                 time_points_slicer = []
 
@@ -309,7 +345,8 @@ class ViewVData:
 
         elif isinstance(obs_slicer, (int, float, str)):
             if obs_slicer in self._parent.obs.index:
-                obs_slicer = np.array([obs_slicer], dtype=self._parent.obs.index.dtype) if self._obs_slicer[list(self._parent.obs.index).index(obs_slicer)] else []
+                obs_slicer = np.array([obs_slicer], dtype=self._parent.obs.index.dtype) \
+                    if self._obs_slicer[list(self._parent.obs.index).index(obs_slicer)] else []
             else:
                 obs_slicer = []
 
@@ -330,7 +367,8 @@ class ViewVData:
 
         elif isinstance(var_slicer, (int, float, str)):
             if var_slicer in self._parent.var.index:
-                var_slicer = np.array([var_slicer], dtype=self._parent.var.index.dtype) if self._var_slicer[list(self._parent.var.index).index(var_slicer)] else []
+                var_slicer = np.array([var_slicer], dtype=self._parent.var.index.dtype) \
+                    if self._var_slicer[list(self._parent.var.index).index(var_slicer)] else []
             else:
                 var_slicer = []
 
@@ -398,7 +436,8 @@ class ViewVData:
             raise VTypeError("'time_points' must be a pandas DataFrame.")
 
         elif df.columns != self._parent.time_points.columns:
-            raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' it replaces.")
+            raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' "
+                                   "it replaces.")
 
         elif df.shape[0] != self.n_time_points:
             raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
@@ -452,7 +491,8 @@ class ViewVData:
     # Arrays -------------------------------------------------------------
     @property
     def layers(self) -> ViewVLayersArrays:
-        return ViewVLayersArrays(self._parent.layers, self._time_points_array_slicer, self._obs_array_slicer, self._var_array_slicer)
+        return ViewVLayersArrays(self._parent.layers, self._time_points_array_slicer,
+                                 self._obs_array_slicer, self._var_array_slicer)
 
     @layers.setter
     def layers(self, *_: Any) -> NoReturn:
@@ -506,3 +546,15 @@ class ViewVData:
     @genes.setter
     def genes(self, df: pd.DataFrame) -> None:
         self.var = df
+
+    # copy ---------------------------------------------------------------
+    def copy(self) -> 'vdata.VData':
+        """
+        Build an actual VData object from this view.
+        """
+        return vdata.VData(self.layers.dict_copy(),
+                           self.obs, self.obsm.dict_copy(), self.obsp.dict_copy(),
+                           self.var, self.varm.dict_copy(), self.varp.dict_copy(),
+                           self.time_points,
+                           self.uns,
+                           self._parent.dtype, self._parent.log_level)

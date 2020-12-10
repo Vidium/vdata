@@ -25,7 +25,10 @@ uns = {'color': ["#c1c1c1"]}
 time_points = pd.DataFrame({"value": [5], "unit": ["hour"]})
 
 
-a = VData(data=expr_matrix, obs=obs, obsm=obsm, var=var, varm=varm, uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
+a = VData(data=expr_matrix,
+          obs=obs, obsm=obsm,
+          var=var, varm=varm,
+          uns=uns, time_points=time_points, log_level="DEBUG", dtype="float64")
 print(a)
 
 print(a.dtype)

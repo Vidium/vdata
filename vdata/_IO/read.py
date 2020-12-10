@@ -78,7 +78,8 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_le
                 df = pd.read_csv(directory / f / dataset, index_col=0)
                 if f in ('layers', 'obsm', 'varm'):
                     # convert DataFrame to 3D array
-                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1) for i in pd.Categorical(df.Time_point).categories])
+                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1)
+                                    for i in pd.Categorical(df.Time_point).categories])
                 else:
                     # convert DataFrame to 2D array
                     arr = np.array(df)
@@ -95,12 +96,15 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_le
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
+def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
+                  obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None,
+                  time_points: Optional[pd.DataFrame] = None,
                   dtype: DType = np.float32, log_level: LoggingLevel = "INFO") -> VData:
     """
     Load a simulation's recorded information into a VData object.
 
-    If time points are not given explicitly, this function will try to recover them from the time point names in the data.
+    If time points are not given explicitly, this function will try to recover them from the time point names
+        in the data.
     For this to work, time points names must be strings with :
         - last character in (s, m, h, D, M, Y)
         - first characters convertible to a float
@@ -112,7 +116,8 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
         - M : month
         - Y : year
 
-    :param data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to matrices of cells x genes
+    :param data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to
+        matrices of cells x genes
     :param obs: a pandas DataFrame describing the observations (cells)
     :param var: a pandas DataFrame describing the variables (genes)
     :param time_points: a pandas DataFrame describing the time points
@@ -135,7 +140,8 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
 
             for matrix_index, matrix in TP_matrices.items():
                 if not isinstance(matrix, (np.ndarray, sparse.spmatrix, pd.DataFrame)) or matrix.ndim != 2:
-                    raise VTypeError(f"Item at time point '{matrix_index}' is not a 2D array-like object (numpy ndarray, scipy sparse matrix, pandas DatFrame).")
+                    raise VTypeError(f"Item at time point '{matrix_index}' is not a 2D array-like object "
+                                     f"(numpy ndarray, scipy sparse matrix, pandas DatFrame).")
 
                 elif check_tp:
                     if matrix_index not in _time_points:
@@ -312,8 +318,10 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None, log_level: Optio
     Function for reading data from a .h5 file and building a VData object from it.
 
     :param file: path to a .h5 file.
-    :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from the .h5 file.
-    :param log_level: logger level to force on the newly built VData object. If set to None, the level is inferred from the .h5 file.
+    :param dtype: data type to force on the newly built VData object.
+        If set to None, the dtype is inferred from the .h5 file.
+    :param log_level: logger level to force on the newly built VData object.
+        If set to None, the level is inferred from the .h5 file.
     """
     if log_level is not None:
         generalLogger.set_level(log_level)

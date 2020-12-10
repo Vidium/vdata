@@ -134,7 +134,10 @@ def write_list(data: List, group: H5Group, key: str, key_level: int = 0) -> None
 @write_data.register(np.floating)
 @write_data.register(bool)
 @write_data.register(np.bool_)
-def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floating, bool, np.bool_], group: H5Group, key: str, key_level: int = 0) -> None:
+def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floating, bool, np.bool_],
+                       group: H5Group,
+                       key: str,
+                       key_level: int = 0) -> None:
     """
     Function for writing a single value to the h5 file.
     """

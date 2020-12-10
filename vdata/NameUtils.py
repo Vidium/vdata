@@ -7,14 +7,13 @@
 import h5py
 import numpy as np
 import pandas as pd
-from scipy import sparse
-from typing import Union, Sequence
+from typing import Union, Sequence, Type
 from typing_extensions import Literal
 
 # ====================================================
 # types
 ArrayLike_2D = Union[np.ndarray, pd.DataFrame]
-ArrayLike_3D = np.ndarray
+ArrayLike_3D = Type[np.ndarray]
 ArrayLike = Union[ArrayLike_2D, ArrayLike_3D]
 
 DTypes = {int: int,
@@ -42,7 +41,8 @@ DTypes = {int: int,
           np.float64: np.float64,
           np.float128: np.float128}
 
-DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64", "float128"], int, float, np.int_, np.float_]
+DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
+                      "float128"], int, float, np.int_, np.float_]
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

@@ -19,7 +19,8 @@ from typing import Optional, Union, Dict, Tuple, Any
 from . import view
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from ..utils import is_in
-from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer, Slicer
+from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer, \
+    Slicer
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
 from .._IO.logger import generalLogger, Tb, original_excepthook
 from .._IO.write import write_data
@@ -81,7 +82,10 @@ class VData:
         self._uns: Optional[Dict] = None
 
         # check formats of arguments
-        _layers, _obsm, _obsp, _varm, _varp, df_obs, df_var = self._check_formats(data, obs, obsm, obsp, var, varm, varp, time_points, uns)
+        _layers, _obsm, _obsp, _varm, _varp, df_obs, df_var = self._check_formats(data,
+                                                                                  obs, obsm, obsp,
+                                                                                  var, varm, varp,
+                                                                                  time_points, uns)
 
         # set number of obs and vars from available data
         self._n_obs, self._n_vars, self._n_time_points = 0, 0, 0
@@ -142,9 +146,11 @@ class VData:
         :return: a description of this Vdata object
         """
         if self.is_empty:
-            repr_str = f"Empty Vdata object ({self.n_obs} obs x {self.n_var} vars over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''})."
+            repr_str = f"Empty Vdata object ({self.n_obs} obs x {self.n_var} vars over {self.n_time_points} " \
+                       f"time point{'s' if self.n_time_points > 1 else ''})."
         else:
-            repr_str = f"Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over {self.n_time_points} time point{'s' if self.n_time_points > 1 else ''}"
+            repr_str = f"Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over {self.n_time_points} " \
+                       f"time point{'s' if self.n_time_points > 1 else ''}"
 
         for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
             keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
@@ -153,7 +159,8 @@ class VData:
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'view.ViewVData':
+    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]])\
+            -> 'view.ViewVData':
         """
         Get a view of this VData object with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
@@ -169,9 +176,10 @@ class VData:
 
             Example:
                 * VData[:] or VData[...]                            --> view all
-                * VData[:, 'cell_1'] or VData[:, 'cell_1', :]       --> view all time points and variables for observation 'cell_1'
-                * VData[0, ('cell_1', 'cell_9'), range(0, 10)]      --> view observations 'cell_1' and 'cell_2' with variables
-                                                                        0 to 9 on time point 0
+                * VData[:, 'cell_1'] or VData[:, 'cell_1', :]       --> view all time points and variables
+                                                                        for observation 'cell_1'
+                * VData[0, ('cell_1', 'cell_9'), range(0, 10)]      --> view observations 'cell_1' and 'cell_2'
+                                                                        with variables 0 to 9 on time point 0
         """
         if not isinstance(index, tuple):
             index = (index, ..., ...)
@@ -189,10 +197,12 @@ class VData:
 
             elif isinstance(slicer, (int, float, str)):
                 return [slicer]
-            # I have to ignore the type for mypy here because technically type(Ellipsis) is not the same as ellipsis but 'ellipsis' causes an error
+            # I have to ignore the type for mypy here because technically type(Ellipsis) is not the same as ellipsis
+            # but 'ellipsis' causes an error
             return slicer   # type: ignore
 
-        return view.ViewVData(self, check_slicer(time_points_slicer), check_slicer(obs_slicer), check_slicer(var_slicer))
+        return view.ViewVData(self, check_slicer(time_points_slicer), check_slicer(obs_slicer),
+                              check_slicer(var_slicer))
 
     # Shapes -------------------------------------------------------------
     @property
@@ -206,8 +216,9 @@ class VData:
     @property
     def n_time_points(self) -> int:
         """
-        Number of time points in this VData object. n_time_points can be extracted directly from self.time_points or from the
-        nb of time points in the layers. If no data was given, a default list of time points was created with integer values.
+        Number of time points in this VData object. n_time_points can be extracted directly from self.time_points
+        or from the nb of time points in the layers. If no data was given, a default list of time points was created
+        with integer values.
         :return: VData's number of time points
         """
         return self._n_time_points
@@ -215,8 +226,8 @@ class VData:
     @property
     def n_obs(self) -> int:
         """
-        Number of observations in this VData object. n_obs can be extracted directly from self.obs or from parameters supplied
-        during this VData object's creation :
+        Number of observations in this VData object. n_obs can be extracted directly from self.obs or from parameters
+        supplied during this VData object's creation :
             - nb of observations in the layers
             - nb of observations in obsm
             - nb of observations in obsp
@@ -227,8 +238,8 @@ class VData:
     @property
     def n_var(self) -> int:
         """
-        Number of variables in this VData object. n_var can be extracted directly from self.var or from parameters supplied
-        during this VData object's creation :
+        Number of variables in this VData object. n_var can be extracted directly from self.var or from parameters
+        supplied during this VData object's creation :
             - nb of variables in the layers
             - nb of variables in varm
             - nb of variables in varp
@@ -314,26 +325,31 @@ class VData:
         else:
             if not isinstance(data, dict):
                 raise VTypeError(
-                    "'obsm' should be set with a dictionary of 3D array-like objects (numpy array, scipy sparse matrix).")
+                    "'obsm' should be set with a dictionary of 3D array-like objects "
+                    "(numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
                         raise VTypeError(
-                            f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                            f"'{arr_index}' array for obsm should be a 3D array-like object "
+                            f"(numpy array, scipy sparse matrix).")
 
                     elif arr.ndim != 3:
                         raise VTypeError(
-                            f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                            f"'{arr_index}' array for obsm should be a 3D array-like object "
+                            f"(numpy array, scipy sparse matrix).")
 
                 else:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
                         raise VTypeError(
-                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object "
+                            f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim not in (2, 3):
                         raise VTypeError(
-                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            f"'{arr_index}' array for obsm should be a 2D or 3D array-like object "
+                            f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim == 2:
                         data[arr_index] = self._reshape_to_3D(arr)
@@ -352,16 +368,19 @@ class VData:
         else:
             if not isinstance(data, dict):
                 raise VTypeError(
-                    "'obsp' should be set with a dictionary of 2D array-like objects (numpy array, scipy sparse matrix).")
+                    "'obsp' should be set with a dictionary of 2D array-like objects "
+                    "(numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
                     raise VTypeError(
-                        f"'{arr_index}' array for obsp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        f"'{arr_index}' array for obsp should be a 2D array-like object "
+                        f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                 elif arr.ndim != 2:
                     raise VTypeError(
-                        f"'{arr_index}' array for obsm should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        f"'{arr_index}' array for obsm should be a 2D array-like object "
+                        f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
             self._obsp = VPairwiseArray(self, 'obs', data)
 
@@ -376,25 +395,30 @@ class VData:
 
         else:
             if not isinstance(data, dict):
-                raise VTypeError("'varm' should be set with a dictionary of 3D array-like objects (numpy array, scipy sparse matrix).")
+                raise VTypeError("'varm' should be set with a dictionary of 3D array-like objects "
+                                 "(numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
-                        raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix).")
 
                     elif arr.ndim != 3:
-                        raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix).")
 
                 else:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
                         raise VTypeError(
-                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, "
+                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D "
+                            f"array-like object (numpy array, "
                             f"scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim not in (2, 3):
                         raise VTypeError(
-                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D array-like object (numpy array, "
+                            f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} 3D "
+                            f"array-like object (numpy array, "
                             f"scipy sparse matrix{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim == 2:
@@ -413,14 +437,17 @@ class VData:
 
         else:
             if not isinstance(data, dict):
-                raise VTypeError("'varp' should be set with a dictionary of 2D array-like objects (numpy array, scipy sparse matrix).")
+                raise VTypeError("'varp' should be set with a dictionary of 2D array-like objects "
+                                 "(numpy array, scipy sparse matrix).")
 
             for arr_index, arr in data.items():
                 if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
-                    raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object "
+                                     f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                 elif arr.ndim != 2:
-                    raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object "
+                                     f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
             self._varp = VPairwiseArray(self, 'var', data)
 
@@ -450,22 +477,27 @@ class VData:
                 data = {"data": data}
 
             elif not isinstance(data, dict):
-                raise VTypeError("'layers' should be set with a 3D array-like object (numpy array, scipy sparse matrix) or with a dictionary of them.")
+                raise VTypeError("'layers' should be set with a 3D array-like object (numpy array, scipy sparse matrix)"
+                                 " or with a dictionary of them.")
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
-                        raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix).")
 
                     elif arr.ndim != 3:
-                        raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object (numpy array, scipy sparse matrix).")
+                        raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix).")
 
                 else:
                     if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
-                        raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim not in (2, 3):
-                        raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object "
+                                         f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     elif arr.ndim == 2:
                         data[arr_index] = self._reshape_to_3D(arr)
@@ -520,8 +552,10 @@ class VData:
     # init functions -----------------------------------------------------
 
     def _check_formats(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]],
-                       obs: Optional[pd.DataFrame], obsm: Optional[Dict[Any, ArrayLike]], obsp: Optional[Dict[Any, ArrayLike]],
-                       var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]], varp: Optional[Dict[Any, ArrayLike]],
+                       obs: Optional[pd.DataFrame], obsm: Optional[Dict[Any, ArrayLike]],
+                       obsp: Optional[Dict[Any, ArrayLike]],
+                       var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]],
+                       varp: Optional[Dict[Any, ArrayLike]],
                        time_points: Optional[pd.DataFrame],
                        uns: Optional[Dict]) -> \
             Tuple[Optional[Dict[str, ArrayLike_3D]],
@@ -552,7 +586,8 @@ class VData:
 
         nb_time_points = 1 if time_points is None else len(time_points)
 
-        # if an AnnData is being imported, obs, obsm, obsp, var, varm, varp and uns should be None because they will be set from the AnnData
+        # if an AnnData is being imported, obs, obsm, obsp, var, varm, varp and uns should be None
+        # because they will be set from the AnnData
         if isinstance(data, AnnData):
             for attr in ('obs', 'obsm', 'obsp', 'var', 'varm', 'varp', 'uns'):
                 if eval(f"{attr} is not None"):
@@ -566,7 +601,8 @@ class VData:
                 layers = dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items())
 
             else:
-                layers = dict({"data":  self._reshape_to_3D(data.X)}, **dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items()))
+                layers = dict({"data":  self._reshape_to_3D(data.X)}, **dict((key, self._reshape_to_3D(arr))
+                                                                             for key, arr in data.layers.items()))
 
             obs, obsm, obsp = data.obs, dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
@@ -599,17 +635,22 @@ class VData:
                         layers = {"data": data}
 
                     else:
-                        raise ShapeError("'data' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                        raise ShapeError("'data' must be a 2D or 3D array-like object "
+                                         "(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                 else:
                     for key, value in data.items():
                         if not isinstance(value, (np.ndarray, sparse.spmatrix)):
-                            raise VTypeError(f"Layer '{key}' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"Layer '{key}' must be a 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim not in (2, 3):
-                            raise VTypeError(f"Layer '{key}' must contain 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"Layer '{key}' must contain 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim == 2:
                             if nb_time_points > 1:
-                                raise VTypeError(f"Layer '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
+                                raise VTypeError(f"Layer '{key}' must be a 3D array-like object "
+                                                 f"(numpy array, scipy sparse matrix) "
+                                                 f"if providing more than 1 time point.")
 
                             value = self._reshape_to_3D(value)
 
@@ -629,12 +670,16 @@ class VData:
                 else:
                     for key, value in obsm.items():
                         if not isinstance(value, (np.ndarray, sparse.spmatrix)):
-                            raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim not in (2, 3):
-                            raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim == 2:
                             if nb_time_points > 1:
-                                raise VTypeError(f"obsm '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
+                                raise VTypeError(f"obsm '{key}' must be a 3D array-like object "
+                                                 f"(numpy array, scipy sparse matrix) "
+                                                 f"if providing more than 1 time point.")
 
                             value = self._reshape_to_3D(value)
 
@@ -645,12 +690,14 @@ class VData:
                 if isinstance(obsp, dict):
                     for key, value in obsp.items():
                         if not isinstance(value, (np.ndarray, sparse.spmatrix, pd.DataFrame)) and value.ndim != 2:
-                            raise VTypeError(f"'{key}' object in obsp is not a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"'{key}' object in obsp is not a 2D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     obsp = dict((str(k), v) for k, v in obsp.items())
 
                 else:
-                    raise VTypeError("obsp must be a dictionary of 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError("obsp must be a dictionary of 2D array-like object "
+                                     "(numpy array, scipy sparse matrix, pandas DataFrame).")
 
             # var
             if var is not None:
@@ -666,12 +713,16 @@ class VData:
                 else:
                     for key, value in varm.items():
                         if not isinstance(value, (np.ndarray, sparse.spmatrix)):
-                            raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim not in (2, 3):
-                            raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
                         elif value.ndim == 2:
                             if nb_time_points > 1:
-                                raise VTypeError(f"varm '{key}' must be a 3D array-like object (numpy array, scipy sparse matrix) if providing more than 1 time point.")
+                                raise VTypeError(f"varm '{key}' must be a 3D array-like object "
+                                                 f"(numpy array, scipy sparse matrix) "
+                                                 f"if providing more than 1 time point.")
 
                             value = self._reshape_to_3D(value)
 
@@ -682,12 +733,14 @@ class VData:
                 if isinstance(varp, dict):
                     for key, value in varp.items():
                         if not isinstance(value, (np.ndarray, sparse.spmatrix, pd.DataFrame)) and value.ndim != 2:
-                            raise VTypeError(f"'{key}' object in varp is not a 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                            raise VTypeError(f"'{key}' object in varp is not a 2D array-like object "
+                                             f"(numpy array, scipy sparse matrix, pandas DataFrame).")
 
                     varp = dict((str(k), v) for k, v in varp.items())
 
                 else:
-                    raise VTypeError("'varp' must be a dictionary of 2D array-like object (numpy array, scipy sparse matrix, pandas DataFrame).")
+                    raise VTypeError("'varp' must be a dictionary of 2D array-like object "
+                                     "(numpy array, scipy sparse matrix, pandas DataFrame).")
 
             # uns
             if uns is not None and not isinstance(uns, dict):
@@ -741,20 +794,22 @@ class VData:
                 dataset = getattr(self, attr)
                 if len(dataset):
                     if len(self._time_points) != dataset.shape[0]:
-                        raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but {len(self._time_points)} {'was' if len(self._time_points) == 1 else 'were'} given.")
+                        raise IncoherenceError(f"{attr} have {dataset.shape[0]} time points but "
+                                               f"{len(self._time_points)} "
+                                               f"{'was' if len(self._time_points) == 1 else 'were'} given.")
 
         # if data was given as a dataframe, check that obs and data match in row names
-        if self._obs.empty and df_obs is not None:
-            self._obs = pd.DataFrame(index=df_obs)
+        if self.obs.empty and df_obs is not None:
+            self.obs = pd.DataFrame(index=df_obs)
         elif df_obs is not None:
-            if not self._obs.index.equals(df_obs):
+            if not self.obs.index.equals(df_obs):
                 raise VValueError("Indexes in dataFrames 'data' and 'obs' do not match.")
 
         # if data was given as a dataframe, check that var row names match data col names
-        if self._var.empty and df_var is not None:
-            self._var = pd.DataFrame(index=df_var)
+        if self.var.empty and df_var is not None:
+            self.var = pd.DataFrame(index=df_var)
         elif df_var is not None:
-            if not self._var.index.equals(df_var):
+            if not self.var.index.equals(df_var):
                 raise VValueError("Columns in dataFrame 'data' does not match 'var''s index.")
 
         # check coherence between layers, obs, var and time points
@@ -762,11 +817,14 @@ class VData:
             for layer_name, layer in self._layers.items():
                 if layer.shape != (self.n_time_points, self.n_obs, self.n_var):
                     if layer.shape[0] != self._time_points:
-                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of time points {layer.shape[0]}, should be {self.n_time_points}.")
+                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of time points "
+                                               f"{layer.shape[0]}, should be {self.n_time_points}.")
                     elif layer.shape[1] != self.n_obs:
-                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of observations {layer.shape[1]}, should be {self.n_obs}.")
+                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of observations "
+                                               f"{layer.shape[1]}, should be {self.n_obs}.")
                     else:
-                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables {layer.shape[2]}, should be {self.n_var}.")
+                        raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables "
+                                               f"{layer.shape[2]}, should be {self.n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
         if self._obsm is not None and self.n_obs != self._obsm.shape[1]:

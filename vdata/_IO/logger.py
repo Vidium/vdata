@@ -73,7 +73,8 @@ class _VLogger:
             caller_filename = frames[0].filename
             index = 0
 
-            while index < len(frames) - 1 and (caller_filename.endswith("logger.py") or caller_filename.endswith("errors.py")):
+            while index < len(frames) - 1 and (caller_filename.endswith("logger.py")
+                                               or caller_filename.endswith("errors.py")):
                 index += 1
                 caller_filename = frames[index].filename
 
@@ -139,7 +140,8 @@ class _VLogger:
             Tb.trace = Tb.trace.tb_next
 
         # last.f_globals['__package__']
-        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} : {Tb.exception.__name__}] {msg}")
+        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} : "
+                          f"{Tb.exception.__name__}] {msg}")
 
     def critical(self, msg: str) -> None:
         """
@@ -163,6 +165,7 @@ def exception_handler(exception_type, exception, traceback_):
         generalLogger.uncaught_error(exception)
     else:
         print(exception)
+
 
 original_excepthook = sys.excepthook
 sys.excepthook = exception_handler
