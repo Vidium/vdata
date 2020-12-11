@@ -12,14 +12,22 @@ from .._core.vdata import VData
 # ====================================================
 # code
 expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
-v = VData(data=expr_matrix, log_level="DEBUG")
+# v = VData(data=expr_matrix, log_level="DEBUG")
 
-data = {'TP': [0, 0, 1, 1], 'ID': ['C1.1', 'C1.2', 'C2.1', 'C2.2'], 'data': [2, 10, 5, 15]}
+data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), np.repeat(1, 5), np.repeat(2, 2)))),
+        'ID': [f'C0.{i}' for i in range(10)] + [f'C1.{i}' for i in range(5)] + [f'C2.{i}' for i in range(2)],
+        'data': np.random.randint(0, 20, 17),
+        'data_bis': 0,
+        'data_tris': 0}
 
-obs = TemporalDataFrame(v, data, time_col='TP')
+obs = TemporalDataFrame(data, time_col='TP', columns=['TP', 'ID', 'data', 'data_bis'])
 print(obs)
 
-print(obs[:, obs.data > 7])
+print(obs[0, obs.data > 7])
+
+# TODO : debug this : should be able to do obs[(0, 1)] without ','
+# TODO : + does not sub-set as it should !
+print(obs[(0, 1), ])
 
 
 

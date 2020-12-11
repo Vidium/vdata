@@ -27,7 +27,7 @@ def are_equal(a: Union[np.ndarray, sp.spmatrix], b: Union[np.ndarray, sp.spmatri
         return np.array_equal(a, b)
 
 
-def is_in(obj: np.ndarray, list_arrays: Union[np.ndarray, List[np.ndarray]]):
+def is_in(obj: np.ndarray, list_arrays: Union[np.ndarray, List[np.ndarray]]) -> bool:
     for arr in list_arrays:
         if are_equal(obj, arr):
             return True

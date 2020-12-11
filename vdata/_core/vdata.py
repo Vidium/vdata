@@ -63,6 +63,7 @@ class VData:
         :param dtype: a data type to impose on datasets stored in this VData
         :param log_level: a log level for the logger (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
+        # TODO : remove this : manage level at package level
         # disable traceback messages, except if the loggingLevel is set to DEBUG
         def exception_handler(exception_type, exception, traceback_, debug_hook=original_excepthook):
             Tb.trace = traceback_
