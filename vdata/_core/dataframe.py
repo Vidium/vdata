@@ -5,14 +5,15 @@
 # ====================================================
 # imports
 import pandas as pd
+from pandas.core.indexing import _AtIndexer, _iAtIndexer, _LocIndexer, _iLocIndexer
 import numpy as np
-from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO
+from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hashable, Iterable
 from typing_extensions import Literal
 
 from .._IO.errors import VValueError, VTypeError, ShapeError
 from .._IO.logger import generalLogger
 from ..NameUtils import DType, PreSlicer
-from ..utils import slice_to_range
+from ..utils import slice_to_range, isCollection, to_list
 
 
 # ====================================================
@@ -52,8 +53,20 @@ class TemporalDataFrame:
         """
         self._time_points_col = '__TPID'
 
+        def tp_to_str(tp_list):
+            new_tp_list = []
+            for v in to_list(tp_list):
+                if isCollection(v):
+                    new_tp_list.append(tp_to_str(v))
+
+                else:
+                    new_tp_list.append(str(v))
+
+            return new_tp_list
+
         if time_points is not None:
-            time_points = list(map(str, time_points))
+            # time_points = list(map(str, time_points))
+            time_points = tp_to_str(time_points)
 
         if columns is not None:
             columns = ['__TPID'] + list(columns)
@@ -171,7 +184,7 @@ class TemporalDataFrame:
                 mask[tp_i] = True
 
             else:
-                if issubclass(type(tp_obs), str) or not hasattr(tp_obs, '__iter__'):
+                if not isCollection(tp_obs):
                     tp_obs_iter = (tp_obs,)
                 else:
                     tp_obs_iter = map(str, tp_obs)
@@ -182,15 +195,16 @@ class TemporalDataFrame:
                         break
         return mask
 
-    def _one_TP_repr(self, time_point: str, n: Optional[int] = None):
+    def _one_TP_repr(self, time_point: str, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
         """
         Representation of a single time point in this TemporalDataFrame to print.
         :param time_point: the time point to represent.
         :param n: the number of rows to print. Defaults to all.
+        :param func: the name of the function to use to limit the output ('head' or 'tail')
         :return: a representation of a single time point in this TemporalDataFrame object
         """
         mask = self.match(self._df['__TPID'], time_point)
-        return repr(self._df[mask][self.columns].head(n=n))
+        return repr(self._df[mask][self.columns].__getattr__(func)(n=n))
 
     def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]]) -> \
             'TemporalDataFrame':
@@ -236,13 +250,13 @@ class TemporalDataFrame:
 
             index[0] = list(map(str, slice_to_range(index[0], max_value)))
 
-        elif not hasattr(index[0], '__len__') or issubclass(type(index[0]), np.str_):
+        elif not isCollection(index[0]):
             index[0] = [str(index[0])]
 
         else:
             str_index = []
             for v in index[0]:
-                if not hasattr(v, '__iter__') or issubclass(type(v), str):
+                if not isCollection(v):
                     str_index.append(str(v))
 
                 else:
@@ -285,7 +299,7 @@ class TemporalDataFrame:
 
         unique_values = set()
         for value in all_values:
-            if isinstance(value, tuple):
+            if isCollection(value):
                 unique_values.union(set(value))
 
             else:
@@ -426,4 +440,212 @@ class TemporalDataFrame:
 
         return repr_str
 
+    def tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+        """
+        This function returns the last n rows for the object based on position.
 
+        For negative values of n, this function returns all rows except the first n rows.
+        :return: the last n rows.
+        """
+        sub_TDF = self[time_points]
+
+        if sub_TDF.n_time_points:
+            repr_str = ""
+            for TP in sub_TDF.time_points:
+                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
+                repr_str += f"{sub_TDF[TP]._one_TP_repr(TP, n, func='tail')}\n"
+
+        else:
+            repr_str = f"Empty TemporalDataFrame\n" \
+                       f"Columns: {[col for col in sub_TDF.columns]}\n" \
+                       f"Index: {[idx for idx in sub_TDF.index]}"
+
+        return repr_str
+
+    @property
+    def at(self) -> _AtIndexer:
+        """
+        Access a single value for a row/column label pair.
+        :return: a single value for a row/column label pair.
+        """
+        return self._df.at
+
+    @property
+    def iat(self) -> _iAtIndexer:
+        """
+        Access a single value for a row/column pair by integer position.
+        :return: a single value for a row/column pair by integer position.
+        """
+        return self._df.iat
+
+    @property
+    def loc(self) -> '_VLocIndexer':
+        """
+        Access a group of rows and columns by label(s) or a boolean array.
+
+        Allowed inputs are:
+            - A single label, e.g. 5 or 'a', (note that 5 is interpreted as a label of the index, and never as an
+            integer position along the index).
+            - A list or array of labels, e.g. ['a', 'b', 'c'].
+            - A slice object with labels, e.g. 'a':'f'.
+            - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above)
+
+        :return: a group of rows and columns
+        """
+        return _VLocIndexer(self._df, self._df.loc, self._time_points_col)
+
+    @property
+    def iloc(self) -> '_ViLocIndexer':
+        """
+        Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
+
+        Allowed inputs are:
+            - An integer, e.g. 5.
+            - A list or array of integers, e.g. [4, 3, 0].
+            - A slice object with ints, e.g. 1:7.
+            - A boolean array.
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
+            calling object, but would like to base your selection on some value.
+
+        :return: a group of rows and columns
+        """
+        return _ViLocIndexer(self._df.iloc)
+
+    def insert(self, loc, column, value, allow_duplicates=False) -> None:
+        """
+        Insert column into DataFrame at specified location.
+        :param loc: Insertion index. Must verify 0 <= loc <= len(columns).
+        :param column: str, number, or hashable object. Label of the inserted column.
+        :param value: int, Series, or array-like
+        :param allow_duplicates: duplicate column allowed ?
+        """
+        self._df.insert(loc, column, value, allow_duplicates)
+
+    def items(self) -> List[Tuple[Optional[Hashable], pd.Series]]:
+        """
+        Iterate over (column name, Series) pairs.
+        :return: a tuple with the column name and the content as a Series.
+        """
+
+        return list(self._df.items())[1:]
+
+    def keys(self) -> List[Optional[Hashable]]:
+        """
+        Get the ‘info axis’.
+        :return: the ‘info axis’.
+        """
+        keys = list(self._df.keys())
+
+        if '__TPID' in keys:
+            keys.remove('__TPID')
+
+        return keys
+
+    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
+        """
+        Whether each element in the DataFrame is contained in values.
+        :return: whether each element in the DataFrame is contained in values.
+        """
+        if self._time_points_col == '__TPID':
+            time_points = self._df['__TPID'].tolist()
+            time_col = None
+
+        else:
+            time_points = self._df[self._time_points_col].tolist()
+            time_col = self._time_points_col
+
+        return TemporalDataFrame(self._df.isin(values)[self.columns], time_points=time_points, time_col=time_col)
+
+    def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
+           level: Any = None) -> 'TemporalDataFrame':
+        """
+        Get Equal to of dataframe and other, element-wise (binary operator eq).
+        Equivalent to '=='.
+        :param other: Any single or multiple element data structure, or list-like object.
+        :param axis: {0 or ‘index’, 1 or ‘columns’}
+        :param level: int or label
+        """
+        if self._time_points_col == '__TPID':
+            time_points = self._df['__TPID'].tolist()
+            time_col = None
+
+        else:
+            time_points = self._df[self._time_points_col].tolist()
+            time_col = self._time_points_col
+
+        return TemporalDataFrame(self._df.eq(other, axis, level)[self.columns],
+                                 time_points=time_points, time_col=time_col)
+
+
+class _VLocIndexer:
+    """
+    A simple wrapper around the pandas _LocIndexer object.
+    """
+
+    def __init__(self, df: pd.DataFrame, loc: _LocIndexer, time_col: str):
+        """
+        :param df: a pandas DataFrame to subset (from a TemporalDataFrame)
+        :param loc: a pandas _LocIndexer.
+        :param time_col: the name of the column which contains the time points
+        """
+        self.df = df
+        self.loc = loc
+        self.time_col = time_col
+
+    def __getitem__(self, index: Any) -> TemporalDataFrame:
+        """
+        Get rows and columns from the loc.
+        :param index: an index for getting rows and columns.
+        :return: a TemporalDataFrame built from the rows and columns accessed from the loc.
+        """
+        new_df = pd.DataFrame(self.loc[index])
+
+        if self.time_col in new_df.columns:
+            time_points = None
+            time_col = self.time_col
+
+        else:
+            time_points = self.df.loc[new_df.index, '__TPID'].tolist()
+            time_col = None
+
+        return TemporalDataFrame(new_df, time_points=time_points, time_col=time_col)
+
+    # def __setitem__(self, index, value) -> None:
+    #     """
+    #     TODO
+    #     """
+    #     pass
+
+
+class _ViLocIndexer:
+    """
+    A simple wrapper around the pandas _iLocIndexer object.
+    """
+
+    def __init__(self, iloc: _iLocIndexer):
+        """
+        :param iloc: a pandas _iLocIndexer.
+        """
+        self.iloc = iloc
+
+    def __getitem__(self, index: Any) -> Any:
+        """
+        Get rows and columns from the iloc.
+        :param index: an index for getting rows and columns.
+        :return: a TemporalDataFrame built from the rows and columns accessed from the loc.
+        """
+        value = self.iloc[index]
+
+        if isinstance(value, pd.Series):
+            return value[value.keys()[1:]]
+
+        return value
+
+    # def __setitem__(self, index: Any, value: Any) -> None:
+    #     """
+    #     TODO
+    #     """
+    #     self.iloc[index] = value

@@ -15,7 +15,7 @@ generalLogger.set_level('DEBUG')
 # ====================================================
 # code
 expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
-# v = VData(data=expr_matrix, log_level="DEBUG")
+
 
 data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), np.repeat(1, 5), np.repeat(2, 2)))),
         'ID': [f'C0.{i}' for i in range(10)] + [f'C1.{i}' for i in range(5)] + [f'C2.{i}' for i in range(2)],
@@ -24,11 +24,17 @@ data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), 
         'data_tris': 0}
 
 # TODO : warn in wiki that all TP are converted to strings
-obs = TemporalDataFrame(data, time_col='TP', columns=['TP', 'ID', 'data', 'data_bis'])
-print(obs.head())
+obs = TemporalDataFrame(data, time_points=data['TP'], time_col=None, columns=['TP', 'ID', 'data', 'data_bis'])
+print(obs)
+# print(obs.loc[:, ['ID', 'data']])
+# print(obs.iloc[0])
+# print(list(obs.keys()))
+print(obs.eq(0))
 
 # print(obs[0, obs.data > 7])
 
 # TODO : warn in wiki that you should not use tuples
 # print(obs[(0, 1), ])
 
+# ----------------------------------------------------------------
+v = VData(data=expr_matrix, obs=obs, log_level="DEBUG")

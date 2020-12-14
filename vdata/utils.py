@@ -6,7 +6,7 @@
 # imports
 import numpy as np
 import scipy.sparse as sp
-from typing import Union, List
+from typing import Union, List, Any
 
 
 # ====================================================
@@ -46,3 +46,14 @@ def slice_to_range(s: slice, max_stop: Union[int, np.int_]) -> range:
     step = s.step if s.step is not None else 1
 
     return range(start, stop, step)
+
+
+def isCollection(item: Any) -> bool:
+    return True if hasattr(item, '__iter__') and not issubclass(type(item), str) else False
+
+
+def to_list(value: Any) -> List:
+    if isCollection(value):
+        return list(value)
+    else:
+        return [value]
