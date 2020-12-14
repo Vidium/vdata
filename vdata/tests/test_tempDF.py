@@ -8,6 +8,9 @@ import numpy as np
 
 from .._core.dataframe import TemporalDataFrame
 from .._core.vdata import VData
+from .._IO.logger import generalLogger
+
+generalLogger.set_level('DEBUG')
 
 # ====================================================
 # code
@@ -20,15 +23,12 @@ data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), 
         'data_bis': 0,
         'data_tris': 0}
 
+# TODO : warn in wiki that all TP are converted to strings
 obs = TemporalDataFrame(data, time_col='TP', columns=['TP', 'ID', 'data', 'data_bis'])
-print(obs)
+print(obs.head())
 
-print(obs[0, obs.data > 7])
+# print(obs[0, obs.data > 7])
 
-# TODO : debug this : should be able to do obs[(0, 1)] without ','
-# TODO : + does not sub-set as it should !
-print(obs[(0, 1), ])
-
-
-
+# TODO : warn in wiki that you should not use tuples
+# print(obs[(0, 1), ])
 
