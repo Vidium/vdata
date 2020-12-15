@@ -57,3 +57,19 @@ def to_list(value: Any) -> List:
         return list(value)
     else:
         return [value]
+
+
+def to_str_list(item: Any) -> List:
+    """
+    Converts a given object to a list of string (or list of list of string ...)
+    :param item: an object to convert to list of string
+    """
+    new_tp_list = []
+    for v in to_list(item):
+        if isCollection(v):
+            new_tp_list.append(to_str_list(v))
+
+        else:
+            new_tp_list.append(str(v))
+
+    return new_tp_list
