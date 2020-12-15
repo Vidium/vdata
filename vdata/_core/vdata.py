@@ -4,12 +4,10 @@
 
 # ====================================================
 # imports
-import sys
 import os
 import h5py
 import pandas as pd
 import numpy as np
-import traceback
 from anndata import AnnData
 from scipy import sparse
 from pathlib import Path
@@ -20,10 +18,10 @@ from . import view
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
-from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, LoggingLevels, PreSlicer, \
+from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, PreSlicer, \
     Slicer
-from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VBaseError, VPathError
-from .._IO.logger import generalLogger, Tb, original_excepthook
+from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VPathError
+from .._IO.logger import generalLogger
 from .._IO.write import write_data
 
 
@@ -38,7 +36,7 @@ class VData:
     # TODO : add support for backed data on .h5 file
     def __init__(self,
                  data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]] = None,
-                 obs: Optional[pd.DataFrame] = None,
+                 obs: Optional[Union[pd.DataFrame, TemporalDataFrame]] = None,
                  obsm: Optional[Dict[Any, ArrayLike]] = None,
                  obsp: Optional[Dict[Any, ArrayLike]] = None,
                  var: Optional[pd.DataFrame] = None,
@@ -46,8 +44,7 @@ class VData:
                  varp: Optional[Dict[Any, ArrayLike]] = None,
                  time_points: Optional[pd.DataFrame] = None,
                  uns: Optional[Dict] = None,
-                 dtype: DType = np.float32,
-                 log_level: LoggingLevel = "WARNING"):
+                 dtype: DType = np.float32):
         """
         :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
             and for each variable/gene.
@@ -61,38 +58,9 @@ class VData:
         :param time_points: a pandas DataFrame describing the times points
         :param uns: a dictionary of unstructured data
         :param dtype: a data type to impose on datasets stored in this VData
-        :param log_level: a log level for the logger (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         # TODO : remove this : manage level at package level
-        # disable traceback messages, except if the loggingLevel is set to DEBUG
-        def exception_handler(exception_type, exception, traceback_, debug_hook=original_excepthook):
-            Tb.trace = traceback_
-            Tb.exception = exception_type
-
-            if log_level == 'DEBUG':
-                if not issubclass(exception_type, VBaseError):
-                    self.logger.uncaught_error(exception)
-                debug_hook(exception_type, exception, traceback_)
-            else:
-                if not issubclass(exception_type, VBaseError):
-                    self.logger.uncaught_error(exception)
-                else:
-                    print(exception)
-
-            traceback.print_tb(traceback_)
-
-        sys.excepthook = exception_handler
-
-        # get logger
-        if log_level not in LoggingLevels:
-            raise VTypeError(f"Incorrect logging level '{log_level}', should be in {LoggingLevels}")
-
-        else:
-            self.logger = generalLogger
-            self.logger.set_level(log_level)
-
         self._dtype = dtype
-        self._log_level = log_level
 
         self._obs = None
         self._var = None
@@ -143,7 +111,8 @@ class VData:
 
         # make sure a
         if self._obs is None:
-            self._obs = TemporalDataFrame(self, index=range(self.n_obs_total))
+            # TODO
+            self._obs = TemporalDataFrame(index=range(self.n_obs_total))
 
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
         if self._var is None:
@@ -314,7 +283,7 @@ class VData:
             self._time_points = df
 
     @property
-    def obs(self) -> pd.DataFrame:
+    def obs(self) -> TemporalDataFrame:
         return self._obs
 
     @obs.setter
@@ -543,23 +512,11 @@ class VData:
         self.varm.update_dtype(type_)
         self.varp.update_dtype(type_)
 
-        self.logger.info(f"Set type {type_} for VData object.")
-
-    @property
-    def log_level(self) -> LoggingLevel:
-        return self._log_level
-
-    @log_level.setter
-    def log_level(self, level: LoggingLevel) -> None:
-        self._log_level = level
-        # update logger's level
-        self.logger.set_level(level)
-
-        self.logger.info(f"Set level '{level}' for vdata logger.")
+        generalLogger.info(f"Set type {type_} for VData object.")
 
     # aliases ------------------------------------------------------------
     @property
-    def cells(self) -> pd.DataFrame:
+    def cells(self) -> TemporalDataFrame:
         return self._obs
 
     @cells.setter
@@ -909,7 +866,6 @@ class VData:
             write_data(self.uns, save_file, 'uns')
             # save descriptive data about the VData object
             write_data(self._dtype, save_file, 'dtype')
-            write_data(self._log_level, save_file, 'log_level')
 
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                      index: bool = True, header: bool = True) -> None:
@@ -951,4 +907,4 @@ class VData:
                      self.var, self.varm.dict_copy(), self.varp.dict_copy(),
                      self.time_points,
                      self.uns,
-                     self.dtype, self.log_level)
+                     self.dtype)

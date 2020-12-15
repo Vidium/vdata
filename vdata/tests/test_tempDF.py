@@ -11,7 +11,7 @@ from .._core.dataframe import TemporalDataFrame
 from .._core.vdata import VData
 from .._IO.logger import generalLogger
 
-generalLogger.set_level('DEBUG')
+generalLogger.level = 'DEBUG'
 
 # ====================================================
 # code

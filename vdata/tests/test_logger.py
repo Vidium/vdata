@@ -7,7 +7,7 @@
 from .._IO.logger import generalLogger
 from .._IO.errors import VValueError
 
-generalLogger.set_level("DEBUG")
+generalLogger.level = "DEBUG"
 
 # ====================================================
 # code

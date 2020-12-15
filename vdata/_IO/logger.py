@@ -14,7 +14,7 @@ from types import TracebackType
 from typing import Optional, Type
 
 from . import errors
-from ..NameUtils import LoggingLevel
+from ..NameUtils import LoggingLevel, LoggingLevels
 
 
 # ====================================================
@@ -48,11 +48,27 @@ class _VLogger:
         # get logger
         self.logger = logging.getLogger('vdata.vlogger')
 
-    def set_level(self, logger_level: LoggingLevel) -> None:
+    @property
+    def level(self) -> str:
+        """
+        Get the logging level.
+        :return: the logging level.
+        """
+        return {10: 'DEBUG',
+                20: 'INFO',
+                30: 'WARNING',
+                40: 'ERROR',
+                50: 'CRITICAL'}[self.logger.level]
+
+    @level.setter
+    def level(self, logger_level: LoggingLevel) -> None:
         """
         Re-init the logger, for setting new minimal logging level
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
+        if logger_level not in LoggingLevels:
+            raise errors.VTypeError(f"Incorrect logging level '{logger_level}', should be in {LoggingLevels}")
+
         self.logger.setLevel(logger_level)
         for handler in self.logger.handlers:
             handler.setLevel(logger_level)
@@ -153,19 +169,25 @@ class _VLogger:
 
 
 generalLogger = _VLogger()
+loggingLevel = generalLogger.level
 
 
-# basic definition of the excepthook for proper behavior of the logger
-# this will be updated by vdata.py as soon as the user creates a VData (and sets a logger level)
-def exception_handler(exception_type, exception, traceback_):
+# disable traceback messages, except if the logging level is set to DEBUG
+def exception_handler(exception_type, exception, traceback_, debug_hook=sys.excepthook):
     Tb.trace = traceback_
     Tb.exception = exception_type
 
-    if not issubclass(exception_type, errors.VBaseError):
-        generalLogger.uncaught_error(exception)
+    if generalLogger.level == 'DEBUG':
+        if not issubclass(exception_type, errors.VBaseError):
+            generalLogger.uncaught_error(exception)
+        debug_hook(exception_type, exception, traceback_)
     else:
-        print(exception)
+        if not issubclass(exception_type, errors.VBaseError):
+            generalLogger.uncaught_error(exception)
+        else:
+            print(exception)
+
+    traceback.print_tb(traceback_)
 
 
-original_excepthook = sys.excepthook
 sys.excepthook = exception_handler

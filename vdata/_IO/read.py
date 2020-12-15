@@ -14,7 +14,7 @@ from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, ca
 
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
-from ..NameUtils import DType, DTypes, ArrayLike_2D, ArrayLike, LoggingLevel, H5Group
+from ..NameUtils import DType, DTypes, ArrayLike_2D, ArrayLike, H5Group
 from .._core.vdata import VData
 
 spacer = "  " + u'\u21B3' + " "
@@ -23,7 +23,7 @@ spacer = "  " + u'\u21B3' + " "
 # ====================================================
 # code
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_level: LoggingLevel = 'WARNING') -> VData:
+def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> VData:
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -43,10 +43,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_le
             ⊦ time_points.csv
             ⊦ var.csv
     :param dtype: data type to force on the newly built VData object.
-    :param log_level: logger level to force on the newly built VData object.
     """
-    generalLogger.set_level(log_level)
-
     # make sure directory is a path
     if not isinstance(directory, Path):
         directory = Path(directory)
@@ -78,8 +75,8 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_le
                 df = pd.read_csv(directory / f / dataset, index_col=0)
                 if f in ('layers', 'obsm', 'varm'):
                     # convert DataFrame to 3D array
-                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1)
-                                    for i in pd.Categorical(df.Time_point).categories])
+                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1) for i in pd.Categorical(
+                        df.Time_point).categories])
                 else:
                     # convert DataFrame to 2D array
                     arr = np.array(df)
@@ -91,20 +88,19 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32, log_le
     return VData(data_arrays['layers'],
                  data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
                  data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                 data_dfs['time_points'], dtype=dtype, log_level=log_level)
+                 data_dfs['time_points'], dtype=dtype)
 
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
-                  obs: Optional[pd.DataFrame] = None, var: Optional[pd.DataFrame] = None,
-                  time_points: Optional[pd.DataFrame] = None,
-                  dtype: DType = np.float32, log_level: LoggingLevel = "INFO") -> VData:
+def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None,
+                  var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
+                  dtype: DType = np.float32) -> VData:
     """
     Load a simulation's recorded information into a VData object.
 
-    If time points are not given explicitly, this function will try to recover them from the time point names
-        in the data.
+    If time points are not given explicitly, this function will try to recover them from the time point names in
+        the data.
     For this to work, time points names must be strings with :
         - last character in (s, m, h, D, M, Y)
         - first characters convertible to a float
@@ -122,7 +118,6 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
     :param var: a pandas DataFrame describing the variables (genes)
     :param time_points: a pandas DataFrame describing the time points
     :param dtype: the data type for the matrices in VData
-    :param log_level: the logging level for the VData, in (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
     :return: a VData object containing the simulation's data
     """
@@ -141,7 +136,7 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
             for matrix_index, matrix in TP_matrices.items():
                 if not isinstance(matrix, (np.ndarray, sparse.spmatrix, pd.DataFrame)) or matrix.ndim != 2:
                     raise VTypeError(f"Item at time point '{matrix_index}' is not a 2D array-like object "
-                                     f"(numpy ndarray, scipy sparse matrix, pandas DatFrame).")
+                                     f"(numpy ndarray, pandas DatFrame).")
 
                 elif check_tp:
                     if matrix_index not in _time_points:
@@ -215,10 +210,10 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
             else:
                 TP_df = pd.DataFrame({"value": _time_points})
 
-            return VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype, log_level=log_level)
+            return VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype)
 
         else:
-            return VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, log_level=log_level)
+            return VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -313,18 +308,14 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional[DType] = None, log_level: Optional[LoggingLevel] = None) -> VData:
+def read(file: Union[Path, str], dtype: Optional[DType] = None) -> VData:
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
     :param file: path to a .h5 file.
-    :param dtype: data type to force on the newly built VData object.
-        If set to None, the dtype is inferred from the .h5 file.
-    :param log_level: logger level to force on the newly built VData object.
-        If set to None, the level is inferred from the .h5 file.
+    :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
+        the .h5 file.
     """
-    if log_level is not None:
-        generalLogger.set_level(log_level)
 
     # make sure file is a path
     if not isinstance(file, Path):
@@ -366,20 +357,13 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None, log_level: Optio
                 dtype = DTypes[str(importFile[key][...])]
                 generalLogger.debug(spacer + str(dtype))
 
-            elif key == 'log_level':
-                log_level = importFile[key][...]
-                generalLogger.debug(spacer + str(log_level))
-
             else:
                 generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
-
-    if log_level is None:
-        log_level = "WARNING"
 
     return VData(data_arrays['layers'],
                  data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
                  data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                 data_dfs['time_points'], uns, dtype, log_level)
+                 data_dfs['time_points'], uns, dtype)
 
 
 def read_h5_dict(group: H5GroupReader) -> Dict:
