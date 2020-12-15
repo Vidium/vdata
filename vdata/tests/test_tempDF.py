@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import numpy as np
+import pandas as pd
 
 from .._core.dataframe import TemporalDataFrame
 from .._core.vdata import VData
@@ -14,9 +15,6 @@ generalLogger.set_level('DEBUG')
 
 # ====================================================
 # code
-expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
-
-
 data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), np.repeat(1, 5), np.repeat(2, 2)))),
         'ID': [f'C0.{i}' for i in range(10)] + [f'C1.{i}' for i in range(5)] + [f'C2.{i}' for i in range(2)],
         'data': np.random.randint(0, 20, 17),
@@ -25,16 +23,29 @@ data = {'TP': [(0, 1)] + list(np.concatenate((np.array(['*']), np.repeat(0, 8), 
 
 # TODO : warn in wiki that all TP are converted to strings
 obs = TemporalDataFrame(data, time_points=data['TP'], time_col=None, columns=['TP', 'ID', 'data', 'data_bis'])
+print(obs[0])
+
+# obs.data_bis = 1
+obs[0] = pd.DataFrame({'TP': obs[0].TP, 'ID': obs[0].ID, 'data': np.random.randint(0, 20, 10), 'data_bis': 1},
+                      columns=['TP', 'ID', 'data', 'data_bis'])
+
 print(obs)
+
+quit()
+
+print(obs[0, obs.data > 5])
+
 # print(obs.loc[:, ['ID', 'data']])
 # print(obs.iloc[0])
 # print(list(obs.keys()))
-print(obs.eq(0))
+# print(obs.eq(0))
 
 # print(obs[0, obs.data > 7])
 
 # TODO : warn in wiki that you should not use tuples
 # print(obs[(0, 1), ])
-
+quit()
 # ----------------------------------------------------------------
+expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
+
 v = VData(data=expr_matrix, obs=obs, log_level="DEBUG")

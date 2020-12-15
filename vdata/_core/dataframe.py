@@ -26,6 +26,11 @@ class TemporalDataFrame:
     selection.
     """
 
+    _internal_attributes = ['_time_points_col', '_df',
+                            'time_points', 'columns', 'index', 'n_time_points', 'n_columns',
+                            'dtypes', 'values', 'axes', 'ndim', 'size', 'shape', 'empty',
+                            'at', 'iat', 'loc', 'iloc']
+
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
                  time_points: Optional[Union[Collection, DType, Literal['*']]] = None,
                  time_col: Optional[str] = None,
@@ -273,21 +278,70 @@ class TemporalDataFrame:
         time_col = self._time_points_col if self._time_points_col != '__TPID' else None
         index = data.index
 
-        return TemporalDataFrame(data=data[self._df.columns[1:]], time_points=time_points, time_col=time_col, index=index)
+        return TemporalDataFrame(data=data[self._df.columns[1:]], time_points=time_points, time_col=time_col,
+                                 index=index)
+
+    def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
+                    df: pd.DataFrame) -> None:
+        """
+        Set values in the DataFrame with a pandas DataFrame.
+        The columns and the number of rows must match.
+        :param index: a sub-setting index. (see __getitem__ for more details)
+        :param df: a pandas DataFrame with values to set.
+        """
+        # TODO : does not work because we need views on TDF
+        assert isinstance(df, pd.DataFrame), "Cannot set values from non pandas DataFrame object."
+        assert self.n_columns == len(df.columns), "Columns must match."
+        assert self.columns.equals(df.columns), "Columns must match."
+        assert len(self[index]) == len(df), "Number of rows must match."
+
+        self[index]._df = df
+
+    def __getattribute__(self, attr: str) -> Any:
+        """
+        Get attribute from this TemporalDataFrame in obj.attr fashion.
+        This is called before __getattr__.
+        :param attr: an attribute's name to get.
+        :return: self.attr
+        """
+        if attr not in TemporalDataFrame._internal_attributes:
+            raise AttributeError
+
+        return object.__getattribute__(self, attr)
 
     def __getattr__(self, attr: str) -> Any:
         """
         Get columns in the DataFrame (this is done for maintaining the pandas DataFrame behavior).
+        :param attr: an attribute's name
         :return: a column with name <attr> from the DataFrame
         """
-        return getattr(self._df, attr)
+        if attr in self._df.columns:
+            return self._df[attr]
 
-    def __setitem__(self, key, value) -> None:
+        else:
+            return object.__getattribute__(self, attr)
+
+    def __setattr__(self, attr: str, value: Any) -> None:
         """
-        TODO
+        Set value for a regular attribute of for a column in the DataFrame.
+        :param attr: an attribute's name
+        :param value: a value to be set into the attribute
         """
-        print('hi')
-        pass
+        if attr in TemporalDataFrame._internal_attributes:
+            object.__setattr__(self, attr, value)
+
+        elif attr in self.columns:
+            self._df[attr] = value
+
+        else:
+            raise AttributeError(f"'{attr}' is not a valid attribute name.")
+
+    def __len__(self) -> int:
+        """
+        Returns the length of info axis.
+        :return: the length of info axis.
+        """
+        return len(self._df)
 
     @property
     def time_points(self) -> List[str]:
