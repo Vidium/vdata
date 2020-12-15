@@ -287,21 +287,22 @@ class TemporalDataFrame:
         #                          index=data_index)
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
-                    df: pd.DataFrame) -> None:
+                    tdf: 'TemporalDataFrame') -> None:
         """
         Set values in the DataFrame with a pandas DataFrame.
         The columns and the number of rows must match.
         :param index: a sub-setting index. (see __getitem__ for more details)
-        :param df: a pandas DataFrame with values to set.
+        :param tdf: a TemporalDataFrame with values to set.
         """
         # TODO : does not work because we need views on TDF
-        assert isinstance(df, pd.DataFrame), "Cannot set values from non pandas DataFrame object."
-        assert self.n_columns == len(df.columns), "Columns must match."
-        assert self.columns.equals(df.columns), "Columns must match."
-        assert len(self[index]) == len(df), "Number of rows must match."
+        # TODO : what is needed here ?
+        # assert isinstance(df, pd.DataFrame), "Cannot set values from non pandas DataFrame object."
+        # assert self.n_columns == len(df.columns), "Columns must match."
+        # assert self.columns.equals(df.columns), "Columns must match."
+        # assert len(self[index]) == len(df), "Number of rows must match."
 
         # TODO
-        self[index] = df
+        self[index] = tdf
 
     def __getattribute__(self, attr: str) -> Any:
         """
@@ -410,6 +411,12 @@ class TemporalDataFrame:
         :return: the dtypes in the DataFrame.
         """
         return self._df[self.columns].dtypes
+
+    def astype(self, dtype: Union[DType, Dict[str, DType]]) -> None:
+        """
+        TODO
+        """
+        self._df.astype(dtype)
 
     def info(self, verbose: Optional[bool] = None, buf: Optional[IO[str]] = None, max_cols: Optional[int] = None,
              memory_usage: Optional[Union[bool, str]] = None, null_counts: Optional[bool] = None) -> None:
@@ -838,6 +845,12 @@ class ViewTemporalDataFrame:
         :return: the dtypes in the DataFrame.
         """
         return self._parent._df[self.columns].dtypes
+
+    def astype(self, dtype: Union[DType, Dict[str, DType]]) -> None:
+        """
+        TODO
+        """
+        self._parent._df[self.columns].astype(dtype)
 
     def info(self, verbose: Optional[bool] = None, buf: Optional[IO[str]] = None, max_cols: Optional[int] = None,
              memory_usage: Optional[Union[bool, str]] = None, null_counts: Optional[bool] = None) -> None:

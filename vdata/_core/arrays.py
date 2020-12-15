@@ -217,7 +217,6 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
                                                            dtype=object)
 
                 else:
-                    print(array)
                     _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array], dtype=object)
 
             return _data

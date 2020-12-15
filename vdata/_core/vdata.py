@@ -651,8 +651,8 @@ class VData:
 
             # obs
             if obs is not None:
-                if not isinstance(obs, pd.DataFrame):
-                    raise VTypeError("obs must be a pandas DataFrame.")
+                if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
+                    raise VTypeError("obs must be a DataFrame.")
                 else:
                     obs = self._check_df_types(obs)
 
