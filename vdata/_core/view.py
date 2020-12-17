@@ -243,7 +243,7 @@ class ViewVData:
                 obs_slicer = np.array(obs_slicer, dtype=self._parent.obs.index.dtype)
                 self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
         elif obs_slicer == slice(None, None, None):
-            self._obs_slicer = np.array([True] * self._parent.n_obs)
+            self._obs_slicer = np.array([True] * self._parent.n_obs_total)
         else:
             obs_slicer = np.array(slice_to_range(obs_slicer, len(self._parent.obs)), dtype=self._parent.obs.index.dtype)
             self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)

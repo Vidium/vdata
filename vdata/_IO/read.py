@@ -151,50 +151,50 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
         # if time points not given, try to guess them
         if time_points is None:
             if all([isinstance(_time_points[i], str) for i in range(len(_time_points))]):
-                TP_df_data: Dict[str, List[Union[float, str]]] = {"value": [], "unit": []}
+                TP_data: Dict[str, List[Union[float, str]]] = {"value": [], "unit": []}
                 del_unit = False
 
                 for tp in _time_points:
                     tp = cast(str, tp)          # for typing
                     if tp.endswith("s"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("second")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("second")
                         except ValueError:
                             del_unit = True
                             break
                     elif tp.endswith("m"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("minute")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("minute")
                         except ValueError:
                             del_unit = True
                             break
                     elif tp.endswith("h"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("hour")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("hour")
                         except ValueError:
                             del_unit = True
                             break
                     elif tp.endswith("D"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("day")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("day")
                         except ValueError:
                             del_unit = True
                             break
                     elif tp.endswith("M"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("month")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("month")
                         except ValueError:
                             del_unit = True
                             break
                     elif tp.endswith("Y"):
                         try:
-                            TP_df_data["value"].append(float(tp[:-1]))
-                            TP_df_data["unit"].append("year")
+                            TP_data["value"].append(float(tp[:-1]))
+                            TP_data["unit"].append("year")
                         except ValueError:
                             del_unit = True
                             break
@@ -203,9 +203,9 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
                         break
 
                 if del_unit:
-                    TP_df_data = {"value": _time_points}
+                    TP_data = {"value": _time_points}
 
-                TP_df = pd.DataFrame(TP_df_data)
+                TP_df = pd.DataFrame(TP_data)
 
             else:
                 TP_df = pd.DataFrame({"value": _time_points})
@@ -401,11 +401,11 @@ def read_h5_dataframe(group: H5GroupReader) -> pd.DataFrame:
     index = group.attr('index')
 
     # get columns in right order
-    df_data = {}
+    data = {}
     for col in col_order:
-        df_data[col] = read_h5_series(group[col], index)
+        data[col] = read_h5_series(group[col], index)
 
-    return pd.DataFrame(df_data, index=index)
+    return pd.DataFrame(data, index=index)
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None) -> pd.Series:

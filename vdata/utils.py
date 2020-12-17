@@ -31,8 +31,8 @@ def is_in(obj: np.ndarray, list_arrays: Union[np.ndarray, List[np.ndarray]]) -> 
     for arr in list_arrays:
         if are_equal(obj, arr):
             return True
-        else:
-            return False
+
+    return False
 
 
 def slice_to_range(s: slice, max_stop: Union[int, np.int_]) -> range:
@@ -64,7 +64,7 @@ def to_str_list(item: Any) -> List:
     Converts a given object to a list of string (or list of list of string ...)
     :param item: an object to convert to list of string
     """
-    new_tp_list = []
+    new_tp_list: List[Union[str, List]] = []
     for v in to_list(item):
         if isCollection(v):
             new_tp_list.append(to_str_list(v))

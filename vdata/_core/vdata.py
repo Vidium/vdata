@@ -9,7 +9,6 @@ import h5py
 import pandas as pd
 import numpy as np
 from anndata import AnnData
-from scipy import sparse
 from pathlib import Path
 from builtins import Ellipsis
 from typing import Optional, Union, Dict, Tuple, Any, List
@@ -18,7 +17,7 @@ from . import view
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
-from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, LoggingLevel, PreSlicer, \
+from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, \
     Slicer
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError, VPathError
 from .._IO.logger import generalLogger
@@ -59,7 +58,6 @@ class VData:
         :param uns: a dictionary of unstructured data
         :param dtype: a data type to impose on datasets stored in this VData
         """
-        # TODO : remove this : manage level at package level
         self._dtype = dtype
 
         self._obs = None
@@ -109,9 +107,8 @@ class VData:
             if self._time_points is not None:
                 self._n_time_points = len(self._time_points)
 
-        # make sure a
+        # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
         if self._obs is None:
-            # TODO
             self._obs = TemporalDataFrame(index=range(self.n_obs_total))
 
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
@@ -287,9 +284,10 @@ class VData:
         return self._obs
 
     @obs.setter
-    def obs(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'obs' must be a pandas DataFrame.")
+    def obs(self, df: TemporalDataFrame) -> None:
+        # TODO
+        if not isinstance(df, TemporalDataFrame):
+            raise VTypeError("'obs' must be a TemporalDataFrame.")
 
         elif df.shape[0] != self.n_obs:
             raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
@@ -328,7 +326,7 @@ class VData:
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
+                    if not isinstance(arr, np.ndarray):
                         raise VTypeError(
                             f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array).")
 
@@ -337,7 +335,7 @@ class VData:
                             f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array).")
 
                 else:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
+                    if not isinstance(arr, (np.ndarray, pd.DataFrame)):
                         raise VTypeError(
                             f"'{arr_index}' array for obsm should be a 2D or 3D array-like object "
                             f"(numpy array, pandas DataFrame).")
@@ -367,7 +365,7 @@ class VData:
                     "'obsp' should be set with a dictionary of 2D array-like objects (numpy array).")
 
             for arr_index, arr in data.items():
-                if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
+                if not isinstance(arr, (np.ndarray, pd.DataFrame)):
                     raise VTypeError(
                         f"'{arr_index}' array for obsp should be a 2D array-like object "
                         f"(numpy array, pandas DataFrame).")
@@ -394,7 +392,7 @@ class VData:
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
+                    if not isinstance(arr, np.ndarray):
                         raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object "
                                          f"(numpy array).")
 
@@ -403,7 +401,7 @@ class VData:
                                          f"(numpy array).")
 
                 else:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
+                    if not isinstance(arr, (np.ndarray, pd.DataFrame)):
                         raise VTypeError(
                             f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} "
                             f"3D array-like object "
@@ -466,7 +464,7 @@ class VData:
             self._layers = VLayersArrays(self, None)
 
         else:
-            if isinstance(data, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
+            if isinstance(data, (np.ndarray, pd.DataFrame)):
                 data = {"data": data}
 
             elif not isinstance(data, dict):
@@ -475,7 +473,7 @@ class VData:
 
             for arr_index, arr in data.items():
                 if self.n_time_points > 1:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix)):
+                    if not isinstance(arr, np.ndarray):
                         raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object "
                                          f"(numpy array).")
 
@@ -484,7 +482,7 @@ class VData:
                                          f"(numpy array).")
 
                 else:
-                    if not isinstance(arr, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
+                    if not isinstance(arr, np.ndarray, pd.DataFrame):
                         raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object "
                                          f"(numpy array, pandas DataFrame).")
 
@@ -520,7 +518,7 @@ class VData:
         return self._obs
 
     @cells.setter
-    def cells(self, df: pd.DataFrame) -> None:
+    def cells(self, df: TemporalDataFrame) -> None:
         self.obs = df
 
     @property
@@ -533,7 +531,7 @@ class VData:
     # init functions -----------------------------------------------------
 
     def _check_formats(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]],
-                       obs: Optional[pd.DataFrame], obsm: Optional[Dict[Any, ArrayLike]],
+                       obs: Optional[Union[pd.DataFrame, TemporalDataFrame]], obsm: Optional[Dict[Any, ArrayLike]],
                        obsp: Optional[Dict[Any, ArrayLike]],
                        var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]],
                        varp: Optional[Dict[Any, ArrayLike]],
@@ -629,7 +627,7 @@ class VData:
 
                 elif isinstance(data, dict):
                     for key, value in data.items():
-                        if not isinstance(value, (np.ndarray, sparse.spmatrix)):
+                        if not isinstance(value, np.ndarray):
                             raise VTypeError(f"Layer '{key}' must be a 2D or 3D array-like object "
                                              f"(numpy array, pandas DataFrame).")
                         elif value.ndim not in (2, 3):
@@ -662,7 +660,7 @@ class VData:
                     raise VTypeError("obsm must be a dictionary.")
                 else:
                     for key, value in obsm.items():
-                        if not isinstance(value, (np.ndarray, sparse.spmatrix)):
+                        if not isinstance(value, np.ndarray):
                             raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object "
                                              f"(numpy array, pandas DataFrame).")
                         elif value.ndim not in (2, 3):

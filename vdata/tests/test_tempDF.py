@@ -46,5 +46,6 @@ obs = TemporalDataFrame(data, time_points=data['TP'], time_col=None, columns=['T
 # ----------------------------------------------------------------
 expr_matrix = np.array([np.zeros((4, 3)), np.zeros((2, 3))], dtype=object)
 
+# TODO : not OK : shapes do not match !
 v = VData(data=expr_matrix, obs=obs)
 print(v)
