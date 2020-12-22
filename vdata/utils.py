@@ -8,6 +8,8 @@ import numpy as np
 import scipy.sparse as sp
 from typing import Union, List, Any
 
+from ._IO.errors import VValueError
+
 
 # ====================================================
 # code
@@ -52,7 +54,13 @@ def isCollection(item: Any) -> bool:
     return True if hasattr(item, '__iter__') and not issubclass(type(item), str) else False
 
 
-def to_list(value: Any) -> List:
+def to_list(value: Any) -> List[Any]:
+    """
+    Convert any object to a list.
+    """
+    if value is None:
+        raise VValueError("Cannot cast 'None' to list.")
+
     if isCollection(value):
         return list(value)
     else:

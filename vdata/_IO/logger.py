@@ -18,6 +18,9 @@ from ..NameUtils import LoggingLevel, LoggingLevels
 
 
 # ====================================================
+colors = {"TCYAN": '\033[36m', "TORANGE": '\033[33m', "TRED": '\033[31m', "ENDC": '\033[m', "BBLACK": '\033[40m'}
+
+
 class Tb:
     trace: Optional[TracebackType] = None
     exception: Type[BaseException] = BaseException
@@ -123,7 +126,7 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.info(self._getBaseMsg(msg))
+        self.logger.info(colors["TCYAN"] + self._getBaseMsg(msg) + colors["ENDC"])
 
     def warning(self, msg: str) -> None:
         """
@@ -131,7 +134,7 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.warning(self._getBaseMsg(msg))
+        self.logger.warning(colors["TORANGE"] + self._getBaseMsg(msg) + colors["ENDC"])
 
     def error(self, msg: str) -> None:
         """
@@ -139,7 +142,7 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.error(self._getBaseMsg(msg))
+        self.logger.error(colors["TRED"] + self._getBaseMsg(msg) + colors["ENDC"])
         quit()
 
     def uncaught_error(self, msg: str) -> None:
@@ -156,8 +159,8 @@ class _VLogger:
             Tb.trace = Tb.trace.tb_next
 
         # last.f_globals['__package__']
-        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} : "
-                          f"{Tb.exception.__name__}] {msg}")
+        self.logger.error(colors["TRED"] + f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} :"
+                                           f" {Tb.exception.__name__}] {msg}" + colors["ENDC"])
 
     def critical(self, msg: str) -> None:
         """
@@ -165,11 +168,18 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.critical(self._getBaseMsg(msg))
+        self.logger.critical(colors["TRED"] + colors["BBLACK"] + self._getBaseMsg(msg) + colors["ENDC"])
 
 
 generalLogger = _VLogger()
-loggingLevel = generalLogger.level
+
+
+def setLoggingLevel(LL: LoggingLevel) -> None:
+    generalLogger.level = LL
+
+
+def getLoggingLevel() -> str:
+    return generalLogger.level
 
 
 # disable traceback messages, except if the logging level is set to DEBUG
