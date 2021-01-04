@@ -612,23 +612,23 @@ class TemporalDataFrame:
         """
         return _VLocIndexer(self)
 
-    # @property
-    # def iloc(self) -> '_ViLocIndexer':
-    #     """
-    #     Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
-    #
-    #     Allowed inputs are:
-    #         - An integer, e.g. 5.
-    #         - A list or array of integers, e.g. [4, 3, 0].
-    #         - A slice object with ints, e.g. 1:7.
-    #         - A boolean array.
-    #         - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
-    #         for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
-    #         calling object, but would like to base your selection on some value.
-    #
-    #     :return: a group of rows and columns
-    #     """
-    #     return _ViLocIndexer(self._df.iloc)
+    @property
+    def iloc(self) -> '_ViLocIndexer':
+        """
+        Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
+
+        Allowed inputs are:
+            - An integer, e.g. 5.
+            - A list or array of integers, e.g. [4, 3, 0].
+            - A slice object with ints, e.g. 1:7.
+            - A boolean array.
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
+            calling object, but would like to base your selection on some value.
+
+        :return: a group of rows and columns
+        """
+        return _ViLocIndexer(self)
 
     def insert(self, loc, column, value, allow_duplicates=False) -> None:
         """
@@ -1082,21 +1082,21 @@ class ViewTemporalDataFrame:
 
         return repr_str
 
-    @property
-    def at(self) -> '_ViewVAtIndexer':
-        """
-        Access a single value for a row/column label pair.
-        :return: a single value for a row/column label pair.
-        """
-        return _ViewVAtIndexer(self._parent)
-
-    @property
-    def iat(self) -> '_ViewViAtIndexer':
-        """
-        Access a single value for a row/column pair by integer position.
-        :return: a single value for a row/column pair by integer position.
-        """
-        return _ViewViAtIndexer(self._parent)
+    # @property
+    # def at(self) -> '_ViewVAtIndexer':
+    #     """
+    #     Access a single value for a row/column label pair.
+    #     :return: a single value for a row/column label pair.
+    #     """
+    #     return _ViewVAtIndexer(self._parent)
+    #
+    # @property
+    # def iat(self) -> '_ViewViAtIndexer':
+    #     """
+    #     Access a single value for a row/column pair by integer position.
+    #     :return: a single value for a row/column pair by integer position.
+    #     """
+    #     return _ViewViAtIndexer(self._parent)
 
     # TODO : test loc and iloc for value setting
     # @property
@@ -1213,48 +1213,223 @@ class _VLocIndexer:
         self.__parent = parent
         self.__loc = parent.df_data.loc
 
+    def __getLoc(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
+        """
+        Parse the key and get un-formatted data from the parent TemporalDataFrame.
+        :param key: loc index.
+        :return: pandas DataFrame, Series or a single value.
+        """
+        generalLogger.debug(u'\u23BE .loc access : begin ------------------------------------------------------- ')
+        if isinstance(key, tuple):
+            generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
+            if isinstance(key[1], slice):
+                generalLogger.debug(f'Second item is a slice : checking ...')
+                if key[1].start not in self.__parent.columns:
+                    raise VValueError(f"Key '{key[1].start}' was not found in the column names.")
+
+                elif key[1].stop not in self.__parent.columns:
+                    raise VValueError(f"Key '{key[1].stop}' was not found in the column names.")
+                generalLogger.debug(f'... OK')
+
+            else:
+                # collection of column names
+                if isinstance(key[1], (tuple, list, pd.Index)):
+                    # prevent access to reserved columns
+                    for k in to_list(key[1]):
+                        if k not in self.__parent.columns:
+                            raise VValueError(f"Key '{k}' was not found in the column names.")
+
+                    # also get __TPID for getting time point data
+                    key = (key[0], ['__TPID'] + list(key[1]))
+
+                # single column name
+                else:
+                    # also get __TPID for getting time point data
+                    key = (key[0], ['__TPID', key[1]])
+
+        result = self.__loc[key]
+        generalLogger.debug(f'.loc data is : \n{result}')
+        generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
+
+        return result
+
     def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
         """
         Get rows and columns from the loc.
         :param key: loc index.
         :return: TemporalDataFrame or single value.
         """
-        if isinstance(key, tuple):
-            if isinstance(key[1], slice):
-                if key[1].start not in self.__parent.columns:
-                    raise VValueError(f"Key '{key[1].start}' was not found in the column names.")
-
-                elif key[1].stop not in self.__parent.columns:
-                    raise VValueError(f"Key '{key[1].stop}' was not found in the column names.")
-
-            elif not isinstance(key[1], list) or not isinstance(key[1][0], bool):
-                # prevent access to reserved columns
-                for k in to_list(key[1]):
-                    if k not in self.__parent.columns:
-                        raise VValueError(f"Key '{k}' was not found in the column names.")
-
-        result = self.__loc[key]
+        result = self.__getLoc(key)
 
         if isinstance(result, pd.DataFrame):
-            print('1')
-            return ViewTemporalDataFrame(self.__parent, (), result.index, result.columns)
+            if result.shape == (1, 2):
+                generalLogger.debug(f'.loc data is a DataFrame (a single value).')
+
+                return result.iat[0, 1]
+
+            else:
+                generalLogger.debug(f'.loc data is a DataFrame (multiple rows or columns).')
+
+                tp_slicer = set(result['__TPID'])
+
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         elif isinstance(result, pd.Series):
-            print('2')
-            result = result.to_frame().T
-            # TODO : debug this from test_tempDF
-            # TODO : need to find the TPslicer to be passed !!
-            return ViewTemporalDataFrame(self.__parent, (), result.index, result.columns)
+            if len(result) == 1:
+                generalLogger.debug(f'.loc data is a Series (a single value).')
+
+                return result.values[0]
+
+            if len(result) == 2 and '__TPID' in result.index:
+                generalLogger.debug(f'.loc data is a Series (a single value).')
+
+                return result.iat[1]
+
+            else:
+                generalLogger.debug(f'.loc data is a Series (a row).')
+
+                tp_slicer = result['__TPID']
+
+                result = result.to_frame().T
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         else:
-            print('3')
+            generalLogger.debug(f'.loc data is a single value.')
+
             return result
 
-    # def __setitem__(self, index, value) -> None:
-    #     """
-    #     TODO
-    #     """
-    #     pass
+    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
+        """
+        Set rows and columns from the loc.
+        :param key: loc index.
+        :param value: pandas DataFrame, Series or a single value to set.
+        """
+        # This as no real effect, it is done to check that the key exists in the view.
+        _ = self.__getLoc(key)
+
+        if isinstance(value, TemporalDataFrame):
+            value = value.df_data[value.columns]
+
+        # Actually set a value at the (index, column) key.
+        self.__parent.df_data.loc[key] = value
+
+
+class _ViLocIndexer:
+    """
+    Wrapper around pandas _iLocIndexer object for use in TemporalDataFrames.
+    """
+    def __init__(self, parent: TemporalDataFrame):
+        """
+        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+        """
+        self.__parent = parent
+        self.__iloc = parent.df_data.iloc
+
+    def __getiLoc(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
+        """
+        Parse the key and get un-formatted data from the parent TemporalDataFrame.
+        :param key: iloc index.
+        :return: pandas DataFrame, Series or a single value.
+        """
+        generalLogger.debug(u'\u23BE .iloc access : begin ------------------------------------------------------ ')
+        if isinstance(key, tuple):
+            generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
+            if isinstance(key[1], slice):
+                generalLogger.debug(f'Second item is a slice : update it.')
+
+                start = key[1].start+1 if key[1].start is not None else 1
+                stop = key[1].stop+1 if key[1].stop is not None else len(self.__parent.columns)+1
+                step = key[1].step if key[1].step is not None else 1
+
+                new_key = [0] + list(range(start, stop, step))
+
+                key = (key[0], new_key)
+
+            elif isinstance(key[1], int):
+                generalLogger.debug(f'Second item is an int : update it.')
+                if isinstance(key[0], (list, np.ndarray, slice)):
+                    key = (key[0], [0, key[1]+1])
+
+                else:
+                    key = (key[0], key[1] + 1)
+
+            elif isinstance(key[1], (list, np.ndarray)) and len(key[1]):
+                if isinstance(key[1][0], bool):
+                    generalLogger.debug(f'Second item is an array of bool : update it.')
+                    key = (key[0], [True] + key[1])
+
+                elif isinstance(key[1][0], int):
+                    generalLogger.debug(f'Second item is an array of int : update it.')
+                    key = (key[0], [0] + [v+1 for v in key[1]])
+
+        result = self.__iloc[key]
+        generalLogger.debug(f'.iloc data is : \n{result}')
+        generalLogger.debug(u'\u23BF .iloc access : end -------------------------------------------------------- ')
+
+        return result
+
+    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
+        """
+        Get rows and columns from the loc.
+        :param key: loc index.
+        :return: TemporalDataFrame or single value.
+        """
+        result = self.__getiLoc(key)
+
+        if isinstance(result, pd.DataFrame):
+            if result.shape == (1, 2):
+                generalLogger.debug(f'.loc data is a DataFrame (a single value).')
+
+                return result.iat[0, 1]
+
+            else:
+                generalLogger.debug(f'.loc data is a DataFrame (multiple rows or columns).')
+
+                tp_slicer = sorted(set(result['__TPID']))
+                generalLogger.debug(f'tp slicer is {tp_slicer}.')
+
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+
+        elif isinstance(result, pd.Series):
+            pass
+            if len(result) == 1 and '__TPID' not in result.index:
+                generalLogger.debug(f'.loc data is a Series (a single value).')
+
+                return result.values[0]
+
+            if len(result) == 2 and '__TPID' in result.index:
+                generalLogger.debug(f'.loc data is a Series (a single value).')
+
+                return result.iat[1]
+
+            else:
+                generalLogger.debug(f'.loc data is a Series (a row).')
+
+                tp_slicer = result['__TPID']
+
+                result = result.to_frame().T
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+
+        else:
+            generalLogger.debug(f'.loc data is a single value.')
+
+            return result
+
+    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
+        """
+        Set rows and columns from the loc.
+        :param key: loc index.
+        :param value: pandas DataFrame, Series or a single value to set.
+        """
+        # TODO : debug
+        # This as no real effect, it is done to check that the key exists in the view.
+        result = self.__getiLoc(key)
+
+        if isinstance(value, TemporalDataFrame):
+            value = value.df_data[value.columns]
+
+        # Actually set a value at the (index, column) key.
+        self.__parent.df_data.iloc[key] = value
 
 
 # class _ViLocIndexer:
@@ -1359,70 +1534,70 @@ class _ViAtIndexer:
         self.__parent.df_data.iat[key[0], key[1]+1] = value
 
 
-class _ViewVAtIndexer:
-    """
-    Wrapper around pandas _AtIndexer object for use in ViewTemporalDataFrames.
-    """
-    def __init__(self, parent: TemporalDataFrame):
-        """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
-        """
-        self.__parent = parent
-        self.__at = parent.df_data.at
-
-    def __getitem__(self, key: Tuple[Any, Any]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row index and column name.
-        :return: the value stored at the row index and column name.
-        """
-        return self.__at[key]
-
-    def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
-        """
-        Set values using the _AtIndexer.
-        :param key: a tuple of row index and column name.
-        :param value: a value to set.
-        """
-        # This as no real effect, it is done to check that the key (index, column) exists in the view.
-        self.__at[key] = value
-        # Actually set a value at the (index, column) key.
-        self.__parent.df_data.at[key] = value
-
-
-class _ViewViAtIndexer:
-    """
-    Wrapper around pandas _iAtIndexer object for use in ViewTemporalDataFrames.
-    """
-    def __init__(self, parent: TemporalDataFrame):
-        """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
-        """
-        self.__parent = parent
-        self.__iat = parent.df_data.iat
-        self.__index = parent.df_data.index
-        self.__columns = parent.df_data.columns
-
-    def __getitem__(self, key: Tuple[int, int]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row # and column #
-        :return: the value stored at the row # and column #.
-        """
-        return self.__iat[key]
-
-    def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
-        """
-        Set values using the _AtIndexer.
-        :param key: a tuple of row # and column #.
-        :param value: a value to set.
-        """
-        # This as no real effect, it is done to check that the key (index, column) exists in the view.
-        self.__iat[key] = value
-        # Actually set a value at the (index, column) key.
-        row = list(self.__parent.index).index(self.__index[key[0]])
-        col = list(self.__parent.columns).index(self.__columns[key[1]])
-        generalLogger.debug(f"Setting value '{value}' at row '{key[0]}' in view ('{row}' in DataFrame) and col '"
-                            f"{key[1]}' in view ('{col}' in DataFrame).")
-        # increment col by 1 because '__TPID' is masked
-        self.__parent.df_data.iat[row, col+1] = value
+# class _ViewVAtIndexer:
+#     """
+#     Wrapper around pandas _AtIndexer object for use in ViewTemporalDataFrames.
+#     """
+#     def __init__(self, parent: TemporalDataFrame):
+#         """
+#         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+#         """
+#         self.__parent = parent
+#         self.__at = parent.df_data.at
+#
+#     def __getitem__(self, key: Tuple[Any, Any]) -> Any:
+#         """
+#         Get values using the _AtIndexer.
+#         :param key: a tuple of row index and column name.
+#         :return: the value stored at the row index and column name.
+#         """
+#         return self.__at[key]
+#
+#     def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
+#         """
+#         Set values using the _AtIndexer.
+#         :param key: a tuple of row index and column name.
+#         :param value: a value to set.
+#         """
+#         # This as no real effect, it is done to check that the key (index, column) exists in the view.
+#         self.__at[key] = value
+#         # Actually set a value at the (index, column) key.
+#         self.__parent.df_data.at[key] = value
+#
+#
+# class _ViewViAtIndexer:
+#     """
+#     Wrapper around pandas _iAtIndexer object for use in ViewTemporalDataFrames.
+#     """
+#     def __init__(self, parent: TemporalDataFrame):
+#         """
+#         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+#         """
+#         self.__parent = parent
+#         self.__iat = parent.df_data.iat
+#         self.__index = parent.df_data.index
+#         self.__columns = parent.df_data.columns
+#
+#     def __getitem__(self, key: Tuple[int, int]) -> Any:
+#         """
+#         Get values using the _AtIndexer.
+#         :param key: a tuple of row # and column #
+#         :return: the value stored at the row # and column #.
+#         """
+#         return self.__iat[key]
+#
+#     def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
+#         """
+#         Set values using the _AtIndexer.
+#         :param key: a tuple of row # and column #.
+#         :param value: a value to set.
+#         """
+#         # This as no real effect, it is done to check that the key (index, column) exists in the view.
+#         self.__iat[key] = value
+#         # Actually set a value at the (index, column) key.
+#         row = list(self.__parent.index).index(self.__index[key[0]])
+#         col = list(self.__parent.columns).index(self.__columns[key[1]])
+#         generalLogger.debug(f"Setting value '{value}' at row '{key[0]}' in view ('{row}' in DataFrame) and col '"
+#                             f"{key[1]}' in view ('{col}' in DataFrame).")
+#         # increment col by 1 because '__TPID' is masked
+#         self.__parent.df_data.iat[row, col+1] = value

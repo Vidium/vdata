@@ -21,7 +21,8 @@ data = {'TP': ['0', '0', '0', '0', '0'] + ['1'],
 obs = TemporalDataFrame(data, time_col='TP')
 
 print(obs)
-print(obs.loc[5])
+vobs = obs.loc[[5]]
+print(vobs)
 quit()
 
 # TODO : still a bug here :
