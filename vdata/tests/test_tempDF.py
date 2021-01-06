@@ -15,6 +15,43 @@ generalLogger.level = 'DEBUG'
 
 # ====================================================
 # code
+# check TDF creation : from dict
+data = {'data': np.random.randint(0, 20, 6),
+        'data_bis': np.random.randint(0, 20, 6)}
+
+TemporalDataFrame(data)
+
+# check TDF creation : from pandas DataFrame
+TemporalDataFrame(pd.DataFrame(data))
+
+# check TDF creation, specify time points : from list
+TemporalDataFrame(data, time_points=['*', ('0', '1'), '0', '0', '0', '1'])
+
+# check TDF creation, specify time points : from column name
+data = {'data': np.random.randint(0, 20, 6),
+        'data_bis': np.random.randint(0, 20, 6),
+        'TP': ['*', ('0', '1'), '0', '0', '0', '1']}
+
+TemporalDataFrame(data, time_col='TP')
+
+# check TDF creation, specify time points : all '*' with time list
+data = {'data': np.random.randint(0, 20, 6),
+        'data_bis': np.random.randint(0, 20, 6)}
+
+TemporalDataFrame(data, time_points=['*', '*', '*', '*', '*', '*'], time_list=['0', '1', '2'])
+
+# check TDF creation, specify index and columns
+data = {'data': np.random.randint(0, 20, 6),
+        'data_bis': np.random.randint(0, 20, 6)}
+
+TemporalDataFrame(data, index=[f'C_{i}' for i in range(6)], columns=['data'])
+
+
+
+
+
+
+
 data = {'TP': ['0', '0', '0', '0', '0'] + ['1'],
         'data': np.random.randint(0, 20, 6)}
 
@@ -25,7 +62,7 @@ vobs = obs.loc[[5]]
 print(vobs)
 quit()
 
-# TODO : still a bug here :
+
 
 print(obs)
 

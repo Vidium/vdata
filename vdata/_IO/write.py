@@ -13,8 +13,6 @@ from typing import Dict, List, Union
 from .logger import generalLogger
 from ..NameUtils import H5Group
 
-# TODO : add support for sparse matrices (csr, csc, ...)
-
 
 # ====================================================
 # code

@@ -8,7 +8,6 @@ import os
 import h5py
 import pandas as pd
 import numpy as np
-from scipy import sparse
 from pathlib import Path
 from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable
 
@@ -134,7 +133,7 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
                 raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
             for matrix_index, matrix in TP_matrices.items():
-                if not isinstance(matrix, (np.ndarray, sparse.spmatrix, pd.DataFrame)) or matrix.ndim != 2:
+                if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
                     raise VTypeError(f"Item at time point '{matrix_index}' is not a 2D array-like object "
                                      f"(numpy ndarray, pandas DatFrame).")
 

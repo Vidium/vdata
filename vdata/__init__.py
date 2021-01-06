@@ -12,5 +12,3 @@ from ._IO.read import read, read_from_GPU, read_from_csv
 from ._IO.logger import setLoggingLevel, getLoggingLevel
 
 __all__ = ["VData", "TemporalDataFrame", "read", "read_from_GPU", "read_from_csv", "setLoggingLevel", "getLoggingLevel"]
-
-# TODO : remove all references to sparse matrices

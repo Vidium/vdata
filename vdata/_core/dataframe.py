@@ -257,6 +257,9 @@ class TemporalDataFrame:
                                                                         select with 'True'.
         :return: a view on a sub-set of a TemporalDataFrame
         """
+        generalLogger.debug('TemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
+        generalLogger.debug(f'  Got index : {index}.')
+
         if not isinstance(index, tuple):
             index = [index, slice(None, None, None)]
         elif isinstance(index, tuple) and len(index) == 1:
@@ -264,8 +267,10 @@ class TemporalDataFrame:
         else:
             index = [index[0], index[1]]
 
+        generalLogger.debug(f'  Refactored index to : {index}.')
+
         # check first index (subset on time points)
-        if isinstance(index[0], type(Ellipsis)) or index[0] == slice(None, None, None):
+        if isinstance(index[0], type(Ellipsis)) or isinstance(index[0], slice) and index[0] == slice(None, None, None):
             index[0] = self.time_points
 
         elif isinstance(index[0], slice):
@@ -281,11 +286,18 @@ class TemporalDataFrame:
         else:
             index[0] = to_str_list(index[0])
 
+        generalLogger.debug(f'  Corrected index to : {index}.')
+
         # Case 1 : sub-setting on time points
         index_0_tp = [idx for idx in index[0] if idx in self.time_points]
         if len(index_0_tp):
+            generalLogger.debug('  Sub-set on time points.')
+
             data_for_TP = self._df[match(self._df['__TPID'], index_0_tp)]
-            index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
+
+            index_conditions = [index[1][i] for i in np.where(self._df.index.isin(data_for_TP.index))[0]] if not \
+                isinstance(index[1], slice) else index[1]
+
             data = data_for_TP[index_conditions]
 
             return ViewTemporalDataFrame(self, index_0_tp, data.index, data.columns[1:])
@@ -293,6 +305,8 @@ class TemporalDataFrame:
         # Case 2 : sub-setting on columns
         index_0_col = [idx for idx in index[0] if idx in self.columns]
         if len(index_0_col):
+            generalLogger.debug('  Sub-set on columns.')
+
             data_for_TP = self._df[index_0_col]
             index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
             data = data_for_TP[index_conditions]
@@ -300,9 +314,8 @@ class TemporalDataFrame:
             return ViewTemporalDataFrame(self, self.time_points, data.index, data.columns)
 
         else:
-            data = pd.DataFrame()
-
-            return ViewTemporalDataFrame(self, (), data.index, data.columns[1:])
+            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '\
+                              'use TDF[:, <List of booleans>]')
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
@@ -388,8 +401,8 @@ class TemporalDataFrame:
     @property
     def time_points(self) -> List[str]:
         """
-        Get the list of time points in this TemporalDataFrame
-        :return: the list of time points in this TemporalDataFrame
+        Get the list of time points in this TemporalDataFrame.
+        :return: the list of time points in this TemporalDataFrame.
         """
         if self._time_list is not None:
             return self._time_list
@@ -403,31 +416,31 @@ class TemporalDataFrame:
     @property
     def columns(self) -> pd.Index:
         """
-        Get the columns of the DataFrame (but mask the reserved __TPID column).
-        :return: the column names of the DataFrame
+        Get the columns of this TemporalDataFrame (but mask the reserved __TPID column).
+        :return: the column names of this TemporalDataFrame
         """
         return self._df.columns[1:]
 
     @columns.setter
     def columns(self, values: pd.Index) -> None:
         """
-        Set the columns of the DataFrame (except for __TPID).
-        :param values: the new column names for the DataFrame.
+        Set the columns of this TemporalDataFrame (except for __TPID).
+        :param values: the new column names for this TemporalDataFrame.
         """
         self._df.columns[1:] = values
 
     @property
     def index(self) -> pd.Index:
         """
-        Get the index of the DataFrame.
-        :return: the index of the DataFrame
+        Get the index of this TemporalDataFrame.
+        :return: the index of this TemporalDataFrame
         """
         return self._df.index
 
     @index.setter
     def index(self, values: pd.Index) -> None:
         """
-        Set the index of the DataFrame.
+        Set the index of this TemporalDataFrame.
         :param values: the new index to set.
         """
         self._df.index = values
@@ -435,19 +448,23 @@ class TemporalDataFrame:
     @property
     def n_time_points(self) -> int:
         """
-        :return: the number of time points
+        Get the number of distinct time points in this TemporalDataFrame.
+        :return: the number of time points.
         """
         return len(self.time_points)
 
     def len_index(self, time_point: str) -> int:
         """
-        :return: the length of the index at a given time point
+        Get the length of the index at a given time point.
+        :param time_point: a time points in this TemporalDataFrame.
+        :return: the length of the index at a given time point.
         """
         return len(self[time_point].index)
 
     @property
     def n_columns(self) -> int:
         """
+        Get the number of columns in this TemporalDataFrame
         :return: the number of columns
         """
         return len(self.columns)
@@ -455,23 +472,31 @@ class TemporalDataFrame:
     @property
     def dtypes(self) -> None:
         """
-        Return the dtypes in the DataFrame.
-        :return: the dtypes in the DataFrame.
+        Return the dtypes in this TemporalDataFrame.
+        :return: the dtypes in this TemporalDataFrame.
         """
         return self._df[self.columns].dtypes
 
     def astype(self, dtype: Union[DType, Dict[str, DType]]) -> None:
         """
-        Cast the DataFrame to a specified data type.
+        Cast this TemporalDataFrame to a specified data type.
         :param dtype: a data type.
         """
         self._df.astype(dtype)
 
+    def asColType(self, col_name: str, dtype: Union[DType, Dict[str, DType]]) -> None:
+        """
+        Cast a specific column in this TemporalDataFrame to a specified data type.
+        :param col_name: a column name.
+        :param dtype: a data type.
+        """
+        self._df[col_name].astype(dtype)
+
     def info(self, verbose: Optional[bool] = None, buf: Optional[IO[str]] = None, max_cols: Optional[int] = None,
              memory_usage: Optional[Union[bool, str]] = None, null_counts: Optional[bool] = None) -> None:
         """
-        This method prints information about a DataFrame including the index dtype and columns, non-null values and
-        memory usage.
+        This method prints information about a TemporalDataFrame including the index dtype and columns,
+        non-null values and memory usage.
         :return: a concise summary of a DataFrame.
         """
         return self._df.info(verbose=verbose, buf=buf, max_cols=max_cols, memory_usage=memory_usage,
@@ -480,7 +505,7 @@ class TemporalDataFrame:
     @property
     def values(self) -> np.ndarray:
         """
-        Return a Numpy representation of the DataFrame.
+        Return a Numpy representation of this TemporalDataFrame.
         :return: a Numpy representation of the DataFrame.
         """
         return self._df[self.columns].values
@@ -512,9 +537,9 @@ class TemporalDataFrame:
     @property
     def shape(self) -> Tuple[int, List[int], int]:
         """
-        Return a tuple representing the dimensionality of the DataFrame
-        (nb_time_points, [len_index for all time points], nb_col)
-        :return: a tuple representing the dimensionality of the DataFrame
+        Return a tuple representing the dimensionality of this TemporalDataFrame
+        (nb_time_points, [len_index for all time points], nb_col).
+        :return: a tuple representing the dimensionality of this TemporalDataFrame
         """
         return self.n_time_points, [self.len_index(TP) for TP in self.time_points], self.n_columns
 
@@ -529,7 +554,7 @@ class TemporalDataFrame:
     @property
     def empty(self) -> bool:
         """
-        Indicator whether DataFrame is empty.
+        Indicator whether this TemporalDataFrame is empty.
         :return: True if this TemporalDataFrame is empty.
         """
         return True if not self.n_time_points else all([self[TP].empty for TP in self.time_points])
@@ -606,7 +631,7 @@ class TemporalDataFrame:
             - A slice object with labels, e.g. 'a':'f'.
             - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
-            for indexing (one of the above)
+            for indexing (one of the above) TODO
 
         :return: a group of rows and columns
         """
@@ -632,7 +657,7 @@ class TemporalDataFrame:
 
     def insert(self, loc, column, value, allow_duplicates=False) -> None:
         """
-        Insert column into DataFrame at specified location.
+        Insert column into TemporalDataFrame at specified location.
         :param loc: Insertion index. Must verify 0 <= loc <= len(columns).
         :param column: str, number, or hashable object. Label of the inserted column.
         :param value: int, Series, or array-like
@@ -662,7 +687,7 @@ class TemporalDataFrame:
 
     def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
         """
-        Whether each element in the DataFrame is contained in values.
+        Whether each element in the TemporalDataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.
         """
         if self._time_points_col == '__TPID':
@@ -678,7 +703,7 @@ class TemporalDataFrame:
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
            level: Any = None) -> 'TemporalDataFrame':
         """
-        Get Equal to of DataFrame and other, element-wise (binary operator eq).
+        Get Equal to of TemporalDataFrame and other, element-wise (binary operator eq).
         Equivalent to '=='.
         :param other: Any single or multiple element data structure, or list-like object.
         :param axis: {0 or ‘index’, 1 or ‘columns’}
@@ -695,7 +720,16 @@ class TemporalDataFrame:
         return TemporalDataFrame(self._df.eq(other, axis, level)[self.columns],
                                  time_points=time_points, time_col=time_col)
 
-    # TODO : copy method
+    def copy(self) -> 'TemporalDataFrame':
+        """
+        Create a new copy of this TemporalDataFrame.
+        :return: a copy of this TemporalDataFrame.
+        """
+        time_points = self.df_data[self._time_points_col].copy() if self._time_points_col == '__TPID' else None
+        time_col = self._time_points_col if self._time_points_col != '__TPID' else None
+        return TemporalDataFrame(self.df_data[self.columns].copy(),
+                                 time_points=time_points, time_col=time_col,
+                                 index=self.index.copy(), columns=self.columns.copy())
 
 
 class ViewTemporalDataFrame:

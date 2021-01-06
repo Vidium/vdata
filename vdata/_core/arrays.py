@@ -168,14 +168,14 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
         :param value: an array-like to store
         """
         # first check that value has the correct shape
-        if value.shape == self._parent.shape():
+        if value.shape == self._parent.shape:
             if self._data is None:
                 self._data = {}
             self._data[key] = value
 
         else:
             raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, "
-                             f"expected {self._parent.shape()}")
+                             f"expected {self._parent.shape}")
 
     def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, ArrayLike_3D]]:
         """
@@ -185,13 +185,18 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
         :return: the data (dictionary of array-like objects), if correct
         """
         if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
             return None
 
         else:
             _data = {}
-            _shape = self._parent.shape()
+            _shape = self._parent.shape
 
             for array_index, array in data.items():
+                if not all([array[0].shape[1] == array[i].shape[1] for i in range(array.shape[0])]):
+                    raise IncoherenceError(f"{self.name} '{array_index}' has arrays of different third dimension, "
+                                           f"should all be the same.")
+
                 array_shape = (array.shape[0], [array[i].shape[0] for i in range(len(array))], array[0].shape[1])
 
                 if _shape != array_shape:
@@ -219,6 +224,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
                 else:
                     _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array], dtype=object)
 
+            generalLogger.debug("  Data was OK.")
             return _data
 
     @abc.abstractmethod
@@ -491,6 +497,7 @@ class VPairwiseArray(VBaseArrayContainer):
         :return: the data (dictionary of array-like objects), if correct
         """
         if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
             return None
 
         else:
@@ -508,6 +515,7 @@ class VPairwiseArray(VBaseArrayContainer):
                 else:
                     _data[str(array_index)] = array.astype(self._parent.dtype)
 
+            generalLogger.debug("  Data was OK.")
             return _data
 
     @property
