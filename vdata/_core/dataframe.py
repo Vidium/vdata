@@ -193,7 +193,11 @@ class TemporalDataFrame:
                 data.insert(0, "__TPID", hashable_time_points)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
-            self._df = pd.DataFrame(data, index=index, columns=columns, dtype=dtype)
+            self._df = pd.DataFrame(data, dtype=dtype)
+            if index is not None:
+                self._df.index = index
+            if columns is not None:
+                self._df.columns = columns
 
             if self._time_list is not None:
                 undesired_time_points = np.unique(self._df[~self._df[self._time_points_col].isin(self._time_list + [
@@ -314,7 +318,7 @@ class TemporalDataFrame:
             return ViewTemporalDataFrame(self, self.time_points, data.index, data.columns)
 
         else:
-            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '\
+            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '
                               'use TDF[:, <List of booleans>]')
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],

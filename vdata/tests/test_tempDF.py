@@ -19,10 +19,12 @@ generalLogger.level = 'DEBUG'
 data = {'data': np.random.randint(0, 20, 6),
         'data_bis': np.random.randint(0, 20, 6)}
 
-TemporalDataFrame(data)
+print(TemporalDataFrame(data))
 
 # check TDF creation : from pandas DataFrame
-TemporalDataFrame(pd.DataFrame(data))
+print(TemporalDataFrame(pd.DataFrame(data), index=[f'C_{i}' for i in range(6)]))
+
+quit()
 
 # check TDF creation, specify time points : from list
 TemporalDataFrame(data, time_points=['*', ('0', '1'), '0', '0', '0', '1'])
