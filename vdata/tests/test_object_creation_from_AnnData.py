@@ -8,7 +8,7 @@ import scanpy as sc
 import vdata
 from vdata import VData
 
-# vdata.setLoggingLevel('DEBUG')
+vdata.setLoggingLevel('DEBUG')
 
 # ====================================================
 # code
@@ -18,9 +18,9 @@ adata = sc.read(source_vdata_path)
 
 print(adata)
 
-VData(adata)
+vdata = VData(adata, time_col='Time_hour')
 
-# print(vdata)
-# print(vdata.var)
-#
-# print(vdata[0, :, 'ENSG00000255794.7'])
+print(vdata)
+print(vdata.obs)
+
+print(vdata[0, :, 'ENSG00000255794.7'])

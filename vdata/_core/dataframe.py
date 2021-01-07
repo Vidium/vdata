@@ -54,7 +54,7 @@ class TemporalDataFrame:
     selection.
     """
 
-    _internal_attributes = ['_time_points_col', '_df', '_time_list', 'TP_from_DF',
+    _internal_attributes = ['_time_points_col', '_df', '_time_points', 'TP_from_DF',
                             'time_points', 'columns', 'index', 'n_time_points', 'n_columns',
                             'dtypes', 'values', 'axes', 'ndim', 'size', 'shape', 'empty',
                             'at', 'iat', 'loc', 'iloc']
@@ -62,15 +62,15 @@ class TemporalDataFrame:
     _reserved_keys = ['__TPID', 'df_data']
 
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
-                 time_points: Optional[Union[Collection, DType, Literal['*']]] = None,
+                 time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
                  time_col: Optional[str] = None,
-                 time_list: Optional[Collection[str]] = None,
+                 time_points: Optional[Collection[str]] = None,
                  index: Optional[Collection] = None,
                  columns: Optional[Collection] = None,
                  dtype: Optional[DType] = None):
         """
         :param data: data to store as a dataframe
-        :param time_points: time points for the dataframe's rows. The value indicates at which time point a given row
+        :param time_list: time points for the dataframe's rows. The value indicates at which time point a given row
             exists in the dataframe.
             It can be :
                 - a collection of values of the same length as the number of rows.
@@ -81,9 +81,9 @@ class TemporalDataFrame:
                 - a collection of time points (indicating that the row exists at all those time points)
                 - the character '*' (indicating that the row exists at all time points)
 
-        :param time_col: if time points are not given explicitly with the 'time_points' parameter, a column name can be
+        :param time_col: if time points are not given explicitly with the 'time_list' parameter, a column name can be
             given. This column will be used as the time data.
-        :param time_list: a list of time points that should exist. This is useful when using the '*' character to
+        :param time_points: a list of time points that should exist. This is useful when using the '*' character to
             specify the list of time points that the TemporalDataFrame should cover.
         :param index: indexes for the dataframe's rows
         :param columns: column labels
@@ -91,11 +91,11 @@ class TemporalDataFrame:
         """
         generalLogger.debug(u'\u23BE TemporalDataFrame creation : begin ---------------------------------------- ')
         self._time_points_col = '__TPID'
-        self._time_list = sorted(to_str_list(time_list)) if time_list is not None else None
-        if self._time_list is not None:
-            generalLogger.debug(f"User has defined time points '{self._time_list}'.")
+        self._time_points = sorted(to_str_list(time_points)) if time_points is not None else None
+        if self._time_points is not None:
+            generalLogger.debug(f"User has defined time points '{self._time_points}'.")
 
-        time_points_list = to_str_list(time_points) if time_points is not None else None
+        time_list = to_str_list(time_list) if time_list is not None else None
 
         if columns is not None:
             columns = ['__TPID'] + list(columns)
@@ -105,14 +105,14 @@ class TemporalDataFrame:
                                                                                  not len(data.columns)):
             generalLogger.debug('Setting empty TemporalDataFrame.')
 
-            if time_points_list is None:
-                time_points_list = np.repeat('0', len(index)) if index is not None else []
+            if time_list is None:
+                time_list = np.repeat('0', len(index)) if index is not None else []
 
             if time_col is not None:
-                generalLogger.warning("Both 'time_points' and 'time_col' parameters were set, 'time_col' will be "
+                generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
                                       "ignored.")
 
-            self._df = pd.DataFrame({'__TPID': time_points_list}, index=index, columns=columns, dtype=dtype)
+            self._df = pd.DataFrame({'__TPID': time_list}, index=index, columns=columns, dtype=dtype)
 
         # data given
         elif isinstance(data, (dict, pd.DataFrame)):
@@ -147,18 +147,18 @@ class TemporalDataFrame:
                         raise VValueError(f"'{key}' column is reserved and cannot be used in 'data'.")
 
             # no time points given
-            if time_points_list is None:
+            if time_list is None:
                 # no column to use as time point : all time points set to 0 by default
                 if time_col is None:
-                    default_TP = self._time_list[0] if self._time_list is not None else '0'
+                    default_TP = self._time_points[0] if self._time_points is not None else '0'
                     generalLogger.info(f"Setting all time points to default value '{default_TP}'.")
-                    time_points_list = [default_TP for _ in range(data_len)]
+                    time_list = [default_TP for _ in range(data_len)]
 
                 # a column has been given to use as time point : check that it exists
                 elif (isinstance(data, dict) and time_col in data.keys()) or \
                         (isinstance(data, pd.DataFrame) and time_col in data.columns):
                     generalLogger.info(f"Using '{time_col}' as time points data.")
-                    time_points_list = data[time_col]
+                    time_list = data[time_col]
                     self._time_points_col = time_col
 
                 else:
@@ -167,30 +167,30 @@ class TemporalDataFrame:
             # time points given, check length is correct
             else:
                 if time_col is not None:
-                    generalLogger.warning("Both 'time_points' and 'time_col' parameters were set, 'time_col' will be "
+                    generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
                                           "ignored.")
 
-                if len(time_points_list) != data_len:
+                if len(time_list) != data_len:
                     raise VValueError(f"Supplied time points must be of length {data_len}.")
 
-            # check that all values in time_points are hashable
-            hashable_time_points = []
-            for tp in time_points_list:
+            # check that all values in time_list are hashable
+            hashable_time_list = []
+            for tp in time_list:
                 try:
                     hash(tp)
                 except TypeError:
                     if isinstance(tp, (list, np.ndarray)):
-                        hashable_time_points.append(tuple(tp))
+                        hashable_time_list.append(tuple(tp))
                     else:
                         raise VTypeError(f"Un-hashable type '{type(tp)}' cannot be used for time points.")
                 else:
-                    hashable_time_points.append(tp)
+                    hashable_time_list.append(tp)
 
             if isinstance(data, dict):
-                data = dict({'__TPID': hashable_time_points}, **data)
+                data = dict({'__TPID': hashable_time_list}, **data)
 
             else:
-                data.insert(0, "__TPID", hashable_time_points)
+                data.insert(0, "__TPID", hashable_time_list)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
             self._df = pd.DataFrame(data, dtype=dtype)
@@ -199,15 +199,15 @@ class TemporalDataFrame:
             if columns is not None:
                 self._df.columns = columns
 
-            if self._time_list is not None:
-                undesired_time_points = np.unique(self._df[~self._df[self._time_points_col].isin(self._time_list + [
+            if self._time_points is not None:
+                undesired_time_points = np.unique(self._df[~self._df[self._time_points_col].isin(self._time_points + [
                     '*'])][self._time_points_col])
                 if len(undesired_time_points):
                     generalLogger.warning(f"Time points {undesired_time_points} were found in 'data' but were not "
-                                          f"specified in 'time_list'. They will be deleted from the DataFrame, "
+                                          f"specified in 'time_points'. They will be deleted from the DataFrame, "
                                           f"is this what you intended ?")
                     # remove undesired time points from the data
-                    self._df = self._df[self._df[self._time_points_col].isin(self._time_list + ['*'])]
+                    self._df = self._df[self._df[self._time_points_col].isin(self._time_points + ['*'])]
                     generalLogger.debug(f"New data has {len(self._df)} rows.")
 
         else:
@@ -408,8 +408,8 @@ class TemporalDataFrame:
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
         """
-        if self._time_list is not None:
-            return self._time_list
+        if self._time_points is not None:
+            return self._time_points
 
         elif len(self.TP_from_DF):
             return self.TP_from_DF

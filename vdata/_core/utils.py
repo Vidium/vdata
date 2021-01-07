@@ -4,10 +4,12 @@
 
 # ====================================================
 # imports
+import pandas as pd
 import numpy as np
 from typing import Union, Tuple, List
 
-from ..NameUtils import PreSlicer
+from ..NameUtils import PreSlicer, ArrayLike_2D, ArrayLike_3D
+from .._IO.errors import VTypeError
 
 
 # ====================================================
@@ -44,3 +46,15 @@ def repr_array(arr: Union[List, np.ndarray]) -> str:
 
     else:
         return str(arr)
+
+
+def reshape_to_3D(arr: ArrayLike_2D) -> ArrayLike_3D:
+    """
+    Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
+    """
+    if isinstance(arr, np.ndarray):
+        return np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
+    elif isinstance(arr, pd.DataFrame):
+        return np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
+    else:
+        raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")

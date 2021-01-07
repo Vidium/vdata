@@ -14,7 +14,7 @@ from builtins import Ellipsis
 from typing import Optional, Union, Dict, Tuple, Any, List
 
 from . import view
-from .utils import format_index
+from .utils import format_index, reshape_to_3D
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
@@ -44,12 +44,14 @@ class VData:
                  varp: Optional[Dict[Any, ArrayLike]] = None,
                  time_points: Optional[pd.DataFrame] = None,
                  uns: Optional[Dict] = None,
+                 time_col: Optional[str] = None,
+                 time_list: Optional[List[str]] = None,
                  dtype: DType = np.float32):
         """
         :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
             and for each variable/gene.
             'data' can also be an AnnData to be converted to the VData format.
-        :param obs: a pandas DataFrame describing the observations/cells
+        :param obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells
         :param obsm: a dictionary of array-like objects describing measurements on the observations/cells
         :param obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells
         :param var: a pandas DataFrame describing the variables/genes
@@ -57,6 +59,10 @@ class VData:
         :param varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes
         :param time_points: a pandas DataFrame describing the times points
         :param uns: a dictionary of unstructured data
+        :param time_col: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name in
+            obs that contains time information.
+        :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
+            time information of the same length as the number of rows in obs.
         :param dtype: a data type to impose on datasets stored in this VData
         """
         generalLogger.debug(u'\u23BE VData creation : begin -------------------------------------------------------- ')
@@ -77,7 +83,8 @@ class VData:
         _layers, _obsm, _obsp, _varm, _varp, df_obs, df_var = self._check_formats(data,
                                                                                   obs, obsm, obsp,
                                                                                   var, varm, varp,
-                                                                                  time_points, uns)
+                                                                                  time_points, uns,
+                                                                                  time_col, time_list)
 
         # set number of obs and vars from available data
         self._n_time_points, self._n_obs, self._n_vars = 0, [0], 0
@@ -269,18 +276,6 @@ class VData:
         """
         return self.n_time_points, self.n_obs, self.n_var
 
-    @staticmethod
-    def _reshape_to_3D(arr: ArrayLike_2D):
-        """
-        Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
-        """
-        if isinstance(arr, np.ndarray):
-            return np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
-        elif isinstance(arr, pd.DataFrame):
-            return np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
-        else:
-            raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")
-
     # DataFrames ---------------------------------------------------------
     @property
     def time_points(self) -> pd.DataFrame:
@@ -364,7 +359,7 @@ class VData:
                             f"(numpy array, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = self._reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr)
 
             self._obsm = VAxisArray(self, 'obs', data)
 
@@ -432,7 +427,7 @@ class VData:
                             f"(numpy array{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = self._reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr)
 
             self._varm = VAxisArray(self, 'var', data)
 
@@ -509,7 +504,7 @@ class VData:
                                          f"(numpy array, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = self._reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr)
 
             self._layers = VLayersArrays(self, data)
 
@@ -555,7 +550,9 @@ class VData:
                        var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]],
                        varp: Optional[Dict[Any, ArrayLike]],
                        time_points: Optional[pd.DataFrame],
-                       uns: Optional[Dict]) -> Tuple[
+                       uns: Optional[Dict],
+                       time_col: Optional[str] = None,
+                       time_list: Optional[List[str]] = None) -> Tuple[
         Optional[Dict[str, ArrayLike_3D]], Optional[Dict[str, ArrayLike_3D]],
         Optional[Dict[str, ArrayLike_2D]], Optional[Dict[str, ArrayLike_3D]],
         Optional[Dict[str, ArrayLike_2D]], Optional[pd.Index], Optional[pd.Index]
@@ -564,8 +561,63 @@ class VData:
         Function for checking the types and formats of the parameters supplied to the VData object at creation.
         If the types are not accepted, an error is raised. obsm, obsp, varm, varp and layers are prepared for
         being converted into custom arrays for maintaining coherence with this VData object.
+        :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
+            and for each variable/gene.
+            'data' can also be an AnnData to be converted to the VData format.
+        :param obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells
+        :param obsm: a dictionary of array-like objects describing measurements on the observations/cells
+        :param obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells
+        :param var: a pandas DataFrame describing the variables/genes
+        :param varm: a dictionary of array-like objects describing measurements on the variables/genes
+        :param varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes
+        :param time_points: a pandas DataFrame describing the times points
+        :param uns: a dictionary of unstructured data
+        :param time_col: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name in
+            obs that contains time information.
+        :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
+            time information of the same length as the number of rows in obs.
         :return: Arrays in correct format.
         """
+        def check_time_match(_time_points: Optional[pd.DataFrame],
+                             _time_list: Optional[List[str]],
+                             _time_col: Optional[str],
+                             _obs: TemporalDataFrame) -> Tuple[Optional[pd.DataFrame], int]:
+            """
+            Build time_points DataFrame if it was not given by the user but 'time_list' or 'time_col' were given.
+            Otherwise, if both time_points and 'time_list' or 'time_col' were given, check that they match.
+            :param _time_points: a pandas DataFrame with time points data.
+            :param _time_list: a list of time points of the same length as the number of rows in obs.
+            :param _time_col: a column name which contains time points information in obs.
+            :param _obs: the obs TemporalDataFrame.
+            :return: a time points DataFrame if possible and the number of found time points.
+            """
+            if _time_points is None:
+                # build time_points DataFrame from time_list or time_col
+                if _time_list is not None or _time_col is not None:
+                    if _time_list is not None:
+                        unique_time_points = np.unique(_time_list)
+
+                    else:
+                        unique_time_points = _obs.time_points
+
+                    return pd.DataFrame({'value': unique_time_points}), len(unique_time_points)
+
+                # time_points cannot be guessed
+                else:
+                    return None, 1
+
+            # check that time_points and _time_list and _time_col match
+            else:
+                if _time_list is not None:
+                    if not all(np.isin(_time_list, _time_points['value'])):
+                        raise VValueError("There are values in 'time_list' unknown in 'time_points'.")
+
+                elif _time_col is not None:
+                    if not all(np.isin(_obs.time_points, _time_points['value'])):
+                        raise VValueError("There are values in obs['time_col'] unknown in 'time_points'.")
+
+                return _time_points, len(_time_points)
+
         generalLogger.debug(u"  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
         df_obs, df_var = None, None
@@ -591,18 +643,22 @@ class VData:
                 if eval(f"{attr} is not None"):
                     raise VValueError(f"'{attr}' should be set to None when importing data from an AnnData.")
 
+            # TODO : remove this
             if nb_time_points > 1:
                 raise VValueError("Only one time point must be provided when importing data from an AnnData.")
 
             # import data from AnnData
             if is_in(data.X, list(data.layers.values())):
-                layers = dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items())
+                layers = dict((key, reshape_to_3D(arr)) for key, arr in data.layers.items())
 
             else:
-                layers = dict({"data": self._reshape_to_3D(data.X)},
-                              **dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items()))
+                layers = dict({"data": reshape_to_3D(data.X)},
+                              **dict((key, reshape_to_3D(arr)) for key, arr in data.layers.items()))
 
-            obs, obsm, obsp = TemporalDataFrame(data.obs.copy()), dict(data.obsm), dict(data.obsp)
+            obs = TemporalDataFrame(data.obs.copy(), time_list=time_list, time_col=time_col)
+            obs, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+
+            obsm, obsp = dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
             uns = dict(data.uns)
 
@@ -624,7 +680,7 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
-                    layers = {"data": self._reshape_to_3D(np.array(data, dtype=self._dtype))}
+                    layers = {"data": reshape_to_3D(np.array(data, dtype=self._dtype))}
 
                 # data is an array
                 elif isinstance(data, np.ndarray):
@@ -639,7 +695,7 @@ class VData:
                                              "be 2D array-like objects (numpy array, pandas DataFrame)")
 
                     elif data.ndim == 2:
-                        reshaped_data = self._reshape_to_3D(data)
+                        reshaped_data = reshape_to_3D(data)
 
                         layers = {"data": reshaped_data}
 
@@ -670,7 +726,7 @@ class VData:
                                 raise VTypeError(f"Layer '{key}' must be a 3D array-like object "
                                                  f"(numpy arrays) if providing more than 1 time point.")
 
-                            value = self._reshape_to_3D(value)
+                            value = reshape_to_3D(value)
 
                         layers[str(key)] = value
 
@@ -687,11 +743,23 @@ class VData:
 
                 if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
                     raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
+                elif isinstance(obs, pd.DataFrame):
+                    obs = self._check_df_types(TemporalDataFrame(obs.copy(), time_list=time_list, time_col=time_col))
                 else:
                     obs = self._check_df_types(obs)
+                    if time_list is not None:
+                        generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
+                                              "TemporalDataFrame.")
+                    if time_col is not None:
+                        generalLogger.warning("'time_col' parameter cannot be used since 'obs' is already a "
+                                              "TemporalDataFrame.")
 
             else:
                 generalLogger.debug(f"    2. \u2717 'obs' was not found.")
+                if time_list is not None:
+                    generalLogger.warning("'time_list' parameter cannot be used since 'obs' was not found.")
+                if time_col is not None:
+                    generalLogger.warning("'time_col' parameter cannot be used since 'obs' was not found.")
 
             # obsm
             if obsm is not None:
@@ -712,7 +780,7 @@ class VData:
                                 raise VTypeError(f"obsm '{key}' must be a 3D array-like object (numpy array) "
                                                  f"if providing more than 1 time point.")
 
-                            value = self._reshape_to_3D(value)
+                            value = reshape_to_3D(value)
 
                         obsm[str(key)] = value
 
@@ -769,7 +837,7 @@ class VData:
                                 raise VTypeError(f"varm '{key}' must be a 3D array-like object (numpy array) "
                                                  f"if providing more than 1 time point.")
 
-                            value = self._reshape_to_3D(value)
+                            value = reshape_to_3D(value)
 
                         varm[str(key)] = value
 
@@ -825,7 +893,7 @@ class VData:
 
         return layers, obsm, obsp, varm, varp, df_obs, df_var
 
-    def _check_df_types(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _check_df_types(self, df: Union[pd.DataFrame, TemporalDataFrame]) -> pd.DataFrame:
         """
         Function for coercing data types of the columns and of the index in a pandas DataFrame.
         :param df: a pandas DataFrame

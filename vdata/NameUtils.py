@@ -39,10 +39,11 @@ DTypes = {int: int,
           np.float16: np.float16,
           np.float32: np.float32,
           np.float64: np.float64,
-          np.float128: np.float128}
+          np.float128: np.float128,
+          np.dtype('O'): np.dtype('O')}
 
 DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
-                      "float128"], int, float, np.int_, np.float_]
+                      "float128"], int, float, np.int_, np.float_, np.dtype('O')]
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
