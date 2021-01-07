@@ -110,6 +110,7 @@ def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0) 
     if data.dtype.type == np.str_:
         group.create_dataset(key, data=data.astype('S'))
     else:
+        print(data, type(data))
         group[key] = data
 
     group[key].attrs['type'] = 'array'
