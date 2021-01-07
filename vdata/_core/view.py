@@ -9,6 +9,7 @@ import numpy as np
 from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, NoReturn, Any, Optional, List
 
 from . import vdata
+from .utils import format_index, repr_array
 from .arrays import VLayersArrays, VAxisArray, VPairwiseArray, VBaseArrayContainer
 from .dataframe import ViewTemporalDataFrame, TemporalDataFrame
 from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
@@ -236,10 +237,12 @@ class ViewVData:
                                           dtype=self._parent.time_points.value.dtype)
             self._time_points_slicer = np.isin(self._parent.time_points.value, time_points_slicer)
 
-        generalLogger.debug(f"  1. Time points slicer is : {self._time_points_slicer}")
+        generalLogger.debug(f"  1. Time points slicer is : {repr_array(self._time_points_slicer)} "
+                            f"({np.sum(self._time_points_slicer)} "
+                            f"{'is' if np.sum(self._time_points_slicer) == 1 else 'are'} True)")
 
         self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
-        generalLogger.debug(f"     Time points array slicer is : {self._time_points_array_slicer}")
+        generalLogger.debug(f"     Time points array slicer is : {repr_array(self._time_points_array_slicer)}")
 
         # obs -------------------------
         if not isinstance(obs_slicer, slice):
@@ -257,10 +260,12 @@ class ViewVData:
         time_points = list(self._parent.time_points.loc[self._time_points_array_slicer].value)
 
         self._obs_slicer = np.logical_and(self._obs_slicer, self._parent.obs[time_points].index_bool)
-        generalLogger.debug(f"  2. Obs slicer is : {self._obs_slicer}")
+        generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)} "
+                            f"({np.sum(self._obs_slicer)} "
+                            f"{'is' if np.sum(self._obs_slicer) == 1 else 'are'} True)")
 
         self._obs_array_slicer = np.where(self._obs_slicer)[0]
-        generalLogger.debug(f"     Obs array slicer is : {self._obs_array_slicer}")
+        generalLogger.debug(f"     Obs array slicer is : {repr_array(self._obs_array_slicer)}")
 
         # var -------------------------
         if not isinstance(var_slicer, slice):
@@ -275,10 +280,12 @@ class ViewVData:
             var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
             self._var_slicer = np.isin(self._parent.var.index, var_slicer)
 
-        generalLogger.debug(f"  3. Var slicer is : {self._var_slicer}")
+        generalLogger.debug(f"  3. Var slicer is : {repr_array(self._var_slicer)} "
+                            f"({np.sum(self._var_slicer)} "
+                            f"{'is' if np.sum(self._var_slicer) == 1 else 'are'} True)")
 
         self._var_array_slicer = np.where(self._var_slicer)[0]
-        generalLogger.debug(f"     Var array slicer is : {self._var_array_slicer}")
+        generalLogger.debug(f"     Var array slicer is : {repr_array(self._var_array_slicer)}")
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
@@ -310,16 +317,7 @@ class ViewVData:
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
         """
         # convert to a 3-tuple
-        if not isinstance(index, tuple):
-            index = (index, ..., ...)
-
-        elif len(index) == 2:
-            index = (index[0], index[1], ...)
-
-        # get slicers
-        time_points_slicer = index[0]
-        obs_slicer = index[1]
-        var_slicer = index[2]
+        time_points_slicer, obs_slicer, var_slicer = format_index(index)
 
         # check time points slicer --------------------------------------------------------------------------
         if isinstance(time_points_slicer, type(Ellipsis)) or time_points_slicer == slice(None, None, None):

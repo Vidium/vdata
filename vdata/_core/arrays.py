@@ -189,15 +189,20 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             return None
 
         else:
+            generalLogger.debug("  Data was found.")
             _data = {}
             _shape = self._parent.shape
 
+            generalLogger.debug(f"  Reference shape is {_shape}.")
+
             for array_index, array in data.items():
+                array_shape = (array.shape[0], [array[i].shape[0] for i in range(len(array))], array[0].shape[1])
+
+                generalLogger.debug(f"  Checking array '{array_index}' with shape {array_shape}.")
+
                 if not all([array[0].shape[1] == array[i].shape[1] for i in range(array.shape[0])]):
                     raise IncoherenceError(f"{self.name} '{array_index}' has arrays of different third dimension, "
                                            f"should all be the same.")
-
-                array_shape = (array.shape[0], [array[i].shape[0] for i in range(len(array))], array[0].shape[1])
 
                 if _shape != array_shape:
 
@@ -308,7 +313,7 @@ class VAxisArray(VBase3DArrayContainer):
         :param data: a dictionary of array-like objects to store in this Array
         :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
         """
-        generalLogger.debug(f"Creating {axis}m VAxisArray.")
+        generalLogger.debug(f"== Creating {axis}m VAxisArray. ==============================")
         self._axis = axis
         super().__init__(parent, data)
         self._col_names = self._check_col_names(col_names)
@@ -399,7 +404,7 @@ class VLayersArrays(VBase3DArrayContainer):
         :param parent: the parent VData object this Array is linked to
         :param data: a dictionary of array-like objects to store in this Array
         """
-        generalLogger.debug(f"Creating VLayersArrays.")
+        generalLogger.debug(f"== Creating VLayersArrays. ================================")
         super().__init__(parent, data)
 
     def __repr__(self) -> str:
@@ -454,7 +459,7 @@ class VPairwiseArray(VBaseArrayContainer):
         :param axis: the axis this Array must conform to (obs or var)
         :param data: a dictionary of array-like objects to store in this Array
         """
-        generalLogger.debug(f"Creating {axis}p VPairwiseArray.")
+        generalLogger.debug(f"== Creating {axis}p VPairwiseArray. ==========================")
         self._axis = axis
         super().__init__(parent, data)
 

@@ -14,6 +14,7 @@ from builtins import Ellipsis
 from typing import Optional, Union, Dict, Tuple, Any, List
 
 from . import view
+from .utils import format_index
 from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
@@ -147,11 +148,13 @@ class VData:
         Description for this Vdata object to print.
         :return: a description of this Vdata object
         """
+        _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
+
         if self.is_empty:
-            repr_str = f"Empty Vdata object ({self.n_obs} obs x {self.n_var} vars over {self.n_time_points} " \
+            repr_str = f"Empty Vdata object ({_n_obs} obs x {self.n_var} vars over {self.n_time_points} " \
                        f"time point{'s' if self.n_time_points > 1 else ''})."
         else:
-            repr_str = f"Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over {self.n_time_points} " \
+            repr_str = f"Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over {self.n_time_points} " \
                        f"time point{'s' if self.n_time_points > 1 else ''}"
 
         for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
@@ -187,15 +190,7 @@ class VData:
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index : {index}')
 
-        if not isinstance(index, tuple):
-            index = (index, ..., ...)
-
-        elif len(index) == 2:
-            index = (index[0], index[1], ...)
-
-        time_points_slicer = index[0]
-        obs_slicer = index[1]
-        var_slicer = index[2]
+        time_points_slicer, obs_slicer, var_slicer = format_index(index)
 
         def check_slicer(slicer: PreSlicer) -> Slicer:
             if isinstance(slicer, type(Ellipsis)):
@@ -245,7 +240,7 @@ class VData:
             - nb of observations in obsp
         :return: VData's number of observations
         """
-        return self._n_obs if len(self._n_obs) > 1 else self._n_obs[0]
+        return self._n_obs
 
     @property
     def n_obs_total(self) -> int:
@@ -571,26 +566,26 @@ class VData:
         being converted into custom arrays for maintaining coherence with this VData object.
         :return: Arrays in correct format.
         """
-        generalLogger.debug("Check arrays' formats.")
+        generalLogger.debug(u"  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
         df_obs, df_var = None, None
         layers = None
 
         # time_points
         if time_points is not None:
-            generalLogger.debug("'time points' DataFrame was found.")
+            generalLogger.debug("  'time points' DataFrame was found.")
             if not isinstance(time_points, pd.DataFrame):
                 raise VTypeError("'time points' must be a pandas DataFrame.")
             else:
                 time_points = self._check_df_types(time_points)
 
         nb_time_points = 1 if time_points is None else len(time_points)
-        generalLogger.debug(f"{nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} found so far.")
+        generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} found so far.")
 
         # if an AnnData is being imported, obs, obsm, obsp, var, varm, varp and uns should be None because
         # they will be set from the AnnData
         if isinstance(data, AnnData):
-            generalLogger.debug('VData creation from an AnnData.')
+            generalLogger.debug('  VData creation from an AnnData.')
 
             for attr in ('obs', 'obsm', 'obsp', 'var', 'varm', 'varp', 'uns'):
                 if eval(f"{attr} is not None"):
@@ -607,12 +602,12 @@ class VData:
                 layers = dict({"data": self._reshape_to_3D(data.X)},
                               **dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items()))
 
-            obs, obsm, obsp = data.obs, dict(data.obsm), dict(data.obsp)
+            obs, obsm, obsp = TemporalDataFrame(data.obs), dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
             uns = dict(data.uns)
 
         else:
-            generalLogger.debug('VData creation from scratch.')
+            generalLogger.debug('  VData creation from scratch.')
 
             # check formats
             # layers
@@ -621,7 +616,7 @@ class VData:
 
                 # data is a pandas DataFrame
                 if isinstance(data, pd.DataFrame):
-                    generalLogger.debug(f"  1. \u2713 'data' is a pandas DataFrame.")
+                    generalLogger.debug(f"    1. \u2713 'data' is a pandas DataFrame.")
 
                     if nb_time_points > 1:
                         raise VTypeError("'data' is a 2D pandas DataFrame but more than 1 time points were provided.")
@@ -633,7 +628,7 @@ class VData:
 
                 # data is an array
                 elif isinstance(data, np.ndarray):
-                    generalLogger.debug(f"  1. \u2713 'data' is a numpy array.")
+                    generalLogger.debug(f"    1. \u2713 'data' is a numpy array.")
 
                     if data.ndim == 1:
                         if all([isinstance(arr, (np.ndarray, pd.DataFrame)) and arr.ndim == 2 for arr in data]):
@@ -656,7 +651,7 @@ class VData:
                                          "(numpy array, pandas DataFrame).")
 
                 elif isinstance(data, dict):
-                    generalLogger.debug(f"  1. \u2713 'data' is a dictionary.")
+                    generalLogger.debug(f"    1. \u2713 'data' is a dictionary.")
 
                     for key, value in data.items():
                         if not isinstance(value, (np.ndarray, pd.DataFrame)):
@@ -684,11 +679,11 @@ class VData:
                                      f"a pandas DataFrame or a numpy array.")
 
             else:
-                generalLogger.debug(f"  1. \u2717 'data' was not found.")
+                generalLogger.debug(f"    1. \u2717 'data' was not found.")
 
             # obs
             if obs is not None:
-                generalLogger.debug(f"  2. \u2713 'obs' is a {type(obs).__name__}.")
+                generalLogger.debug(f"    2. \u2713 'obs' is a {type(obs).__name__}.")
 
                 if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
                     raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
@@ -696,11 +691,11 @@ class VData:
                     obs = self._check_df_types(obs)
 
             else:
-                generalLogger.debug(f"  2. \u2717 'obs' was not found.")
+                generalLogger.debug(f"    2. \u2717 'obs' was not found.")
 
             # obsm
             if obsm is not None:
-                generalLogger.debug(f"  3. \u2713 'obsm' is a {type(obsm).__name__}.")
+                generalLogger.debug(f"    3. \u2713 'obsm' is a {type(obsm).__name__}.")
 
                 if not isinstance(obsm, dict):
                     raise VTypeError("obsm must be a dictionary.")
@@ -722,11 +717,11 @@ class VData:
                         obsm[str(key)] = value
 
             else:
-                generalLogger.debug(f"  3. \u2717 'obsm' was not found.")
+                generalLogger.debug(f"    3. \u2717 'obsm' was not found.")
 
             # obsp
             if obsp is not None:
-                generalLogger.debug(f"  4. \u2713 'obsp' is a {type(obsp).__name__}.")
+                generalLogger.debug(f"    4. \u2713 'obsp' is a {type(obsp).__name__}.")
 
                 if isinstance(obsp, dict):
                     for key, value in obsp.items():
@@ -741,11 +736,11 @@ class VData:
                                      "(numpy array, pandas DataFrame).")
 
             else:
-                generalLogger.debug(f"  4. \u2717 'obsp' was not found.")
+                generalLogger.debug(f"    4. \u2717 'obsp' was not found.")
 
             # var
             if var is not None:
-                generalLogger.debug(f"  5. \u2713 'var' is a {type(var).__name__}.")
+                generalLogger.debug(f"    5. \u2713 'var' is a {type(var).__name__}.")
 
                 if not isinstance(var, pd.DataFrame):
                     raise VTypeError("var must be a pandas DataFrame.")
@@ -753,11 +748,11 @@ class VData:
                     var = self._check_df_types(var)
 
             else:
-                generalLogger.debug(f"  5. \u2717 'var' was not found.")
+                generalLogger.debug(f"    5. \u2717 'var' was not found.")
 
             # varm
             if varm is not None:
-                generalLogger.debug(f"  6. \u2713 'varm' is a {type(varm).__name__}.")
+                generalLogger.debug(f"    6. \u2713 'varm' is a {type(varm).__name__}.")
 
                 if not isinstance(varm, dict):
                     raise VTypeError("varm must be a dictionary.")
@@ -779,11 +774,11 @@ class VData:
                         varm[str(key)] = value
 
             else:
-                generalLogger.debug(f"  6. \u2717 'varm' was not found.")
+                generalLogger.debug(f"    6. \u2717 'varm' was not found.")
 
             # varp
             if varp is not None:
-                generalLogger.debug(f"  7. \u2713 'varp' is a {type(varp).__name__}.")
+                generalLogger.debug(f"    7. \u2713 'varp' is a {type(varp).__name__}.")
 
                 if isinstance(varp, dict):
                     for key, value in varp.items():
@@ -798,16 +793,16 @@ class VData:
                                      "(numpy array, pandas DataFrame).")
 
             else:
-                generalLogger.debug(f"  7. \u2717 'varp' was not found.")
+                generalLogger.debug(f"    7. \u2717 'varp' was not found.")
 
             # uns
             if uns is not None:
                 if not isinstance(uns, dict):
                     raise VTypeError("'uns' must be a dictionary.")
-                generalLogger.debug(f"  8. \u2713 'uns' is a dictionary.")
+                generalLogger.debug(f"    8. \u2713 'uns' is a dictionary.")
 
             else:
-                generalLogger.debug(f"  8. \u2717 'uns' was not found.")
+                generalLogger.debug(f"    8. \u2717 'uns' was not found.")
 
         # if time points are not given, assign default values 0, 1, 2, ...
         if time_points is None:
@@ -818,14 +813,15 @@ class VData:
             elif varm is not None:
                 time_points = pd.DataFrame({'value': range(list(varm.values())[0].shape[0])})
 
-            generalLogger.debug(f"{len(time_points)} time points were found finally.'")
+            generalLogger.debug(f"  {len(time_points)} time point{' was' if len(time_points) == 1 else 's were'} "
+                                f"found finally.")
 
         self._obs = obs
         self._var = var
         self._uns = dict(zip([str(k) for k in uns.keys()], uns.values())) if uns is not None else None
         self._time_points = time_points
 
-        generalLogger.debug("Arrays' formats were OK.")
+        generalLogger.debug(u"  \u23BF Arrays' formats were OK.  -- -- -- -- -- -- -- -- -- ")
 
         return layers, obsm, obsp, varm, varp, df_obs, df_var
 
