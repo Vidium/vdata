@@ -124,11 +124,11 @@ class VData:
 
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
         if self._var is None:
-            generalLogger.debug("Default empty TemporalDataFrame for vars.")
+            generalLogger.debug("Default empty DataFrame for vars.")
             self._var = pd.DataFrame(index=range(self.n_var))
 
         if self._time_points is None:
-            generalLogger.debug("Default empty TemporalDataFrame for time points.")
+            generalLogger.debug("Default empty DataFrame for time points.")
             self._time_points = pd.DataFrame(index=range(self._n_time_points))
 
         # create arrays linked to VData
@@ -602,7 +602,7 @@ class VData:
                 layers = dict({"data": self._reshape_to_3D(data.X)},
                               **dict((key, self._reshape_to_3D(arr)) for key, arr in data.layers.items()))
 
-            obs, obsm, obsp = TemporalDataFrame(data.obs), dict(data.obsm), dict(data.obsp)
+            obs, obsm, obsp = TemporalDataFrame(data.obs.copy()), dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
             uns = dict(data.uns)
 
