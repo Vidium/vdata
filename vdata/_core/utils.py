@@ -1,15 +1,14 @@
 # coding: utf-8
 # Created on 1/7/21 11:41 AM
 # Author : matteo
-
 # ====================================================
 # imports
 import pandas as pd
 import numpy as np
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Collection, Optional
 
-from ..NameUtils import PreSlicer, ArrayLike_2D, ArrayLike_3D
-from .._IO.errors import VTypeError
+from ..NameUtils import PreSlicer, ArrayLike_2D
+from .._IO.errors import VTypeError, ShapeError
 
 
 # ====================================================
@@ -23,7 +22,6 @@ def format_index(index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreS
     """
     if not isinstance(index, tuple):
         index = (index, ..., ...)
-
     elif len(index) == 2:
         index = (index[0], index[1], ...)
 
@@ -48,13 +46,26 @@ def repr_array(arr: Union[List, np.ndarray]) -> str:
         return str(arr)
 
 
-def reshape_to_3D(arr: ArrayLike_2D) -> ArrayLike_3D:
+# TODO : update
+def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection], time_list) -> np.ndarray:
     """
     Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
+    A time points collection (of the same length as the number of rows in the 2D array) can be provided to
+    indicate how to split the 2D array into multiple arrays (each array will contain rows identified by the same
+    value in the time points collection).
+    :param arr: a 2D array-like object.
+    :param time_points: a time points DataFrame.
+    :return: a 3D numpy array.
     """
-    if isinstance(arr, np.ndarray):
-        return np.reshape(arr, (1, arr.shape[0], arr.shape[1]))
-    elif isinstance(arr, pd.DataFrame):
-        return np.reshape(np.array(arr), (1, arr.shape[0], arr.shape[1]))
-    else:
+    # Check 2D array
+    if not isinstance(arr, (np.ndarray, pd.DataFrame)):
         raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")
+
+    elif isinstance(arr, pd.DataFrame):
+        arr = np.array(arr)
+
+    # Check time points
+    if time_points is None:
+        time_points = ['0']
+
+    return np.array([arr[time_list == eval(TP)] for TP in time_points], dtype=object)

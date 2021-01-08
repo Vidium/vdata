@@ -222,8 +222,8 @@ class VData:
     @property
     def is_empty(self) -> bool:
         """
-        Is this Vdata object empty ? (no obs or no vars)
-        :return: Vdata empty ?
+        Is this VData object empty ? (no obs or no vars)
+        :return: VData empty ?
         """
         return True if self.n_obs == 0 or self.n_var == 0 or self.n_time_points == 0 else False
 
@@ -252,7 +252,8 @@ class VData:
     @property
     def n_obs_total(self) -> int:
         """
-        TODO
+        Get the total number of observations across all time points.
+        :return: the total number of observations across all time points.
         """
         return sum(self._n_obs)
 
@@ -279,41 +280,73 @@ class VData:
     # DataFrames ---------------------------------------------------------
     @property
     def time_points(self) -> pd.DataFrame:
+        """
+        Get time points data.
+        :return: the time points DataFrame.
+        """
         return self._time_points
 
     @time_points.setter
     def time_points(self, df: pd.DataFrame) -> None:
+        """
+        Set the time points data.
+        :param df: a pandas DataFrame with at least the 'value' column.
+        """
         if not isinstance(df, pd.DataFrame):
             raise VTypeError("'time points' must be a pandas DataFrame.")
 
         elif df.shape[0] != self.n_time_points:
             raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
 
+        elif 'value' not in df.columns:
+            raise VValueError(f"Time points DataFrame should contain a 'value' column.")
+
         else:
             self._time_points = df
 
     @property
     def obs(self) -> TemporalDataFrame:
+        """
+        Get the obs data.
+        :return: the obs TemporalDataFrame.
+        """
         return self._obs
 
     @obs.setter
-    def obs(self, df: TemporalDataFrame) -> None:
-        # TODO
-        if not isinstance(df, TemporalDataFrame):
-            raise VTypeError("'obs' must be a TemporalDataFrame.")
+    def obs(self, df: Union[pd.DataFrame, TemporalDataFrame]) -> None:
+        """
+        Set the obs data.
+        :param df: a pandas DataFrame or a TemporalDataFrame.
+        """
+        # TODO : is every thing checked here ?
+        if not isinstance(df, (pd.DataFrame, TemporalDataFrame)):
+            raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
         elif df.shape[0] != self.n_obs:
             raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
 
-        else:
-            self._obs = df
+        # cast to TemporalDataFrame
+        if isinstance(df, pd.DataFrame):
+            df = TemporalDataFrame(df, index=self.obs.index,
+                                   time_list=self.obs.time_points_column,
+                                   time_col=self.obs.time_points_column_name)
+
+        self._obs = df
 
     @property
     def var(self) -> pd.DataFrame:
+        """
+        Get the var data.
+        :return: the var DataFrame.
+        """
         return self._var
 
     @var.setter
     def var(self, df: pd.DataFrame) -> None:
+        """
+        Set the var data.
+        :param df: a pandas DataFrame.
+        """
         if not isinstance(df, pd.DataFrame):
             raise VTypeError("'var' must be a pandas DataFrame.")
 
@@ -324,6 +357,7 @@ class VData:
             self._var = df
 
     # Arrays -------------------------------------------------------------
+    # TODO : docstrings
     @property
     def obsm(self) -> VAxisArray:
         return self._obsm
@@ -359,7 +393,7 @@ class VData:
                             f"(numpy array, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
             self._obsm = VAxisArray(self, 'obs', data)
 
@@ -427,7 +461,7 @@ class VData:
                             f"(numpy array{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
             self._varm = VAxisArray(self, 'var', data)
 
@@ -504,7 +538,7 @@ class VData:
                                          f"(numpy array, pandas DataFrame).")
 
                     elif arr.ndim == 2:
-                        data[arr_index] = reshape_to_3D(arr)
+                        data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
             self._layers = VLayersArrays(self, data)
 
@@ -528,18 +562,34 @@ class VData:
     # aliases ------------------------------------------------------------
     @property
     def cells(self) -> TemporalDataFrame:
+        """
+        Get cells (= obs) data.
+        :return: the cells TemporalDataFrame.
+        """
         return self._obs
 
     @cells.setter
-    def cells(self, df: TemporalDataFrame) -> None:
+    def cells(self, df: Union[pd.DataFrame, TemporalDataFrame]) -> None:
+        """
+        Set cells (= obs) data.
+        :param df: a pandas DataFrame or a TemporalDataFrame.
+        """
         self.obs = df
 
     @property
     def genes(self) -> pd.DataFrame:
+        """
+        Get the genes (= var) data.
+        :return: the gene (= var) data.
+        """
         return self._var
 
     @genes.setter
     def genes(self, df: pd.DataFrame) -> None:
+        """
+        Set the var (= genes) data.
+        :param df: a pandas DataFrame.
+        """
         self.var = df
 
     # init functions -----------------------------------------------------
@@ -625,14 +675,22 @@ class VData:
 
         # time_points
         if time_points is not None:
-            generalLogger.debug("  'time points' DataFrame was found.")
+            generalLogger.debug(f"  'time points' DataFrame is a {type(time_points).__name__}.")
             if not isinstance(time_points, pd.DataFrame):
                 raise VTypeError("'time points' must be a pandas DataFrame.")
             else:
+                if 'value' not in time_points.columns:
+                    raise VValueError("'time points' must have at least a column 'value' to store time points value.")
+
                 time_points = self._check_df_types(time_points)
+
+        else:
+            generalLogger.debug("  'time points' DataFrame was not found.")
 
         nb_time_points = 1 if time_points is None else len(time_points)
         generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} found so far.")
+        generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
+                            f"{[0] if nb_time_points == 1 else time_points.value}")
 
         # if an AnnData is being imported, obs, obsm, obsp, var, varm, varp and uns should be None because
         # they will be set from the AnnData
@@ -643,21 +701,37 @@ class VData:
                 if eval(f"{attr} is not None"):
                     raise VValueError(f"'{attr}' should be set to None when importing data from an AnnData.")
 
-            # TODO : remove this
-            if nb_time_points > 1:
-                raise VValueError("Only one time point must be provided when importing data from an AnnData.")
+            # import and cast obs to a TemporalDataFrame
+            obs = TemporalDataFrame(data.obs, time_list=time_list, time_col=time_col)
+
+            # find time points list
+            time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+
+            generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
+                                f"found after data extraction from the AnnData.")
+            generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
+                                f"{[0] if nb_time_points == 1 else time_points.value.values}")
 
             # import data from AnnData
-            if is_in(data.X, list(data.layers.values())):
-                layers = dict((key, reshape_to_3D(arr)) for key, arr in data.layers.items())
+            if time_list is not None:
+                ref_time_list = time_list
+
+            elif time_col is not None:
+                ref_time_list = data.obs[time_col].values
 
             else:
-                layers = dict({"data": reshape_to_3D(data.X)},
-                              **dict((key, reshape_to_3D(arr)) for key, arr in data.layers.items()))
+                ref_time_list = np.zeros(data.n_obs)
 
-            obs = TemporalDataFrame(data.obs.copy(), time_list=time_list, time_col=time_col)
-            obs, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+            if is_in(data.X, list(data.layers.values())):
+                layers = dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                              for key, arr in data.layers.items())
 
+            else:
+                layers = dict({"data": reshape_to_3D(data.X, time_points.value.values, ref_time_list)},
+                              **dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                                     for key, arr in data.layers.items()))
+
+            # import other arrays
             obsm, obsp = dict(data.obsm), dict(data.obsp)
             var, varm, varp = data.var, dict(data.varm), dict(data.varp)
             uns = dict(data.uns)
@@ -744,7 +818,7 @@ class VData:
                 if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
                     raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
                 elif isinstance(obs, pd.DataFrame):
-                    obs = self._check_df_types(TemporalDataFrame(obs.copy(), time_list=time_list, time_col=time_col))
+                    obs = self._check_df_types(TemporalDataFrame(obs, time_list=time_list, time_col=time_col))
                 else:
                     obs = self._check_df_types(obs)
                     if time_list is not None:
@@ -881,8 +955,10 @@ class VData:
             elif varm is not None:
                 time_points = pd.DataFrame({'value': range(list(varm.values())[0].shape[0])})
 
-            generalLogger.debug(f"  {len(time_points)} time point{' was' if len(time_points) == 1 else 's were'} "
-                                f"found finally.")
+        generalLogger.debug(f"  {len(time_points)} time point{' was' if len(time_points) == 1 else 's were'} "
+                            f"found finally.")
+        generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
+                            f"{time_points.value.values}")
 
         self._obs = obs
         self._var = var

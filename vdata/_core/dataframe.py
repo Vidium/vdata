@@ -55,8 +55,8 @@ class TemporalDataFrame:
     """
 
     _internal_attributes = ['_time_points_col', '_df', '_time_points', 'TP_from_DF',
-                            'time_points', 'columns', 'index', 'n_time_points', 'n_columns',
-                            'dtypes', 'values', 'axes', 'ndim', 'size', 'shape', 'empty',
+                            'time_points', 'time_points_column_name', 'time_points_column', 'columns', 'index',
+                            'n_time_points', 'n_columns', 'dtypes', 'values', 'axes', 'ndim', 'size', 'shape', 'empty',
                             'at', 'iat', 'loc', 'iloc']
 
     _reserved_keys = ['__TPID', 'df_data']
@@ -90,6 +90,7 @@ class TemporalDataFrame:
         :param dtype: data type to force
         """
         generalLogger.debug(u'\u23BE TemporalDataFrame creation : begin ---------------------------------------- ')
+
         self._time_points_col = '__TPID'
         self._time_points = sorted(to_str_list(time_points)) if time_points is not None else None
         if self._time_points is not None:
@@ -139,6 +140,9 @@ class TemporalDataFrame:
 
             else:
                 data_len = len(data)
+
+                # work on a copy of the data to avoid undesired modifications
+                data = data.copy()
 
                 generalLogger.debug(f"Found data in a DataFrame with {data_len} rows.")
 
@@ -392,7 +396,7 @@ class TemporalDataFrame:
             else:
                 unique_values.add(value)
 
-        return sorted(map(str, unique_values - {'*'}))
+        return sorted(map(str, unique_values - {'*'}), key=lambda x: eval(x))
 
     @property
     def df_data(self) -> pd.DataFrame:
@@ -416,6 +420,22 @@ class TemporalDataFrame:
 
         else:
             return [] if self._df.empty else ['0']
+
+    @property
+    def time_points_column_name(self) -> Optional[str]:
+        """
+        Get the name of the column with time points data. Returns None if '__TPID' is used.
+        :return: the name of the column with time points data.
+        """
+        return self._time_points_col if self._time_points_col != '__TPID' else None
+
+    @property
+    def time_points_column(self) -> pd.Series:
+        """
+        Get the time points data for all rows in this TemporalDataFrame.
+        :return: the time points data.
+        """
+        return self._df[self._time_points_col]
 
     @property
     def columns(self) -> pd.Index:
