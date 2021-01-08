@@ -23,4 +23,6 @@ vdata = VData(adata, time_col='Time_hour')
 print(vdata)
 print(vdata.obs)
 
+print(vdata[0])
+
 # print(vdata[0, :, 'ENSG00000255794.7'])

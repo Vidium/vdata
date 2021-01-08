@@ -228,7 +228,8 @@ class ViewVData:
             if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
                 self._time_points_slicer = time_points_slicer
             else:
-                time_points_slicer = np.array(time_points_slicer, dtype=self._parent.time_points.value.dtype)
+                time_points_slicer = list(map(str, time_points_slicer))
+                time_points_slicer += [e + '.' for e in time_points_slicer] + [e + '.0' for e in time_points_slicer]
                 self._time_points_slicer = np.isin(self._parent.time_points.value, time_points_slicer)
         elif time_points_slicer == slice(None, None, None):
             self._time_points_slicer = np.array([True] * self._parent.n_time_points)
