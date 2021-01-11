@@ -307,7 +307,7 @@ class ViewVData:
         for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
             keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
             if len(keys) > 0:
-                repr_str += f"\n    {attr}: {str(list(keys))[1:-1]}"
+                repr_str += f"\n\t{attr}: {str(list(keys))[1:-1]}"
 
         return repr_str
 

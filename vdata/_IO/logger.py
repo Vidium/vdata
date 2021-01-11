@@ -18,7 +18,9 @@ from ..NameUtils import LoggingLevel, LoggingLevels
 
 
 # ====================================================
-colors = {"TCYAN": '\033[36m', "TORANGE": '\033[33m', "TRED": '\033[31m', "ENDC": '\033[m', "BBLACK": '\033[40m'}
+colors = {"TCYAN": '\033[36m', "TORANGE": '\033[33m', "TRED": '\033[31m',
+          "BBLACK": '\033[40m', "BGREY": '\033[100m',
+          "ENDC": '\033[m'}
 
 
 class Tb:
@@ -118,7 +120,7 @@ class _VLogger:
 
         :param msg: the message to be logged
         """
-        self.logger.debug(self._getBaseMsg(msg))
+        self.logger.debug(colors["BGREY"] + self._getBaseMsg(msg) + colors["ENDC"])
 
     def info(self, msg: str) -> None:
         """

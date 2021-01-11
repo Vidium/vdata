@@ -68,6 +68,14 @@ class VBaseArrayContainer(ABC):
         """
         return len(self._data.keys()) if self._data is not None else 0
 
+    @property
+    def empty(self) -> bool:
+        """
+        Whether this Array is empty or not.
+        :return: is this array empty ?
+        """
+        return True if not len(self) else False
+
     @abc.abstractmethod
     def _check_init_data(self, data: Optional[Dict[str, ArrayLike]]) -> Optional[Dict[str, ArrayLike]]:
         """
