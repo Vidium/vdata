@@ -406,6 +406,15 @@ class TemporalDataFrame:
         """
         return self._df
 
+    def to_pandas(self) -> Any:
+        """
+        Get the data in a pandas format.
+        :return: the data in a pandas format.
+        """
+        columns = self.columns[0] if len(self.columns) == 1 else self.columns
+
+        return self._df[columns]
+
     @property
     def time_points(self) -> List[str]:
         """
@@ -962,6 +971,15 @@ class ViewTemporalDataFrame:
         :return: a view on the parent TemporalDataFrame's raw pandas.DataFrame.
         """
         return self.parent_data.loc[self.index, self.columns]
+
+    def to_pandas(self) -> Any:
+        """
+
+        """
+        index = self.index[0] if len(self.index) == 1 else self.index
+        columns = self.columns[0] if len(self.columns) == 1 else self.n_columns
+
+        return self.parent_data.loc[index, columns]
 
     @property
     def parent_time_points_col(self) -> str:
