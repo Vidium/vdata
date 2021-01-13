@@ -15,7 +15,7 @@ from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
 
 from . import view
 from .utils import format_index, reshape_to_3D
-from .arrays import VAxisArray, VPairwiseArray, VLayersArrays
+from .arrays import VAxisArrayContainer, VPairwiseArrayContainer, VLayerArrayContainer
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
 from ..NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, \
@@ -96,8 +96,8 @@ class VData:
         if _layers is not None:
             ref_array = list(_layers.values())[0]
             self._n_time_points = ref_array.shape[0]
-            self._n_obs = [ref_array[i].shape[0] for i in range(len(ref_array))]
-            self._n_vars = ref_array[0].shape[1]
+            self._n_obs = ref_array.shape[1]
+            self._n_vars = ref_array.shape[2]
 
         # otherwise, check other arrays to get the sizes
         else:
@@ -142,11 +142,11 @@ class VData:
             self._time_points = pd.DataFrame(index=range(self._n_time_points))
 
         # create arrays linked to VData
-        self._layers = VLayersArrays(self, data=_layers)
-        self._obsm = VAxisArray(self, 'obs', data=_obsm)
-        self._obsp = VPairwiseArray(self, 'obs', data=_obsp)
-        self._varm = VAxisArray(self, 'var', data=_varm)
-        self._varp = VPairwiseArray(self, 'var', data=_varp)
+        self._layers = VLayerArrayContainer(self, data=_layers)
+        self._obsm = VAxisArrayContainer(self, 'obs', data=_obsm)
+        self._obsp = VPairwiseArrayContainer(self, 'obs', data=_obsp)
+        self._varm = VAxisArrayContainer(self, 'var', data=_varm)
+        self._varp = VPairwiseArrayContainer(self, 'var', data=_varp)
 
         # finish initializing VData
         self._init_data(df_obs, df_var)
@@ -363,13 +363,13 @@ class VData:
     # Arrays -------------------------------------------------------------
     # TODO : docstrings
     @property
-    def obsm(self) -> VAxisArray:
+    def obsm(self) -> VAxisArrayContainer:
         return self._obsm
 
     @obsm.setter
     def obsm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
         if data is None:
-            self._obsm = VAxisArray(self, 'obs', None)
+            self._obsm = VAxisArrayContainer(self, 'obs', None)
 
         else:
             if not isinstance(data, dict):
@@ -399,16 +399,16 @@ class VData:
                     elif arr.ndim == 2:
                         data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
-            self._obsm = VAxisArray(self, 'obs', data)
+            self._obsm = VAxisArrayContainer(self, 'obs', data)
 
     @property
-    def obsp(self) -> VPairwiseArray:
+    def obsp(self) -> VPairwiseArrayContainer:
         return self._obsp
 
     @obsp.setter
     def obsp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
         if data is None:
-            self._obsp = VPairwiseArray(self, 'obs', None)
+            self._obsp = VPairwiseArrayContainer(self, 'obs', None)
 
         else:
             if not isinstance(data, dict):
@@ -426,16 +426,16 @@ class VData:
                         f"'{arr_index}' array for obsm should be a 2D array-like object "
                         f"(numpy array, pandas DataFrame).")
 
-            self._obsp = VPairwiseArray(self, 'obs', data)
+            self._obsp = VPairwiseArrayContainer(self, 'obs', data)
 
     @property
-    def varm(self) -> VAxisArray:
+    def varm(self) -> VAxisArrayContainer:
         return self._varm
 
     @varm.setter
     def varm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
         if data is None:
-            self._varm = VAxisArray(self, 'var', None)
+            self._varm = VAxisArrayContainer(self, 'var', None)
 
         else:
             if not isinstance(data, dict):
@@ -467,16 +467,16 @@ class VData:
                     elif arr.ndim == 2:
                         data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
-            self._varm = VAxisArray(self, 'var', data)
+            self._varm = VAxisArrayContainer(self, 'var', data)
 
     @property
-    def varp(self) -> VPairwiseArray:
+    def varp(self) -> VPairwiseArrayContainer:
         return self._varp
 
     @varp.setter
     def varp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
         if data is None:
-            self._varp = VPairwiseArray(self, 'var', None)
+            self._varp = VPairwiseArrayContainer(self, 'var', None)
 
         else:
             if not isinstance(data, dict):
@@ -491,7 +491,7 @@ class VData:
                     raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object "
                                      f"(numpy array, pandas DataFrame).")
 
-            self._varp = VPairwiseArray(self, 'var', data)
+            self._varp = VPairwiseArrayContainer(self, 'var', data)
 
     @property
     def uns(self) -> Optional[Dict]:
@@ -506,13 +506,13 @@ class VData:
             self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
 
     @property
-    def layers(self) -> VLayersArrays:
+    def layers(self) -> VLayerArrayContainer:
         return self._layers
 
     @layers.setter
     def layers(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike]]]) -> None:
         if data is None:
-            self._layers = VLayersArrays(self, None)
+            self._layers = VLayerArrayContainer(self, None)
 
         else:
             if isinstance(data, (np.ndarray, pd.DataFrame)):
@@ -544,7 +544,7 @@ class VData:
                     elif arr.ndim == 2:
                         data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
 
-            self._layers = VLayersArrays(self, data)
+            self._layers = VLayerArrayContainer(self, data)
 
     # special ------------------------------------------------------------
     @property
@@ -707,6 +707,7 @@ class VData:
 
             # import and cast obs to a TemporalDataFrame
             obs = TemporalDataFrame(data.obs, time_list=time_list, time_col=time_col)
+            reordering_index = obs.index
 
             # find time points list
             time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
@@ -716,24 +717,39 @@ class VData:
             generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
                                 f"{[0] if nb_time_points == 1 else time_points.value.values}")
 
-            # import data from AnnData
-            if time_list is not None:
-                ref_time_list = time_list
-
-            elif time_col is not None:
-                ref_time_list = data.obs[time_col].values
-
-            else:
-                ref_time_list = np.zeros(data.n_obs)
+            # # import data from AnnData
+            # if time_list is not None:
+            #     ref_time_list = time_list
+            #
+            # elif time_col is not None:
+            #     ref_time_list = data.obs[time_col].values
+            #
+            # else:
+            #     ref_time_list = np.zeros(data.n_obs)
 
             if is_in(data.X, list(data.layers.values())):
-                layers = dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                layers = dict((key, TemporalDataFrame(
+                    pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
+                    time_list=obs.time_points_column
+                ))
                               for key, arr in data.layers.items())
+                # layers = dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                #               for key, arr in data.layers.items())
 
             else:
-                layers = dict({"data": reshape_to_3D(data.X, time_points.value.values, ref_time_list)},
-                              **dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                layers = dict({"data": TemporalDataFrame(
+                    pd.DataFrame(data.X, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
+                    time_list=obs.time_points_column
+                )},
+                              **dict((key, TemporalDataFrame(
+                                  pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(
+                                      reordering_index),
+                                  time_list=obs.time_points_column
+                              ))
                                      for key, arr in data.layers.items()))
+                # layers = dict({"data": reshape_to_3D(data.X, time_points.value.values, ref_time_list)},
+                #               **dict((key, reshape_to_3D(arr, time_points.value.values, ref_time_list))
+                #                      for key, arr in data.layers.items()))
 
             # import other arrays
             obsm, obsp = dict(data.obsm), dict(data.obsp)
@@ -741,7 +757,7 @@ class VData:
             uns = dict(data.uns)
 
         else:
-            # TODO : need to work on time_col and time_list params here
+            # TODO : rework on this part is needed
             generalLogger.debug('  VData creation from scratch.')
 
             # obs
@@ -750,8 +766,10 @@ class VData:
 
                 if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
                     raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
+
                 elif isinstance(obs, pd.DataFrame):
                     obs = self._check_df_types(TemporalDataFrame(obs, time_list=time_list, time_col=time_col))
+
                 else:
                     obs = self._check_df_types(obs)
                     if time_list is not None:
@@ -1075,18 +1093,18 @@ class VData:
         # check coherence between layers, obs, var and time points
         if self._layers is not None:
             for layer_name, layer in self._layers.items():
-                layer_shape = (layer.shape[0], [layer[i].shape[0] for i in range(len(layer))], layer[0].shape[1])
-                if layer_shape != (self.n_time_points, self.n_obs, self.n_var):
+                if layer.shape != (self.n_time_points, self.n_obs, self.n_var):
                     if layer.shape[0] != self.n_time_points:
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of time points "
                                                f"{layer.shape[0]}, should be {self.n_time_points}.")
+
                     elif [layer[i].shape[0] for i in range(len(layer))] != self.n_obs:
                         for i in range(len(layer)):
                             if layer[i].shape[0] != self.n_obs[i]:
                                 raise IncoherenceError(f"layer '{layer_name}' has incoherent number of observations "
                                                        f"{layer[i].shape[0]}, should be {self.n_obs[i]}.")
+
                     else:
-                        # TODO : need to check that layer has all arrays with same nb of genes
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables "
                                                f"{layer[0].shape[1]}, should be {self.n_var}.")
 

@@ -10,7 +10,7 @@ from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, NoReturn
 
 from . import vdata
 from .utils import format_index, repr_array
-from .arrays import VLayersArrays, VAxisArray, VPairwiseArray, VBaseArrayContainer
+from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer, VBaseArrayContainer, VBaseArray
 from .dataframe import ViewTemporalDataFrame, TemporalDataFrame
 from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
 from ..utils import slice_to_range
@@ -20,91 +20,109 @@ from .._IO.logger import generalLogger
 
 # ====================================================
 # code
-class ViewBaseArray:
+class ViewBaseArrayContainer:
     """
     A base view of a VBaseArrayContainer.
-    This class is used to create views on VLayersArrays, VAxisArrays and VPairwiseArrays.
+    This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
     """
 
-    def __init__(self, arrays: VBaseArrayContainer):
+    def __init__(self, array_container: VBaseArrayContainer):
         """
-        :param arrays: a VBaseArrayContainer object to build a view on
+        :param array_container: a VBaseArrayContainer object to build a view on.
         """
-        self._arrays = arrays
+        self._array_container = array_container
 
     def __repr__(self) -> str:
         """
         Description for this view of a VBaseArrayContainer object to print.
         :return: a description of this view
         """
-        return f"View of {self._arrays}"
+        return f"View of {self._array_container}"
 
     def keys(self) -> Union[Tuple[()], KeysView]:
         """
         Get keys of the VBaseArrayContainer.
         """
-        return self._arrays.keys()
+        return self._array_container.keys()
 
     def values(self) -> Union[Tuple[()], ValuesView]:
         """
         Get values of the VBaseArrayContainer.
         """
-        return self._arrays.values()
+        return self._array_container.values()
 
     def items(self) -> Union[Tuple[()], ItemsView]:
         """
         Get items of the VBaseArrayContainer.
         """
-        return self._arrays.items()
+        return self._array_container.items()
 
-    def dict_copy(self) -> Dict[str, ArrayLike]:
+    def dict_copy(self) -> Dict[str, VBaseArray]:
         """
         Build an actual copy of this Array view in dict format.
         :return: Dictionary of (keys, ArrayLike) in this Array view.
         """
-        return dict([(arr, self._arrays[arr]) for arr in self._arrays.keys()])
+        return dict([(arr, self._array_container[arr]) for arr in self._array_container.keys()])
 
 
-class ViewVLayersArrays(ViewBaseArray):
+class ViewVLayersArraysContainer(ViewBaseArrayContainer):
     """
-    A view of a VLayersArrays object.
+    A view of a VLayerArrayContainer object.
     """
 
-    def __init__(self, arrays: VLayersArrays, time_points_slicer: np.ndarray,
+    def __init__(self, array_container: VLayerArrayContainer, time_points_slicer: np.ndarray,
                  obs_slicer: np.ndarray, var_slicer: np.ndarray):
         """
-        :param arrays: a VLayersArrays object to build a view on
+        :param array_container: a VLayerArrayContainer object to build a view on
         :param obs_slicer: the list of observations to view
         :param var_slicer: the list of variables to view
         :param time_points_slicer: the list of time points to view
         """
-        super().__init__(arrays)
+        generalLogger.debug(u'\u23BE ViewVLayersArraysContainer creation : begin '
+                            '--------------------------------------------- ')
+        super().__init__(array_container)
 
-        self._obs_slicer = self.__correct_obs_slicer(obs_slicer)
-        self._var_slicer = var_slicer
         self._time_points_slicer = time_points_slicer
+        generalLogger.debug(f"  1. Time points slicer is : {self._time_points_slicer}.")
 
-    def __correct_obs_slicer(self, obs_slicer: np.ndarray) -> List[List[int]]:
-        """
-        Convert an obs slicer ranging from 0 to len(obs) to a list of slicers ranging from 0 to len(obs[TP]).
-        :param obs_slicer: an obs slicer to convert.
-        :return: a converted obs slicer.
-        """
-        first_array = self._arrays[list(self.keys())[0]]
+        # self._obs_slicer = self.__correct_obs_slicer(obs_slicer)
+        self._obs_slicer = obs_slicer
+        generalLogger.debug(f"  2. Obs slicer is : {self._obs_slicer}.")
 
-        intervals = [sum([len(first_array[ii]) for ii in range(0, i)]) for i in range(len(first_array))] + [
-            float('inf')]
+        self._var_slicer = var_slicer
+        generalLogger.debug(f"  3. Var slicer is : {self._var_slicer}.")
 
-        return [[e - intervals[i] for e in obs_slicer if intervals[i] <= e < intervals[i + 1]] for i in range(len(
-            first_array))]
+        generalLogger.debug(u'\u23BF ViewVLayersArraysContainer creation : end '
+                            '----------------------------------------------- ')
 
-    def __getitem__(self, array_name: str) -> ArrayLike_3D:
+    # def __correct_obs_slicer(self, obs_slicer: np.ndarray) -> List[List[int]]:
+    #     """
+    #     Convert an obs slicer ranging from 0 to len(obs) to a list of slicers ranging from 0 to len(obs[TP]).
+    #     :param obs_slicer: an obs slicer to convert.
+    #     :return: a converted obs slicer.
+    #     """
+    #     print(obs_slicer)
+    #     first_array = self._array_container[list(self.keys())[0]]
+    #
+    #     intervals = [sum([len(first_array[ii]) for ii in range(0, i)]) for i in range(len(first_array))] + [
+    #         float('inf')]
+    #
+    #     return [[e - intervals[i] for e in obs_slicer if intervals[i] <= e < intervals[i + 1]] for i in range(len(
+    #         first_array))]
+
+    def __getitem__(self, array_name: str) -> ViewTemporalDataFrame:
         """
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        return np.array([self._arrays[array_name][i][np.ix_(self._obs_slicer[i], self._var_slicer)]
-                         for i in self._time_points_slicer], dtype=object)
+        selected_time_points = self._array_container._parent.time_points.loc[self._time_points_slicer].value.values
+        selected_obs = self._array_container._parent.obs.index[self._obs_slicer]
+        selected_vars = self._array_container._parent.var.index[self._var_slicer]
+
+        return self._array_container[array_name][selected_time_points, selected_obs, selected_vars]
+
+        # return np.array([self._array_container[array_name][i][np.ix_(self._obs_slicer[i], self._var_slicer)]
+        #                  for i in self._time_points_slicer], dtype=object)
 
     def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
         """
@@ -122,17 +140,17 @@ class ViewVLayersArrays(ViewBaseArray):
                              f"({len(self._time_points_slicer)}, {len(self._obs_slicer)}, {len(self._var_slicer)})")
 
         else:
-            self._arrays[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)] = values
+            self._array_container[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)] = values
 
 
-class ViewVAxisArray(ViewBaseArray):
+class ViewVAxisArrayContainer(ViewBaseArrayContainer):
     """
-    A view of a VAxisArray object.
+    A view of a VAxisArrayContainer object.
     """
 
-    def __init__(self, arrays: VAxisArray, time_points_slicer: np.ndarray, axis_slicer: np.ndarray):
+    def __init__(self, arrays: VAxisArrayContainer, time_points_slicer: np.ndarray, axis_slicer: np.ndarray):
         """
-        :param arrays: a VAxisArray object to build a view on
+        :param arrays: a VAxisArrayContainer object to build a view on
         :param axis_slicer: the list of observations/variables to view
         :param time_points_slicer: the list of time points to view
         """
@@ -166,14 +184,14 @@ class ViewVAxisArray(ViewBaseArray):
             self._arrays[array_name][np.ix_(self._time_points_slicer, self._axis_slicer)] = values
 
 
-class ViewVPairwiseArray(ViewBaseArray):
+class ViewVPairwiseArrayContainer(ViewBaseArrayContainer):
     """
-    A view of a VPairwiseArray object.
+    A view of a VPairwiseArrayContainer object.
     """
 
-    def __init__(self, arrays: VPairwiseArray, axis_slicer: np.ndarray):
+    def __init__(self, arrays: VPairwiseArrayContainer, axis_slicer: np.ndarray):
         """
-        :param arrays: a VPairwiseArray object to build a view on
+        :param arrays: a VPairwiseArrayContainer object to build a view on
         :param axis_slicer: the list of observations/variables to view
         """
         super().__init__(arrays)
@@ -231,8 +249,10 @@ class ViewVData:
                 time_points_slicer = list(map(str, time_points_slicer))
                 time_points_slicer += [e + '.' for e in time_points_slicer] + [e + '.0' for e in time_points_slicer]
                 self._time_points_slicer = np.isin(self._parent.time_points.value, time_points_slicer)
+
         elif time_points_slicer == slice(None, None, None):
             self._time_points_slicer = np.array([True] * self._parent.n_time_points)
+
         else:
             time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)),
                                           dtype=self._parent.time_points.value.dtype)
@@ -252,8 +272,10 @@ class ViewVData:
             else:
                 obs_slicer = np.array(obs_slicer, dtype=self._parent.obs.index.dtype)
                 self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
+
         elif obs_slicer == slice(None, None, None):
             self._obs_slicer = np.array([True] * self._parent.n_obs_total)
+
         else:
             obs_slicer = np.array(slice_to_range(obs_slicer, len(self._parent.obs)), dtype=self._parent.obs.index.dtype)
             self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
@@ -261,6 +283,7 @@ class ViewVData:
         time_points = list(self._parent.time_points.loc[self._time_points_array_slicer].value)
 
         self._obs_slicer = np.logical_and(self._obs_slicer, self._parent.obs[time_points].index_bool)
+
         generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)} "
                             f"({np.sum(self._obs_slicer)} "
                             f"{'is' if np.sum(self._obs_slicer) == 1 else 'are'} True)")
@@ -275,8 +298,10 @@ class ViewVData:
             else:
                 var_slicer = np.array(var_slicer, dtype=self._parent.var.index.dtype)
                 self._var_slicer = np.isin(self._parent.var.index, var_slicer)
+
         elif var_slicer == slice(None, None, None):
             self._var_slicer = np.array([True] * self._parent.n_var)
+
         else:
             var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
             self._var_slicer = np.isin(self._parent.var.index, var_slicer)
@@ -288,6 +313,16 @@ class ViewVData:
         self._var_array_slicer = np.where(self._var_slicer)[0]
         generalLogger.debug(f"     Var array slicer is : {repr_array(self._var_array_slicer)}")
 
+        # recompute time point slicers since there could be empty time points in obs
+        self._time_points_slicer &= np.array([False if self.obs[TP].empty else True for TP in
+                                              self.time_points.value.values])
+        generalLogger.debug(f"  4. Time points slicer is : {repr_array(self._time_points_slicer)} "
+                            f"({np.sum(self._time_points_slicer)} "
+                            f"{'is' if np.sum(self._time_points_slicer) == 1 else 'are'} True)")
+
+        self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
+        generalLogger.debug(f"     Time points array slicer is : {repr_array(self._time_points_array_slicer)}")
+
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
         generalLogger.debug(u'\u23BF ViewVData creation : end ------------------------------------------------------- ')
@@ -297,17 +332,25 @@ class ViewVData:
         Description for this view of a Vdata object to print.
         :return: a description of this view
         """
+        generalLogger.debug(u'\u23BE ViewVData repr : start --------------------------------------------------------- ')
+
         if self.is_empty:
+            generalLogger.debug('ViewVData is empty.')
             repr_str = f"Empty view of a Vdata object ({self.n_obs} obs x {self.n_var} vars over " \
                        f"{self.n_time_points} time point{'s' if self.n_time_points > 1 else ''})."
         else:
+            generalLogger.debug('ViewVData is not empty.')
             repr_str = f"View of a Vdata object with n_obs x n_var = {self.n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'s' if self.n_time_points > 1 else ''}"
 
-        for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
-            keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
+        for attr_name in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
+            attr = getattr(self, attr_name)
+            keys = attr.keys() if attr is not None else ()
+
             if len(keys) > 0:
-                repr_str += f"\n\t{attr}: {str(list(keys))[1:-1]}"
+                repr_str += f"\n\t{attr_name}: {str(list(keys))[1:-1]}"
+
+        generalLogger.debug(u'\u23BF ViewVData repr : end ----------------------------------------------------------- ')
 
         return repr_str
 
@@ -407,13 +450,19 @@ class ViewVData:
         return int(np.sum(self._time_points_slicer))
 
     @property
-    def n_obs(self) -> int:
+    def n_obs(self) -> List[int]:
         """
         Number of observations in this view of a VData object.
         :return: number of observations in this view
         """
-        return int(np.sum(self._obs_slicer)) if self.n_time_points == 1 else [self._parent.n_obs[i] for i in np.where(
-            self._time_points_slicer)[0]]
+        if self.n_time_points == 1:
+            return [int(np.sum(self._obs_slicer))]
+
+        else:
+            return [self.obs.len_index(TP) for TP in self.time_points.value.values]
+
+        # return int(np.sum(self._obs_slicer)) if self.n_time_points == 1 else [self._parent.n_obs[i] for i in np.where(
+        #     self._time_points_slicer)[0]]
 
     @property
     def n_var(self) -> int:
@@ -424,7 +473,7 @@ class ViewVData:
         return int(np.sum(self._var_slicer))
 
     @property
-    def shape(self) -> Tuple[int, int, int]:
+    def shape(self) -> Tuple[int, List[int], int]:
         """
         Shape of this view of a VData object.
         :return: view's shape
@@ -497,41 +546,41 @@ class ViewVData:
 
     # Arrays -------------------------------------------------------------
     @property
-    def layers(self) -> ViewVLayersArrays:
-        return ViewVLayersArrays(self._parent.layers, self._time_points_array_slicer,
-                                 self._obs_array_slicer, self._var_array_slicer)
+    def layers(self) -> ViewVLayersArraysContainer:
+        return ViewVLayersArraysContainer(self._parent.layers, self._time_points_array_slicer,
+                                          self._obs_array_slicer, self._var_array_slicer)
 
     @layers.setter
     def layers(self, *_: Any) -> NoReturn:
         raise VValueError("Cannot set layers in a view. Use the original VData object.")
 
     @property
-    def obsm(self) -> ViewVAxisArray:
-        return ViewVAxisArray(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
+    def obsm(self) -> ViewVAxisArrayContainer:
+        return ViewVAxisArrayContainer(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
 
     @obsm.setter
     def obsm(self, *_: Any) -> NoReturn:
         raise VValueError("Cannot set obsm in a view. Use the original VData object.")
 
     @property
-    def obsp(self) -> ViewVPairwiseArray:
-        return ViewVPairwiseArray(self._parent.obsp, self._obs_array_slicer)
+    def obsp(self) -> ViewVPairwiseArrayContainer:
+        return ViewVPairwiseArrayContainer(self._parent.obsp, self._obs_array_slicer)
 
     @obsp.setter
     def obsp(self, *_: Any) -> NoReturn:
         raise VValueError("Cannot set obsp in a view. Use the original VData object.")
 
     @property
-    def varm(self) -> ViewVAxisArray:
-        return ViewVAxisArray(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
+    def varm(self) -> ViewVAxisArrayContainer:
+        return ViewVAxisArrayContainer(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
 
     @varm.setter
     def varm(self, *_: Any) -> NoReturn:
         raise VValueError("Cannot set varm in a view. Use the original VData object.")
 
     @property
-    def varp(self) -> ViewVPairwiseArray:
-        return ViewVPairwiseArray(self._parent.varp, self._var_array_slicer)
+    def varp(self) -> ViewVPairwiseArrayContainer:
+        return ViewVPairwiseArrayContainer(self._parent.varp, self._var_array_slicer)
 
     @varp.setter
     def varp(self, *_: Any) -> NoReturn:

@@ -7,14 +7,24 @@
 import numpy as np
 import pandas as pd
 
-from .._core.dataframe import TemporalDataFrame
-from .._core.vdata import VData
-from .._IO.logger import generalLogger
+from vdata import TemporalDataFrame, setLoggingLevel
 
-generalLogger.level = 'DEBUG'
+setLoggingLevel('DEBUG')
+
 
 # ====================================================
 # code
+data = {'data': np.random.randint(0, 20, 7),
+        'data_bis': np.random.randint(0, 20, 7),
+        'TP': ['*', '1', ('0', '1'), '0', '0', '1', '0']}
+
+TDF = TemporalDataFrame(data, time_col='TP', index=[f"C_{i}" for i in range(7)])
+
+
+
+quit()
+
+
 # check TDF creation : from dict
 data = {'data': np.random.randint(0, 20, 6),
         'data_bis': np.random.randint(0, 20, 6)}

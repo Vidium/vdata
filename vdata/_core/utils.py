@@ -47,7 +47,6 @@ def repr_array(arr: Union[List, np.ndarray]) -> str:
         return str(arr)
 
 
-# TODO : update
 def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection[str]], time_list: Optional[Collection[str]]) -> \
         np.ndarray:
     """

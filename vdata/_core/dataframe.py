@@ -6,7 +6,8 @@
 # imports
 import pandas as pd
 import numpy as np
-from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hashable, Iterable, NoReturn
+from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hashable, Iterable, NoReturn, \
+    MutableSequence
 from typing_extensions import Literal
 
 from .._IO.errors import VValueError, VTypeError, ShapeError, VAttributeError
@@ -166,6 +167,7 @@ class TemporalDataFrame:
                     self._time_points_col = time_col
 
                 else:
+                    print(data, type(data))
                     raise VValueError(f"'{time_col}' could not be found in the supplied DataFrame's columns.")
 
             # time points given, check length is correct
@@ -198,8 +200,10 @@ class TemporalDataFrame:
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
             self._df = pd.DataFrame(data, dtype=dtype)
+
             if index is not None:
                 self._df.index = index
+
             if columns is not None:
                 self._df.columns = columns
 
@@ -221,6 +225,22 @@ class TemporalDataFrame:
         self.TP_from_DF = self.__get_time_points()
         generalLogger.debug(f"Found time points {self.TP_from_DF} from stored DataFrame.")
 
+        # re-order TemporalDataFrame based on time points
+        def sort_function(collec: MutableSequence) -> MutableSequence:
+            for i, e in enumerate(collec):
+                if isinstance(e, tuple):
+                    e = sort_function(list(e))[0]
+
+                try:
+                    collec[i] = eval(str(e)) if e != '*' else -1
+
+                except NameError:
+                    collec[i] = str(e)
+
+            return collec
+
+        self._df = self._df.sort_values(by="__TPID", key=lambda x: sort_function(x))
+
         generalLogger.debug(u'\u23BF TemporalDataFrame creation : end ------------------------------------------ ')
 
     def __repr__(self) -> str:
@@ -232,7 +252,7 @@ class TemporalDataFrame:
             repr_str = ""
             for TP in self.time_points:
                 repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{self[TP].one_TP_repr(TP)}\n"
+                repr_str += f"{self[TP].one_TP_repr(TP)}\n\n"
 
         else:
             repr_str = f"Empty TemporalDataFrame\n" \
@@ -275,8 +295,6 @@ class TemporalDataFrame:
         else:
             index = [index[0], index[1]]
 
-        generalLogger.debug(f'  Refactored index to : {index}.')
-
         # check first index (subset on time points)
         if isinstance(index[0], type(Ellipsis)) or isinstance(index[0], slice) and index[0] == slice(None, None, None):
             index[0] = self.time_points
@@ -294,7 +312,7 @@ class TemporalDataFrame:
         else:
             index[0] = to_str_list(index[0])
 
-        generalLogger.debug(f'  Corrected index to : {index}.')
+        generalLogger.debug(f'  Refactored index to : {index}.')
 
         # Case 1 : sub-setting on time points
         index_0_tp = [idx for idx in index[0] if idx in self.time_points]
@@ -386,6 +404,13 @@ class TemporalDataFrame:
         Get the list of time points in this TemporalDataFrame as defined in <_time_points_col>.
         :return: the list of time points in this TemporalDataFrame as defined in <_time_points_col>.
         """
+        def sort_function(x: Any) -> Union[int, float, str]:
+            try:
+                return eval(x)
+
+            except NameError:
+                return str(x)
+
         all_values = to_str_list(set(self._df[self._time_points_col].values))
 
         unique_values = set()
@@ -396,7 +421,7 @@ class TemporalDataFrame:
             else:
                 unique_values.add(value)
 
-        return sorted(map(str, unique_values - {'*'}), key=lambda x: eval(x))
+        return sorted(map(str, unique_values - {'*'}), key=lambda x: sort_function(x))
 
     @property
     def df_data(self) -> pd.DataFrame:
@@ -795,7 +820,7 @@ class ViewTemporalDataFrame:
             repr_str = ""
             for TP in self.time_points:
                 repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{self.one_TP_repr(TP)}\n"
+                repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
             repr_str = f"Empty View of a TemporalDataFrame\n" \
@@ -830,6 +855,9 @@ class ViewTemporalDataFrame:
         :param index: A sub-setting index.
             See TemporalDataFrame's '__getitem__' method for more details.
         """
+        generalLogger.debug('ViewTemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
+        generalLogger.debug(f'  Got index : {index}')
+
         if not isinstance(index, tuple):
             index = [index, slice(None, None, None)]
         elif isinstance(index, tuple) and len(index) == 1:
@@ -854,9 +882,13 @@ class ViewTemporalDataFrame:
         else:
             index[0] = to_str_list(index[0])
 
+        generalLogger.debug(f'  Refactored index to : {index}')
+
         # Case 1 : sub-setting on time points
         index_0_tp = [idx for idx in index[0] if idx in self.time_points]
         if len(index_0_tp):
+            generalLogger.debug('  Sub-set on time points.')
+
             mask = np.array(match(self.parent_data['__TPID'], index_0_tp)) & np.array(self.index_bool)
 
             data_for_TP = self.parent_data[mask]
@@ -868,6 +900,8 @@ class ViewTemporalDataFrame:
         # Case 2 : sub-setting on columns
         index_0_col = [idx for idx in index[0] if idx in self.columns]
         if len(index_0_col):
+            generalLogger.debug('  Sub-set on columns.')
+
             data_for_TP = self.parent_data.loc[self.index_bool, index_0_col]
             index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
             data = data_for_TP[index_conditions]
@@ -875,9 +909,8 @@ class ViewTemporalDataFrame:
             return ViewTemporalDataFrame(self._parent, self.time_points, data.index, data.columns)
 
         else:
-            data = pd.DataFrame()
-
-            return ViewTemporalDataFrame(self._parent, (), data.index, data.columns[1:])
+            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '
+                              'use TDF[:, <List of booleans>]')
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
