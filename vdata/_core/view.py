@@ -6,21 +6,22 @@
 # imports
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, NoReturn, Any, Optional, List
+from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, Optional, List
 
 from . import vdata
 from .utils import format_index, repr_array
-from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer, VBaseArrayContainer, VBaseArray
-from .dataframe import ViewTemporalDataFrame, TemporalDataFrame
-from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
+from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer, VBaseArrayContainer, \
+    VPairwiseArray
+from .dataframe import ViewTemporalDataFrame
+from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, DataFrame
 from ..utils import slice_to_range, slice_to_list
-from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
+from .._IO.errors import VTypeError, ShapeError
 from .._IO.logger import generalLogger
 
 
 # ====================================================
 # code
-class ViewBaseArrayContainer:
+class ViewVBaseArrayContainer:
     """
     A base view of a VBaseArrayContainer.
     This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
@@ -57,7 +58,7 @@ class ViewBaseArrayContainer:
         """
         return self._array_container.items()
 
-    def dict_copy(self) -> Dict[str, VBaseArray]:
+    def dict_copy(self) -> Dict[str, Union[DataFrame, VPairwiseArray]]:
         """
         Build an actual copy of this Array view in dict format.
         :return: Dictionary of (keys, ArrayLike) in this Array view.
@@ -65,7 +66,7 @@ class ViewBaseArrayContainer:
         return dict([(arr, self._array_container[arr]) for arr in self._array_container.keys()])
 
 
-class ViewVLayersArraysContainer(ViewBaseArrayContainer):
+class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
     """
     A view of a VLayerArrayContainer object.
     """
@@ -95,34 +96,12 @@ class ViewVLayersArraysContainer(ViewBaseArrayContainer):
         generalLogger.debug(u'\u23BF ViewVLayersArraysContainer creation : end '
                             '----------------------------------------------- ')
 
-    # def __correct_obs_slicer(self, obs_slicer: np.ndarray) -> List[List[int]]:
-    #     """
-    #     Convert an obs slicer ranging from 0 to len(obs) to a list of slicers ranging from 0 to len(obs[TP]).
-    #     :param obs_slicer: an obs slicer to convert.
-    #     :return: a converted obs slicer.
-    #     """
-    #     print(obs_slicer)
-    #     first_array = self._array_container[list(self.keys())[0]]
-    #
-    #     intervals = [sum([len(first_array[ii]) for ii in range(0, i)]) for i in range(len(first_array))] + [
-    #         float('inf')]
-    #
-    #     return [[e - intervals[i] for e in obs_slicer if intervals[i] <= e < intervals[i + 1]] for i in range(len(
-    #         first_array))]
-
     def __getitem__(self, array_name: str) -> ViewTemporalDataFrame:
         """
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        # selected_time_points = self._array_container._parent.time_points.loc[self._time_points_slicer].value.values
-        # selected_obs = self._array_container._parent.obs.index[self._obs_slicer]
-        # selected_vars = self._array_container._parent.var.index[self._var_slicer]
-
         return self._array_container[array_name][self._time_points_slicer, self._obs_slicer, self._var_slicer]
-
-        # return np.array([self._array_container[array_name][i][np.ix_(self._obs_slicer[i], self._var_slicer)]
-        #                  for i in self._time_points_slicer], dtype=object)
 
     def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
         """
@@ -143,7 +122,7 @@ class ViewVLayersArraysContainer(ViewBaseArrayContainer):
             self._array_container[array_name][np.ix_(self._time_points_slicer, self._obs_slicer, self._var_slicer)] = values
 
 
-class ViewVAxisArrayContainer(ViewBaseArrayContainer):
+class ViewVAxisArrayContainer(ViewVBaseArrayContainer):
     """
     A view of a VAxisArrayContainer object.
     """
@@ -184,7 +163,7 @@ class ViewVAxisArrayContainer(ViewBaseArrayContainer):
             self._arrays[array_name][np.ix_(self._time_points_slicer, self._axis_slicer)] = values
 
 
-class ViewVPairwiseArrayContainer(ViewBaseArrayContainer):
+class ViewVPairwiseArrayContainer(ViewVBaseArrayContainer):
     """
     A view of a VPairwiseArrayContainer object.
     """
@@ -307,11 +286,12 @@ class ViewVData:
                             f"({len(self._var_slicer)} value{'' if len(self._var_slicer) == 1 else 's'}"
                             f" selected)")
 
-        # first store obs
+        # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
+        # this is needed here because obs will be needed to recompute the time points and obs slicers
         self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
-        self._time_points_slicer = [e for e in self._time_points_slicer if e in self._obs.time_points]
+        self._time_points_slicer = np.array([e for e in self._time_points_slicer if e in self._obs.time_points])
 
         generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._time_points_slicer)} "
                             f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
@@ -324,7 +304,7 @@ class ViewVData:
                             f" selected)")
 
         # subset and store arrays
-        self._layers = ViewVLayersArraysContainer(self._parent.layers, self._time_points_slicer,
+        self._layers = ViewVLayerArrayContainer(self._parent.layers, self._time_points_slicer,
                                                   self._obs_slicer, self._var_slicer)
         self._time_points = self._parent.time_points[self._parent.time_points.value.isin(self._time_points_slicer)]
 
@@ -568,7 +548,7 @@ class ViewVData:
 
     # Arrays -------------------------------------------------------------
     @property
-    def layers(self) -> ViewVLayersArraysContainer:
+    def layers(self) -> ViewVLayerArrayContainer:
         """
         Get a view on the layers in this ViewVData.
         :return: a view on the layers.

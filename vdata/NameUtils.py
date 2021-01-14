@@ -4,17 +4,21 @@
 
 # ====================================================
 # imports
+from __future__ import annotations
+
 import h5py
 import numpy as np
 import pandas as pd
-from typing import Union, Sequence, Type
-from typing_extensions import Literal
+from typing import Union, Sequence
+from typing_extensions import Literal, Type
 
 # ====================================================
 # types
 ArrayLike_2D = Union[np.ndarray, pd.DataFrame]
 ArrayLike_3D = np.ndarray
 ArrayLike = Union[ArrayLike_2D, ArrayLike_3D]
+
+DataFrame = Union[pd.DataFrame, "vdata.TemporalDataFrame"]
 
 DTypes = {int: int,
           "int": np.int32,

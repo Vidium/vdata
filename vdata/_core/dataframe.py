@@ -50,6 +50,40 @@ def match(tp_list: pd.Series, tp_index: Collection[str]) -> List[bool]:
     return mask
 
 
+def reformat_index(index):
+    """TODO"""
+    if not isinstance(index, tuple):
+        return [index, slice(None, None, None), slice(None, None, None)]
+
+    elif isinstance(index, tuple) and len(index) == 1:
+        return [index[0], slice(None, None, None), slice(None, None, None)]
+
+    elif isinstance(index, tuple) and len(index) == 2:
+        return [index[0], index[1], slice(None, None, None)]
+
+    else:
+        return [index[0], index[1], index[2]]
+
+
+def check_index(idx, reference_index, index_name):
+    """TODO"""
+    if isinstance(idx, type(Ellipsis)) or isinstance(idx, slice) and idx == slice(None, None, None):
+        return reference_index
+
+    elif isinstance(idx, slice):
+        try:
+            list(map(int, reference_index))
+        except ValueError:
+            raise VTypeError(f"Cannot slice on {index_name} since values are not ints.")
+
+        max_value = int(max(reference_index))
+
+        return list(map(str, slice_to_range(idx, max_value)))
+
+    else:
+        return to_str_list(idx)
+
+
 class TemporalDataFrame:
     """
     An extension to pandas DataFrames to include a notion of time on the rows.
@@ -264,9 +298,12 @@ class TemporalDataFrame:
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]]) -> \
-            'ViewTemporalDataFrame':
+    def __getitem__(self, index: Union[PreSlicer,
+                                       Tuple[PreSlicer],
+                                       Tuple[PreSlicer, PreSlicer],
+                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'ViewTemporalDataFrame':
         """
+        TODO : update !
         Get a view from the DataFrame using an index with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index or a 2-tuple of indexes.
             An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
@@ -291,60 +328,20 @@ class TemporalDataFrame:
         generalLogger.debug('TemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index : {index}.')
 
-        if not isinstance(index, tuple):
-            index = [index, slice(None, None, None)]
-        elif isinstance(index, tuple) and len(index) == 1:
-            index = [index[0], slice(None, None, None)]
-        else:
-            index = [index[0], index[1]]
+        index = reformat_index(index)
 
         # check first index (subset on time points)
-        if isinstance(index[0], type(Ellipsis)) or isinstance(index[0], slice) and index[0] == slice(None, None, None):
-            index[0] = self.time_points
+        index[0] = check_index(index[0], self.time_points, "time points")
 
-        elif isinstance(index[0], slice):
-            try:
-                list(map(int, self.time_points))
-            except ValueError:
-                raise VTypeError("Cannot slice on time points since time points are not ints.")
+        # check second index (subset on rows)
+        index[1] = check_index(index[1], self.index, "rows")
 
-            max_value = int(max(self.time_points))
-
-            index[0] = list(map(str, slice_to_range(index[0], max_value)))
-
-        else:
-            index[0] = to_str_list(index[0])
+        # check third index (subset on columns)
+        index[2] = check_index(index[2], self.columns, "columns")
 
         generalLogger.debug(f'  Refactored index to : {index}.')
 
-        # Case 1 : sub-setting on time points
-        index_0_tp = [idx for idx in index[0] if idx in self.time_points]
-        if len(index_0_tp):
-            generalLogger.debug('  Sub-set on time points.')
-
-            data_for_TP = self._df[match(self._df['__TPID'], index_0_tp)]
-
-            # index_conditions = [index[1][i] for i in np.where(self._df.index.isin(data_for_TP.index))[0]] if not \
-            #     isinstance(index[1], slice) else index[1]
-
-            data = data_for_TP.loc[index[1]]
-
-            return ViewTemporalDataFrame(self, index_0_tp, data.index, data.columns[1:])
-
-        # Case 2 : sub-setting on columns
-        index_0_col = [idx for idx in index[0] if idx in self.columns]
-        if len(index_0_col):
-            generalLogger.debug('  Sub-set on columns.')
-
-            data_for_TP = self._df[index_0_col]
-            index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
-            data = data_for_TP[index_conditions]
-
-            return ViewTemporalDataFrame(self, self.time_points, data.index, data.columns)
-
-        else:
-            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '
-                              'use TDF[:, <List of booleans>]')
+        return ViewTemporalDataFrame(self, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
@@ -826,6 +823,13 @@ class ViewTemporalDataFrame:
 
         generalLogger.debug(f"  1'. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
+        object.__setattr__(self, 'index', np.array(self.index)[np.isin(self.index, self.parent_data[self.parent_data[
+            '__TPID'].isin(self._tp_slicer)].index)])
+
+        generalLogger.debug(f"  2'. Refactored index slicer to : {repr_array(self.index)}")
+
+        # TODO : refactor columns ? think !
+
         generalLogger.debug(u'\u23BF ViewTemporalDataFrame creation : end ---------------------------------------- ')
 
     def __repr__(self):
@@ -865,69 +869,34 @@ class ViewTemporalDataFrame:
                        f"Index: {[idx for idx in self.index]}"
             return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]]) \
-            -> 'ViewTemporalDataFrame':
+    def __getitem__(self, index: Union[PreSlicer,
+                                       Tuple[PreSlicer],
+                                       Tuple[PreSlicer, PreSlicer],
+                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'ViewTemporalDataFrame':
         """
         Get a sub-view from this view using an index with the usual sub-setting mechanics.
         :param index: A sub-setting index.
             See TemporalDataFrame's '__getitem__' method for more details.
         """
+        # TODO : here checks need to be done to ensure that we cannot get data that was already sliced-out previously
+
         generalLogger.debug('ViewTemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index : {index}')
 
-        if not isinstance(index, tuple):
-            index = [index, slice(None, None, None)]
-        elif isinstance(index, tuple) and len(index) == 1:
-            index = [index[0], slice(None, None, None)]
-        else:
-            index = [index[0], index[1]]
+        index = reformat_index(index)
 
         # check first index (subset on time points)
-        if isinstance(index[0], type(Ellipsis)) or index[0] == slice(None, None, None):
-            index[0] = self.time_points
+        index[0] = check_index(index[0], self.time_points, "time points")
 
-        elif isinstance(index[0], slice):
-            try:
-                list(map(int, self.time_points))
-            except ValueError:
-                raise VTypeError("Cannot slice on time points since time points are not ints.")
+        # check second index (subset on rows)
+        index[1] = check_index(index[1], self.index, "rows")
 
-            max_value = int(max(self.time_points))
-
-            index[0] = list(map(str, slice_to_range(index[0], max_value)))
-
-        else:
-            index[0] = to_str_list(index[0])
+        # check third index (subset on columns)
+        index[2] = check_index(index[2], self.columns, "columns")
 
         generalLogger.debug(f'  Refactored index to : {index}')
 
-        # Case 1 : sub-setting on time points
-        index_0_tp = [idx for idx in index[0] if idx in self.time_points]
-        if len(index_0_tp):
-            generalLogger.debug('  Sub-set on time points.')
-
-            mask = np.array(match(self.parent_data['__TPID'], index_0_tp)) & np.array(self.index_bool)
-
-            data_for_TP = self.parent_data[mask]
-            index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
-            data = data_for_TP[index_conditions]
-
-            return ViewTemporalDataFrame(self._parent, index_0_tp, data.index, data.columns[1:])
-
-        # Case 2 : sub-setting on columns
-        index_0_col = [idx for idx in index[0] if idx in self.columns]
-        if len(index_0_col):
-            generalLogger.debug('  Sub-set on columns.')
-
-            data_for_TP = self.parent_data.loc[self.index_bool, index_0_col]
-            index_conditions = index[1][data_for_TP.index] if not isinstance(index[1], slice) else index[1]
-            data = data_for_TP[index_conditions]
-
-            return ViewTemporalDataFrame(self._parent, self.time_points, data.index, data.columns)
-
-        else:
-            raise VValueError('Sub-setting index was not understood. If you meant to sub-set on rows, '
-                              'use TDF[:, <List of booleans>]')
+        return ViewTemporalDataFrame(self._parent, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:

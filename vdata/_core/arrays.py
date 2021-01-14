@@ -10,12 +10,13 @@ import numpy as np
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, List
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
+    Iterator, TypeVar, Type
 from typing_extensions import Literal
 
 from . import vdata
 from .dataframe import TemporalDataFrame
-from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike, DType
+from ..NameUtils import ArrayLike_2D, ArrayLike_3D, ArrayLike, DType, DataFrame
 from .._IO.errors import ShapeError, IncoherenceError, VValueError, VTypeError, VAttributeError
 from .._IO.logger import generalLogger
 
@@ -23,15 +24,18 @@ from .._IO.logger import generalLogger
 # ====================================================
 # code
 
+D = TypeVar('D', DataFrame, Type['VPairwiseArray'])
+
+
 # Containers ------------------------------------------------------------------
-class VBaseArrayContainer(ABC):
+class VBaseArrayContainer(ABC, Mapping[str, D]):
     """
     Base abstract class for Array containers linked to a VData object (obsm, obsp, varm, varp, layers).
     All Arrays have a '_parent' attribute for linking them to a VData and a '_data' dictionary
     attribute for storing 2D/3D arrays.
     """
 
-    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, pd.DataFrame]]):
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D]]):
         """
         :param parent: the parent VData object this Array is linked to.
         :param data: a dictionary of pandas DataFrames to store in this Array container.
@@ -43,7 +47,7 @@ class VBaseArrayContainer(ABC):
     def __repr__(self) -> str:
         pass
 
-    def __getitem__(self, item: str) -> 'VBaseArray':
+    def __getitem__(self, item: str) -> D:
         """
         Get a specific Array in _data.
         :param item: key in _data
@@ -71,6 +75,13 @@ class VBaseArrayContainer(ABC):
         """
         return len(self._data.keys()) if self._data is not None else 0
 
+    def __iter__(self) -> Iterator[str]:
+        """
+        Iterate on the Array container's keys.
+        :return: an iterator over the Array container's keys.
+        """
+        return iter(self.keys())
+
     @property
     def empty(self) -> bool:
         """
@@ -80,7 +91,7 @@ class VBaseArrayContainer(ABC):
         return True if not len(self) else False
 
     @abc.abstractmethod
-    def _check_init_data(self, data: Optional[Dict[str, pd.DataFrame]]) -> Optional[Dict[str, 'VBaseArray']]:
+    def _check_init_data(self, data: Optional[Dict[str, D]]) -> Optional[Dict[str, D]]:
         """
         Function for checking, upon creation of this Array container, whether the supplied data has the correct
         format.
@@ -118,7 +129,7 @@ class VBaseArrayContainer(ABC):
         pass
 
     @property
-    def data(self) -> Optional[Dict[str, 'VBaseArray']]:
+    def data(self) -> Optional[Dict[str, D]]:
         """
         Data of this Array container.
         :return: the data of this Array container.
@@ -156,7 +167,7 @@ class VBaseArrayContainer(ABC):
 
 class VBase3DArrayContainer(VBaseArrayContainer, ABC):
     """
-    Base abstract class for Array containers linked to a VData object that contain pseudo 3D array-like objects (obsm,
+    Base abstract class for Array containers linked to a VData object that contain pseudo 3D Arrays (obsm,
     varm, layers)
     It is based on VBaseArrayContainer and defines some functions shared by obsm, varm and layers.
     """
@@ -185,9 +196,9 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
     @property
     def shape(self) -> Tuple[int, int, int]:
         """
-        The shape of the Array is computed from the shape of the array-like objects it contains.
-        See __len__ for getting the number of array-like objects it contains.
-        :return: shape of the contained array-like objects.
+        The shape of the Array container is computed from the shape of the Arrays it contains.
+        See __len__ for getting the number of Arrays it contains.
+        :return: shape of the contained Arrays.
         """
         if self._data is not None and len(self):
             return self._data[list(self._data.keys())[0]].shape
@@ -227,7 +238,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
 class VLayerArrayContainer(VBase3DArrayContainer):
     """
     Class for layers.
-    This object contains any number of 3D array-like objects, with shapes (n_time_points, n_obs, n_var).
+    This object contains any number of TemporalDataFrames, with shapes (n_time_points, n_obs, n_var).
     The arrays-like objects can be accessed from the parent VData object by :
         VData.layers['<array_name>']
     """
@@ -638,78 +649,7 @@ class VPairwiseArrayContainer(VBaseArrayContainer):
 
 
 # Arrays ----------------------------------------------------------------------
-class VBaseArray(ABC):
-    """
-    Base abstract class for Arrays contained in a container object (VLayerArrayContainer, VAxisArrayContainer,
-    VPairwiseArrayContainer).
-    All Arrays implement a 'reorder' method for matching the obs index.
-    """
-
-    @abc.abstractmethod
-    def __repr__(self) -> str:
-        """
-        Description for this Array object to print.
-        :return: a description of this Array object.
-        """
-        pass
-
-    @abc.abstractmethod
-    def reorder(self, reference_index: Collection) -> None:
-        """
-        Reorder the Array to match the given reference_index.
-        The given reference_index must contain all elements in the index of this array's DataFrame exactly once but
-        can be in any desired order.
-        :param reference_index: a collection of elements matching the index of this array's DataFrame.
-        """
-        pass
-
-    @abc.abstractmethod
-    def astype(self, dtype: DType):
-        """
-        Modify the data type of elements stored in this Array.
-        """
-        pass
-
-
-class VBase3DArray(VBaseArray, ABC):
-    """
-    Base abstract class for pseudo 3D Arrays contained in VLayerArrayContainer and VAxisArrayContainer.
-    It is based on VBaseArray and defines some functions shared by VLayerArray and VAxisArray.
-    """
-
-    @abc.abstractmethod
-    def shape(self) -> Tuple[int, List[int], int]:
-        """
-        Get this Array's shape.
-        :return: this Array's shape.
-        """
-        pass
-
-
-class VAxisArray(VBase3DArray):
-    """"""
-
-    def __init__(self):
-        raise NotImplementedError
-
-    def __repr__(self) -> str:
-        """
-        Description for this VAxisArray object to print.
-        :return: a description of this VAxisArray object.
-        """
-        pass
-
-    def reorder(self, reference_index: Collection) -> None:
-        """
-        Reorder the Array to match the given reference_index.
-        The given reference_index must contain all elements in the index of this array's DataFrame exactly once but
-        can be in any desired order.
-        :param reference_index: a collection of elements matching the index of this array's DataFrame.
-        """
-        pass
-
-
-class VPairwiseArray(VBaseArray):
+class VPairwiseArray:
     """"""
 
     def __init__(self):
@@ -729,4 +669,14 @@ class VPairwiseArray(VBaseArray):
         can be in any desired order.
         :param reference_index: a collection of elements matching the index of this array's DataFrame.
         """
+        pass
+
+    def astype(self, dtype: DType):
+        """
+        Modify the data type of elements stored in this Array.
+        """
+        pass
+
+    def shape(self):
+        """TODO"""
         pass

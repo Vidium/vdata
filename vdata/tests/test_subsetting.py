@@ -6,7 +6,6 @@
 # imports
 import scanpy as sc
 import numpy as np
-import pandas as pd
 
 from vdata import VData, setLoggingLevel
 
@@ -36,6 +35,8 @@ def test_sub_setting():
     print(sub_vdata)
     print(sub_vdata.obs)
     print(sub_vdata.layers['data'])
+
+    print(sub_vdata.n_obs)
 
     assert np.sum(sub_vdata.n_obs) == len(mask_obs)
     assert np.sum(sub_vdata.n_var) == len(mask_var)
