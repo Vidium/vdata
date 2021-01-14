@@ -13,7 +13,7 @@ from .utils import format_index, repr_array
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer, VBaseArrayContainer, VBaseArray
 from .dataframe import ViewTemporalDataFrame, TemporalDataFrame
 from ..NameUtils import PreSlicer, Slicer, ArrayLike_3D, ArrayLike_2D, ArrayLike
-from ..utils import slice_to_range
+from ..utils import slice_to_range, slice_to_list
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
 from .._IO.logger import generalLogger
 
@@ -83,14 +83,14 @@ class ViewVLayersArraysContainer(ViewBaseArrayContainer):
         super().__init__(array_container)
 
         self._time_points_slicer = time_points_slicer
-        generalLogger.debug(f"  1. Time points slicer is : {self._time_points_slicer}.")
+        generalLogger.debug(f"  1. Time points slicer is : {repr_array(self._time_points_slicer)}.")
 
         # self._obs_slicer = self.__correct_obs_slicer(obs_slicer)
         self._obs_slicer = obs_slicer
-        generalLogger.debug(f"  2. Obs slicer is : {self._obs_slicer}.")
+        generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)}.")
 
         self._var_slicer = var_slicer
-        generalLogger.debug(f"  3. Var slicer is : {self._var_slicer}.")
+        generalLogger.debug(f"  3. Var slicer is : {repr_array(self._var_slicer)}.")
 
         generalLogger.debug(u'\u23BF ViewVLayersArraysContainer creation : end '
                             '----------------------------------------------- ')
@@ -115,11 +115,11 @@ class ViewVLayersArraysContainer(ViewBaseArrayContainer):
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        selected_time_points = self._array_container._parent.time_points.loc[self._time_points_slicer].value.values
-        selected_obs = self._array_container._parent.obs.index[self._obs_slicer]
-        selected_vars = self._array_container._parent.var.index[self._var_slicer]
+        # selected_time_points = self._array_container._parent.time_points.loc[self._time_points_slicer].value.values
+        # selected_obs = self._array_container._parent.obs.index[self._obs_slicer]
+        # selected_vars = self._array_container._parent.var.index[self._var_slicer]
 
-        return self._array_container[array_name][selected_time_points, selected_obs, selected_vars]
+        return self._array_container[array_name][self._time_points_slicer, self._obs_slicer, self._var_slicer]
 
         # return np.array([self._array_container[array_name][i][np.ix_(self._obs_slicer[i], self._var_slicer)]
         #                  for i in self._time_points_slicer], dtype=object)
@@ -243,85 +243,99 @@ class ViewVData:
         # DataFrame slicers
         # time points -------------------------
         if not isinstance(time_points_slicer, slice):
+            # boolean array : extract time point values from parent's time_points dataframe
             if isinstance(time_points_slicer, np.ndarray) and time_points_slicer.dtype == np.bool:
-                self._time_points_slicer = time_points_slicer
+                self._time_points_slicer = self._parent.time_points[time_points_slicer].value.values
+
+            # array of time point values : store values as is
             else:
-                time_points_slicer = list(map(str, time_points_slicer))
-                time_points_slicer += [e + '.' for e in time_points_slicer] + [e + '.0' for e in time_points_slicer]
-                self._time_points_slicer = np.isin(self._parent.time_points.value, time_points_slicer)
+                self._time_points_slicer = time_points_slicer
 
         elif time_points_slicer == slice(None, None, None):
-            self._time_points_slicer = np.array([True] * self._parent.n_time_points)
+            # slice from start to end : take all time points
+            self._time_points_slicer = self._parent.time_points.value.values
 
         else:
-            time_points_slicer = np.array(slice_to_range(time_points_slicer, len(self._parent.time_points)),
-                                          dtype=self._parent.time_points.value.dtype)
-            self._time_points_slicer = np.isin(self._parent.time_points.value, time_points_slicer)
+            # slice from specific start to end time points : get list of sliced time points
+            self._time_points_slicer = slice_to_list(time_points_slicer, self._parent.time_points.value.values)
 
         generalLogger.debug(f"  1. Time points slicer is : {repr_array(self._time_points_slicer)} "
-                            f"({np.sum(self._time_points_slicer)} "
-                            f"{'is' if np.sum(self._time_points_slicer) == 1 else 'are'} True)")
-
-        self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
-        generalLogger.debug(f"     Time points array slicer is : {repr_array(self._time_points_array_slicer)}")
+                            f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
+                            f" selected)")
 
         # obs -------------------------
         if not isinstance(obs_slicer, slice):
             if isinstance(obs_slicer, np.ndarray) and obs_slicer.dtype == np.bool:
-                self._obs_slicer = obs_slicer
+                # boolean array : extract obs index values from parent's obs TemporalDataFrame
+                self._obs_slicer = self._parent.obs.index[obs_slicer]
+
             else:
-                obs_slicer = np.array(obs_slicer, dtype=self._parent.obs.index.dtype)
-                self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
+                # array of obs index values : store values as is
+                self._obs_slicer = obs_slicer
 
         elif obs_slicer == slice(None, None, None):
-            self._obs_slicer = np.array([True] * self._parent.n_obs_total)
+            # slice from start to end : take all obs index
+            self._obs_slicer = self._parent.obs.index
 
         else:
-            obs_slicer = np.array(slice_to_range(obs_slicer, len(self._parent.obs)), dtype=self._parent.obs.index.dtype)
-            self._obs_slicer = np.isin(self._parent.obs.index, obs_slicer)
-
-        time_points = list(self._parent.time_points.loc[self._time_points_array_slicer].value)
-
-        self._obs_slicer = np.logical_and(self._obs_slicer, self._parent.obs[time_points].index_bool)
+            # slice from specific start to end obs index : get list of sliced obs index
+            self._obs_slicer = slice_to_list(obs_slicer, self._parent.obs.index)
 
         generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)} "
-                            f"({np.sum(self._obs_slicer)} "
-                            f"{'is' if np.sum(self._obs_slicer) == 1 else 'are'} True)")
-
-        self._obs_array_slicer = np.where(self._obs_slicer)[0]
-        generalLogger.debug(f"     Obs array slicer is : {repr_array(self._obs_array_slicer)}")
+                            f"({len(self._obs_slicer)} value{'' if len(self._obs_slicer) == 1 else 's'}"
+                            f" selected)")
 
         # var -------------------------
         if not isinstance(var_slicer, slice):
             if isinstance(var_slicer, np.ndarray) and var_slicer.dtype == np.bool:
-                self._var_slicer = var_slicer
+                # boolean array : extract var index values from parent's var DataFrame
+                self._var_slicer = self._parent.var.index[var_slicer]
+
             else:
-                var_slicer = np.array(var_slicer, dtype=self._parent.var.index.dtype)
-                self._var_slicer = np.isin(self._parent.var.index, var_slicer)
+                # array of var index values : store values as is
+                self._var_slicer = var_slicer
 
         elif var_slicer == slice(None, None, None):
-            self._var_slicer = np.array([True] * self._parent.n_var)
+            # slice from start to end : take all var index
+            self._var_slicer = self._parent.var.index
 
         else:
-            var_slicer = np.array(slice_to_range(var_slicer, len(self._parent.var)), dtype=self._parent.var.index.dtype)
-            self._var_slicer = np.isin(self._parent.var.index, var_slicer)
+            # slice from specific start to end var index : get list of sliced var index
+            self._var_slicer = slice_to_list(var_slicer, self._parent.var.index)
 
         generalLogger.debug(f"  3. Var slicer is : {repr_array(self._var_slicer)} "
-                            f"({np.sum(self._var_slicer)} "
-                            f"{'is' if np.sum(self._var_slicer) == 1 else 'are'} True)")
+                            f"({len(self._var_slicer)} value{'' if len(self._var_slicer) == 1 else 's'}"
+                            f" selected)")
 
-        self._var_array_slicer = np.where(self._var_slicer)[0]
-        generalLogger.debug(f"     Var array slicer is : {repr_array(self._var_array_slicer)}")
+        # first store obs
+        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer]
 
-        # recompute time point slicers since there could be empty time points in obs
-        self._time_points_slicer &= np.array([False if self.obs[TP].empty else True for TP in
-                                              self.time_points.value.values])
-        generalLogger.debug(f"  4. Time points slicer is : {repr_array(self._time_points_slicer)} "
-                            f"({np.sum(self._time_points_slicer)} "
-                            f"{'is' if np.sum(self._time_points_slicer) == 1 else 'are'} True)")
+        # recompute time points and obs slicers since there could be empty subsets
+        self._time_points_slicer = [e for e in self._time_points_slicer if e in self._obs.time_points]
 
-        self._time_points_array_slicer = np.where(self._time_points_slicer)[0]
-        generalLogger.debug(f"     Time points array slicer is : {repr_array(self._time_points_array_slicer)}")
+        generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._time_points_slicer)} "
+                            f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
+                            f" selected)")
+
+        self._obs_slicer = np.array(self._obs_slicer)[np.isin(self._obs_slicer, self._obs.index)]
+
+        generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer)} "
+                            f"({len(self._obs_slicer)} value{'' if len(self._obs_slicer) == 1 else 's'}"
+                            f" selected)")
+
+        # subset and store arrays
+        self._layers = ViewVLayersArraysContainer(self._parent.layers, self._time_points_slicer,
+                                                  self._obs_slicer, self._var_slicer)
+        self._time_points = self._parent.time_points[self._parent.time_points.value.isin(self._time_points_slicer)]
+
+        # TODO
+        self._obsm = None
+        self._obsp = None
+        self._var = self._parent.var.loc[self._var_slicer]
+        # TODO
+        self._varm = None
+        self._varp = None
+        self._uns = None
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
@@ -447,7 +461,7 @@ class ViewVData:
         Number of time points in this view of a VData object.
         :return: number of time points in this view
         """
-        return int(np.sum(self._time_points_slicer))
+        return len(self._time_points_slicer)
 
     @property
     def n_obs(self) -> List[int]:
@@ -455,14 +469,7 @@ class ViewVData:
         Number of observations in this view of a VData object.
         :return: number of observations in this view
         """
-        if self.n_time_points == 1:
-            return [int(np.sum(self._obs_slicer))]
-
-        else:
-            return [self.obs.len_index(TP) for TP in self.time_points.value.values]
-
-        # return int(np.sum(self._obs_slicer)) if self.n_time_points == 1 else [self._parent.n_obs[i] for i in np.where(
-        #     self._time_points_slicer)[0]]
+        return [self.obs.len_index(TP) for TP in self._time_points_slicer]
 
     @property
     def n_var(self) -> int:
@@ -470,7 +477,7 @@ class ViewVData:
         Number of variables in this view of a VData object.
         :return: number of variables in this view
         """
-        return int(np.sum(self._var_slicer))
+        return len(self._var_slicer)
 
     @property
     def shape(self) -> Tuple[int, List[int], int]:
@@ -483,125 +490,171 @@ class ViewVData:
     # DataFrames ---------------------------------------------------------
     @property
     def time_points(self) -> pd.DataFrame:
-        return self._parent.time_points[self._time_points_slicer]
+        """
+        Get a view on the time points DataFrame in this ViewVData.
+        :return: a view on the time points DataFrame.
+        """
+        return self._time_points
 
-    @time_points.setter
-    def time_points(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'time_points' must be a pandas DataFrame.")
-
-        elif df.columns != self._parent.time_points.columns:
-            raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' "
-                                   "it replaces.")
-
-        elif df.shape[0] != self.n_time_points:
-            raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
-
-        else:
-            df.index = self._parent.time_points[self._time_points_slicer].index
-            self._parent.time_points[self._time_points_slicer] = df
-
-    @property
-    def obs(self) -> ViewTemporalDataFrame:
-
-        return self._parent.obs[list(self.time_points.value), self._obs_slicer]
-
-    @obs.setter
-    def obs(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
-        if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
-            raise VTypeError("'obs' must be a TemporalDataFrame.")
-
-        elif df.columns != self._parent.obs.columns:
-            raise IncoherenceError("'obs' must have the same column names as the original 'obs' it replaces.")
-
-        elif df.shape[0] != self.n_obs:
-            raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
-
-        else:
-            df.index = self._parent.obs[self._obs_slicer].index
-            self._parent.obs[self._obs_slicer] = df
+    # @time_points.setter
+    # def time_points(self, df: pd.DataFrame) -> None:
+    #     if not isinstance(df, pd.DataFrame):
+    #         raise VTypeError("'time_points' must be a pandas DataFrame.")
+    #
+    #     elif df.columns != self._parent.time_points.columns:
+    #         raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' "
+    #                                "it replaces.")
+    #
+    #     elif df.shape[0] != self.n_time_points:
+    #         raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
+    #
+    #     else:
+    #         df.index = self._parent.time_points[self._time_points_slicer].index
+    #         self._parent.time_points[self._time_points_slicer] = df
 
     @property
     def var(self) -> pd.DataFrame:
-        return self._parent.var[self._var_slicer]
+        """
+        Get a view on the var DataFrame in this ViewVData.
+        :return: a view on the var DataFrame.
+        """
+        return self._var
 
-    @var.setter
-    def var(self, df: pd.DataFrame) -> None:
-        if not isinstance(df, pd.DataFrame):
-            raise VTypeError("'var' must be a pandas DataFrame.")
-
-        elif df.columns != self._parent.var.columns:
-            raise IncoherenceError("'var' must have the same column names as the original 'var' it replaces.")
-
-        elif df.shape[0] != self.n_var:
-            raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
-
-        else:
-            df.index = self._parent.var[self._var_slicer].index
-            self._parent.var[self._var_slicer] = df
+    # @var.setter
+    # def var(self, df: pd.DataFrame) -> None:
+    #     if not isinstance(df, pd.DataFrame):
+    #         raise VTypeError("'var' must be a pandas DataFrame.")
+    #
+    #     elif df.columns != self._parent.var.columns:
+    #         raise IncoherenceError("'var' must have the same column names as the original 'var' it replaces.")
+    #
+    #     elif df.shape[0] != self.n_var:
+    #         raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
+    #
+    #     else:
+    #         df.index = self._parent.var[self._var_slicer].index
+    #         self._parent.var[self._var_slicer] = df
 
     @property
     def uns(self) -> Optional[Dict]:
-        return self._parent.uns
+        """
+        TODO
+        """
+        return self._uns
+
+    # TemporalDataFrames -------------------------------------------------
+    @property
+    def obs(self) -> ViewTemporalDataFrame:
+        """
+        Get a view on the obs in this ViewVData.
+        :return: a view on the obs.
+        """
+        return self._obs
+
+    # @obs.setter
+    # def obs(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
+    #     if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
+    #         raise VTypeError("'obs' must be a TemporalDataFrame.")
+    #
+    #     elif df.columns != self._parent.obs.columns:
+    #         raise IncoherenceError("'obs' must have the same column names as the original 'obs' it replaces.")
+    #
+    #     elif df.shape[0] != self.n_obs:
+    #         raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
+    #
+    #     else:
+    #         df.index = self._parent.obs[self._obs_slicer].index
+    #         self._parent.obs[self._obs_slicer] = df
 
     # Arrays -------------------------------------------------------------
     @property
     def layers(self) -> ViewVLayersArraysContainer:
-        return ViewVLayersArraysContainer(self._parent.layers, self._time_points_array_slicer,
-                                          self._obs_array_slicer, self._var_array_slicer)
+        """
+        Get a view on the layers in this ViewVData.
+        :return: a view on the layers.
+        """
+        return self._layers
 
-    @layers.setter
-    def layers(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set layers in a view. Use the original VData object.")
+    # @layers.setter
+    # def layers(self, *_: Any) -> NoReturn:
+    #     raise VValueError("Cannot set layers in a view. Use the original VData object.")
 
     @property
     def obsm(self) -> ViewVAxisArrayContainer:
-        return ViewVAxisArrayContainer(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
+        """
+        Get a view on the obsm in this ViewVData.
+        :return: a view on the obsm.
+        """
+        return self._obsm
+        # return ViewVAxisArrayContainer(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
 
-    @obsm.setter
-    def obsm(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set obsm in a view. Use the original VData object.")
+    # @obsm.setter
+    # def obsm(self, *_: Any) -> NoReturn:
+    #     raise VValueError("Cannot set obsm in a view. Use the original VData object.")
 
     @property
     def obsp(self) -> ViewVPairwiseArrayContainer:
-        return ViewVPairwiseArrayContainer(self._parent.obsp, self._obs_array_slicer)
+        """
+        Get a view on the obsp in this ViewVData.
+        :return: a view on the obsp.
+        """
+        return self._obsp
+        # return ViewVPairwiseArrayContainer(self._parent.obsp, self._obs_array_slicer)
 
-    @obsp.setter
-    def obsp(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set obsp in a view. Use the original VData object.")
+    # @obsp.setter
+    # def obsp(self, *_: Any) -> NoReturn:
+    #     raise VValueError("Cannot set obsp in a view. Use the original VData object.")
 
     @property
     def varm(self) -> ViewVAxisArrayContainer:
-        return ViewVAxisArrayContainer(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
+        """
+        Get a view on the varm in this ViewVData.
+        :return: a view on the varm.
+        """
+        return self._varm
+        # return ViewVAxisArrayContainer(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
 
-    @varm.setter
-    def varm(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set varm in a view. Use the original VData object.")
+    # @varm.setter
+    # def varm(self, *_: Any) -> NoReturn:
+    #     raise VValueError("Cannot set varm in a view. Use the original VData object.")
 
     @property
     def varp(self) -> ViewVPairwiseArrayContainer:
-        return ViewVPairwiseArrayContainer(self._parent.varp, self._var_array_slicer)
+        """
+        Get a view on the varp in this ViewVData.
+        :return: a view on the varp.
+        """
+        return self._varp
+        # return ViewVPairwiseArrayContainer(self._parent.varp, self._var_array_slicer)
 
-    @varp.setter
-    def varp(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set varp in a view. Use the original VData object.")
+    # @varp.setter
+    # def varp(self, *_: Any) -> NoReturn:
+    #     raise VValueError("Cannot set varp in a view. Use the original VData object.")
 
     # aliases ------------------------------------------------------------
     @property
     def cells(self) -> ViewTemporalDataFrame:
+        """
+        Alias for the obs attribute.
+        :return: a view on the obs.
+        """
         return self.obs
 
-    @cells.setter
-    def cells(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
-        self.obs = df
+    # @cells.setter
+    # def cells(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
+    #     self.obs = df
 
     @property
     def genes(self) -> pd.DataFrame:
+        """
+        Alias for the var attribute.
+        :return: a view on the var DataFrame.
+        """
         return self.var
 
-    @genes.setter
-    def genes(self, df: pd.DataFrame) -> None:
-        self.var = df
+    # @genes.setter
+    # def genes(self, df: pd.DataFrame) -> None:
+    #     self.var = df
 
     # copy ---------------------------------------------------------------
     def copy(self) -> 'vdata.VData':

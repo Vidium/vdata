@@ -14,7 +14,7 @@ from builtins import Ellipsis
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
 
 from . import view
-from .utils import format_index, reshape_to_3D
+from .utils import format_index, reshape_to_3D, repr_array
 from .arrays import VAxisArrayContainer, VPairwiseArrayContainer, VLayerArrayContainer
 from .dataframe import TemporalDataFrame
 from ..utils import is_in
@@ -213,11 +213,11 @@ class VData:
             return slicer  # type: ignore
 
         time_points_slicer = check_slicer(time_points_slicer)
-        generalLogger.debug(f"  1. Time points slicer is : {time_points_slicer}")
+        generalLogger.debug(f"  1. Time points slicer is : {repr_array(time_points_slicer)}")
         obs_slicer = check_slicer(obs_slicer)
-        generalLogger.debug(f"  2. Obs slicer is : {obs_slicer}")
+        generalLogger.debug(f"  2. Obs slicer is : {repr_array(obs_slicer)}")
         var_slicer = check_slicer(var_slicer)
-        generalLogger.debug(f"  3. Var slicer is : {var_slicer}")
+        generalLogger.debug(f"  3. Var slicer is : {repr_array(var_slicer)}")
 
         return view.ViewVData(self, time_points_slicer, obs_slicer, var_slicer)
 

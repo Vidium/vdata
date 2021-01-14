@@ -10,6 +10,7 @@ from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hash
     MutableSequence
 from typing_extensions import Literal
 
+from .utils import repr_array
 from .._IO.errors import VValueError, VTypeError, ShapeError, VAttributeError
 from .._IO.logger import generalLogger
 from ..NameUtils import DType, PreSlicer
@@ -28,6 +29,8 @@ def match(tp_list: pd.Series, tp_index: Collection[str]) -> List[bool]:
         a value in tp_index.
     """
     mask = [False for _ in range(len(tp_list))]
+
+    tp_index = to_str_list(tp_index)
 
     if len(tp_index):
         for tp_i, tp_obs in enumerate(tp_list):
@@ -321,10 +324,10 @@ class TemporalDataFrame:
 
             data_for_TP = self._df[match(self._df['__TPID'], index_0_tp)]
 
-            index_conditions = [index[1][i] for i in np.where(self._df.index.isin(data_for_TP.index))[0]] if not \
-                isinstance(index[1], slice) else index[1]
+            # index_conditions = [index[1][i] for i in np.where(self._df.index.isin(data_for_TP.index))[0]] if not \
+            #     isinstance(index[1], slice) else index[1]
 
-            data = data_for_TP[index_conditions]
+            data = data_for_TP.loc[index[1]]
 
             return ViewTemporalDataFrame(self, index_0_tp, data.index, data.columns[1:])
 
@@ -795,7 +798,7 @@ class ViewTemporalDataFrame:
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    _internal_attributes = getattr(TemporalDataFrame, '_internal_attributes') + ['parent']
+    _internal_attributes = getattr(TemporalDataFrame, '_internal_attributes') + ['parent', '_tp_slicer']
 
     def __init__(self, parent: TemporalDataFrame, tp_slicer: Collection[str], index_slicer: pd.Index,
                  column_slicer: pd.Index):
@@ -805,11 +808,25 @@ class ViewTemporalDataFrame:
         :param index_slicer: a pandas Index of rows to view.
         :param column_slicer: a pandas Index of columns to view.
         """
+        generalLogger.debug(u'\u23BE ViewTemporalDataFrame creation : begin ---------------------------------------- ')
+
         # set attributes on init using object's __setattr__ method to avoid self's __setattr__ which would provoke bugs
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_tp_slicer', tp_slicer)
         object.__setattr__(self, 'index', index_slicer)
         object.__setattr__(self, 'columns', column_slicer)
+
+        generalLogger.debug(f"  1. Time point slicer is : {repr_array(self._tp_slicer)}")
+        generalLogger.debug(f"  2. Index slicer is : {repr_array(self.index)}")
+        generalLogger.debug(f"  3. Columns slicer is : {repr_array(self.columns)}")
+
+        object.__setattr__(self, '_tp_slicer', np.array(self._tp_slicer)[
+            match(self._tp_slicer, np.unique(self.parent_data.loc[self.index]['__TPID'].values))
+        ])
+
+        generalLogger.debug(f"  1'. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
+
+        generalLogger.debug(u'\u23BF ViewTemporalDataFrame creation : end ---------------------------------------- ')
 
     def __repr__(self):
         """
@@ -1007,7 +1024,7 @@ class ViewTemporalDataFrame:
 
     def to_pandas(self) -> Any:
         """
-
+        TODO
         """
         index = self.index[0] if len(self.index) == 1 else self.index
         columns = self.columns[0] if len(self.columns) == 1 else self.n_columns

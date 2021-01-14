@@ -16,25 +16,8 @@ setLoggingLevel('DEBUG')
 # ====================================================
 # code
 def test_sub_setting():
-    # data = {'data': np.array([
-    #     np.array([[1, 2, 3],
-    #               [4, 5, 6],
-    #               [7, 8, 9],
-    #               [10, 11, 12]]),
-    #     np.array([[13, 14, 15],
-    #               [16, 17, 18],
-    #               [19, 20, 21],
-    #               [22, 23, 24]]),
-    #     np.array([[25, 26, 27],
-    #               [28, 29, 30]])
-    # ], dtype=object)}
-    # obs = pd.DataFrame({"time": [240.0, 0.0, 24.0, 24.0, 0.0, 240.0, 24.0, 0.0, 24.0, 0.0]},
-    #                    index=[f'C_{i}' for i in range(10)])
-    # var = pd.DataFrame({"val": np.random.randint(1, 10, 3)}, index=[f"G_{i}" for i in range(3)])
-    #
-    # vdata = VData(data, obs=obs, var=var, time_col='time')
-
-    source_vdata_path = "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
+    source_vdata_path = \
+        "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
 
     adata = sc.read(source_vdata_path)
 
@@ -57,12 +40,14 @@ def test_sub_setting():
     assert np.sum(sub_vdata.n_obs) == len(mask_obs)
     assert np.sum(sub_vdata.n_var) == len(mask_var)
 
+    print(sub_vdata.time_points)
+
     layers_shape = (sub_vdata.layers['data'].shape[0],
-            [sub_vdata.layers['data'][TP].shape[0] for TP in range(sub_vdata.layers['data'].shape[0])],
-            sub_vdata.layers['data'][0].shape[1])
+                    [sub_vdata.layers['data'][TP].shape[1][0] for TP in sub_vdata.time_points.value.values],
+                    sub_vdata.layers['data'][0].shape[2])
     print(layers_shape)
     assert layers_shape == (2, sub_vdata.n_obs, sub_vdata.n_var)
-
+    assert layers_shape == (2, [5, 5], 4)
 
 
 test_sub_setting()

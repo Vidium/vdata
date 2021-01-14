@@ -5,7 +5,7 @@
 # ====================================================
 # imports
 import numpy as np
-from typing import Union, List, Any
+from typing import Union, List, Any, Collection
 
 from ._IO.errors import VValueError
 
@@ -22,7 +22,7 @@ def is_in(obj: np.ndarray, list_arrays: Union[np.ndarray, List[np.ndarray]]) -> 
 
 def slice_to_range(s: slice, max_stop: Union[int, np.int_]) -> range:
     """
-    Convert a slice to a range
+    Converts a slice to a range
     :param s: a slice to convert
     :param max_stop: if s.stop is None, the stop value for the range
     """
@@ -31,6 +31,31 @@ def slice_to_range(s: slice, max_stop: Union[int, np.int_]) -> range:
     step = s.step if s.step is not None else 1
 
     return range(start, stop, step)
+
+
+def slice_to_list(s: slice, c: Collection[Any]) -> List[Any]:
+    """
+    Converts a slice to a list of elements within that slice.
+    :param s: a slice to convert.
+    :param c: a collection of elements to slice.
+    """
+    sliced_list = []
+    found_start = False
+
+    for e in c:
+        if not found_start:
+            if e == s.start:
+                sliced_list.append(e)
+                found_start = True
+
+        else:
+            if e == s.stop:
+                break
+
+            else:
+                sliced_list.append(e)
+
+    return sliced_list
 
 
 def isCollection(item: Any) -> bool:

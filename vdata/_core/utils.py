@@ -5,7 +5,7 @@
 # imports
 import pandas as pd
 import numpy as np
-from typing import Union, Tuple, List, Collection, Optional
+from typing import Union, Tuple, Sequence, Collection, Optional
 
 from ..NameUtils import PreSlicer, ArrayLike_2D
 from .._IO.errors import VTypeError
@@ -34,17 +34,17 @@ def format_index(index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreS
     return time_points_slicer, obs_slicer, var_slicer
 
 
-def repr_array(arr: Union[List, np.ndarray]) -> str:
+def repr_array(arr: Union[Sequence, range, slice]) -> str:
     """
     Get a short string representation of an array.
     :param: an array to represent.
     :return: a short string representation of the array.
     """
-    if len(arr) > 6:
-        return f"[{arr[0]} {arr[1]} {arr[2]} ... {arr[-3]} {arr[-2]} {arr[-1]}]"
+    if isinstance(arr, (range, slice)) or len(arr) <= 6:
+        return str(arr)
 
     else:
-        return str(arr)
+        return f"[{arr[0]} {arr[1]} {arr[2]} ... {arr[-3]} {arr[-2]} {arr[-1]}]"
 
 
 def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection[str]], time_list: Optional[Collection[str]]) -> \
