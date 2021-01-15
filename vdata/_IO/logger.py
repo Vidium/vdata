@@ -13,8 +13,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
+from vdata.NameUtils import LoggingLevel, LoggingLevels
 from . import errors
-from ..NameUtils import LoggingLevel, LoggingLevels
 
 
 # ====================================================

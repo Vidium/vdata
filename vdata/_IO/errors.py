@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-from .logger import generalLogger
+from . import logger
 
 
 # ====================================================
@@ -18,7 +18,7 @@ class VBaseError(Exception):
         self.msg = msg
 
     def __str__(self) -> str:
-        generalLogger.error(self.msg)
+        logger.generalLogger.error(self.msg)
         return ""
 
 

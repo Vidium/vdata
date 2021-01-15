@@ -14,7 +14,7 @@ from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, ca
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, DTypes, ArrayLike_2D, ArrayLike, H5Group
-from .._core.vdata import VData
+from .._core import vdata
 
 spacer = "  " + u'\u21B3' + " "
 
@@ -22,7 +22,7 @@ spacer = "  " + u'\u21B3' + " "
 # ====================================================
 # code
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> VData:
+def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> vdata.VData:
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -84,17 +84,17 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> VDa
 
             data_arrays[f] = dataset_dict
 
-    return VData(data_arrays['layers'],
-                 data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
-                 data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                 data_dfs['time_points'], dtype=dtype)
+    return vdata.VData(data_arrays['layers'],
+                       data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
+                       data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
+                       data_dfs['time_points'], dtype=dtype)
 
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None,
-                  var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
-                  dtype: DType = np.float32) -> VData:
+def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None,
+                   var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
+                   dtype: DType = np.float32) -> vdata.VData:
     """
     Load a simulation's recorded information into a VData object.
 
@@ -209,10 +209,10 @@ def read_from_GPU(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: O
             else:
                 TP_df = pd.DataFrame({"value": _time_points})
 
-            return VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype)
+            return vdata.VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype)
 
         else:
-            return VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
+            return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -307,7 +307,7 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional[DType] = None) -> VData:
+def read(file: Union[Path, str], dtype: Optional[DType] = None) -> vdata.VData:
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
@@ -359,10 +359,10 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> VData:
             else:
                 generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    return VData(data_arrays['layers'],
-                 data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
-                 data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                 data_dfs['time_points'], uns, dtype)
+    return vdata.VData(data_arrays['layers'],
+                       data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
+                       data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
+                       data_dfs['time_points'], uns, dtype)
 
 
 def read_h5_dict(group: H5GroupReader) -> Dict:
