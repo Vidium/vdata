@@ -11,10 +11,11 @@ import numpy as np
 from pathlib import Path
 from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable
 
+import vdata
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, DTypes, ArrayLike_2D, ArrayLike, H5Group
-from .._core import vdata
+
 
 spacer = "  " + u'\u21B3' + " "
 
@@ -22,7 +23,7 @@ spacer = "  " + u'\u21B3' + " "
 # ====================================================
 # code
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> vdata.VData:
+def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> 'vdata.VData':
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -94,7 +95,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> vda
 
 def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None,
                    var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
-                   dtype: DType = np.float32) -> vdata.VData:
+                   dtype: DType = np.float32) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
 
@@ -307,7 +308,7 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional[DType] = None) -> vdata.VData:
+def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 

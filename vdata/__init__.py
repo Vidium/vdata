@@ -6,9 +6,9 @@
 
 # ====================================================
 # imports
-from ._core.vdata import VData
-from ._core.dataframe import TemporalDataFrame
-from ._IO.read import read, read_from_GPU, read_from_csv
-from ._IO.logger import setLoggingLevel, getLoggingLevel
+from ._core import VData
+from ._core import TemporalDataFrame
+from ._IO import read, read_from_dict, read_from_csv
+from ._IO import setLoggingLevel, getLoggingLevel
 
-__all__ = ["VData", "TemporalDataFrame", "read", "read_from_GPU", "read_from_csv", "setLoggingLevel", "getLoggingLevel"]
+__all__ = ["VData", "TemporalDataFrame", "read", "read_from_dict", "read_from_csv", "setLoggingLevel", "getLoggingLevel"]

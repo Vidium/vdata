@@ -9,10 +9,12 @@ import pandas as pd
 from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn, Hashable, IO, Iterable
 from typing_extensions import Literal
 
+import vdata
 from vdata.NameUtils import PreSlicer, DType
+from ..NameUtils import TemporalDataFrame_internal_attributes
 from ..utils import repr_array, reformat_index, match_time_points
-from .. import dataframe
-from ..._IO import generalLogger, VValueError, VAttributeError
+from ..._IO import generalLogger
+from ..._IO.errors import VValueError, VAttributeError
 
 
 # ==========================================
@@ -22,9 +24,9 @@ class ViewTemporalDataFrame:
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    _internal_attributes = getattr(dataframe.TemporalDataFrame, '_internal_attributes') + ['parent', '_tp_slicer']
+    _internal_attributes = TemporalDataFrame_internal_attributes + ['parent', '_tp_slicer']
 
-    def __init__(self, parent: dataframe.TemporalDataFrame, tp_slicer: Collection[str], index_slicer: Collection,
+    def __init__(self, parent: 'vdata.TemporalDataFrame', tp_slicer: Collection[str], index_slicer: Collection,
                  column_slicer: Collection):
         """
         :param parent: a parent TemporalDataFrame to view.
@@ -32,7 +34,8 @@ class ViewTemporalDataFrame:
         :param index_slicer: a pandas Index of rows to view.
         :param column_slicer: a pandas Index of columns to view.
         """
-        generalLogger.debug(u'\u23BE ViewTemporalDataFrame creation : begin ---------------------------------------- ')
+        generalLogger.debug(f"\u23BE ViewTemporalDataFrame '{parent.name}':{id(self)} creation : begin "
+                            f"---------------------------------------- ")
 
         # set attributes on init using object's __setattr__ method to avoid self's __setattr__ which would provoke bugs
         object.__setattr__(self, '_parent', parent)
@@ -51,7 +54,8 @@ class ViewTemporalDataFrame:
 
         # TODO : refactor columns ? think !
 
-        generalLogger.debug(u'\u23BF ViewTemporalDataFrame creation : end ---------------------------------------- ')
+        generalLogger.debug(f"\u23BF ViewTemporalDataFrame '{parent.name}':{id(self)} creation : end "
+                            f"---------------------------------------- ")
 
     def __repr__(self):
         """
@@ -100,7 +104,8 @@ class ViewTemporalDataFrame:
         :param index: A sub-setting index.
             See TemporalDataFrame's '__getitem__' method for more details.
         """
-        generalLogger.debug('ViewTemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
+        generalLogger.debug(f"ViewTemporalDataFrame '{self._parent.name}':{id(self)} sub-setting "
+                            f"- - - - - - - - - - - - - -")
         generalLogger.debug(f'  Got index : {index}')
 
         index = reformat_index(index, self.time_points, self.index, self.columns)
@@ -110,7 +115,7 @@ class ViewTemporalDataFrame:
         return ViewTemporalDataFrame(self._parent, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
-                    df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
+                    df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         """
         Set values in the parent TemporalDataFrame from this view with a DataFrame.
         The columns and the rows must match.
@@ -165,14 +170,14 @@ class ViewTemporalDataFrame:
         """
         return len(self.index)
 
-    def set(self, df: Union[pd.DataFrame, dataframe.TemporalDataFrame, 'ViewTemporalDataFrame']) -> None:
+    def set(self, df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         """
         Set values for this ViewTemporalDataFrame.
         Values can be given in a pandas.DataFrame, a TemporalDataFrame or an other ViewTemporalDataFrame.
         To set values, the columns and indexes must match ALL columns and indexes in this ViewTemporalDataFrame.
         :param df: a pandas.DataFrame, TemporalDataFrame or ViewTemporalDataFrame with new values to set.
         """
-        assert isinstance(df, (pd.DataFrame, dataframe.TemporalDataFrame, ViewTemporalDataFrame)), \
+        assert isinstance(df, (pd.DataFrame, vdata.TemporalDataFrame, ViewTemporalDataFrame)), \
             "Cannot set values from non DataFrame object."
         # This is done to prevent introduction of NaNs
         assert self.n_columns == len(df.columns), "Columns must match."
@@ -467,7 +472,7 @@ class ViewTemporalDataFrame:
 
         return keys
 
-    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
+    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'vdata.TemporalDataFrame':
         """
         Whether each element in the DataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.
@@ -480,11 +485,11 @@ class ViewTemporalDataFrame:
             time_points = self.parent_data[self.index_bool][self._time_points_col].tolist()
             time_col = self.parent_time_points_col
 
-        return dataframe.TemporalDataFrame(self.parent_data.isin(values)[self.columns], time_points=time_points,
-                                 time_col=time_col)
+        return vdata.TemporalDataFrame(self.parent_data.isin(values)[self.columns], time_points=time_points,
+                                       time_col=time_col)
 
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
-           level: Any = None) -> 'TemporalDataFrame':
+           level: Any = None) -> 'vdata.TemporalDataFrame':
         """
         Get Equal to of dataframe and other, element-wise (binary operator eq).
         Equivalent to '=='.
@@ -500,7 +505,7 @@ class ViewTemporalDataFrame:
             time_points = self._df[self._time_points_col].tolist()
             time_col = self._time_points_col
 
-        return dataframe.TemporalDataFrame(self._df.eq(other, axis, level)[self.columns],
-                                 time_points=time_points, time_col=time_col)
+        return vdata.TemporalDataFrame(self._df.eq(other, axis, level)[self.columns],
+                                       time_points=time_points, time_col=time_col)
 
     # TODO : copy method

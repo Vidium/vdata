@@ -8,9 +8,11 @@ import numpy as np
 import pandas as pd
 from typing import Union, Tuple, List, Dict, Optional
 
+import vdata
 from vdata.NameUtils import PreSlicer
-from . import ViewTemporalDataFrame, ViewVLayerArrayContainer
-from .. import VData, repr_array, repr_index, reformat_index
+from .dataframe import ViewTemporalDataFrame
+from .arrays import ViewVLayerArrayContainer
+from ..utils import repr_array, repr_index, reformat_index
 from ..._IO import generalLogger
 
 
@@ -21,7 +23,8 @@ class ViewVData:
     A view of a VData object.
     """
 
-    def __init__(self, parent: VData, time_points_slicer: np.ndarray, obs_slicer: np.ndarray, var_slicer: np.ndarray):
+    def __init__(self, parent: 'vdata.VData', time_points_slicer: np.ndarray, obs_slicer: np.ndarray,
+                 var_slicer: np.ndarray):
         """
         :param parent: a VData object to build a view of
         :param obs_slicer: the list of observations to view
@@ -95,7 +98,7 @@ class ViewVData:
             repr_str = f"View of a Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
 
-        for attr_name in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
+        for attr_name in ["layers", "obs", "var", "time_points", ]: #"obsm", "varm", "obsp", "varp", "uns"
             attr = getattr(self, attr_name)
             keys = attr.keys() if attr is not None else ()
 
@@ -334,13 +337,13 @@ class ViewVData:
     #     self.var = df
 
     # copy ---------------------------------------------------------------
-    def copy(self) -> VData:
+    def copy(self) -> 'vdata.VData':
         """
         Build an actual VData object from this view.
         """
-        return VData(self.layers.dict_copy(),
-                     self.obs.copy(), None, None,  # self.obsm.dict_copy(), self.obsp.dict_copy(),
-                     self.var, None, None,  # self.varm.dict_copy(), self.varp.dict_copy(),
-                     self.time_points,
-                     self.uns,
-                     self._parent.dtype)
+        return vdata.VData(self.layers.dict_copy(),
+                           self.obs.copy(), None, None,  # self.obsm.dict_copy(), self.obsp.dict_copy(),
+                           # self.var, None, None,  # self.varm.dict_copy(), self.varp.dict_copy(),
+                           # self.time_points,
+                           # self.uns,
+                           self._parent.dtype)

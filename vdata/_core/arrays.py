@@ -18,7 +18,8 @@ from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
 from vdata.NameUtils import ArrayLike, DType, DataFrame
 from .dataframe import TemporalDataFrame
 from . import vdata
-from .._IO import generalLogger, ShapeError, IncoherenceError, VAttributeError
+from .._IO import generalLogger
+from .._IO.errors import ShapeError, IncoherenceError, VAttributeError
 
 
 # ====================================================

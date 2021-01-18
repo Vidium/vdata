@@ -10,9 +10,11 @@ from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hash
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
+from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .utils import isCollection, repr_index, get_value, to_str_list, to_list, reformat_index
-from . import views
-from .._IO import generalLogger, VValueError, VTypeError, ShapeError
+from .views.dataframe import ViewTemporalDataFrame
+from .._IO import generalLogger
+from .._IO.errors import VValueError, VTypeError, ShapeError
 
 
 # ====================================================
@@ -25,20 +27,14 @@ class TemporalDataFrame:
     selection.
     """
 
-    _internal_attributes = ['_time_points_col', '_df', '_time_points', 'TP_from_DF',
-                            'time_points', 'time_points_column_name', 'time_points_column', 'columns', 'index',
-                            'n_time_points', 'n_columns', 'dtypes', 'values', 'axes', 'ndim', 'size', 'shape', 'empty',
-                            'at', 'iat', 'loc', 'iloc']
-
-    _reserved_keys = ['__TPID', 'df_data']
-
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
                  time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
                  time_col: Optional[str] = None,
                  time_points: Optional[Collection[str]] = None,
                  index: Optional[Collection] = None,
                  columns: Optional[Collection] = None,
-                 dtype: Optional[DType] = None):
+                 dtype: Optional[DType] = None,
+                 name: Optional[str] = None):
         """
         :param data: data to store as a dataframe
         :param time_list: time points for the dataframe's rows. The value indicates at which time point a given row
@@ -56,11 +52,15 @@ class TemporalDataFrame:
             given. This column will be used as the time data.
         :param time_points: a list of time points that should exist. This is useful when using the '*' character to
             specify the list of time points that the TemporalDataFrame should cover.
-        :param index: indexes for the dataframe's rows
-        :param columns: column labels
-        :param dtype: data type to force
+        :param index: indexes for the dataframe's rows.
+        :param columns: column labels.
+        :param dtype: data type to force.
+        :param name: optional TemporalDataFrame's name.
         """
-        generalLogger.debug(u'\u23BE TemporalDataFrame creation : begin ---------------------------------------- ')
+        self._name = name if name is not None else 'No_Name'
+
+        generalLogger.debug(f"\u23BE TemporalDataFrame '{self.name}' creation : begin "
+                            f"---------------------------------------- ")
 
         self._time_points_col = '__TPID'
         self._time_points = sorted(to_str_list(time_points)) if time_points is not None else None
@@ -105,7 +105,7 @@ class TemporalDataFrame:
 
                 generalLogger.debug(f"Found data in a dictionary with {data_len} rows.")
 
-                for key in TemporalDataFrame._reserved_keys:
+                for key in TemporalDataFrame_reserved_keys:
                     if key in data.keys():
                         raise VValueError(f"'{key}' key is reserved and cannot be used in 'data'.")
 
@@ -117,7 +117,7 @@ class TemporalDataFrame:
 
                 generalLogger.debug(f"Found data in a DataFrame with {data_len} rows.")
 
-                for key in TemporalDataFrame._reserved_keys:
+                for key in TemporalDataFrame_reserved_keys:
                     if key in data.columns:
                         raise VValueError(f"'{key}' column is reserved and cannot be used in 'data'.")
 
@@ -207,7 +207,10 @@ class TemporalDataFrame:
 
         self._df = self._df.sort_values(by="__TPID", key=lambda x: sort_function(x))
 
-        generalLogger.debug(u'\u23BF TemporalDataFrame creation : end ------------------------------------------ ')
+        self._len_index = dict()
+
+        generalLogger.debug(f"\u23BF TemporalDataFrame '{self.name}' creation : end "
+                            f"------------------------------------------ ")
 
     def __repr__(self) -> str:
         """
@@ -230,7 +233,8 @@ class TemporalDataFrame:
     def __getitem__(self, index: Union[PreSlicer,
                                        Tuple[PreSlicer],
                                        Tuple[PreSlicer, PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) -> 'ViewTemporalDataFrame':
+                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
+            -> 'ViewTemporalDataFrame':
         """
         TODO : update !
         Get a view from the DataFrame using an index with the usual sub-setting mechanics.
@@ -254,14 +258,14 @@ class TemporalDataFrame:
                                                                         select with 'True'.
         :return: a view on a sub-set of a TemporalDataFrame
         """
-        generalLogger.debug('TemporalDataFrame sub-setting - - - - - - - - - - - - - - ')
+        generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
         generalLogger.debug(f'  Got index \n{repr_index(index)}.')
 
         index = reformat_index(index, self.time_points, self.index, self.columns)
 
         generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
 
-        return views.ViewTemporalDataFrame(self, index[0], index[1], index[2])
+        return ViewTemporalDataFrame(self, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
@@ -280,7 +284,7 @@ class TemporalDataFrame:
         :param attr: an attribute's name to get.
         :return: self.attr
         """
-        if attr not in TemporalDataFrame._internal_attributes:
+        if attr not in TemporalDataFrame_internal_attributes:
             raise AttributeError
 
         return object.__getattribute__(self, attr)
@@ -303,7 +307,7 @@ class TemporalDataFrame:
         :param attr: an attribute's name
         :param value: a value to be set into the attribute
         """
-        if attr in TemporalDataFrame._internal_attributes:
+        if attr in TemporalDataFrame_internal_attributes:
             object.__setattr__(self, attr, value)
 
         elif attr in self.columns:
@@ -336,6 +340,14 @@ class TemporalDataFrame:
                 unique_values.add(value)
 
         return sorted(unique_values - {'*'}, key=lambda x: get_value(x))
+
+    @property
+    def name(self) -> str:
+        """
+        Get this TemporalDataFrame's name.
+        :return: this TemporalDataFrame's name.
+        """
+        return self._name
 
     @property
     def df_data(self) -> pd.DataFrame:
@@ -431,7 +443,11 @@ class TemporalDataFrame:
         :param time_point: a time points in this TemporalDataFrame.
         :return: the length of the index at a given time point.
         """
-        return len(self[time_point].index)
+        # TODO : warning ! on data len modification, the _len_index dict must be deleted or modified
+        if time_point not in self._len_index.keys():
+            self._len_index[time_point] = len(self[time_point].index)
+
+        return self._len_index[time_point]
 
     @property
     def n_columns(self) -> int:
@@ -776,7 +792,7 @@ class _VLocIndexer:
 
                 tp_slicer = set(result['__TPID'])
 
-                return views.ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         elif isinstance(result, pd.Series):
             if len(result) == 1:
@@ -795,7 +811,7 @@ class _VLocIndexer:
                 tp_slicer = result['__TPID']
 
                 result = result.to_frame().T
-                return views.ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         else:
             generalLogger.debug(f'.loc data is a single value.')
@@ -892,7 +908,7 @@ class _ViLocIndexer:
                 tp_slicer = sorted(set(result['__TPID']))
                 generalLogger.debug(f'tp slicer is {tp_slicer}.')
 
-                return views.ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         elif isinstance(result, pd.Series):
             pass
@@ -912,7 +928,7 @@ class _ViLocIndexer:
                 tp_slicer = result['__TPID']
 
                 result = result.to_frame().T
-                return views.ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         else:
             generalLogger.debug(f'.loc data is a single value.')

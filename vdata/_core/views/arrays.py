@@ -9,8 +9,10 @@ from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView
 
 from vdata.NameUtils import DataFrame
 from . import dataframe
-from .. import VBaseArrayContainer, VLayerArrayContainer, repr_array   #VAxisArrayContainer, VPairwiseArrayContainer, \
-                                                                       #VPairwiseArray
+from ..arrays import VBaseArrayContainer, VLayerArrayContainer  #VAxisArrayContainer, VPairwiseArrayContainer,
+                                                                #VPairwiseArray
+from ..utils import repr_array
+
 from ..._IO import generalLogger  #, VTypeError, ShapeError
 
 

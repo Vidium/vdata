@@ -12,13 +12,13 @@ from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
 
-from vdata.NameUtils import ArrayLike_3D, ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer
+from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer
 from .arrays import VLayerArrayContainer
 from .dataframe import TemporalDataFrame
-from .views import ViewVData
+from .views.vdata import ViewVData
 from .utils import reformat_index, repr_index, array_isin
-from .._IO import generalLogger, VTypeError, IncoherenceError, VValueError, VPathError, VAttributeError, ShapeError, \
-    write_data
+from .._IO import generalLogger, write_data
+from .._IO.errors import VTypeError, IncoherenceError, VValueError, VPathError, VAttributeError, ShapeError
 
 
 DF = TypeVar('DF', pd.DataFrame, TemporalDataFrame)
@@ -126,7 +126,7 @@ class VData:
         # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
         if self._obs is None:
             generalLogger.debug("Default empty TemporalDataFrame for obs.")
-            self._obs = TemporalDataFrame(index=range(self.n_obs_total) if df_obs is None else df_obs)
+            self._obs = TemporalDataFrame(index=range(self.n_obs_total) if df_obs is None else df_obs, name='obs')
 
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
         if self._var is None:
@@ -632,9 +632,9 @@ class VData:
                        uns: Optional[Dict],
                        time_col: Optional[str] = None,
                        time_list: Optional[List[str]] = None) -> Tuple[
-        Optional[Dict[str, ArrayLike_3D]], Optional[Dict[str, ArrayLike_3D]],
-        Optional[Dict[str, ArrayLike_2D]], Optional[Dict[str, ArrayLike_3D]],
-        Optional[Dict[str, ArrayLike_2D]], Optional[pd.Index], Optional[pd.Index]
+        Optional[Dict[str, TemporalDataFrame]], Optional[Dict[str, TemporalDataFrame]],
+        Optional[Dict[str, ArrayLike_2D]], Optional[Dict[str, TemporalDataFrame]],
+        Optional[Dict[str, pd.DataFrame]], Optional[pd.Index], Optional[pd.Index]
     ]:
         """
         Function for checking the types and formats of the parameters supplied to the VData object at creation.
@@ -731,7 +731,7 @@ class VData:
                     raise VValueError(f"'{attr}' should be set to None when importing data from an AnnData.")
 
             # import and cast obs to a TemporalDataFrame
-            obs = TemporalDataFrame(data.obs, time_list=time_list, time_col=time_col)
+            obs = TemporalDataFrame(data.obs, time_list=time_list, time_col=time_col, name='obs')
             reordering_index = obs.index
 
             # find time points list
@@ -745,19 +745,19 @@ class VData:
             if array_isin(data.X, data.layers.values()):
                 layers = dict((key, TemporalDataFrame(
                     pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
-                    time_list=obs.time_points_column
+                    time_list=obs.time_points_column, name=key
                 ))
                               for key, arr in data.layers.items())
 
             else:
                 layers = dict({"data": TemporalDataFrame(
                     pd.DataFrame(data.X, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
-                    time_list=obs.time_points_column
+                    time_list=obs.time_points_column, name='data'
                 )},
                               **dict((key, TemporalDataFrame(
                                   pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(
                                       reordering_index),
-                                  time_list=obs.time_points_column
+                                  time_list=obs.time_points_column, name=key
                               ))
                                      for key, arr in data.layers.items()))
 
@@ -1078,7 +1078,7 @@ class VData:
 
         # check coherence with number of time points in VData
         if self._time_points is not None:
-            for attr in ('layers', 'obsm', 'varm'):
+            for attr in ('layers', ): #'obsm', 'varm'
                 dataset = getattr(self, attr)
                 if len(dataset):
                     if len(self._time_points) != dataset.shape[0]:

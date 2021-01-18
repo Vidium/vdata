@@ -8,7 +8,8 @@ import numpy as np
 from typing import Union, Tuple, Sequence, Collection, Optional, Any, List
 
 from vdata.NameUtils import PreSlicer, ArrayLike_2D
-from .._IO import generalLogger, VTypeError, VValueError, ShapeError
+from .._IO import generalLogger
+from .._IO.errors import VTypeError, VValueError, ShapeError
 
 
 # ====================================================
@@ -249,10 +250,14 @@ def match_time_points(tp_list: Collection, tp_index: Collection[str]) -> np.ndar
                 mask[tp_i] = True
 
             else:
-                for one_tp_value in tp_value:
-                    if one_tp_value in tp_index:
-                        mask[tp_i] = True
-                        break
+                if isCollection(tp_value):
+                    for one_tp_value in tp_value:
+                        if smart_isin(one_tp_value, tp_index):
+                            mask[tp_i] = True
+                            break
+
+                elif smart_isin(tp_value, tp_index):
+                    mask[tp_i] = True
 
     return mask
 
@@ -271,63 +276,6 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
     return False
 
 
-
-
-# TODO -------------------------------------------------------------------
-def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection[str]], time_list: Optional[Collection[str]]) -> \
-        np.ndarray:
-    """
-    Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
-    By default, 2D arrays of shapes (n, m) are converted to 3D arrays of shapes (1, n, m). In this case, all the data
-        in the 2D array is considered to belong to the same time point.
-
-    Optionally, a collection of existing time points can be provided as the 'time_points' parameter. In this
-    collection, each time must be given only once. It will be used to split the 2D array into multiple arrays to
-    store in the final 3D array.
-    In addition to that, a collection of time points of the same length as the number of rows in the 2D array can be
-    given as the 'time_list' parameter to describe the 2D array. For each time point in 'time_points',
-    rows that match that time point in 'time_list' will be extracted from the 2D array to form a sub-array in the
-    final 3D array.
-    The 3D array will have shape (T, [n_1, ..., n_T], m) with :
-        * T, the number of unique time points in 'time_points'
-        * n_i, the number of rows in the sub-array for the time point i
-        * m, the number of columns
-
-    :param arr: a 2D array-like object.
-    :param time_points: a collection of existing and unique time points.
-    :param time_list: a collection of time points describing the rows of the 2D array
-    :return: a 3D numpy array.
-    """
-    # Check 2D array
-    if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-        raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")
-
-    elif isinstance(arr, pd.DataFrame):
-        arr = np.array(arr)
-
-    # Check time points
-    if time_points is None:
-        time_points = ['0']
-
-        if time_list is not None:
-            generalLogger.warning("'time_list' parameter provided to reshape_to_3D() without specifying "
-                                  "'time_points', it will be ignored.")
-
-            time_list = np.zeros(len(arr))
-
-    else:
-        time_points = np.unique(time_points)
-
-        if time_list is None:
-            generalLogger.warning("'time_points' parameter provided to reshape_to_3D() without specifying "
-                                  "'time_list', all data is considered to come from the same time point.")
-
-    if time_list is None:
-        time_list = np.zeros(len(arr))
-
-    return np.array([arr[time_list == eval(str(TP))] for TP in time_points], dtype=object)
-
-
 def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.ndarray]:
     """
     Returns a boolean array of the same length as 'element' that is True where an element of 'element' is in
@@ -343,10 +291,10 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
 
     target_collection = np.unique(target_collection)
 
-    result = np.array([False for _ in range(len(element))])
-
     if not isCollection(element):
         element = [element]
+
+    result = np.array([False for _ in range(len(element))])
 
     for i, e in enumerate(element):
         for e_t in target_collection:
@@ -355,3 +303,61 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
                 break
 
     return result if len(result) > 1 else result[0]
+
+
+
+
+# TODO -------------------------------------------------------------------
+# def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection[str]], time_list: Optional[Collection[str]]) -> \
+#         np.ndarray:
+#     """
+#     Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
+#     By default, 2D arrays of shapes (n, m) are converted to 3D arrays of shapes (1, n, m). In this case, all the data
+#         in the 2D array is considered to belong to the same time point.
+#
+#     Optionally, a collection of existing time points can be provided as the 'time_points' parameter. In this
+#     collection, each time must be given only once. It will be used to split the 2D array into multiple arrays to
+#     store in the final 3D array.
+#     In addition to that, a collection of time points of the same length as the number of rows in the 2D array can be
+#     given as the 'time_list' parameter to describe the 2D array. For each time point in 'time_points',
+#     rows that match that time point in 'time_list' will be extracted from the 2D array to form a sub-array in the
+#     final 3D array.
+#     The 3D array will have shape (T, [n_1, ..., n_T], m) with :
+#         * T, the number of unique time points in 'time_points'
+#         * n_i, the number of rows in the sub-array for the time point i
+#         * m, the number of columns
+#
+#     :param arr: a 2D array-like object.
+#     :param time_points: a collection of existing and unique time points.
+#     :param time_list: a collection of time points describing the rows of the 2D array
+#     :return: a 3D numpy array.
+#     """
+#     # Check 2D array
+#     if not isinstance(arr, (np.ndarray, pd.DataFrame)):
+#         raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")
+#
+#     elif isinstance(arr, pd.DataFrame):
+#         arr = np.array(arr)
+#
+#     # Check time points
+#     if time_points is None:
+#         time_points = ['0']
+#
+#         if time_list is not None:
+#             generalLogger.warning("'time_list' parameter provided to reshape_to_3D() without specifying "
+#                                   "'time_points', it will be ignored.")
+#
+#             time_list = np.zeros(len(arr))
+#
+#     else:
+#         time_points = np.unique(time_points)
+#
+#         if time_list is None:
+#             generalLogger.warning("'time_points' parameter provided to reshape_to_3D() without specifying "
+#                                   "'time_list', all data is considered to come from the same time point.")
+#
+#     if time_list is None:
+#         time_list = np.zeros(len(arr))
+#
+#     return np.array([arr[time_list == eval(str(TP))] for TP in time_points], dtype=object)
+#
