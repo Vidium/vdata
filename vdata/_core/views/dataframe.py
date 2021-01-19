@@ -288,7 +288,7 @@ class ViewTemporalDataFrame:
         Return a Numpy representation of the DataFrame.
         :return: a Numpy representation of the DataFrame.
         """
-        return self.parent_data[self.columns].values
+        return self.df_data[self.columns].values
 
     @property
     def axes(self) -> List[pd.Index]:
@@ -296,7 +296,7 @@ class ViewTemporalDataFrame:
         Return a list of the row axis labels.
         :return: a list of the row axis labels.
         """
-        return self.parent_data[self.columns].axes
+        return self.df_data[self.columns].axes
 
     @property
     def ndim(self) -> Literal[3]:
@@ -312,7 +312,7 @@ class ViewTemporalDataFrame:
         Return the number of rows times number of columns.
         :return: an int representing the number of elements in this object.
         """
-        return self.parent_data[self.columns].size
+        return self.df_data[self.columns].size
 
     @property
     def shape(self) -> Tuple[int, List[int], int]:
