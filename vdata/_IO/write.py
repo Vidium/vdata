@@ -4,14 +4,19 @@
 
 # ====================================================
 # imports
+import os
 import h5py
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from functools import singledispatch
 from typing import Dict, List, Union
 from typing_extensions import Literal
 
+import vdata
+from .utils import parse_path
 from .logger import generalLogger, getLoggingLevel
+from .errors import VPathError
 from ..NameUtils import H5Group
 from .. import _core
 
@@ -20,6 +25,71 @@ from .. import _core
 # code
 def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
+
+
+def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
+    """
+    Save this VData object in HDF5 file format.
+
+    :param obj: VData object to save into a .h5 file.
+    :param file: path to save the VData.
+    """
+    parse_path(file)
+
+    # make sure the path exists
+    if not os.path.exists(os.path.dirname(file)):
+        os.makedirs(os.path.dirname(file))
+
+    with h5py.File(file, 'w') as save_file:
+        # save layers
+        write_data(obj.layers.data, save_file, 'layers')
+        # save obs
+        write_data(obj.obs, save_file, 'obs')
+        # TODO
+        # write_data(obj.obsm.data, save_file, 'obsm')
+        # write_data(obj.obsp.data, save_file, 'obsp')
+        # save var
+        write_data(obj.var, save_file, 'var')
+        # TODO
+        # write_data(obj.varm.data, save_file, 'varm')
+        # write_data(obj.varp.data, save_file, 'varp')
+        # save time points
+        write_data(obj.time_points, save_file, 'time_points')
+        # save uns
+        write_data(obj.uns, save_file, 'uns')
+        # save descriptive data about the VData object
+        write_data(obj._dtype, save_file, 'dtype')
+
+
+def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
+                       index: bool = True, header: bool = True) -> None:
+    """
+    Save a VData object into csv files in a directory.
+
+    :param obj: a VData object to save into csv files.
+    :param directory: path to a directory for saving the matrices
+    :param sep: delimiter character
+    :param na_rep: string to replace NAs
+    :param index: write row names ?
+    :param header: Write col names ?
+    """
+    directory = parse_path(directory)
+
+    # make sure the directory exists and is empty
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    if len(os.listdir(directory)):
+        raise VPathError("The directory is not empty.")
+
+    # save matrices
+    obj.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
+    obj.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
+    obj.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
+
+    # TODO
+    for dataset in (obj.layers,):  # (obj.obsm, obj.obsp, obj.varm, obj.varp):
+        dataset.to_csv(directory, sep, na_rep, index, header)
 
 
 @singledispatch

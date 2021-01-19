@@ -47,7 +47,7 @@ class ViewVData:
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer]
+        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer, self._var_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
         self._time_points_slicer = np.array([e for e in self._time_points_slicer if e in self._obs.time_points])

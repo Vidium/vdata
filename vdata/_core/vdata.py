@@ -17,8 +17,8 @@ from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayCon
 from .dataframe import TemporalDataFrame
 from .views.vdata import ViewVData
 from .utils import reformat_index, repr_index, array_isin
-from .._IO.write import generalLogger, write_data
-from .._IO.errors import VTypeError, IncoherenceError, VValueError, VPathError, VAttributeError, ShapeError
+from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
+from .._IO.errors import VTypeError, IncoherenceError, VValueError, VAttributeError, ShapeError
 
 
 DF = TypeVar('DF', pd.DataFrame, TemporalDataFrame)
@@ -768,10 +768,8 @@ class VData:
             uns = dict(data.uns)
 
         else:
-            raise NotImplementedError
-            # TODO : rework on this part is needed
-            # generalLogger.debug('  VData creation from scratch.')
-            #
+            generalLogger.debug('  VData creation from scratch.')
+
             # # obs
             # if obs is not None:
             #     generalLogger.debug(f"    2. \u2713 'obs' is a {type(obs).__name__}.")
@@ -1141,42 +1139,12 @@ class VData:
 
         :param file: path to save the VData
         """
-        # make sure file is a path
-        if not isinstance(file, Path):
-            file = Path(file)
-
-        if file.parts[0] == '~':
-            file = Path(os.environ['HOME'] / Path("/".join(file.parts[1:])))
-
-        # make sure the path exists
-        if not os.path.exists(os.path.dirname(file)):
-            os.makedirs(os.path.dirname(file))
-
-        with h5py.File(file, 'w') as save_file:
-            # save layers
-            write_data(self.layers.data, save_file, 'layers')
-            # save obs
-            write_data(self.obs, save_file, 'obs')
-            # TODO
-            # write_data(self.obsm.data, save_file, 'obsm')
-            # write_data(self.obsp.data, save_file, 'obsp')
-            # save var
-            write_data(self.var, save_file, 'var')
-            # TODO
-            # write_data(self.varm.data, save_file, 'varm')
-            # write_data(self.varp.data, save_file, 'varp')
-            # save time points
-            write_data(self.time_points, save_file, 'time_points')
-            # save uns
-            write_data(self.uns, save_file, 'uns')
-            # save descriptive data about the VData object
-            write_data(self._dtype, save_file, 'dtype')
+        write_vdata(self, file)
 
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                      index: bool = True, header: bool = True) -> None:
         """
         Save layers, time_points, obs, obsm, obsp, var, varm and varp to csv files in a directory.
-        3D matrices are converted to 2D matrices with an added "time point" column to keep track of time.
 
         :param directory: path to a directory for saving the matrices
         :param sep: delimiter character
@@ -1184,27 +1152,7 @@ class VData:
         :param index: write row names ?
         :param header: Write col names ?
         """
-        # make sure directory is a path
-        if not isinstance(directory, Path):
-            directory = Path(directory)
-
-        if directory.parts[0] == '~':
-            directory = Path(os.environ['HOME'] / Path("/".join(directory.parts[1:])))
-
-        # make sure the directory exists and is empty
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        if len(os.listdir(directory)):
-            raise VPathError("The directory is not empty.")
-
-        # save matrices
-        self.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
-        self.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
-        self.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
-
-        # TODO
-        for dataset in (self.layers, ):  #(self.obsm, self.obsp, self.varm, self.varp):
-            dataset.to_csv(directory, sep, na_rep, index, header)
+        write_vdata_to_csv(self, directory, sep, na_rep, index, header)
 
     # copy ---------------------------------------------------------------
     def copy(self) -> 'VData':

@@ -12,7 +12,7 @@ from typing_extensions import Literal
 import vdata
 from vdata.NameUtils import PreSlicer, DType
 from ..NameUtils import TemporalDataFrame_internal_attributes
-from ..utils import repr_array, reformat_index, match_time_points
+from ..utils import repr_array, repr_index, reformat_index, match_time_points
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
 
@@ -104,11 +104,11 @@ class ViewTemporalDataFrame:
         """
         generalLogger.debug(f"ViewTemporalDataFrame '{self._parent.name}':{id(self)} sub-setting "
                             f"- - - - - - - - - - - - - -")
-        generalLogger.debug(f'  Got index : {index}')
+        generalLogger.debug(f'  Got index : {repr_index(index)}')
 
         index = reformat_index(index, self.time_points, self.index, self.columns)
 
-        generalLogger.debug(f'  Refactored index to : {index}')
+        generalLogger.debug(f'  Refactored index to : {repr_index(index)}')
 
         return ViewTemporalDataFrame(self._parent, index[0], index[1], index[2])
 

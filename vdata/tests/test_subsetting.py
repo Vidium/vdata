@@ -9,8 +9,20 @@ import numpy as np
 
 from vdata import VData, setLoggingLevel
 
+
 # ====================================================
 # code
+def test_simple_subset():
+    source_vdata_path = \
+        "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
+
+    adata = sc.read(source_vdata_path)
+
+    v = VData(adata, time_col='Time_hour')
+
+    print(v['0'])
+
+
 def test_sub_setting():
     source_vdata_path = \
         "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
@@ -51,8 +63,8 @@ def test_sub_setting():
 if __name__ == "__main__":
     setLoggingLevel('DEBUG')
 
-    test_sub_setting()
-
+    # test_sub_setting()
+    test_simple_subset()
 
 
 

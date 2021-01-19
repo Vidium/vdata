@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable, Tuple
 
 import vdata
+from .utils import parse_path
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, ArrayLike_2D, ArrayLike, H5Group
@@ -45,9 +46,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> 'vd
             ⊦ var.csv
     :param dtype: data type to force on the newly built VData object.
     """
-    # make sure directory is a path
-    if not isinstance(directory, Path):
-        directory = Path(directory)
+    directory = parse_path(directory)
 
     # make sure the path exists
     if not os.path.exists(directory):
@@ -331,13 +330,7 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData'
     :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
         the .h5 file.
     """
-
-    # make sure file is a path
-    if not isinstance(file, Path):
-        file = Path(file)
-
-    if file.parts[0] == '~':
-        file = Path(os.environ['HOME'] / Path("/".join(file.parts[1:])))
+    file = parse_path(file)
 
     # make sure the path exists
     if not os.path.exists(file):

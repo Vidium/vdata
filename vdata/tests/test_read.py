@@ -12,7 +12,7 @@ from .test_write import test_write
 # code
 def test_read():
     # first write data
-    test_write()
+    # test_write()
 
     # then load data
     # load from .h5 file
