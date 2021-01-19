@@ -8,21 +8,24 @@ import scanpy as sc
 import vdata
 from vdata import VData
 
-vdata.setLoggingLevel('DEBUG')
 
 # ====================================================
 # code
-source_vdata_path = "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
+def test_object_creation_from_AnnData():
+    source_vdata_path = \
+        "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
 
-adata = sc.read(source_vdata_path)
+    adata = sc.read(source_vdata_path)
 
-print(adata)
+    print(adata)
 
-vdata = VData(adata, time_col='Time_hour')
+    v = VData(adata, time_col='Time_hour')
 
-print(vdata)
+    print(v)
 
 
-# print(vdata[0])
+if __name__ == "__main__":
+    vdata.setLoggingLevel('DEBUG')
 
-# print(vdata[0, :, 'ENSG00000255794.7'])
+    test_object_creation_from_AnnData()
+

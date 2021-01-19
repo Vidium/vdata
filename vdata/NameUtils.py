@@ -4,18 +4,18 @@
 
 # ====================================================
 # imports
-from __future__ import annotations
-
 import h5py
 import numpy as np
 import pandas as pd
-from typing import Union, Sequence
-from typing_extensions import Literal, Type
+from typing import Union, Sequence, Type
+from typing_extensions import Literal
+
+import vdata
 
 # ====================================================
 # types
 ArrayLike_2D = Union[np.ndarray, pd.DataFrame]
-ArrayLike_3D = np.ndarray
+ArrayLike_3D = Union[np.ndarray, Type['vdata.TemporalDataFrame']]
 ArrayLike = Union[ArrayLike_2D, ArrayLike_3D]
 
 DataFrame = Union[pd.DataFrame, "vdata.TemporalDataFrame"]

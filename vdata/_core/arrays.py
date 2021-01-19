@@ -14,8 +14,9 @@ from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
     Iterator, TypeVar, Type
+from typing_extensions import Literal
 
-from vdata.NameUtils import ArrayLike, DType, DataFrame
+from vdata.NameUtils import ArrayLike, ArrayLike_2D, ArrayLike_3D, DType, DataFrame
 from .dataframe import TemporalDataFrame
 from . import vdata
 from .._IO import generalLogger
@@ -225,15 +226,12 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
 
         for arr_name, arr in self.items():
             col = self.get_col_names(arr_name)
+
             # cast array in 2D
-            arr_2D = arr.reshape((arr.shape[1]*arr.shape[0], arr.shape[2]))
-            # add time point information
-            time_point_col = np.array(np.repeat(self._parent.time_points['value'], arr.shape[1]))
-            arr_2D = np.concatenate((time_point_col[:, None], arr_2D), axis=1)
+            arr_2D = arr.df_data
+
             # save array
-            pd.DataFrame(arr_2D, index=pd.Series(np.repeat(idx, self._parent.n_time_points)),
-                         columns=['Time_point'] + list(col)).to_csv(f"{directory / self.name / arr_name}.csv",
-                                                                    sep, na_rep, index=index, header=header)
+            arr_2D.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
 
 class VLayerArrayContainer(VBase3DArrayContainer):
@@ -359,37 +357,38 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         return self._parent.var.index
 
 
-# class VAxisArrayContainer(VBase3DArrayContainer):
-#     """
-#     Class for obsm and varm.
-#     These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any)
-#         and (n_var, any) respectively.
-#     The arrays-like objects can be accessed from the parent VData object by :
-#         VData.obsm['<array_name>'])
-#         VData.varm['<array_name>'])
-#     """
-#
-#     def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'],
-#                  data: Optional[Dict[str, ArrayLike_3D]] = None,
-#                  col_names: Optional[Dict[str, Collection]] = None):
-#         """
-#         :param parent: the parent VData object this Array is linked to
-#         :param data: a dictionary of array-like objects to store in this Array
-#         :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
-#         """
-#         generalLogger.debug(f"== Creating {axis}m VAxisArrayContainer. ==============================")
-#         self._axis = axis
-#         super().__init__(parent, data)
-#         self._col_names = self._check_col_names(col_names)
-#
-#     def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, 'VBaseArray']]:
-#         """
-#         Function for checking, at Array container creation, that the supplied data has the correct format :
-#             # TODO : this is not True for obsm and varm !
-#             - all Arrays in 'data' have the same shape
-#             - the shape of the Arrays in 'data' match the parent VData object's size
-#         :return: the data (dictionary of Arrays), if correct
-#         """
+class VAxisArrayContainer(VBase3DArrayContainer):
+    """
+    Class for obsm and varm.
+    These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any)
+        and (n_var, any) respectively.
+    The arrays-like objects can be accessed from the parent VData object by :
+        VData.obsm['<array_name>'])
+        VData.varm['<array_name>'])
+    """
+
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'],
+                 data: Optional[Dict[str, ArrayLike_3D]] = None,
+                 col_names: Optional[Dict[str, Collection]] = None):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param data: a dictionary of array-like objects to store in this Array
+        :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
+        """
+        generalLogger.debug(f"== Creating {axis}m VAxisArrayContainer. ==============================")
+        # TODO
+        # self._axis = axis
+        # super().__init__(parent, data)
+        # self._col_names = self._check_col_names(col_names)
+
+    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, 'VBaseArray']]:
+        """
+        Function for checking, at Array container creation, that the supplied data has the correct format :
+            # TODO : this is not True for obsm and varm !
+            - all Arrays in 'data' have the same shape
+            - the shape of the Arrays in 'data' match the parent VData object's size
+        :return: the data (dictionary of Arrays), if correct
+        """
 #         if data is None or not len(data):
 #             generalLogger.debug("  No data was given.")
 #             return None
@@ -438,20 +437,20 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 #
 #             generalLogger.debug("  Data was OK.")
 #             return _data
-#
-#     def __repr__(self) -> str:
-#         if len(self):
-#             list_of_keys = "'" + "','".join(self.keys()) + "'"
-#             return f"VAxisArrayContainer of {self.name} with keys : {list_of_keys}."
-#         else:
-#             return f"Empty VAxisArrayContainer of {self.name}."
-#
-#     def __setitem__(self, key: str, value: pd.DataFrame) -> None:
-#         """
-#         Set specific Array in _data. The given Array must have the same shape as the parent.
-#         :param key: key for storing Array in _data
-#         :param value: an Array to store
-#         """
+
+    def __repr__(self) -> str:
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"VAxisArrayContainer of {self.name} with keys : {list_of_keys}."
+        else:
+            return f"Empty VAxisArrayContainer of {self.name}."
+
+    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
+        """
+        Set specific Array in _data. The given Array must have the same shape as the parent.
+        :param key: key for storing Array in _data
+        :param value: an Array to store
+        """
 #         # first check that value has the correct shape
 #         if value.shape == self._parent.shape:
 #             if self._data is None:
@@ -497,72 +496,73 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 #                     for k, v in col_names.items():
 #                         _col_names[str(k)] = list(v)
 #                     return _col_names
-#
-#     @property
-#     def name(self):
-#         """
-#         Name for the Array, either obsm or varm.
-#         :return: name of the array
-#         """
-#         return f"{self._axis}m"
-#
-#     def get_idx_names(self) -> pd.Index:
-#         """
-#         Get index for the Array :
-#             - names of obs for layers and obsm
-#             - names of var for varm
-#         :return: index for the Array
-#         """
-#         return getattr(self._parent, self._axis).index
-#
-#     def get_col_names(self, arr_name: Optional[str]) -> Collection:
-#         """
-#         Get columns for the Array :
-#             - names of var for layers
-#             - names of the columns for each array-like in obsm and varm
-#         :param arr_name: the name of the array in obsm or varm
-#         :return: columns for the Array
-#         """
+
+    @property
+    def name(self):
+        """
+        Name for the Array, either obsm or varm.
+        :return: name of the array
+        """
+        return f"{self._axis}m"
+
+    def get_idx_names(self) -> pd.Index:
+        """
+        Get index for the Array :
+            - names of obs for layers and obsm
+            - names of var for varm
+        :return: index for the Array
+        """
+        # return getattr(self._parent, self._axis).index
+
+    def get_col_names(self, arr_name: Optional[str]) -> Collection:
+        """
+        Get columns for the Array :
+            - names of var for layers
+            - names of the columns for each array-like in obsm and varm
+        :param arr_name: the name of the array in obsm or varm
+        :return: columns for the Array
+        """
 #         if arr_name is None:
 #             raise VValueError("No array-like name supplied.")
 #         return self._col_names[arr_name] if self._col_names is not None else []
-#
-#
-# class VPairwiseArrayContainer(VBaseArrayContainer):
-#     """
-#     Class for obsp and varp.
-#     This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs)
-#         and (n_time_points, n_var, n_var)
-#     respectively.
-#     The arrays-like objects can be accessed from the parent VData object by :
-#         VData.obsp['<array_name>']
-#         VData.obsp['<array_name>']
-#     """
-#
-#     def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, ArrayLike_2D]]):
-#         """
-#         :param parent: the parent VData object this Array is linked to
-#         :param axis: the axis this Array must conform to (obs or var)
-#         :param data: a dictionary of array-like objects to store in this Array
-#         """
-#         generalLogger.debug(f"== Creating {axis}p VPairwiseArrayContainer. ==========================")
+
+
+class VPairwiseArrayContainer(VBaseArrayContainer):
+    """
+    Class for obsp and varp.
+    This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs)
+        and (n_time_points, n_var, n_var)
+    respectively.
+    The arrays-like objects can be accessed from the parent VData object by :
+        VData.obsp['<array_name>']
+        VData.obsp['<array_name>']
+    """
+
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, ArrayLike_2D]]):
+        """
+        :param parent: the parent VData object this Array is linked to
+        :param axis: the axis this Array must conform to (obs or var)
+        :param data: a dictionary of array-like objects to store in this Array
+        """
+        generalLogger.debug(f"== Creating {axis}p VPairwiseArrayContainer. ==========================")
+        # TODO
 #         self._axis = axis
 #         super().__init__(parent, data)
-#
-#     def __repr__(self) -> str:
-#         if len(self):
-#             list_of_keys = "'" + "','".join(self.keys()) + "'"
-#             return f"VPairwiseArrayContainer of {self.name} with keys : {list_of_keys}."
-#         else:
-#             return f"Empty VPairwiseArrayContainer of {self.name}."
-#
-#     def __setitem__(self, key: str, value: ArrayLike_2D) -> None:
-#         """
-#         Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
-#         for obsm and (n_var, n_var) for varm.
-#         :param key: key for storing array-like in _data
-#         :param value: an array-like to store
-#         """
+
+    def __repr__(self) -> str:
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"VPairwiseArrayContainer of {self.name} with keys : {list_of_keys}."
+        else:
+            return f"Empty VPairwiseArrayContainer of {self.name}."
+
+    def __setitem__(self, key: str, value: ArrayLike_2D) -> None:
+        """
+        Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
+        for obsm and (n_var, n_var) for varm.
+        :param key: key for storing array-like in _data
+        :param value: an array-like to store
+        """
 #         # first check that value has the correct shape
 #         shape_parent = getattr(self._parent, f"n_{self._axis}")
 #
@@ -578,15 +578,15 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 #
 #         else:
 #             raise ShapeError("The supplied array-like object is not square.")
-#
-#     def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
-#         """
-#         Function for checking, at Array creation, that the supplied data has the correct format:
-#             - all array-like objects in 'data' are square
-#             - their shape match the parent VData object's n_obs or n_var
-#         :param data: dictionary of array-like objects.
-#         :return: the data (dictionary of array-like objects), if correct
-#         """
+
+    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
+        """
+        Function for checking, at Array creation, that the supplied data has the correct format:
+            - all array-like objects in 'data' are square
+            - their shape match the parent VData object's n_obs or n_var
+        :param data: dictionary of array-like objects.
+        :return: the data (dictionary of array-like objects), if correct
+        """
 #         if data is None or not len(data):
 #             generalLogger.debug("  No data was given.")
 #             return None
@@ -608,22 +608,22 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 #
 #             generalLogger.debug("  Data was OK.")
 #             return _data
-#
-#     @property
-#     def name(self) -> str:
-#         """
-#         Name for the Array, either obsp or varp.
-#         :return: name of the array
-#         """
+
+    @property
+    def name(self) -> str:
+        """
+        Name for the Array, either obsp or varp.
+        :return: name of the array
+        """
 #         return f"{self._axis}p"
-#
-#     @property
-#     def shape(self) -> Tuple[int, int]:
-#         """
-#         The shape of the Array is computed from the shape of the array-like objects it contains.
-#         See __len__ for getting the number of array-like objects it contains.
-#         :return: shape of the contained array-like objects.
-#         """
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        """
+        The shape of the Array is computed from the shape of the array-like objects it contains.
+        See __len__ for getting the number of array-like objects it contains.
+        :return: shape of the contained array-like objects.
+        """
 #         if self._data is not None:
 #             return self._data[list(self._data.keys())[0]].shape
 #

@@ -9,9 +9,6 @@ import numpy as np
 
 from vdata import VData, setLoggingLevel
 
-setLoggingLevel('DEBUG')
-
-
 # ====================================================
 # code
 def test_sub_setting():
@@ -20,7 +17,7 @@ def test_sub_setting():
 
     adata = sc.read(source_vdata_path)
 
-    vdata = VData(adata, time_col='Time_hour')
+    v = VData(adata, time_col='Time_hour')
 
     print('\n==============================================================================\n')
 
@@ -30,7 +27,7 @@ def test_sub_setting():
 
     mask_var = ['ENSG00000255794.7', 'ENSG00000276644.4', 'ENSG00000283436.1', 'ENSG00000284600.1']
 
-    sub_vdata = vdata[:, mask_obs, mask_var]
+    sub_vdata = v[:, mask_obs, mask_var]
 
     print(sub_vdata)
     print(sub_vdata.obs)
@@ -51,7 +48,10 @@ def test_sub_setting():
     assert layers_shape == (2, [5, 5], 4)
 
 
-test_sub_setting()
+if __name__ == "__main__":
+    setLoggingLevel('DEBUG')
+
+    test_sub_setting()
 
 
 

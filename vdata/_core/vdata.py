@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
 
 from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer
-from .arrays import VLayerArrayContainer
+from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .dataframe import TemporalDataFrame
 from .views.vdata import ViewVData
 from .utils import reformat_index, repr_index, array_isin
-from .._IO import generalLogger, write_data
+from .._IO.write import generalLogger, write_data
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, VPathError, VAttributeError, ShapeError
 
 
@@ -324,7 +324,8 @@ class VData:
         if isinstance(df, pd.DataFrame):
             df = TemporalDataFrame(df,
                                    time_list=self.obs.time_points_column,
-                                   time_col=self.obs.time_points_column_name)
+                                   time_col=self.obs.time_points_column_name,
+                                   name='obs')
 
         self._obs = df
 
@@ -414,13 +415,13 @@ class VData:
     #
     #         self._layers = VLayerArrayContainer(self, data)
 
-    # @property
-    # def obsm(self) -> VAxisArrayContainer:
-    #     """
-    #     Get the obsm in this VData.
-    #     :return: the obsm.
-    #     """
-    #     return self._obsm
+    @property
+    def obsm(self) -> VAxisArrayContainer:
+        """
+        Get the obsm in this VData.
+        :return: the obsm.
+        """
+        return self._obsm
 
     # @obsm.setter
     # def obsm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
@@ -457,13 +458,13 @@ class VData:
     #
     #         self._obsm = VAxisArrayContainer(self, 'obs', data)
 
-    # @property
-    # def obsp(self) -> VPairwiseArrayContainer:
-    #     """
-    #     Get obsp in this VData.
-    #     :return: the obsp.
-    #     """
-    #     return self._obsp
+    @property
+    def obsp(self) -> VPairwiseArrayContainer:
+        """
+        Get obsp in this VData.
+        :return: the obsp.
+        """
+        return self._obsp
 
     # @obsp.setter
     # def obsp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
@@ -488,13 +489,13 @@ class VData:
     #
     #         self._obsp = VPairwiseArrayContainer(self, 'obs', data)
 
-    # @property
-    # def varm(self) -> VAxisArrayContainer:
-    #     """
-    #     Get the varm in this VData.
-    #     :return: the varm.
-    #     """
-    #     return self._varm
+    @property
+    def varm(self) -> VAxisArrayContainer:
+        """
+        Get the varm in this VData.
+        :return: the varm.
+        """
+        return self._varm
 
     # @varm.setter
     # def varm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
@@ -533,13 +534,13 @@ class VData:
     #
     #         self._varm = VAxisArrayContainer(self, 'var', data)
 
-    # @property
-    # def varp(self) -> VPairwiseArrayContainer:
-    #     """
-    #     Get the varp in this VData.
-    #     :return: the varp.
-    #     """
-    #     return self._varp
+    @property
+    def varp(self) -> VPairwiseArrayContainer:
+        """
+        Get the varp in this VData.
+        :return: the varp.
+        """
+        return self._varp
 
     # @varp.setter
     # def varp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
@@ -1144,6 +1145,9 @@ class VData:
         if not isinstance(file, Path):
             file = Path(file)
 
+        if file.parts[0] == '~':
+            file = Path(os.environ['HOME'] / Path("/".join(file.parts[1:])))
+
         # make sure the path exists
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
@@ -1184,6 +1188,9 @@ class VData:
         if not isinstance(directory, Path):
             directory = Path(directory)
 
+        if directory.parts[0] == '~':
+            directory = Path(os.environ['HOME'] / Path("/".join(directory.parts[1:])))
+
         # make sure the directory exists and is empty
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -1195,6 +1202,7 @@ class VData:
         self.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
         self.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
 
+        # TODO
         for dataset in (self.layers, ):  #(self.obsm, self.obsp, self.varm, self.varp):
             dataset.to_csv(directory, sep, na_rep, index, header)
 

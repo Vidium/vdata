@@ -9,15 +9,16 @@ import h5py
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable
+from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable, Tuple
 
 import vdata
 from .logger import generalLogger
 from .errors import VValueError, VTypeError
-from ..NameUtils import DType, DTypes, ArrayLike_2D, ArrayLike, H5Group
+from ..NameUtils import DType, ArrayLike_2D, ArrayLike, H5Group
 
 
-spacer = "  " + u'\u21B3' + " "
+def spacer(nb: int) -> str:
+    return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
 # ====================================================
@@ -217,7 +218,6 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: 
 
 
 # HDF5 file format --------------------------------------------------------------------------------
-
 class H5GroupReader:
     """
     Class for reading a h5py File, Group or Dataset
@@ -229,7 +229,8 @@ class H5GroupReader:
         """
         self.group = group
 
-    def __getitem__(self, key: Union[str, slice, 'ellipsis']) -> Union['H5GroupReader', np.ndarray]:
+    def __getitem__(self, key: Union[str, slice, 'ellipsis', Tuple[()]]) \
+            -> Union['H5GroupReader', np.ndarray, str, int, float, bool, type]:
         """
         Get a sub-group from the group, identified by a key
 
@@ -239,6 +240,8 @@ class H5GroupReader:
             return self._check_type(self.group[:])
         elif key is ...:
             return self._check_type(self.group[...])
+        elif key is ():
+            return self._check_type(self.group[()])
         else:
             return H5GroupReader(self.group[key])
 
@@ -249,29 +252,41 @@ class H5GroupReader:
     def __exit__(self, *_):
         self.group.__exit__()
 
+    @property
+    def name(self) -> str:
+        """
+        Get the name of the group.
+        :return: the group's name.
+        """
+        return self.group.name
+
     def keys(self) -> AbstractSet:
         """
-        Get keys of the group
+        Get keys of the group.
+        :return: the keys of the group.
         """
         return self.group.keys()
 
     def values(self) -> ValuesView:
         """
-        Get values of the group
+        Get values of the group.
+        :return: the values of the group.
         """
         return self.group.values()
 
     def items(self) -> AbstractSet:
         """
-        Get (key, value) tuples of the group
+        Get (key, value) tuples of the group.
+        :return: the items of the group.
         """
         return self.group.items()
 
-    def attr(self, key: str) -> Any:
+    def attrs(self, key: str) -> Any:
         """
-        Get an attribute, identified by a key, from the group
+        Get an attribute, identified by a key, from the group.
 
-        :param key: the name of the attribute
+        :param key: the name of the attribute.
+        :return: the attribute identified by the key, from the group.
         """
         # get attribute from group
         attribute = self.group.attrs[key]
@@ -321,110 +336,127 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData'
     if not isinstance(file, Path):
         file = Path(file)
 
+    if file.parts[0] == '~':
+        file = Path(os.environ['HOME'] / Path("/".join(file.parts[1:])))
+
     # make sure the path exists
     if not os.path.exists(file):
         raise VValueError(f"The path {file} does not exist.")
 
-    data_dfs: Dict[str, Optional[pd.DataFrame]] = {'obs': None,
-                                                   'var': None,
-                                                   'time_points': None}
+    data = {'obs': None, 'var': None, 'time_points': None,
+            'layers': None,
+            'obsm': None, 'obsp': None,
+            'varm': None, 'varp': None}
 
-    data_arrays: Dict[str, Optional[Dict[str, ArrayLike]]] = {'layers': None,
-                                                              'obsm': None, 'obsp': None,
-                                                              'varm': None, 'varp': None}
     uns: Optional[Dict] = None
 
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:
         for key in importFile.keys():
-            generalLogger.info(f"reading {key}")
+            generalLogger.info(f"Got key : '{key}'")
 
-            if key in ("obs", "var", "time_points"):
-                data_dfs[key] = read_h5_dataframe(importFile[key])
-                generalLogger.debug(spacer + "\n" + str(data_dfs[key]))
-
-            elif key in ('layers', 'obsm', 'obsp', 'varm', 'varp'):
-                data_arrays[key] = {}
-                for dataset_key in importFile[key].keys():
-                    data_arrays[key] = {dataset_key: read_h5_array(importFile[key][dataset_key])}
-                generalLogger.debug(spacer + "\n" + str(data_arrays[key]))
-
-            elif key == 'uns':
-                uns = read_h5_dict(importFile[key])
-                generalLogger.debug(spacer + "\n" + str(uns))
-
-            elif key == 'dtype':
-                dtype = DTypes[str(importFile[key][...])]
-                generalLogger.debug(spacer + str(dtype))
+            if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns', 'dtype'):
+                type_ = importFile[key].attrs('type')
+                data[key] = func_[type_](importFile[key])
 
             else:
                 generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    return vdata.VData(data_arrays['layers'],
-                       data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
-                       data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                       data_dfs['time_points'], uns, dtype)
+    return vdata.VData(data['layers'],
+                       data['obs'], data['obsm'], data['obsp'],
+                       data['var'], data['varm'], data['varp'],
+                       data['time_points'], uns, dtype)
 
 
-def read_h5_dict(group: H5GroupReader) -> Dict:
+def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
     """
     Function for reading a dictionary from a .h5 file.
 
-    :param group: a H5GroupReader from which to read a dictionary
+    :param group: a H5GroupReader from which to read a dictionary.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    func_: Dict[str, Callable] = {'dict': read_h5_dict,
-                                  'DF': read_h5_dataframe,
-                                  'series': read_h5_series,
-                                  'array': read_h5_array,
-                                  'value': read_h5_value,
-                                  'type': read_h5_value}
+    generalLogger.info(f"{spacer(level)}Reading dict {group.name}.")
 
     data = {}
 
     for dataset_key in group.keys():
-        dataset_type = group[dataset_key].attr("type")
+        dataset_type = group[dataset_key].attrs("type")
 
-        data[dataset_key] = func_[dataset_type](group[dataset_key])
+        data[dataset_key] = func_[dataset_type](group[dataset_key], level=level+1)
 
     return data
 
 
-def read_h5_dataframe(group: H5GroupReader) -> pd.DataFrame:
+def read_h5_DataFrame(group: H5GroupReader, level: int = 1) -> pd.DataFrame:
     """
     Function for reading a pandas DataFrame from a .h5 file.
 
-    :param group: a H5GroupReader from which to read a DataFrame
+    :param group: a H5GroupReader from which to read a DataFrame.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
+    generalLogger.info(f"{spacer(level)}Reading DataFrame {group.name}.")
+
     # get column order
-    col_order = group.attr('column_order')
+    col_order = group.attrs('column_order')
     # get index
-    index = group.attr('index')
+    index = group.attrs('index')
 
     # get columns in right order
     data = {}
     for col in col_order:
-        data[col] = read_h5_series(group[col], index)
+        data[col] = read_h5_series(group[col], index, level=level+1)
 
     return pd.DataFrame(data, index=index)
 
 
-def read_h5_series(group: H5GroupReader, index: Optional[List] = None) -> pd.Series:
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.TemporalDataFrame':
+    """
+    Function for reading a TemporalDataFrame from a .h5 file.
+
+    :param group: a H5GroupReader from which to read a TemporalDataFrame.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    """
+    generalLogger.info(f"{spacer(level)}Reading TemporalDataFrame {group.name}.")
+
+    # get column order
+    col_order = group.attrs('column_order')
+    # get index
+    index = group.attrs('index')
+
+    # get columns in right order
+    data = {}
+    time_list = None
+
+    for col in col_order:
+        if col == '__TPID':
+            time_list = read_h5_series(group[col], index, level=level+1)
+
+        else:
+            data[col] = read_h5_series(group[col], index, level=level+1)
+
+    return vdata.TemporalDataFrame(data, time_list=time_list, index=index, name=group.name.split("/")[-1])
+
+
+def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1) -> pd.Series:
     """
     Function for reading a pandas Series from a .h5 file.
 
-    :param group: an H5GroupReader from which to read a Series
-    :param index: an optional list representing the indexes for the Series
+    :param group: an H5GroupReader from which to read a Series.
+    :param index: an optional list representing the indexes for the Series.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
+    generalLogger.info(f"{spacer(level)}Reading Series {group.name}.")
+
     # simple Series
     if group.isinstance(h5py.Dataset):
-        return pd.Series(read_h5_array(group), index=index)
+        return pd.Series(read_h5_array(group, level=level+1), index=index)
 
     # categorical Series
     elif group.isinstance(h5py.Group):
         # get data
-        categories = group.attr('categories')
-        ordered = group.attr('ordered')
-        values = read_h5_array(group['values'])
+        categories = group.attrs('categories')
+        ordered = group.attrs('ordered')
+        values = read_h5_array(group['values'], level=level+1)
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
 
@@ -433,14 +465,17 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None) -> pd.Ser
         raise VTypeError(f"Unexpected type {type(group)} while reading .h5 file.")
 
 
-def read_h5_array(group: H5GroupReader) -> np.ndarray:
+def read_h5_array(group: H5GroupReader, level: int = 1) -> np.ndarray:
     """
     Function for reading a numpy array from a .h5 file.
     If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
 
-    :param group: a H5GroupReader from which to read an array
+    :param group: a H5GroupReader from which to read an array.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    arr = group[:]
+    generalLogger.info(f"{spacer(level)}Reading array {group.name}.")
+
+    arr = group[()]
 
     if isinstance(arr, np.ndarray):
         # fix string arrays (object type to strings)
@@ -453,11 +488,23 @@ def read_h5_array(group: H5GroupReader) -> np.ndarray:
         raise VTypeError("Group is not an array.")
 
 
-def read_h5_value(group: H5GroupReader) -> Union[str, int, float, bool, type]:
+def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float, bool, type]:
     """
-    Function for reading a numpy array from a .h5 file.
-    If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
+    Function for reading a value from a .h5 file.
 
-    :param group: a H5GroupReader from which to read an array
+    :param group: a H5GroupReader from which to read a value.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    return cast(Union[str, int, float, bool, type], group[...])
+    generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
+    return group[()]
+
+
+func_: Dict[str, Callable] = {
+    'dict': read_h5_dict,
+    'DF': read_h5_DataFrame,
+    'TDF': read_h5_TemporalDataFrame,
+    'series': read_h5_series,
+    'array': read_h5_array,
+    'value': read_h5_value,
+    'type': read_h5_value
+}

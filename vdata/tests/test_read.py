@@ -4,33 +4,29 @@
 
 # ====================================================
 # imports
-import scanpy
-
-from .._IO.read import read_from_csv, read
-from .._core.vdata import VData
+from vdata import setLoggingLevel, read, read_from_csv, read_from_dict
+from .test_write import test_write
 
 
 # ====================================================
 # code
-print('---- read VData from csv')
-vdata = read_from_csv("/home/matteo/Desktop/vdata", log_level='DEBUG')
-print(vdata)
+def test_read():
+    # first write data
+    test_write()
 
-print('-----------------------------------------------------')
-print('---- read AnnData')
-folder = '/home/matteo/Desktop/NAS/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/'
-adata_filename = folder + 'sel_JB_scRNAseq.h5ad'
+    # then load data
+    # load from .h5 file
+    v = read("~/vdata.h5")
+    print(v)
 
-adata = scanpy.read(adata_filename)
+    # load from csv files
+    v = read_from_csv("~/vdata")
+    print(v)
 
-print('---- convert to VData')
-vdata = VData(adata)
+    # load from a dictionary
 
-vdata_filename = folder + 'sel_JB_scRNAseq.vdata'
 
-print('---- write VData')
-vdata.write(vdata_filename)
+if __name__ == "__main__":
+    setLoggingLevel('DEBUG')
 
-print('---- read VData')
-vdata2 = read(vdata_filename)
-print(vdata2)
+    test_read()

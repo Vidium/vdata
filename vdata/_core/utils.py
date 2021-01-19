@@ -3,12 +3,10 @@
 # Author : matteo
 # ====================================================
 # imports
-import pandas as pd
 import numpy as np
-from typing import Union, Tuple, Sequence, Collection, Optional, Any, List
+from typing import Union, Tuple, Sequence, Collection, Any, List
 
-from vdata.NameUtils import PreSlicer, ArrayLike_2D
-from .._IO import generalLogger
+from vdata.NameUtils import PreSlicer
 from .._IO.errors import VTypeError, VValueError, ShapeError
 
 

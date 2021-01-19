@@ -6,6 +6,7 @@
 # imports
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hashable, Iterable, MutableSequence
 from typing_extensions import Literal
 
@@ -658,7 +659,6 @@ class TemporalDataFrame:
         Iterate over (column name, Series) pairs.
         :return: a tuple with the column name and the content as a Series.
         """
-
         return list(self._df.items())[1:]
 
     def keys(self) -> List[Optional[Hashable]]:
@@ -718,6 +718,11 @@ class TemporalDataFrame:
         return TemporalDataFrame(self.df_data[self.columns].copy(),
                                  time_points=time_points, time_col=time_col,
                                  index=self.index.copy(), columns=self.columns.copy())
+
+    def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True) -> None:
+        """TODO"""
+        self.to_pandas().to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
 
 # TODO :

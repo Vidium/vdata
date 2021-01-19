@@ -52,8 +52,6 @@ class ViewTemporalDataFrame:
 
         generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self.index)}")
 
-        # TODO : refactor columns ? think !
-
         generalLogger.debug(f"\u23BF ViewTemporalDataFrame '{parent.name}':{id(self)} creation : end "
                             f"---------------------------------------- ")
 

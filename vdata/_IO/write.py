@@ -9,9 +9,11 @@ import pandas as pd
 import numpy as np
 from functools import singledispatch
 from typing import Dict, List, Union
+from typing_extensions import Literal
 
-from .logger import generalLogger
+from .logger import generalLogger, getLoggingLevel
 from ..NameUtils import H5Group
+from .. import _core
 
 
 # ====================================================
@@ -21,18 +23,21 @@ def spacer(nb: int) -> str:
 
 
 @singledispatch
-def write_data(data, group: H5Group, key: str, key_level: int = 0) -> None:
+def write_data(data, group: H5Group, key: str, key_level: int = 0,
+               log_func: Literal['debug', 'info'] = 'info') -> None:
     """
     This is the default function called for writing data to an h5 file.
     Using singledispatch, the correct write_<type> function is called depending on the type of the 'data' parameter.
     If no write_<type> implementation is found, this function defaults and raises a Warning indicating that the
     data could not be saved.
 
-    :param data: data to write
-    :param group: an h5py Group or File to write into
-    :param key: a string for identifying the data
-    :param key_level: for logging purposes, the recursion depth of calls to write_data
+    :param data: data to write.
+    :param group: an h5py Group or File to write into.
+    :param key: a string for identifying the data.
+    :param key_level: for logging purposes, the recursion depth of calls to write_data.
+    :param log_func: name of the logging level function to use. Either 'info' or 'debug'.
     """
+    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving object {key}")
     generalLogger.warning(f"H5 writing not yet implemented for data of type '{type(data)}'.")
 
 
@@ -72,13 +77,45 @@ def write_DataFrame(data: pd.DataFrame, group: H5Group, key: str, key_level: int
         write_data(series, df_group, str(col_name), key_level=key_level+1)
 
 
+@write_data.register
+def write_TemporalDataFrame(data: '_core.TemporalDataFrame', group: H5Group, key: str, key_level: int = 0) -> None:
+    """
+    Function for writing TemporalDataFrames to the h5 file. Each TemporalDataFrame is stored in a group, containing the
+    index and the columns as Series.
+    Used for layers, obs, obsm.
+    """
+    generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
+
+    df_group = group.create_group(key)
+    df_group.attrs['type'] = 'TDF'
+
+    # save column order
+    df_group.attrs["column_order"] = list(data.df_data.columns)
+
+    # save index and series
+    df_group.attrs["index"] = list(data.df_data.index)
+
+    log_func: Literal['debug', 'info'] = 'info'
+
+    for i, (col_name, series) in enumerate(data.df_data.items()):
+        write_series(series, df_group, str(col_name), key_level=key_level + 1, log_func=log_func)
+
+        if log_func == 'info' and i > 0:
+            log_func = 'debug'
+
+    if getLoggingLevel() != 'DEBUG':
+        generalLogger.info(f"{spacer(key_level+1)}...")
+
+
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
-def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0) -> None:
+def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0,
+                 log_func: Literal['debug', 'info'] = 'info') -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).
     """
-    generalLogger.info(f"{spacer(key_level)}Saving Series {key}")
+    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving Series {key}")
+
     # Series of strings
     if series.dtype == object:
         group.create_dataset(key, data=series.values, dtype=h5py.string_dtype(encoding='utf-8'))
@@ -88,7 +125,7 @@ def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0
         series_group = group.create_group(key)
         # save values
         values = pd.Series(np.array(series.values))
-        write_data(values, series_group, "values", key_level=key_level+1)
+        write_data(values, series_group, "values", key_level=key_level+1, log_func=log_func)
         # save categories
         series_group.attrs["categories"] = np.array(series.values.categories, dtype='S')
         # save ordered
@@ -134,9 +171,7 @@ def write_list(data: List, group: H5Group, key: str, key_level: int = 0) -> None
 @write_data.register(bool)
 @write_data.register(np.bool_)
 def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floating, bool, np.bool_],
-                       group: H5Group,
-                       key: str,
-                       key_level: int = 0) -> None:
+                       group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing a single value to the h5 file.
     """
