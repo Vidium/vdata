@@ -15,7 +15,7 @@ import vdata
 # ====================================================
 # types
 ArrayLike_2D = Union[np.ndarray, pd.DataFrame]
-ArrayLike_3D = Union[np.ndarray, Type['vdata.TemporalDataFrame']]
+ArrayLike_3D = Union[np.ndarray, 'vdata.TemporalDataFrame']
 ArrayLike = Union[ArrayLike_2D, ArrayLike_3D]
 
 DataFrame = Union[pd.DataFrame, "vdata.TemporalDataFrame"]

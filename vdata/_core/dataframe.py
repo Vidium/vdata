@@ -170,7 +170,10 @@ class TemporalDataFrame:
                 data.insert(0, "__TPID", hashable_time_list)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
-            self._df = pd.DataFrame(data, dtype=dtype)
+            self._df = pd.DataFrame(data)
+
+            # cast to correct dtype
+            self.astype(dtype)
 
             if index is not None:
                 self._df.index = index
@@ -471,7 +474,7 @@ class TemporalDataFrame:
         Cast this TemporalDataFrame to a specified data type.
         :param dtype: a data type.
         """
-        self._df.astype(dtype)
+        self._df[self.columns] = self._df[self.columns].astype(np.float).astype(dtype)
 
     def asColType(self, col_name: str, dtype: Union[DType, Dict[str, DType]]) -> None:
         """

@@ -28,7 +28,8 @@ def spacer(nb: int) -> str:
 # ====================================================
 # code
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32,
+def read_from_csv(directory: Union[Path, str],
+                  dtype: DType = np.float32,
                   time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
                   time_col: Optional[str] = None,
                   time_points: Optional[Collection[str]] = None) -> 'vdata.VData':
@@ -144,8 +145,10 @@ def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: Optional[pd.DataFrame] = None,
-                   var: Optional[pd.DataFrame] = None, time_points: Optional[pd.DataFrame] = None,
+def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
+                   obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
+                   var: Optional[pd.DataFrame] = None,
+                   time_points: Optional[pd.DataFrame] = None,
                    dtype: DType = np.float32) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
@@ -206,7 +209,15 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: 
 
             check_tp = True
 
-            _data[data_type] = np.array([np.array(matrix) for matrix in TP_matrices.values()])
+            time_list = [tp for tp, mtx in TP_matrices.items() for _ in range(len(mtx))]
+            index = obs.index if obs is not None else None
+            columns = var.index if var is not None else None
+            _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
+                                                       time_list=time_list,
+                                                       index=index,
+                                                       columns=columns,
+                                                       dtype=dtype,
+                                                       name=data_type)
 
         # if time points not given, try to guess them
         if time_points is None:
@@ -454,7 +465,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
             time_list = read_h5_series(group[col], index, level=level+1)
 
         else:
-            data[utils.get_value(col)] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
+            data[str(col)] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
 
         if log_func == 'info' and i > 0:
             log_func = 'debug'
