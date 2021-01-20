@@ -35,7 +35,7 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
     :param obj: VData object to save into a .h5 file.
     :param file: path to save the VData.
     """
-    parse_path(file)
+    file = parse_path(file)
 
     # make sure the path exists
     if not os.path.exists(os.path.dirname(file)):
@@ -59,7 +59,7 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
         # save uns
         write_data(obj.uns, save_file, 'uns')
         # save descriptive data about the VData object
-        write_data(obj._dtype, save_file, 'dtype')
+        write_data(obj.dtype, save_file, 'dtype')
 
 
 def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
@@ -127,7 +127,7 @@ def write_Dict(data: Dict, group: H5Group, key: str, key_level: int = 0) -> None
     It creates a group for storing the keys and recursively calls write_data to store them.
     """
     generalLogger.info(f"{spacer(key_level)}Saving dict {key}")
-    grp = group.create_group(key)
+    grp = group.create_group(str(key))
     grp.attrs['type'] = 'dict'
 
     for dict_key, value in data.items():
@@ -143,7 +143,7 @@ def write_DataFrame(data: pd.DataFrame, group: H5Group, key: str, key_level: int
     """
     generalLogger.info(f"{spacer(key_level)}Saving DataFrame {key}")
 
-    df_group = group.create_group(key)
+    df_group = group.create_group(str(key))
     df_group.attrs['type'] = 'DF'
 
     # save column order
@@ -165,7 +165,7 @@ def write_TemporalDataFrame(data: '_core.TemporalDataFrame', group: H5Group, key
     """
     generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
 
-    df_group = group.create_group(key)
+    df_group = group.create_group(str(key))
     df_group.attrs['type'] = 'TDF'
 
     # save column order
@@ -197,11 +197,11 @@ def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0
 
     # Series of strings
     if series.dtype == object:
-        group.create_dataset(key, data=series.values, dtype=h5py.string_dtype(encoding='utf-8'))
+        group.create_dataset(str(key), data=series.values, dtype=h5py.string_dtype(encoding='utf-8'))
 
     # Series of categorical data
     elif pd.api.types.is_categorical_dtype(series):
-        series_group = group.create_group(key)
+        series_group = group.create_group(str(key))
         # save values
         values = pd.Series(np.array(series.values))
         write_data(values, series_group, "values", key_level=key_level+1, log_func=log_func)
@@ -212,9 +212,9 @@ def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0
 
     # Series of regular data
     else:
-        group[key] = series.values
+        group[str(key)] = series.values
 
-    group[key].attrs['type'] = 'series'
+    group[str(key)].attrs['type'] = 'series'
 
 
 @write_data.register
@@ -224,12 +224,12 @@ def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0) 
     """
     generalLogger.info(f"{spacer(key_level)}Saving array {key}")
     if data.dtype.type == np.str_:
-        group.create_dataset(key, data=data.astype('S'))
+        group.create_dataset(str(key), data=data.astype('S'))
     else:
         print(data, type(data))
-        group[key] = data
+        group[str(key)] = data
 
-    group[key].attrs['type'] = 'array'
+    group[str(key)].attrs['type'] = 'array'
 
 
 @write_data.register(list)
@@ -265,8 +265,8 @@ def write_Type(data: type, group: H5Group, key: str, key_level: int = 0) -> None
     Function for writing a type to the h5 file.
     """
     generalLogger.info(f"{spacer(key_level)}Saving type {key}")
-    group[key] = data.__name__
-    group[key].attrs['type'] = 'type'
+    group[str(key)] = data.__name__
+    group[str(key)].attrs['type'] = 'type'
 
 
 @write_data.register
@@ -275,4 +275,5 @@ def write_None(_: None, group: H5Group, key: str, key_level: int = 0) -> None:
     Function for writing None to the h5 file.
     """
     generalLogger.info(f"{spacer(key_level)}Saving None value for {key}")
-    _ = group.create_group(key)
+    _ = group.create_group(str(key))
+    group[str(key)].attrs['type'] = 'None'

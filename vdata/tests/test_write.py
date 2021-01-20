@@ -6,6 +6,7 @@
 # imports
 import os
 import scanpy as sc
+import pickle
 
 from vdata import VData
 from vdata import setLoggingLevel
@@ -23,6 +24,12 @@ def test_write():
     adata = sc.read(source_vdata_path)
 
     v = VData(adata, time_col='Time_hour')
+
+    source = "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/vdata_with_traj_info.p"
+    uns = pickle.load(open(source, "rb"))
+
+    v.uns = uns
+
     print(v)
 
     # write vdata in h5 file format

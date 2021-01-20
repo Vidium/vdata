@@ -73,7 +73,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32,
     data = {'obs': None, 'var': None, 'time_points': None,
             'layers': None,
             'obsm': None, 'obsp': None,
-            'varm': None, 'varp': None}
+            'varm': None, 'varp': None, 'dtype': dtype}
 
     # import the data
     for f in os.listdir(directory):
@@ -85,7 +85,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32,
                     generalLogger.info(f"{spacer(1)}Reading pandas DataFrame '{f[:-4]}'.")
                     data[f[:-4]] = pd.read_csv(directory / f, index_col=0)
 
-                else:
+                elif f in ('obs.csv', ):
                     generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f[:-4]}'.")
                     if time_list is None and time_col is None:
                         if metadata['obs']['time_points_column_name'] != '__TPID':
@@ -113,7 +113,7 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32,
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
-                       data['time_points'], dtype=dtype)
+                       data['time_points'], dtype=data['dtype'])
 
 
 def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
@@ -367,9 +367,8 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData'
     data = {'obs': None, 'var': None, 'time_points': None,
             'layers': None,
             'obsm': None, 'obsp': None,
-            'varm': None, 'varp': None}
-
-    uns: Optional[Dict] = None
+            'varm': None, 'varp': None,
+            'uns': None, 'dtype': dtype}
 
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:
@@ -386,7 +385,7 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData'
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
-                       data['time_points'], uns, dtype)
+                       data['time_points'], data['uns'], dtype=data['dtype'])
 
 
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
@@ -403,7 +402,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
     for dataset_key in group.keys():
         dataset_type = group[dataset_key].attrs("type")
 
-        data[dataset_key] = func_[dataset_type](group[dataset_key], level=level+1)
+        data[utils.get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
 
     return data
 
@@ -425,7 +424,7 @@ def read_h5_DataFrame(group: H5GroupReader, level: int = 1) -> pd.DataFrame:
     # get columns in right order
     data = {}
     for col in col_order:
-        data[col] = read_h5_series(group[col], index, level=level+1)
+        data[utils.get_value(col)] = read_h5_series(group[col], index, level=level+1)
 
     return pd.DataFrame(data, index=index)
 
@@ -455,7 +454,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
             time_list = read_h5_series(group[col], index, level=level+1)
 
         else:
-            data[col] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
+            data[utils.get_value(col)] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
 
         if log_func == 'info' and i > 0:
             log_func = 'debug'
@@ -486,7 +485,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
     elif group.isinstance(h5py.Group):
         # get data
         categories = group.attrs('categories')
-        ordered = group.attrs('ordered')
+        ordered = utils.get_value(group.attrs('ordered'))
         values = read_h5_array(group['values'], level=level+1, log_func=log_func)
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
@@ -532,6 +531,11 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     return utils.get_value(group[()])
 
 
+def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
+    generalLogger.info(f"{spacer(level)}Reading None.")
+    return None
+
+
 func_: Dict[str, Callable] = {
     'dict': read_h5_dict,
     'DF': read_h5_DataFrame,
@@ -539,5 +543,6 @@ func_: Dict[str, Callable] = {
     'series': read_h5_series,
     'array': read_h5_array,
     'value': read_h5_value,
-    'type': read_h5_value
+    'type': read_h5_value,
+    'None': read_h5_None
 }

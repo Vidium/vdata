@@ -360,13 +360,13 @@ class VData:
         """
         return self._uns
 
-    # @uns.setter
-    # def uns(self, data: Optional[Dict]) -> None:
-    #     if not isinstance(data, dict):
-    #         raise VTypeError("'uns' must be a dictionary.")
-    #
-    #     else:
-    #         self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
+    @uns.setter
+    def uns(self, data: Optional[Dict]) -> None:
+        if not isinstance(data, dict):
+            raise VTypeError("'uns' must be a dictionary.")
+
+        else:
+            self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
 
     # Array containers ---------------------------------------------------
     # TODO : docstrings
