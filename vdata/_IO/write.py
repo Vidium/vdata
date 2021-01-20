@@ -255,8 +255,8 @@ def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floa
     Function for writing a single value to the h5 file.
     """
     generalLogger.info(f"{spacer(key_level)}Saving single value {key}")
-    group[key] = data
-    group[key].attrs['type'] = 'value'
+    group[str(key)] = data
+    group[str(key)].attrs['type'] = 'value'
 
 
 @write_data.register

@@ -18,6 +18,7 @@ from .utils import parse_path
 from .logger import generalLogger, getLoggingLevel
 from .errors import VValueError, VTypeError
 from ..NameUtils import DType, ArrayLike_2D, H5Group
+from .._core import utils
 
 
 def spacer(nb: int) -> str:
@@ -120,7 +121,16 @@ def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
                                time_col: Optional[str] = None,
                                time_points: Optional[Collection[str]] = None) -> 'vdata.TemporalDataFrame':
     """
-    TODO
+    Read a .csv file into a TemporalDataFrame.
+
+    :param file: a path to the .csv file to read.
+    :param sep: delimiter to use for reading the .csv file.
+    :param time_list: time points for the dataframe's rows. (see TemporalDataFrame's documentation for more details.)
+    :param time_col: if time points are not given explicitly with the 'time_list' parameter, a column name can be
+        given. This column will be used as the time data.
+    :param time_points: a list of time points that should exist. This is useful when using the '*' character to
+        specify the list of time points that the TemporalDataFrame should cover.
+    :return: a TemporalDataFrame built from the .csv file.
     """
     df = pd.read_csv(file, index_col=0, sep=sep, )
 
@@ -519,7 +529,7 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
-    return group[()]
+    return utils.get_value(group[()])
 
 
 func_: Dict[str, Callable] = {
