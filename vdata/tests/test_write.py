@@ -23,9 +23,12 @@ def test_write():
     adata = sc.read(source_vdata_path)
 
     v = VData(adata, time_col='Time_hour')
+    print(v)
 
     # write vdata in h5 file format
     v.write("~/vdata.h5")
+
+    print("------------------------------------------")
 
     # write vdata in csv files
     v.write_to_csv("~/vdata")

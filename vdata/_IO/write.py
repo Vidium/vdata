@@ -6,6 +6,7 @@
 # imports
 import os
 import h5py
+import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -82,14 +83,22 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
     if len(os.listdir(directory)):
         raise VPathError("The directory is not empty.")
 
+    # save metadata
+    with open(directory / ".metadata.json", 'w') as metadata:
+        json.dump({"obs": {"time_points_column_name": obj.obs.time_points_column_name}}, metadata)
+
     # save matrices
+    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame obs")
     obj.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
+    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame var")
     obj.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
+    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame time_points")
     obj.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
 
     # TODO
     for dataset in (obj.layers,):  # (obj.obsm, obj.obsp, obj.varm, obj.varp):
-        dataset.to_csv(directory, sep, na_rep, index, header)
+        generalLogger.info(f"{spacer(1)}Saving {dataset.name}")
+        dataset.to_csv(directory, sep, na_rep, index, header, spacer=spacer(2))
 
 
 @singledispatch

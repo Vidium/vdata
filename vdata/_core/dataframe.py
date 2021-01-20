@@ -722,7 +722,12 @@ class TemporalDataFrame:
     def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
         """TODO"""
-        self.to_pandas().to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
+        # get full DataFrame and rename the '__TPID' column to 'Time_Point'
+        data_to_save = self.df_data
+        data_to_save.rename(columns={'__TPID': 'Time_Point'}, inplace=True)
+
+        # save DataFrame to csv
+        data_to_save.to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
 
 # TODO :

@@ -6,16 +6,18 @@
 # imports
 import os
 import h5py
+import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable, Tuple
+from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable, Tuple, Collection
+from typing_extensions import Literal
 
 import vdata
 from .utils import parse_path
-from .logger import generalLogger
+from .logger import generalLogger, getLoggingLevel
 from .errors import VValueError, VTypeError
-from ..NameUtils import DType, ArrayLike_2D, ArrayLike, H5Group
+from ..NameUtils import DType, ArrayLike_2D, H5Group
 
 
 def spacer(nb: int) -> str:
@@ -25,7 +27,10 @@ def spacer(nb: int) -> str:
 # ====================================================
 # code
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> 'vdata.VData':
+def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32,
+                  time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
+                  time_col: Optional[str] = None,
+                  time_points: Optional[Collection[str]] = None) -> 'vdata.VData':
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -45,6 +50,11 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> 'vd
             ⊦ time_points.csv
             ⊦ var.csv
     :param dtype: data type to force on the newly built VData object.
+    :param time_list: time points for the dataframe's rows. (see TemporalDataFrame's documentation for more details.)
+    :param time_col: if time points are not given explicitly with the 'time_list' parameter, a column name can be
+        given. This column will be used as the time data.
+    :param time_points: a list of time points that should exist. This is useful when using the '*' character to
+        specify the list of time points that the TemporalDataFrame should cover.
     """
     directory = parse_path(directory)
 
@@ -52,43 +62,74 @@ def read_from_csv(directory: Union[Path, str], dtype: DType = np.float32) -> 'vd
     if not os.path.exists(directory):
         raise VValueError(f"The path {directory} does not exist.")
 
-    data_dfs: Dict[str, Optional[pd.DataFrame]] = {'obs': None,
-                                                   'var': None,
-                                                   'time_points': None}
+    # load metadata if possible
+    metadata = None
 
-    data_arrays: Dict[str, Optional[Dict[str, ArrayLike]]] = {'layers': None,
-                                                              'obsm': None, 'obsp': None,
-                                                              'varm': None, 'varp': None}
+    if os.path.isfile(directory / ".metadata.json"):
+        with open(directory / ".metadata.json", 'r') as metadata_file:
+            metadata = json.load(metadata_file)
+
+    data = {'obs': None, 'var': None, 'time_points': None,
+            'layers': None,
+            'obsm': None, 'obsp': None,
+            'varm': None, 'varp': None}
 
     # import the data
     for f in os.listdir(directory):
-        generalLogger.info(f"reading {f}")
+        if f != ".metadata.json":
+            generalLogger.info(f"Got key : '{f}'.")
 
-        if f.endswith('.csv'):
-            data_dfs[f[:-4]] = pd.read_csv(directory / f, index_col=0)
+            if f.endswith('.csv'):
+                if f in ('var.csv', 'time_points.csv'):
+                    generalLogger.info(f"{spacer(1)}Reading pandas DataFrame '{f[:-4]}'.")
+                    data[f[:-4]] = pd.read_csv(directory / f, index_col=0)
 
-        else:
-            dataset_dict = {}
-            for dataset in os.listdir(directory / f):
-                generalLogger.debug(f"{spacer} {dataset}")
-                # load csv as pandas DataFrame
-                df = pd.read_csv(directory / f / dataset, index_col=0)
-                if f in ('layers', 'obsm', 'varm'):
-                    # convert DataFrame to 3D array
-                    arr = np.array([df[df.Time_point == i].drop('Time_point', 1) for i in pd.Categorical(
-                        df.Time_point).categories])
                 else:
-                    # convert DataFrame to 2D array
-                    arr = np.array(df)
+                    generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f[:-4]}'.")
+                    if time_list is None and time_col is None:
+                        if metadata['obs']['time_points_column_name'] != '__TPID':
+                            time_col = metadata['obs']['time_points_column_name']
 
-                dataset_dict[dataset[:-4]] = arr
+                    data[f[:-4]] = TemporalDataFrame_read_csv(directory / f, time_list=time_list,
+                                                              time_col=time_col, time_points=time_points)
 
-            data_arrays[f] = dataset_dict
+            else:
+                dataset_dict = {}
+                generalLogger.info(f"{spacer(1)}Reading group '{f}'.")
 
-    return vdata.VData(data_arrays['layers'],
-                       data_dfs['obs'], data_arrays['obsm'], data_arrays['obsp'],
-                       data_dfs['var'], data_arrays['varm'], data_arrays['varp'],
-                       data_dfs['time_points'], dtype=dtype)
+                for dataset in os.listdir(directory / f):
+                    if f in ('layers', ):
+                        generalLogger.info(f"{spacer(2)} Reading {dataset}")
+                        dataset_dict[dataset[:-4]] = TemporalDataFrame_read_csv(directory / f / dataset,
+                                                                                time_list=time_list,
+                                                                                time_points=time_points)
+
+                    else:
+                        raise NotImplementedError
+
+                data[f] = dataset_dict
+
+    return vdata.VData(data['layers'],
+                       data['obs'], data['obsm'], data['obsp'],
+                       data['var'], data['varm'], data['varp'],
+                       data['time_points'], dtype=dtype)
+
+
+def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
+                               time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
+                               time_col: Optional[str] = None,
+                               time_points: Optional[Collection[str]] = None) -> 'vdata.TemporalDataFrame':
+    """
+    TODO
+    """
+    df = pd.read_csv(file, index_col=0, sep=sep, )
+
+    if time_list is None and time_col is None:
+        time_list = df['Time_Point'].values.tolist()
+
+    del df['Time_Point']
+
+    return vdata.TemporalDataFrame(df, time_list=time_list, time_col=time_col, time_points=time_points)
 
 
 # GPU output --------------------------------------------------------------------------------------
@@ -121,6 +162,15 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: 
 
     :return: a VData object containing the simulation's data
     """
+    time_point_units = {
+        's': 'second',
+        'm': 'minute',
+        'h': 'hour',
+        'D': 'day',
+        'M': 'month',
+        'Y': 'year',
+    }
+
     _data = {}
     _time_points = []
     check_tp = False
@@ -156,48 +206,16 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]], obs: 
 
                 for tp in _time_points:
                     tp = cast(str, tp)          # for typing
-                    if tp.endswith("s"):
+
+                    if tp[-1] in time_point_units.keys():
                         try:
                             TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("second")
+                            TP_data["unit"].append(time_point_units[tp[-1]])
+
                         except ValueError:
                             del_unit = True
                             break
-                    elif tp.endswith("m"):
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("minute")
-                        except ValueError:
-                            del_unit = True
-                            break
-                    elif tp.endswith("h"):
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("hour")
-                        except ValueError:
-                            del_unit = True
-                            break
-                    elif tp.endswith("D"):
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("day")
-                        except ValueError:
-                            del_unit = True
-                            break
-                    elif tp.endswith("M"):
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("month")
-                        except ValueError:
-                            del_unit = True
-                            break
-                    elif tp.endswith("Y"):
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append("year")
-                        except ValueError:
-                            del_unit = True
-                            break
+
                     else:
                         del_unit = True
                         break
@@ -346,7 +364,7 @@ def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData'
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:
         for key in importFile.keys():
-            generalLogger.info(f"Got key : '{key}'")
+            generalLogger.info(f"Got key : '{key}'.")
 
             if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns', 'dtype'):
                 type_ = importFile[key].attrs('type')
@@ -420,36 +438,46 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     data = {}
     time_list = None
 
-    for col in col_order:
+    log_func: Literal['debug', 'info'] = 'info'
+
+    for i, col in enumerate(col_order):
         if col == '__TPID':
             time_list = read_h5_series(group[col], index, level=level+1)
 
         else:
-            data[col] = read_h5_series(group[col], index, level=level+1)
+            data[col] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
+
+        if log_func == 'info' and i > 0:
+            log_func = 'debug'
+
+    if getLoggingLevel() != 'DEBUG':
+        generalLogger.info(f"{spacer(level+1)}...")
 
     return vdata.TemporalDataFrame(data, time_list=time_list, index=index, name=group.name.split("/")[-1])
 
 
-def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1) -> pd.Series:
+def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
+                   log_func: Literal['debug', 'info'] = 'info') -> pd.Series:
     """
     Function for reading a pandas Series from a .h5 file.
 
     :param group: an H5GroupReader from which to read a Series.
     :param index: an optional list representing the indexes for the Series.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    :param log_func: function to use with the logger. Either 'info' or 'debug'.
     """
-    generalLogger.info(f"{spacer(level)}Reading Series {group.name}.")
+    getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
     # simple Series
     if group.isinstance(h5py.Dataset):
-        return pd.Series(read_h5_array(group, level=level+1), index=index)
+        return pd.Series(read_h5_array(group, level=level+1, log_func=log_func), index=index)
 
     # categorical Series
     elif group.isinstance(h5py.Group):
         # get data
         categories = group.attrs('categories')
         ordered = group.attrs('ordered')
-        values = read_h5_array(group['values'], level=level+1)
+        values = read_h5_array(group['values'], level=level+1, log_func=log_func)
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
 
@@ -458,15 +486,17 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
         raise VTypeError(f"Unexpected type {type(group)} while reading .h5 file.")
 
 
-def read_h5_array(group: H5GroupReader, level: int = 1) -> np.ndarray:
+def read_h5_array(group: H5GroupReader, level: int = 1,
+                  log_func: Literal['debug', 'info'] = 'info') -> np.ndarray:
     """
     Function for reading a numpy array from a .h5 file.
     If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
 
     :param group: a H5GroupReader from which to read an array.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    :param log_func: function to use with the logger. Either 'info' or 'debug'.
     """
-    generalLogger.info(f"{spacer(level)}Reading array {group.name}.")
+    getattr(generalLogger, log_func)(f"{spacer(level)}Reading array {group.name}.")
 
     arr = group[()]
 

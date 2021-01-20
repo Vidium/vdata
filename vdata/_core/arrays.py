@@ -174,27 +174,6 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
     It is based on VBaseArrayContainer and defines some functions shared by obsm, varm and layers.
     """
 
-    @abc.abstractmethod
-    def get_idx_names(self) -> Collection:
-        """
-        Get index of this Array container :
-            - names of obs for layers and obsm.
-            - names of var for varm.
-        :return: index of this Array container.
-        """
-        pass
-
-    @abc.abstractmethod
-    def get_col_names(self, arr_name: Optional[str]) -> Collection:
-        """
-        Get columns of this Array container :
-            - names of var for layers.
-            - names of the columns for each Array in obsm and varm.
-        :param arr_name: the name of the array in obsm or varm.
-        :return: columns for the Array.
-        """
-        pass
-
     @property
     def shape(self) -> Tuple[int, int, int]:
         """
@@ -210,7 +189,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
             return self._parent.n_time_points, s1, s2
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True) -> None:
+               index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
         Save the Array in CSV file format.
         :param directory: path to a directory for saving the Array
@@ -218,20 +197,16 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
         :param na_rep: string to replace NAs
         :param index: write row names ?
         :param header: Write col names ?
+        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
         # create sub directory for storing arrays
         os.makedirs(directory / self.name)
 
-        idx = self.get_idx_names()
-
         for arr_name, arr in self.items():
-            col = self.get_col_names(arr_name)
-
-            # cast array in 2D
-            arr_2D = arr.df_data
+            generalLogger.info(f"{spacer}Saving {arr_name}")
 
             # save array
-            arr_2D.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
 
 class VLayerArrayContainer(VBase3DArrayContainer):
@@ -336,25 +311,6 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         :return: name of the array
         """
         return "layers"
-
-    def get_idx_names(self) -> pd.Index:
-        """
-        Get index for the Array :
-            - names of obs for layers and obsm
-            - names of var for varm
-        :return: index for the Array
-        """
-        return self._parent.obs.index
-
-    def get_col_names(self, arr_name: Optional[str]) -> pd.Index:
-        """
-        Get columns for the Array :
-            - names of var for layers
-            - names of the columns for each array-like in obsm and varm
-        :param arr_name: the name of the array in obsm or varm
-        :return: columns for the Array
-        """
-        return self._parent.var.index
 
 
 class VAxisArrayContainer(VBase3DArrayContainer):

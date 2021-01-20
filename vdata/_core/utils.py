@@ -287,8 +287,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     if not isCollection(target_collection):
         raise VTypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
 
-    target_collection = np.unique(target_collection)
-    target_collection = set(get_value(e) for e in target_collection)
+    target_collection = set(get_value(e) for e in np.unique(target_collection))
 
     if not isCollection(element):
         element = [element]
@@ -296,15 +295,8 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     result = np.array([False for _ in range(len(element))])
 
     for i, e in enumerate(element):
-        intersection = set([get_value(e)]) & target_collection
-        if len(intersection):
+        if len({get_value(e)} & target_collection):
             result[i] = True
-
-    # for i, e in enumerate(element):
-    #     for e_t in target_collection:
-    #         if get_value(e) == get_value(e_t):
-    #             result[i] = True
-    #             break
 
     return result if len(result) > 1 else result[0]
 

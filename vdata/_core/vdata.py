@@ -12,7 +12,7 @@ from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
 
-from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer
+from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, DataFrame
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .dataframe import TemporalDataFrame
 from .views.vdata import ViewVData
@@ -624,7 +624,7 @@ class VData:
 
     # init functions -----------------------------------------------------
 
-    def _check_formats(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike], AnnData]],
+    def _check_formats(self, data: Optional[Union[DataFrame, Dict[Any, DataFrame], AnnData]],
                        obs: Optional[Union[pd.DataFrame, TemporalDataFrame]], obsm: Optional[Dict[Any, ArrayLike]],
                        obsp: Optional[Dict[Any, ArrayLike]],
                        var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]],
@@ -770,139 +770,84 @@ class VData:
         else:
             generalLogger.debug('  VData creation from scratch.')
 
-            # # obs
-            # if obs is not None:
-            #     generalLogger.debug(f"    2. \u2713 'obs' is a {type(obs).__name__}.")
-            #
-            #     if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
-            #         raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
-            #
-            #     elif isinstance(obs, pd.DataFrame):
-            #         obs = self._check_df_types(TemporalDataFrame(obs, time_list=time_list, time_col=time_col))
-            #
-            #     else:
-            #         obs = self._check_df_types(obs)
-            #         if time_list is not None:
-            #             generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
-            #                                   "TemporalDataFrame.")
-            #         if time_col is not None:
-            #             generalLogger.warning("'time_col' parameter cannot be used since 'obs' is already a "
-            #                                   "TemporalDataFrame.")
-            #
-            #     # find time points list
-            #     time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
-            #
-            #     generalLogger.debug(
-            #         f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
-            #         f"found from the provided data.")
-            #     generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-            #                         f"{[0] if nb_time_points == 1 else time_points.value.values}")
-            #
-            # else:
-            #     generalLogger.debug(f"    2. \u2717 'obs' was not found.")
-            #     if time_list is not None:
-            #         generalLogger.warning("'time_list' parameter cannot be used since 'obs' was not found.")
-            #     if time_col is not None:
-            #         generalLogger.warning("'time_col' parameter cannot be used since 'obs' was not found.")
-            #
-            # # check formats
-            # # layers
-            # if data is not None:
-            #     layers = {}
-            #
-            #     # data is a pandas DataFrame
-            #     if isinstance(data, pd.DataFrame):
-            #         generalLogger.debug(f"    1. \u2713 'data' is a pandas DataFrame.")
-            #
-            #         if nb_time_points > 1:
-            #             raise VTypeError("'data' is a 2D pandas DataFrame but more than 1 time points were provided.")
-            #
-            #         df_obs = data.index
-            #         df_var = data.columns
-            #
-            #         if time_list is not None:
-            #             ref_time_list = time_list
-            #
-            #         elif time_col is not None:
-            #             ref_time_list = data[time_col].values
-            #
-            #         else:
-            #             ref_time_list = np.zeros(len(data))
-            #
-            #         layers = {"data": reshape_to_3D(np.array(data, dtype=self._dtype),
-            #                                         time_points.value.values if time_points is not None else ['0'],
-            #                                         ref_time_list)}
-            #
-            #     # data is an array
-            #     elif isinstance(data, np.ndarray):
-            #         generalLogger.debug(f"    1. \u2713 'data' is a numpy array.")
-            #
-            #         if data.ndim == 1:
-            #             if all([isinstance(arr, (np.ndarray, pd.DataFrame)) and arr.ndim == 2 for arr in data]):
-            #                 layers = {"data": data}
-            #
-            #             else:
-            #                 raise VTypeError("When supplying arrays of different shapes to 'data', those arrays must "
-            #                                  "be 2D array-like objects (numpy array, pandas DataFrame)")
-            #
-            #         elif data.ndim == 2:
-            #             reshaped_data = reshape_to_3D(data, None, None)
-            #
-            #             layers = {"data": reshaped_data}
-            #
-            #         elif data.ndim == 3:
-            #             layers = {"data": data}
-            #
-            #         else:
-            #             raise ShapeError("'data' must be a 2D or 3D array-like object "
-            #                              "(numpy array, pandas DataFrame).")
-            #
-            #     elif isinstance(data, dict):
-            #         generalLogger.debug(f"    1. \u2713 'data' is a dictionary.")
-            #
-            #         for key, value in data.items():
-            #             if not isinstance(value, (np.ndarray, pd.DataFrame)):
-            #                 raise VTypeError(f"Layer '{key}' must be a 2D or 3D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim not in (1, 2, 3):
-            #                 raise VTypeError(f"Layer '{key}' must contain 2D or 3D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim == 1:
-            #                 for arr in value:
-            #                     if arr.ndim != 2:
-            #                         raise VTypeError(f"Layer '{key}' must contain 2D or 3D array-like object "
-            #                                          f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim == 2:
-            #                 if nb_time_points > 1:
-            #                     raise VTypeError(f"Layer '{key}' must be a 3D array-like object "
-            #                                      f"(numpy arrays) if providing more than 1 time point.")
-            #
-            #                 if isinstance(value, pd.DataFrame):
-            #                     if time_list is not None:
-            #                         ref_time_list = time_list
-            #
-            #                     elif time_col is not None:
-            #                         ref_time_list = value[time_col].values
-            #
-            #                     else:
-            #                         ref_time_list = np.zeros(len(value))
-            #
-            #                     value = reshape_to_3D(value,
-            #                                           time_points.value.values if time_points is not None else ['0'],
-            #                                           ref_time_list)
-            #
-            #                 else:
-            #                     value = reshape_to_3D(value)
-            #
-            #             layers[str(key)] = value
-            #
-            #     else:
-            #         raise VTypeError(f"Type '{type(data)}' is not allowed for 'data' parameter, should be a dict,"
-            #                          f"a pandas DataFrame, a numpy array or an AnnData object.")
-            #
-            # else:
-            #     generalLogger.debug(f"    1. \u2717 'data' was not found.")
-            #
+            # obs
+            if obs is not None:
+                generalLogger.debug(f"    1. \u2713 'obs' is a {type(obs).__name__}.")
+
+                if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
+                    raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
+
+                elif isinstance(obs, pd.DataFrame):
+                    obs = self._check_df_types(TemporalDataFrame(obs, time_list=time_list, time_col=time_col))
+
+                else:
+                    obs = self._check_df_types(obs)
+                    if time_list is not None:
+                        generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
+                                              "TemporalDataFrame.")
+                    if time_col is not None:
+                        generalLogger.warning("'time_col' parameter cannot be used since 'obs' is already a "
+                                              "TemporalDataFrame.")
+
+                # find time points list
+                time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+
+                generalLogger.debug(
+                    f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
+                    f"found from the provided data.")
+                generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
+                                    f"{[0] if nb_time_points == 1 else time_points.value.values}")
+
+            else:
+                generalLogger.debug(f"    1. \u2717 'obs' was not found.")
+                if time_list is not None:
+                    generalLogger.warning("'time_list' parameter cannot be used since 'obs' was not found.")
+                if time_col is not None:
+                    generalLogger.warning("'time_col' parameter cannot be used since 'obs' was not found.")
+
+            # check formats
+            # layers
+            if data is not None:
+                layers = {}
+
+                # data is a unique pandas DataFrame or a TemporalDataFrame
+                if isinstance(data, (pd.DataFrame, TemporalDataFrame)):
+                    generalLogger.debug(f"    2. \u2713 'data' is a pandas DataFrame.")
+
+                    if nb_time_points > 1:
+                        raise VTypeError("'data' is a 2D pandas DataFrame but more than 1 time points were provided.")
+
+                    df_obs = data.index
+                    df_var = data.columns
+
+                    if isinstance(data, pd.DataFrame):
+                        layers = {'data': TemporalDataFrame(data, dtype=self._dtype)}
+
+                    else:
+                        data.astype(self._dtype)
+                        layers = {'data': data}
+
+                elif isinstance(data, dict):
+                    generalLogger.debug(f"    2. \u2713 'data' is a dictionary.")
+
+                    for key, value in data.items():
+                        if not isinstance(value, (dict, (pd.DataFrame, TemporalDataFrame))):
+                            raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
+
+                        if isinstance(data, pd.DataFrame):
+                            layers[str(key)] = TemporalDataFrame(value, dtype=self._dtype)
+
+                        else:
+                            value.astype(self._dtype)
+                            layers[str(key)] = value
+
+                else:
+                    raise VTypeError(f"Type '{type(data)}' is not allowed for 'data' parameter, should be a dict,"
+                                     f"a pandas DataFrame, a numpy array or an AnnData object.")
+
+            else:
+                generalLogger.debug(f"    2. \u2717 'data' was not found.")
+
             # # obsm
             # if obsm is not None:
             #     generalLogger.debug(f"    3. \u2713 'obsm' is a {type(obsm).__name__}.")
@@ -947,19 +892,19 @@ class VData:
             #
             # else:
             #     generalLogger.debug(f"    4. \u2717 'obsp' was not found.")
-            #
-            # # var
-            # if var is not None:
-            #     generalLogger.debug(f"    5. \u2713 'var' is a {type(var).__name__}.")
-            #
-            #     if not isinstance(var, pd.DataFrame):
-            #         raise VTypeError("var must be a pandas DataFrame.")
-            #     else:
-            #         var = self._check_df_types(var)
-            #
-            # else:
-            #     generalLogger.debug(f"    5. \u2717 'var' was not found.")
-            #
+
+            # var
+            if var is not None:
+                generalLogger.debug(f"    5. \u2713 'var' is a {type(var).__name__}.")
+
+                if not isinstance(var, pd.DataFrame):
+                    raise VTypeError("var must be a pandas DataFrame.")
+                else:
+                    var = self._check_df_types(var)
+
+            else:
+                generalLogger.debug(f"    5. \u2717 'var' was not found.")
+
             # # varm
             # if varm is not None:
             #     generalLogger.debug(f"    6. \u2713 'varm' is a {type(varm).__name__}.")
@@ -1004,15 +949,15 @@ class VData:
             #
             # else:
             #     generalLogger.debug(f"    7. \u2717 'varp' was not found.")
-            #
-            # # uns
-            # if uns is not None:
-            #     if not isinstance(uns, dict):
-            #         raise VTypeError("'uns' must be a dictionary.")
-            #     generalLogger.debug(f"    8. \u2713 'uns' is a dictionary.")
-            #
-            # else:
-            #     generalLogger.debug(f"    8. \u2717 'uns' was not found.")
+
+            # uns
+            if uns is not None:
+                if not isinstance(uns, dict):
+                    raise VTypeError("'uns' must be a dictionary.")
+                generalLogger.debug(f"    8. \u2713 'uns' is a dictionary.")
+
+            else:
+                generalLogger.debug(f"    8. \u2717 'uns' was not found.")
 
         # if time points are not given, assign default values 0, 1, 2, ...
         if time_points is None:
@@ -1037,7 +982,7 @@ class VData:
         self._uns = dict(zip([str(k) for k in uns.keys()], uns.values())) if uns is not None else None
         self._time_points = time_points
 
-        generalLogger.debug(u"  \u23BF Arrays' formats were OK.  -- -- -- -- -- -- -- -- -- ")
+        generalLogger.debug(u"  \u23BF Arrays' formats are OK.  -- -- -- -- -- -- -- -- -- ")
 
         return layers, obsm, obsp, varm, varp, df_obs, df_var
 
@@ -1045,7 +990,9 @@ class VData:
         """
         Function for coercing data types of the columns and of the index in a pandas DataFrame.
         :param df: a pandas DataFrame
+        # TODO check this function is called when it should be ! is it called in creation from AnnData ?
         """
+        generalLogger.debug(u"  \u23BE Check DataFrame's column types.  -  -  -  -  -  -  -  -  -  -")
         # check index : convert to correct dtype if it is not a string type
         try:
             df.index.astype(self._dtype)
@@ -1053,16 +1000,34 @@ class VData:
             df.index.astype(np.dtype('O'))
 
         # check columns : convert to correct dtype if it is not a string type
-        for col_name in df.columns:
-            try:
-                df[col_name].astype(self._dtype)
-            except ValueError:
-                df[col_name].astype(np.dtype('O'))
-            except VAttributeError:
+        if isinstance(df, pd.DataFrame):
+            for col_name in df.columns:
+                try:
+                    df[col_name].astype(self._dtype)
+                    generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
+
+                except ValueError:
+                    if df[col_name].dtype.type in (np.datetime64, np.timedelta64, pd.CategoricalDtype.type):
+                        generalLogger.debug(f"Column '{col_name}' kept to {df[col_name].dtype.type}.")
+
+                    else:
+                        df[col_name].astype(np.dtype('O'))
+                        generalLogger.debug(f"Column '{col_name}' set to string.")
+
+        elif isinstance(df, TemporalDataFrame):
+            for col_name in df.columns:
                 try:
                     df.asColType(col_name, self._dtype)
+                    generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
+
                 except ValueError:
                     df.asColType(col_name, np.dtype('O'))
+                    generalLogger.debug(f"Column '{col_name}' set to string.")
+
+        else:
+            raise VTypeError(f"Invalid type '{type(df)}' for function '_check_df_types()'.")
+
+        generalLogger.debug(u"  \u23BF DataFrame's column types are OK.  -  -  -  -  -  -  -  -  -  -")
 
         return df
 
