@@ -13,6 +13,7 @@ import vdata
 from vdata.NameUtils import PreSlicer, DType
 from ..NameUtils import TemporalDataFrame_internal_attributes
 from ..utils import repr_array, repr_index, reformat_index, match_time_points
+from ...utils import TimePoint
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
 
@@ -73,7 +74,7 @@ class ViewTemporalDataFrame:
 
         return repr_str
 
-    def one_TP_repr(self, time_point: str, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
+    def one_TP_repr(self, time_point: TimePoint, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
         """
         Representation of a single time point in this TemporalDataFrame to print.
         :param time_point: the time point to represent.
@@ -81,7 +82,7 @@ class ViewTemporalDataFrame:
         :param func: the name of the function to use to limit the output ('head' or 'tail')
         :return: a representation of a single time point in this TemporalDataFrame object
         """
-        mask = match_time_points(self.parent_data['__TPID'], time_point)
+        mask = match_time_points(self.parent_data['__TPID'], [time_point])
         if len(mask):
             mask &= np.array(self.index_bool)
             return repr(self.parent_data.loc[mask, self.columns].__getattr__(func)(n=n))
@@ -231,7 +232,7 @@ class ViewTemporalDataFrame:
         return [idx in self.index for idx in self._parent.index]
 
     @property
-    def time_points(self) -> List[str]:
+    def time_points(self) -> List[TimePoint]:
         """
         Get the list of time points in this view of a TemporalDataFrame
         :return: the list of time points in this view of a TemporalDataFrame
@@ -245,11 +246,11 @@ class ViewTemporalDataFrame:
         """
         return len(self.time_points)
 
-    def len_index(self, time_point: str) -> int:
+    def len_index(self, time_point: TimePoint) -> int:
         """
         :return: the length of the index at a given time point
         """
-        return len(self[time_point].index)
+        return sum(self.df_data["__TPID"] == time_point)
 
     @property
     def n_columns(self) -> int:
@@ -341,7 +342,7 @@ class ViewTemporalDataFrame:
             return True
 
         for TP in self.time_points:
-            mask = match_time_points(self.parent_data['__TPID'], TP) & np.array(self.index_bool)
+            mask = match_time_points(self.parent_data['__TPID'], [TP]) & np.array(self.index_bool)
             if not self.parent_data[mask].empty:
                 return False
 

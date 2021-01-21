@@ -4,21 +4,20 @@
 
 # ====================================================
 # imports
-import os
-import h5py
 import pandas as pd
 import numpy as np
 from anndata import AnnData
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar
+from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
 from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, DataFrame
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .dataframe import TemporalDataFrame
 from .views.vdata import ViewVData
-from .utils import reformat_index, repr_index, array_isin
+from .utils import reformat_index, repr_index, array_isin, match_time_points, to_tp_list
+from ..utils import TimePoint
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
-from .._IO.errors import VTypeError, IncoherenceError, VValueError, VAttributeError, ShapeError
+from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
 
 
 DF = TypeVar('DF', pd.DataFrame, TemporalDataFrame)
@@ -123,11 +122,6 @@ class VData:
 
         generalLogger.debug(f"Guessed dimensions are : ({self._n_time_points}, {self._n_obs}, {self._n_vars})")
 
-        # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
-        if self._obs is None:
-            generalLogger.debug("Default empty TemporalDataFrame for obs.")
-            self._obs = TemporalDataFrame(index=range(self.n_obs_total) if df_obs is None else df_obs, name='obs')
-
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
         if self._var is None:
             generalLogger.debug("Default empty DataFrame for vars.")
@@ -136,6 +130,18 @@ class VData:
         if self._time_points is None:
             generalLogger.debug("Default empty DataFrame for time points.")
             self._time_points = pd.DataFrame(index=range(self._n_time_points))
+
+        # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
+        if self._obs is None:
+            generalLogger.debug("Default empty TemporalDataFrame for obs.")
+            if _layers is not None:
+                time_list = list(_layers.values())[0].time_points_column
+            else:
+                time_list = None
+
+            self._obs = TemporalDataFrame(time_list=time_list,
+                                          index=range(self.n_obs_total) if df_obs is None else df_obs,
+                                          name='obs')
 
         # create arrays linked to VData
         self._layers = VLayerArrayContainer(self, data=_layers)
@@ -297,6 +303,15 @@ class VData:
     #
     #     else:
     #         self._time_points = df
+
+    @property
+    def time_points_values(self) -> List[TimePoint]:
+        """
+        Get the list of time points values (with the unit if possible).
+
+        :return: the list of time points values (with the unit if possible).
+        """
+        return self.time_points.value.values
 
     @property
     def obs(self) -> TemporalDataFrame:
@@ -659,7 +674,7 @@ class VData:
         :return: Arrays in correct format.
         """
         def check_time_match(_time_points: Optional[pd.DataFrame],
-                             _time_list: Optional[List[str]],
+                             _time_list: Optional[List[TimePoint]],
                              _time_col: Optional[str],
                              _obs: TemporalDataFrame) -> Tuple[Optional[pd.DataFrame], int]:
             """
@@ -712,7 +727,9 @@ class VData:
                 if 'value' not in time_points.columns:
                     raise VValueError("'time points' must have at least a column 'value' to store time points value.")
 
-                time_points = self._check_df_types(time_points)
+                time_points["value"] = to_tp_list(time_points["value"])
+                if len(time_points.columns) > 1:
+                    time_points[time_points.columns[1:]] = self._check_df_types(time_points[time_points.columns[1:]])
 
         else:
             generalLogger.debug("  'time points' DataFrame was not found.")
@@ -962,11 +979,11 @@ class VData:
         # if time points are not given, assign default values 0, 1, 2, ...
         if time_points is None:
             if layers is not None:
-                time_points = pd.DataFrame({'value': range(list(layers.values())[0].shape[0])})
+                time_points = pd.DataFrame({'value': to_tp_list(range(list(layers.values())[0].shape[0]))})
             elif obsm is not None:
-                time_points = pd.DataFrame({'value': range(list(obsm.values())[0].shape[0])})
+                time_points = pd.DataFrame({'value': to_tp_list(range(list(obsm.values())[0].shape[0]))})
             elif varm is not None:
-                time_points = pd.DataFrame({'value': range(list(varm.values())[0].shape[0])})
+                time_points = pd.DataFrame({'value': to_tp_list(range(list(varm.values())[0].shape[0]))})
 
         if time_points is not None:
             generalLogger.debug(f"  {len(time_points)} time point{' was' if len(time_points) == 1 else 's were'} "
@@ -1131,3 +1148,25 @@ class VData:
                      self.time_points,
                      self.uns,
                      self.dtype)
+
+    # conversion ---------------------------------------------------------
+    def to_vdata(self, time_points_list: Optional[Collection[str]] = None, into_one: bool = True) -> AnnData:
+        """
+        Convert a VData object to an AnnData object.
+
+        :param time_points_list: a list of time points for which to extract data to build the AnnData. If set to
+            None, all time points are selected.
+        :param into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
+            AnnData for each time point (False) ?
+        :return: an AnnData object with data for selected time points.
+        """
+        if time_points_list is None:
+            time_points_list = self.time_points_values
+
+        else:
+            time_points_list = np.array(time_points_list)[np.where(match_time_points(time_points_list,
+                                                                                     self.time_points_values))]
+
+        print(time_points_list)
+
+        return AnnData()

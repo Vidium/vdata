@@ -7,10 +7,10 @@
 import h5py
 import numpy as np
 import pandas as pd
-from typing import Union, Sequence, Type
+from typing import Union, Sequence
 from typing_extensions import Literal
 
-import vdata
+from . import utils
 
 # ====================================================
 # types
@@ -54,5 +54,5 @@ LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 H5Group = Union[h5py.File, h5py.Group, h5py.Dataset]
 
-Slicer = Union[Sequence[Union[int, float, str, bool]], range, slice]
-PreSlicer = Union[int, float, str, Slicer, 'ellipsis']
+Slicer = Union[Sequence[Union[int, float, str, bool, utils.TimePoint]], range, slice]
+PreSlicer = Union[int, float, str, utils.TimePoint, Slicer, 'ellipsis']

@@ -271,8 +271,9 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                                                f"should have {_shape[2]}.")
 
                 # check that indexes match
-                if _index.equals(TDF.index):
-                    raise IncoherenceError(f"Index of layer '{TDF_index}' does not match obs' index.")
+                if not _index.equals(TDF.index):
+                    raise IncoherenceError(f"Index of layer '{TDF_index}' ({TDF.index}) does not match obs' index. ("
+                                           f"{_index})")
 
                 # checks passed, store the TemporalDataFrame
                 else:

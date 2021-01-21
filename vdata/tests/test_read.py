@@ -14,16 +14,16 @@ from .test_write import test_write
 # code
 def test_read():
     # first write data
-    # test_write()
+    test_write()
 
     # then load data
     # load from .h5 file
-    # v = read("~/vdata.h5")
-    # print(v)
-    #
-    # # load from csv files
-    # v = read_from_csv("~/vdata")
-    # print(v)
+    v = read("~/vdata.h5")
+    print(v)
+
+    # load from csv files
+    v = read_from_csv("~/vdata")
+    print(v)
 
     # load from a dictionary
     data = {

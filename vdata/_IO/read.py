@@ -10,15 +10,15 @@ import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, cast, Callable, Tuple, Collection
+from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection
 from typing_extensions import Literal
 
 import vdata
 from .utils import parse_path
 from .logger import generalLogger, getLoggingLevel
 from .errors import VValueError, VTypeError
-from ..NameUtils import DType, ArrayLike_2D, H5Group
-from .._core import utils
+from .. import utils
+from .. import NameUtils
 
 
 def spacer(nb: int) -> str:
@@ -29,8 +29,8 @@ def spacer(nb: int) -> str:
 # code
 # CSV file format ---------------------------------------------------------------------------------
 def read_from_csv(directory: Union[Path, str],
-                  dtype: DType = np.float32,
-                  time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
+                  dtype: 'NameUtils.DType' = np.float32,
+                  time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
                   time_col: Optional[str] = None,
                   time_points: Optional[Collection[str]] = None) -> 'vdata.VData':
     """
@@ -118,7 +118,7 @@ def read_from_csv(directory: Union[Path, str],
 
 
 def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
-                               time_list: Optional[Union[Collection, DType, Literal['*']]] = None,
+                               time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
                                time_col: Optional[str] = None,
                                time_points: Optional[Collection[str]] = None) -> 'vdata.TemporalDataFrame':
     """
@@ -145,11 +145,11 @@ def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
+def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtils.ArrayLike_2D']],
                    obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
-                   dtype: DType = np.float32) -> 'vdata.VData':
+                   dtype: 'NameUtils.DType' = np.float32) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
 
@@ -159,12 +159,12 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
         - last character in (s, m, h, D, M, Y)
         - first characters convertible to a float
     The last character indicates the unit:
-        - s : second
-        - m : minute
-        - h : hour
-        - D : day
-        - M : month
-        - Y : year
+        - s : seconds
+        - m : minutes
+        - h : hours
+        - D : days
+        - M : months
+        - Y : years
 
     :param data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to
         matrices of cells x genes
@@ -175,17 +175,8 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
 
     :return: a VData object containing the simulation's data
     """
-    time_point_units = {
-        's': 'second',
-        'm': 'minute',
-        'h': 'hour',
-        'D': 'day',
-        'M': 'month',
-        'Y': 'year',
-    }
-
     _data = {}
-    _time_points = []
+    _time_points: List[utils.TimePoint] = []
     check_tp = False
 
     if not isinstance(data, dict):
@@ -197,19 +188,21 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
                 raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
             for matrix_index, matrix in TP_matrices.items():
+                matrix_TP = utils.TimePoint(matrix_index)
                 if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
-                    raise VTypeError(f"Item at time point '{matrix_index}' is not a 2D array-like object "
+                    raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
                                      f"(numpy ndarray, pandas DatFrame).")
 
                 elif check_tp:
-                    if matrix_index not in _time_points:
+                    if matrix_TP not in _time_points:
                         raise VValueError("Time points do not match for all data types.")
                 else:
-                    _time_points.append(matrix_index)
+                    _time_points.append(matrix_TP)
 
             check_tp = True
 
-            time_list = [tp for tp, mtx in TP_matrices.items() for _ in range(len(mtx))]
+            time_list = [utils.TimePoint(matrix_TP) for matrix_TP, matrix in TP_matrices.items() for _ in range(len(
+                matrix))]
             index = obs.index if obs is not None else None
             columns = var.index if var is not None else None
             _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
@@ -219,40 +212,11 @@ def read_from_dict(data: Dict[str, Dict[Union[DType, str], ArrayLike_2D]],
                                                        dtype=dtype,
                                                        name=data_type)
 
-        # if time points not given, try to guess them
+        # if time points not given, build a DataFrame from time points found in 'data'
         if time_points is None:
-            if all([isinstance(_time_points[i], str) for i in range(len(_time_points))]):
-                TP_data: Dict[str, List[Union[float, str]]] = {"value": [], "unit": []}
-                del_unit = False
+            time_points = pd.DataFrame({"value": _time_points})
 
-                for tp in _time_points:
-                    tp = cast(str, tp)          # for typing
-
-                    if tp[-1] in time_point_units.keys():
-                        try:
-                            TP_data["value"].append(float(tp[:-1]))
-                            TP_data["unit"].append(time_point_units[tp[-1]])
-
-                        except ValueError:
-                            del_unit = True
-                            break
-
-                    else:
-                        del_unit = True
-                        break
-
-                if del_unit:
-                    TP_data = {"value": _time_points}
-
-                TP_df = pd.DataFrame(TP_data)
-
-            else:
-                TP_df = pd.DataFrame({"value": _time_points})
-
-            return vdata.VData(_data, obs=obs, var=var, time_points=TP_df, dtype=dtype)
-
-        else:
-            return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
+        return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -261,7 +225,7 @@ class H5GroupReader:
     Class for reading a h5py File, Group or Dataset
     """
 
-    def __init__(self, group: H5Group):
+    def __init__(self, group: 'NameUtils.H5Group'):
         """
         :param group: a h5py File, Group or Dataset
         """
@@ -361,7 +325,7 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional[DType] = None) -> 'vdata.VData':
+def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None) -> 'vdata.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 

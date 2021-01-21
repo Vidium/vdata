@@ -13,9 +13,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
-from vdata.NameUtils import LoggingLevel, LoggingLevels
 from . import errors
-
+from .. import NameUtils
 
 # ====================================================
 colors = {"TCYAN": '\033[36m', "TORANGE": '\033[33m', "TRED": '\033[31m',
@@ -42,7 +41,7 @@ class _VLogger:
     The default minimal level for logging is <INFO>.
     """
 
-    def __init__(self, logger_level: LoggingLevel = "WARNING"):
+    def __init__(self, logger_level: 'NameUtils.LoggingLevel' = "WARNING"):
         """
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
@@ -66,13 +65,13 @@ class _VLogger:
                 50: 'CRITICAL'}[self.logger.level]
 
     @level.setter
-    def level(self, logger_level: LoggingLevel) -> None:
+    def level(self, logger_level: 'NameUtils.LoggingLevel') -> None:
         """
         Re-init the logger, for setting new minimal logging level
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
-        if logger_level not in LoggingLevels:
-            raise errors.VTypeError(f"Incorrect logging level '{logger_level}', should be in {LoggingLevels}")
+        if logger_level not in NameUtils.LoggingLevels:
+            raise errors.VTypeError(f"Incorrect logging level '{logger_level}', should be in {NameUtils.LoggingLevels}")
 
         self.logger.setLevel(logger_level)
         for handler in self.logger.handlers:
@@ -176,11 +175,19 @@ class _VLogger:
 generalLogger = _VLogger()
 
 
-def setLoggingLevel(LL: LoggingLevel) -> None:
-    generalLogger.level = LL
+def setLoggingLevel(log_level: 'NameUtils.LoggingLevel') -> None:
+    """
+    Set the logging level for package vdata.
+    :param log_level: a logging level to set, in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    """
+    generalLogger.level = log_level
 
 
 def getLoggingLevel() -> str:
+    """
+    Get the logging level for package vdata.
+    :return: the logging level for package vdata.
+    """
     return generalLogger.level
 
 

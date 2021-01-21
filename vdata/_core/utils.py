@@ -7,24 +7,12 @@ import numpy as np
 from typing import Union, Tuple, Sequence, Collection, Any, List
 
 from vdata.NameUtils import PreSlicer
+from ..utils import TimePoint
 from .._IO.errors import VTypeError, VValueError, ShapeError
 
 
 # ====================================================
 # code
-def get_value(v: Any) -> Union[str, int, float]:
-    """
-    If possible, get the int or float value of the passed object.
-    :param v: an object for which to try to get the value.
-    :return: the object's value (int or float) or the object itself.
-    """
-    try:
-        return eval(str(v))
-
-    except (NameError, SyntaxError):
-        return str(v)
-
-
 def isCollection(obj: Any) -> bool:
     """
     Whether an object is a collection.
@@ -39,7 +27,7 @@ def reformat_index(index: Union[PreSlicer,
                                 Tuple[PreSlicer],
                                 Tuple[PreSlicer, PreSlicer],
                                 Tuple[PreSlicer, PreSlicer, PreSlicer]],
-                   time_points_reference: Collection,
+                   time_points_reference: Collection[TimePoint],
                    obs_reference: Collection,
                    var_reference: Collection) \
         -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -53,31 +41,32 @@ def reformat_index(index: Union[PreSlicer,
     :return: 3 arrays of selected (and allowed) values for time points, observations and variables.
     """
     if not isinstance(index, tuple):
-        return slicer_to_array(index, time_points_reference), \
+        return slicer_to_array(index, time_points_reference, on_time_point=True), \
                slicer_to_array(..., obs_reference), \
                slicer_to_array(..., var_reference)
 
     elif isinstance(index, tuple) and len(index) == 1:
-        return slicer_to_array(index[0], time_points_reference), \
+        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
                slicer_to_array(..., obs_reference), \
                slicer_to_array(..., var_reference)
 
     elif isinstance(index, tuple) and len(index) == 2:
-        return slicer_to_array(index[0], time_points_reference), \
+        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
                slicer_to_array(index[1], obs_reference), \
                slicer_to_array(..., var_reference)
 
     else:
-        return slicer_to_array(index[0], time_points_reference), \
+        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
                slicer_to_array(index[1], obs_reference), \
                slicer_to_array(index[2], var_reference)
 
 
-def slicer_to_array(slicer: PreSlicer, reference_index: Collection) -> np.ndarray:
+def slicer_to_array(slicer: PreSlicer, reference_index: Collection, on_time_point: bool = False) -> np.ndarray:
     """
     Format a slicer into an array of allowed values given in the 'reference_index' parameter.
     :param slicer: a PreSlicer object to format.
     :param reference_index: a collection of allowed values for the slicer.
+    :param on_time_point: slicing on time points ?
     :return: an array of allowed values in the slicer.
     """
     if not isinstance(slicer, (slice, type(Ellipsis))):
@@ -87,11 +76,13 @@ def slicer_to_array(slicer: PreSlicer, reference_index: Collection) -> np.ndarra
 
         elif not isCollection(slicer):
             # single value : convert to array (void array if value not in reference_index)
+            slicer = TimePoint(slicer) if on_time_point else slicer
             return np.array([slicer]) if smart_isin(slicer, reference_index) else np.array([])
 
         else:
             # array of values : store values that are in reference_index
-            return np.array(slicer)[np.where(smart_isin(slicer, reference_index))]
+            slicer = to_tp_list(slicer) if on_time_point else slicer
+            return np.array(to_tp_list(slicer))[np.where(smart_isin(slicer, reference_index))]
 
     elif slicer == slice(None, None, None) or isinstance(slicer, type(Ellipsis)):
         # slice from start to end : take all values in reference_index
@@ -99,6 +90,9 @@ def slicer_to_array(slicer: PreSlicer, reference_index: Collection) -> np.ndarra
 
     elif isinstance(slicer, (slice, range)):
         # slice from specific start to end : get list of sliced values
+        if on_time_point:
+            slicer.start = TimePoint(slicer.start)
+            slicer.stop = TimePoint(slicer.stop)
         return np.array(slice_or_range_to_list(slicer, reference_index))
 
     else:
@@ -119,15 +113,15 @@ def slice_or_range_to_list(s: Union[slice, range], c: Collection[Any]) -> List[A
     found_start = False
     current_step = 1
 
-    start = get_value(s.start)
-    end = get_value(s.stop)
+    start = s.start
+    end = s.stop
 
     # get step value
     if s.step is None:
         step = 1
 
     else:
-        step = get_value(s.step)
+        step = s.step
         if not isinstance(step, int):
             raise VValueError(f"The 'step' value is {step}, should be an int.")
 
@@ -141,12 +135,12 @@ def slice_or_range_to_list(s: Union[slice, range], c: Collection[Any]) -> List[A
     for element in c:
         if not found_start:
             # scan collection until the start element is found
-            if get_value(element) == start:
+            if element == start:
                 sliced_list.append(element)
                 found_start = True
 
         else:
-            if get_value(element) == end:
+            if element == end:
                 break
 
             elif current_step == step:
@@ -172,19 +166,20 @@ def to_list(value: Any) -> List[Any]:
         return [value]
 
 
-def to_str_list(item: Any) -> List:
+def to_tp_list(item: Any) -> List:
     """
-    Converts a given object to a list of string (or list of list of string ...).
-    :param item: an object to convert to list of string.
-    :return: a (nested) list of strings.
+    Converts a given object to a list of TimePoints (or list of list of TimePoints ...).
+    :param item: an object to convert to list of TimePoints.
+    :return: a (nested) list of TimePoints.
     """
-    new_tp_list: List[Union[str, List]] = []
+    new_tp_list: List[Union[TimePoint, List]] = []
+
     for v in to_list(item):
         if isCollection(v):
-            new_tp_list.append(to_str_list(v))
+            new_tp_list.append(to_tp_list(v))
 
         else:
-            new_tp_list.append(str(v))
+            new_tp_list.append(TimePoint(v))
 
     return new_tp_list
 
@@ -228,7 +223,7 @@ def repr_index(index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, PreSli
 
 
 # Identification ---------------------------------------------------------
-def match_time_points(tp_list: Collection, tp_index: Collection[str]) -> np.ndarray:
+def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> np.ndarray:
     """
     Find where in the tp_list the values in tp_index are present. This function parses the tp_list to understand the
         '*' character (meaning the all values in tp_index match) and tuples of time points.
@@ -239,12 +234,12 @@ def match_time_points(tp_list: Collection, tp_index: Collection[str]) -> np.ndar
     """
     mask = np.array([False for _ in range(len(tp_list))], dtype=bool)
 
-    tp_index = to_str_list(np.unique(tp_index))
-    tp_list = to_str_list(tp_list)
+    tp_index = np.unique(tp_index)
+    tp_list = to_tp_list(tp_list)
 
     if len(tp_index):
         for tp_i, tp_value in enumerate(tp_list):
-            if tp_value == '*':
+            if tp_value.value == '*':
                 mask[tp_i] = True
 
             else:
@@ -287,7 +282,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     if not isCollection(target_collection):
         raise VTypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
 
-    target_collection = set(get_value(e) for e in np.unique(target_collection))
+    target_collection = set(e for e in np.unique(target_collection))
 
     if not isCollection(element):
         element = [element]
@@ -295,65 +290,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     result = np.array([False for _ in range(len(element))])
 
     for i, e in enumerate(element):
-        if len({get_value(e)} & target_collection):
+        if len({e} & target_collection):
             result[i] = True
 
     return result if len(result) > 1 else result[0]
-
-
-
-
-# TODO -------------------------------------------------------------------
-# def reshape_to_3D(arr: ArrayLike_2D, time_points: Optional[Collection[str]], time_list: Optional[Collection[str]]) -> \
-#         np.ndarray:
-#     """
-#     Reshape a 2D array-like object into a 3D array-like. Pandas DataFrames are first converted into numpy arrays.
-#     By default, 2D arrays of shapes (n, m) are converted to 3D arrays of shapes (1, n, m). In this case, all the data
-#         in the 2D array is considered to belong to the same time point.
-#
-#     Optionally, a collection of existing time points can be provided as the 'time_points' parameter. In this
-#     collection, each time must be given only once. It will be used to split the 2D array into multiple arrays to
-#     store in the final 3D array.
-#     In addition to that, a collection of time points of the same length as the number of rows in the 2D array can be
-#     given as the 'time_list' parameter to describe the 2D array. For each time point in 'time_points',
-#     rows that match that time point in 'time_list' will be extracted from the 2D array to form a sub-array in the
-#     final 3D array.
-#     The 3D array will have shape (T, [n_1, ..., n_T], m) with :
-#         * T, the number of unique time points in 'time_points'
-#         * n_i, the number of rows in the sub-array for the time point i
-#         * m, the number of columns
-#
-#     :param arr: a 2D array-like object.
-#     :param time_points: a collection of existing and unique time points.
-#     :param time_list: a collection of time points describing the rows of the 2D array
-#     :return: a 3D numpy array.
-#     """
-#     # Check 2D array
-#     if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-#         raise VTypeError(f"Type '{type(arr)}' is not allowed for conversion to 3D array.")
-#
-#     elif isinstance(arr, pd.DataFrame):
-#         arr = np.array(arr)
-#
-#     # Check time points
-#     if time_points is None:
-#         time_points = ['0']
-#
-#         if time_list is not None:
-#             generalLogger.warning("'time_list' parameter provided to reshape_to_3D() without specifying "
-#                                   "'time_points', it will be ignored.")
-#
-#             time_list = np.zeros(len(arr))
-#
-#     else:
-#         time_points = np.unique(time_points)
-#
-#         if time_list is None:
-#             generalLogger.warning("'time_points' parameter provided to reshape_to_3D() without specifying "
-#                                   "'time_list', all data is considered to come from the same time point.")
-#
-#     if time_list is None:
-#         time_list = np.zeros(len(arr))
-#
-#     return np.array([arr[time_list == eval(str(TP))] for TP in time_points], dtype=object)
-#
