@@ -14,7 +14,7 @@ from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, D
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .dataframe import TemporalDataFrame
 from .views.vdata import ViewVData
-from .utils import reformat_index, repr_index, array_isin, match_time_points, to_tp_list
+from .utils import reformat_index, repr_index, repr_array, array_isin, match_time_points, to_tp_list
 from ..utils import TimePoint
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
@@ -211,8 +211,7 @@ class VData:
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
-        index = reformat_index(index, self.time_points.value.values,
-                                                                    self.obs.index, self.var.index)
+        index = reformat_index(index, self.time_points.value.values, self.obs.index, self.var.index)
 
         generalLogger.debug(f"  Refactored index to \n{repr_index(index)}")
 
@@ -1150,7 +1149,9 @@ class VData:
                      self.dtype)
 
     # conversion ---------------------------------------------------------
-    def to_vdata(self, time_points_list: Optional[Collection[str]] = None, into_one: bool = True) -> AnnData:
+    def to_vdata(self, time_points_list: Optional[Union[str, TimePoint, Collection[Union[str, TimePoint]]]] = None,
+                 into_one: bool = True) \
+            -> Union[AnnData, List[AnnData]]:
         """
         Convert a VData object to an AnnData object.
 
@@ -1160,13 +1161,47 @@ class VData:
             AnnData for each time point (False) ?
         :return: an AnnData object with data for selected time points.
         """
+        generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
+                            u'---------------------------------------------------------- ')
+
         if time_points_list is None:
             time_points_list = self.time_points_values
 
         else:
+            time_points_list = to_tp_list(time_points_list)
             time_points_list = np.array(time_points_list)[np.where(match_time_points(time_points_list,
                                                                                      self.time_points_values))]
 
-        print(time_points_list)
+        generalLogger.debug(f"Selected time points are : {repr_array(time_points_list)}")
 
-        return AnnData()
+        if into_one:
+            generalLogger.debug(f"Convert to one AnnData object.")
+
+            generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
+                                u'---------------------------------------------------------- ')
+
+            return AnnData()
+
+        else:
+            generalLogger.debug(f"Convert to many AnnData objects.")
+
+            result = []
+            for time_point in time_points_list:
+                view = self[time_point]
+                X_layer = list(view.layers.keys())[0]
+                # TODO : obsm, obsp, varm, varp
+
+                result.append(AnnData(X=view.layers[X_layer].to_pandas(),
+                                      layers={key: layer for key, layer in view.layers.items() if key != X_layer},
+                                      obs=view.obs.to_pandas(),
+                                      obsm=None,
+                                      obsp=None,
+                                      var=view.var,
+                                      varm=None,
+                                      varp=None,
+                                      uns=view.uns))
+
+            generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
+                                u'---------------------------------------------------------- ')
+
+            return result

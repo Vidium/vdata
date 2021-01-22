@@ -27,7 +27,6 @@ data = {
 }
 
 v = read_from_dict(data)
-print()
-print(v.layers['RNA'])
-print(v.obs)
-v.to_vdata()
+v['0h']
+
+print(v.to_vdata('0h', into_one=False))

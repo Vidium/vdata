@@ -4,7 +4,7 @@
 # ====================================================
 # imports
 import numpy as np
-from typing import Union, Tuple, Sequence, Collection, Any, List
+from typing import Union, Tuple, Sequence, Collection, Any, List, Set
 
 from vdata.NameUtils import PreSlicer
 from ..utils import TimePoint
@@ -82,7 +82,7 @@ def slicer_to_array(slicer: PreSlicer, reference_index: Collection, on_time_poin
         else:
             # array of values : store values that are in reference_index
             slicer = to_tp_list(slicer) if on_time_point else slicer
-            return np.array(to_tp_list(slicer))[np.where(smart_isin(slicer, reference_index))]
+            return np.array(slicer)[np.where(smart_isin(slicer, reference_index))]
 
     elif slicer == slice(None, None, None) or isinstance(slicer, type(Ellipsis)):
         # slice from start to end : take all values in reference_index
@@ -184,6 +184,43 @@ def to_tp_list(item: Any) -> List:
     return new_tp_list
 
 
+def to_tp_tuple(item: Any) -> Tuple:
+    """
+    Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
+    :param item: an object to convert to tuple of TimePoints.
+    :return: a (nested) tuple of TimePoints.
+    """
+    new_tp_list: List[Union[TimePoint, Tuple]] = []
+
+    for v in to_list(item):
+        if isCollection(v):
+            new_tp_list.append(to_tp_tuple(v))
+
+        else:
+            new_tp_list.append(TimePoint(v))
+
+    return tuple(new_tp_list)
+
+
+def unique_in_list(c: Collection) -> Set:
+    """
+    Get the set of unique elements in a (nested) collection of elements.
+
+    :param c: the (nested) collection of elements.
+    :return: the set of unique elements in the (nested) collection of elements.
+    """
+    unique_values = set()
+
+    for value in c:
+        if isCollection(value):
+            unique_values.union(unique_in_list(value))
+
+        else:
+            unique_values.add(value)
+
+    return unique_values
+
+
 # Representation ---------------------------------------------------------
 def repr_array(arr: Union[Sequence, range, slice]) -> str:
     """
@@ -232,25 +269,29 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
     :return: a list of booleans of the same length as tp_list, where True indicates that a value in tp_list matched
         a value in tp_index.
     """
-    mask = np.array([False for _ in range(len(tp_list))], dtype=bool)
-
-    tp_index = np.unique(tp_index)
+    tp_index = list(unique_in_list(tp_index))
     tp_list = to_tp_list(tp_list)
 
-    if len(tp_index):
-        for tp_i, tp_value in enumerate(tp_list):
-            if tp_value.value == '*':
-                mask[tp_i] = True
+    if TimePoint('*') in tp_index:
+        mask = np.array([True for _ in range(len(tp_list))], dtype=bool)
 
-            else:
-                if isCollection(tp_value):
-                    for one_tp_value in tp_value:
-                        if smart_isin(one_tp_value, tp_index):
-                            mask[tp_i] = True
-                            break
+    else:
+        mask = np.array([False for _ in range(len(tp_list))], dtype=bool)
 
-                elif smart_isin(tp_value, tp_index):
+        if len(tp_index):
+            for tp_i, tp_value in enumerate(tp_list):
+                if not isCollection(tp_value) and tp_value.value == '*':
                     mask[tp_i] = True
+
+                else:
+                    if isCollection(tp_value):
+                        for one_tp_value in tp_value:
+                            if smart_isin(one_tp_value, tp_index):
+                                mask[tp_i] = True
+                                break
+
+                    elif smart_isin(tp_value, tp_index):
+                        mask[tp_i] = True
 
     return mask
 

@@ -12,7 +12,7 @@ from typing_extensions import Literal
 import vdata
 from vdata.NameUtils import PreSlicer, DType
 from ..NameUtils import TemporalDataFrame_internal_attributes
-from ..utils import repr_array, repr_index, reformat_index, match_time_points
+from ..utils import repr_array, repr_index, reformat_index, match_time_points, to_tp_list
 from ...utils import TimePoint
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
@@ -43,13 +43,15 @@ class ViewTemporalDataFrame:
         object.__setattr__(self, 'index', index_slicer)
         object.__setattr__(self, 'columns', column_slicer)
 
+        tp_slicer = to_tp_list(tp_slicer)
+
         object.__setattr__(self, '_tp_slicer', np.array(tp_slicer)[
             match_time_points(tp_slicer, self.parent_data.loc[self.index]['__TPID'].values)])
 
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
-        object.__setattr__(self, 'index', np.array(index_slicer)[np.isin(index_slicer, self.parent_data[
-            self.parent_data['__TPID'].isin(self._tp_slicer)].index)])
+        index_at_tp_slicer = self.parent_data[match_time_points(self.parent_data['__TPID'], tp_slicer)].index
+        object.__setattr__(self, 'index', np.array(index_slicer)[np.isin(index_slicer, index_at_tp_slicer)])
 
         generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self.index)}")
 
@@ -62,13 +64,13 @@ class ViewTemporalDataFrame:
         :return: a description of this view of a TemporalDataFrame object
         """
         if self.n_time_points:
-            repr_str = ""
+            repr_str = f"View of TemporalDataFrame '{self._parent.name}'\n"
             for TP in self.time_points:
                 repr_str += f"\033[4mTime point : {TP}\033[0m\n"
                 repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
-            repr_str = f"Empty View of a TemporalDataFrame\n" \
+            repr_str = f"Empty View of TemporalDataFrame '{self._parent.name}'\n" \
                        f"Columns: {[col for col in self.columns]}\n" \
                        f"Index: {[idx for idx in self.index]}"
 
@@ -83,6 +85,7 @@ class ViewTemporalDataFrame:
         :return: a representation of a single time point in this TemporalDataFrame object
         """
         mask = match_time_points(self.parent_data['__TPID'], [time_point])
+
         if len(mask):
             mask &= np.array(self.index_bool)
             return repr(self.parent_data.loc[mask, self.columns].__getattr__(func)(n=n))
@@ -141,7 +144,7 @@ class ViewTemporalDataFrame:
         :param attr: an attribute's name
         :return: a column with name <attr> from the DataFrame
         """
-        if attr in self.columns:
+        if any(np.isin([attr], self.columns)):
             return self._parent.loc[self.index, attr]
 
         else:
@@ -167,7 +170,7 @@ class ViewTemporalDataFrame:
         Returns the length of info axis.
         :return: the length of info axis.
         """
-        return len(self.index)
+        return self.n_index
 
     def set(self, df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         """
@@ -211,7 +214,7 @@ class ViewTemporalDataFrame:
         TODO
         """
         index = self.index[0] if len(self.index) == 1 else self.index
-        columns = self.columns[0] if len(self.columns) == 1 else self.n_columns
+        columns = self.columns[0] if len(self.columns) == 1 else self.columns
 
         return self.parent_data.loc[index, columns]
 
@@ -234,23 +237,32 @@ class ViewTemporalDataFrame:
     @property
     def time_points(self) -> List[TimePoint]:
         """
-        Get the list of time points in this view of a TemporalDataFrame
-        :return: the list of time points in this view of a TemporalDataFrame
+        Get the list of time points in this view of a TemporalDataFrame.
+        :return: the list of time points in this view of a TemporalDataFrame.
         """
         return self._tp_slicer
 
     @property
     def n_time_points(self) -> int:
         """
-        :return: the number of time points
+        Get the number of time points.
+        :return: the number of time points.
         """
         return len(self.time_points)
 
-    def len_index(self, time_point: TimePoint) -> int:
+    @property
+    def n_index(self) -> int:
         """
-        :return: the length of the index at a given time point
+        Get the number of indexes.
+        :return: the number of indexes.
         """
-        return sum(self.df_data["__TPID"] == time_point)
+        return sum([self.n_index_at(TP) for TP in self.time_points])
+
+    def n_index_at(self, time_point: TimePoint) -> int:
+        """
+        :return: the length of the index at a given time point.
+        """
+        return sum(match_time_points(self.df_data["__TPID"], [time_point]))
 
     @property
     def n_columns(self) -> int:
@@ -319,10 +331,10 @@ class ViewTemporalDataFrame:
     def shape(self) -> Tuple[int, List[int], int]:
         """
         Return a tuple representing the dimensionality of the DataFrame
-        (nb_time_points, [len_index for all time points], nb_col)
+        (nb_time_points, [n_index_at(time point) for all time points], nb_col)
         :return: a tuple representing the dimensionality of the DataFrame
         """
-        return self.n_time_points, [self.len_index(TP) for TP in self.time_points], self.n_columns
+        return self.n_time_points, [self.n_index_at(TP) for TP in self.time_points], self.n_columns
 
     def memory_usage(self, index: bool = True, deep: bool = False):
         """
@@ -338,15 +350,10 @@ class ViewTemporalDataFrame:
         Indicator whether DataFrame is empty.
         :return: True if this TemporalDataFrame is empty.
         """
-        if not self.n_time_points:
+        if not self.n_time_points or not self.n_columns or not self.n_index:
             return True
 
-        for TP in self.time_points:
-            mask = match_time_points(self.parent_data['__TPID'], [TP]) & np.array(self.index_bool)
-            if not self.parent_data[mask].empty:
-                return False
-
-        return True
+        return False
 
     def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
         """

@@ -112,10 +112,10 @@ class TimePoint:
         :param time_point: a time point's value given by the user.
         :return: tuple of value and unit.
         """
-        if isinstance(time_point, (int, float, np.int, np.float)):
+        if isinstance(time_point, (int, float, np.int_, np.float_)):
             return time_point, Unit(None)
 
-        elif isinstance(time_point, (str, np.str)):
+        elif isinstance(time_point, (str, np.str_)):
             v = get_value(time_point)
 
             if isinstance(v, str):
@@ -152,13 +152,23 @@ class TimePoint:
         """
         Compare units with 'greater than'.
         """
-        return self.unit > other.unit or (self.unit == other.unit and self.value != '*' and self.value > other.value)
+        try:
+            return self.unit > other.unit or (self.unit == other.unit and
+                                              ((self.value != '*' and other.value == '*') or self.value > other.value))
+
+        except TypeError:
+            return False
 
     def __lt__(self, other):
         """
         Compare units with 'lesser than'.
         """
-        return self.unit < other.unit or (self.unit == other.unit and self.value != '*' and self.value < other.value)
+        try:
+            return self.unit < other.unit or (self.unit == other.unit and
+                                              ((self.value == '*' and other.value != '*') or self.value < other.value))
+
+        except TypeError:
+            return False
 
     def __ge__(self, other):
         """

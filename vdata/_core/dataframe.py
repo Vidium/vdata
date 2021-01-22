@@ -12,7 +12,8 @@ from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
-from .utils import isCollection, repr_index, repr_array, to_tp_list, to_list, reformat_index
+from .utils import repr_index, repr_array, to_tp_list, to_tp_tuple, to_list, reformat_index, match_time_points,\
+    unique_in_list
 from .views.dataframe import ViewTemporalDataFrame
 from ..utils import TimePoint
 from .._IO import generalLogger
@@ -32,7 +33,7 @@ class TemporalDataFrame:
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
                  time_list: Optional[Union[Collection, DType, Literal['*'], TimePoint]] = None,
                  time_col: Optional[str] = None,
-                 time_points: Optional[Collection[Union[str, TimePoint]]] = None,
+                 time_points: Optional[Collection[Union[DType, TimePoint]]] = None,
                  index: Optional[Collection] = None,
                  columns: Optional[Collection] = None,
                  dtype: Optional[DType] = None,
@@ -65,11 +66,11 @@ class TemporalDataFrame:
                             f"---------------------------------------- ")
 
         self._time_points_col = '__TPID'
-        self._time_points = sorted(to_tp_list(time_points)) if time_points is not None else None
+        self._time_points = sorted(to_tp_list(unique_in_list(time_points))) if time_points is not None else None
         if self._time_points is not None:
             generalLogger.debug(f"User has defined time points '{self._time_points}'.")
 
-        time_list = to_tp_list(time_list) if time_list is not None else None
+        time_list = to_tp_tuple(time_list) if time_list is not None else None
 
         if columns is not None:
             columns = ['__TPID'] + list(columns)
@@ -140,7 +141,7 @@ class TemporalDataFrame:
                 elif (isinstance(data, dict) and time_col in data.keys()) or \
                         (isinstance(data, pd.DataFrame) and time_col in data.columns):
                     generalLogger.info(f"Using '{time_col}' as time points data.")
-                    data[time_col] = to_tp_list(data[time_col])
+                    data[time_col] = to_tp_tuple(data[time_col])
                     time_list = data[time_col]
                     self._time_points_col = time_col
 
@@ -179,35 +180,46 @@ class TemporalDataFrame:
                 self._df.columns = columns
 
             if self._time_points is not None:
-                undesired_time_points = np.unique(self._df[~self._df[self._time_points_col].isin(self._time_points + [
-                    TimePoint('*')])][self._time_points_col])
+                # TODO : does not work for tuples of time points !
+                undesired_time_points = \
+                    np.unique(self._df[~match_time_points(self._df[self._time_points_col],
+                                                          self._time_points + [TimePoint('*')])][self._time_points_col])
+
                 if len(undesired_time_points):
                     generalLogger.warning(f"Time points {undesired_time_points} were found in 'data' but were not "
                                           f"specified in 'time_points'. They will be deleted from the DataFrame, "
                                           f"is this what you intended ?")
                     # remove undesired time points from the data
-                    self._df = self._df[self._df[self._time_points_col].isin(self._time_points + [TimePoint('*')])]
+                    self._df = self._df[match_time_points(self._df[self._time_points_col],
+                                                          self._time_points + [TimePoint('*')])]
+
                     generalLogger.debug(f"New data has {len(self._df)} rows.")
 
         else:
             raise VTypeError(f"Type {type(data)} is not handled for 'data' parameter.")
 
         # re-order TemporalDataFrame based on time points
-        self._df.rename_axis('Index').sort_values(by=["__TPID", "Index"], inplace=True)
+        def sort_func(s: pd.Series) -> pd.Series:
+            """TODO"""
+            s = s.copy()
+
+            for i, e in enumerate(s):
+                if isinstance(e, tuple):
+                    s[i] = min(e)
+
+            return s
+
+        self._df.rename_axis('Index').sort_values(by=["__TPID", "Index"], inplace=True, key=lambda col: sort_func(col))
 
         # get list of time points that can be found in the DataFrame
-        all_values = self._df[self._time_points_col].unique()
-
-        unique_values = set()
-
-        for value in all_values:
-            if isCollection(value):
-                unique_values.union(set(value))
-
-            else:
-                unique_values.add(value)
+        unique_values = unique_in_list(self._df[self._time_points_col])
+        if self._time_points is not None:
+            unique_values = unique_values.union(self._time_points)
 
         self._time_points = sorted(unique_values - {TimePoint('*')})
+
+        if len(self._df) and not len(self._time_points):
+            self._time_points = [TimePoint('0')]
 
         generalLogger.debug(f"Found time points {self._time_points} from stored DataFrame.")
 
@@ -220,17 +232,36 @@ class TemporalDataFrame:
         :return: a description of this TemporalDataFrame object
         """
         if self.n_time_points:
-            repr_str = ""
+            repr_str = f"TemporalDataFrame '{self.name}'\n"
             for TP in self.time_points:
                 repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{self[TP].one_TP_repr(TP)}\n\n"
+                repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
-            repr_str = f"Empty TemporalDataFrame\n" \
+            repr_str = f"Empty TemporalDataFrame '{self.name}'\n" \
                        f"Columns: {[col for col in self.columns]}\n" \
                        f"Index: {[idx for idx in self.index]}"
 
         return repr_str
+
+    def one_TP_repr(self, time_point: TimePoint, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
+        """
+        Representation of a single time point in this TemporalDataFrame to print.
+        :param time_point: the time point to represent.
+        :param n: the number of rows to print. Defaults to all.
+        :param func: the name of the function to use to limit the output ('head' or 'tail')
+        :return: a representation of a single time point in this TemporalDataFrame object
+        """
+        mask = match_time_points(self._df['__TPID'], [time_point])
+
+        if len(mask):
+            return repr(self._df.loc[mask, self.columns].__getattr__(func)(n=n))
+
+        else:
+            repr_str = f"Empty DataFrame\n" \
+                       f"Columns: {[col for col in self.columns]}\n" \
+                       f"Index: {[idx for idx in self.index]}"
+            return repr_str
 
     def __getitem__(self, index: Union[PreSlicer,
                                        Tuple[PreSlicer],
@@ -323,7 +354,7 @@ class TemporalDataFrame:
         Returns the length of info axis.
         :return: the length of info axis.
         """
-        return len(self._df)
+        return self.n_index
 
     @property
     def name(self) -> str:
@@ -375,20 +406,12 @@ class TemporalDataFrame:
         return self._df[self._time_points_col]
 
     @property
-    def columns(self) -> pd.Index:
+    def n_time_points(self) -> int:
         """
-        Get the columns of this TemporalDataFrame (but mask the reserved __TPID column).
-        :return: the column names of this TemporalDataFrame
+        Get the number of distinct time points in this TemporalDataFrame.
+        :return: the number of time points.
         """
-        return self._df.columns[1:]
-
-    @columns.setter
-    def columns(self, values: pd.Index) -> None:
-        """
-        Set the columns of this TemporalDataFrame (except for __TPID).
-        :param values: the new column names for this TemporalDataFrame.
-        """
-        self._df.columns[1:] = values
+        return len(self.time_points)
 
     @property
     def index(self) -> pd.Index:
@@ -407,20 +430,36 @@ class TemporalDataFrame:
         self._df.index = values
 
     @property
-    def n_time_points(self) -> int:
+    def n_index(self) -> int:
         """
-        Get the number of distinct time points in this TemporalDataFrame.
-        :return: the number of time points.
+        Get the number of indexes.
+        :return: the number of indexes.
         """
-        return len(self.time_points)
+        return sum([self.n_index_at(TP) for TP in self.time_points])
 
-    def len_index(self, time_point: TimePoint) -> int:
+    def n_index_at(self, time_point: TimePoint) -> int:
         """
         Get the length of the index at a given time point.
         :param time_point: a time points in this TemporalDataFrame.
         :return: the length of the index at a given time point.
         """
-        return sum(self.df_data["__TPID"] == time_point)
+        return sum(match_time_points(self.df_data["__TPID"], [time_point]))
+
+    @property
+    def columns(self) -> pd.Index:
+        """
+        Get the columns of this TemporalDataFrame (but mask the reserved __TPID column).
+        :return: the column names of this TemporalDataFrame
+        """
+        return self._df.columns[1:]
+
+    @columns.setter
+    def columns(self, values: pd.Index) -> None:
+        """
+        Set the columns of this TemporalDataFrame (except for __TPID).
+        :param values: the new column names for this TemporalDataFrame.
+        """
+        self._df.columns[1:] = values
 
     @property
     def n_columns(self) -> int:
@@ -443,7 +482,13 @@ class TemporalDataFrame:
         Cast this TemporalDataFrame to a specified data type.
         :param dtype: a data type.
         """
-        self._df[self.columns] = self._df[self.columns].astype(np.float).astype(dtype)
+        for column in self.columns:
+            if column != self._time_points_col:
+                try:
+                    self._df[column] = self._df[column].astype(np.float).astype(dtype)
+
+                except ValueError:
+                    pass
 
     def asColType(self, col_name: str, dtype: Union[DType, Dict[str, DType]]) -> None:
         """
@@ -499,10 +544,10 @@ class TemporalDataFrame:
     def shape(self) -> Tuple[int, List[int], int]:
         """
         Return a tuple representing the dimensionality of this TemporalDataFrame
-        (nb_time_points, [len_index for all time points], nb_col).
+        (nb_time_points, [n_index_at(time point) for all time points], nb_col).
         :return: a tuple representing the dimensionality of this TemporalDataFrame
         """
-        return self.n_time_points, [self.len_index(TP) for TP in self.time_points], self.n_columns
+        return self.n_time_points, [self.n_index_at(TP) for TP in self.time_points], self.n_columns
 
     def memory_usage(self, index: bool = True, deep: bool = False):
         """
@@ -518,7 +563,10 @@ class TemporalDataFrame:
         Indicator whether this TemporalDataFrame is empty.
         :return: True if this TemporalDataFrame is empty.
         """
-        return True if not self.n_time_points else all([self[TP].empty for TP in self.time_points])
+        if not self.n_time_points or not self.n_columns or not self.n_index:
+            return True
+
+        return False
 
     def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
         """

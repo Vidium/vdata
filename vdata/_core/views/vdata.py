@@ -84,17 +84,13 @@ class ViewVData:
         Description for this view of a Vdata object to print.
         :return: a description of this view
         """
-        generalLogger.debug(u'\u23BE ViewVData repr : start --------------------------------------------------------- ')
-
         _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
 
         if self.is_empty:
-            generalLogger.debug('ViewVData is empty.')
             repr_str = f"Empty view of a Vdata object ({_n_obs} obs x {self.n_var} vars over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'})."
 
         else:
-            generalLogger.debug('ViewVData is not empty.')
             repr_str = f"View of a Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
 
@@ -104,8 +100,6 @@ class ViewVData:
 
             if len(keys) > 0:
                 repr_str += f"\n\t{attr_name}: {str(list(keys))[1:-1]}"
-
-        generalLogger.debug(u'\u23BF ViewVData repr : end ----------------------------------------------------------- ')
 
         return repr_str
 
@@ -148,6 +142,7 @@ class ViewVData:
         Number of observations in this view of a VData object.
         :return: number of observations in this view
         """
+        print(self.obs)
         return [self.obs.len_index(TP) for TP in self._time_points_slicer] if len(self._time_points_slicer) else [0]
 
     @property
