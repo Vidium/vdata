@@ -145,10 +145,13 @@ class VData:
                        f"time point{'' if self.n_time_points == 1 else 's'}."
 
         # TODO
-        for attr in ["layers", "obs", "var", "time_points", "uns"]:     # "obsm", "varm", "obsp", "varp"
+        for attr in ["layers", "obs", "var", "time_points"]:     # "obsm", "varm", "obsp", "varp"
             obj = getattr(self, attr)
             if obj is not None and not obj.empty:
                 repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
+
+        if self.uns is not None and len(self.uns):
+            repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
 
         generalLogger.debug(u'\u23BF VData repr : end ----------------------------------------------------------- ')
 

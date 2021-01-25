@@ -94,12 +94,15 @@ class ViewVData:
             repr_str = f"View of a Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
 
-        for attr_name in ["layers", "obs", "var", "time_points", ]: #"obsm", "varm", "obsp", "varp", "uns"
+        for attr_name in ["layers", "obs", "var", "time_points", ]: #"obsm", "varm", "obsp", "varp"
             attr = getattr(self, attr_name)
             keys = attr.keys() if attr is not None else ()
 
             if len(keys) > 0:
                 repr_str += f"\n\t{attr_name}: {str(list(keys))[1:-1]}"
+
+        if self.uns is not None and len(self.uns):
+            repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
 
         return repr_str
 
