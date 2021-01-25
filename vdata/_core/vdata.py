@@ -1005,13 +1005,13 @@ class VData:
                     df[col_name].astype(self._dtype)
                     generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
 
-                except ValueError:
+                except (ValueError, TypeError):
                     if df[col_name].dtype.type in (np.datetime64, np.timedelta64, pd.CategoricalDtype.type):
                         generalLogger.debug(f"Column '{col_name}' kept to {df[col_name].dtype.type}.")
 
                     else:
                         df[col_name].astype(np.dtype('O'))
-                        generalLogger.debug(f"Column '{col_name}' set to string.")
+                        generalLogger.debug(f"Column '{col_name}' set to string or TimePoint.")
 
         elif isinstance(df, TemporalDataFrame):
             for col_name in df.columns:
