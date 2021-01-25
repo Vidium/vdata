@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import os
 import abc
-import numpy as np
 import pandas as pd
 from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
-    Iterator, TypeVar, Type
+    Iterator, TypeVar, Type, List, cast
 from typing_extensions import Literal
 
 from vdata.NameUtils import ArrayLike, ArrayLike_2D, ArrayLike_3D, DType, DataFrame
@@ -75,7 +74,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         Length of the Array container : the number of Arrays in _data.
         :return: number of Arrays in _data.
         """
-        return len(self._data.keys()) if self._data is not None else 0
+        return len(self._data.keys())
 
     def __iter__(self) -> Iterator[str]:
         """
@@ -90,7 +89,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         Whether this Array container is empty or not.
         :return: is this Array container empty ?
         """
-        return True if not len(self) else False
+        return all([TDF.empty for TDF in self.values()])
 
     @abc.abstractmethod
     def _check_init_data(self, data: Optional[Dict[str, D]]) -> Optional[Dict[str, D]]:
@@ -175,18 +174,16 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC):
     """
 
     @property
-    def shape(self) -> Tuple[int, int, int]:
+    def shape(self) -> Tuple[int, int, List[int], int]:
         """
         The shape of the Array container is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
         :return: shape of the contained Arrays.
         """
-        if self._data is not None and len(self):
-            return self._data[list(self._data.keys())[0]].shape
-        else:
-            s1 = self._parent.n_obs if self.name in ("layers", "obsm") else self._parent.n_var
-            s2 = self._parent.n_var if self.name == "layers" else 0
-            return self._parent.n_time_points, s1, s2
+        _first_TDF: TemporalDataFrame = self[list(self.keys())[0]]
+        _shape_TDF = _first_TDF.shape
+        _shape = len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
+        return _shape
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
@@ -227,7 +224,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         super().__init__(parent, data)
 
     def _check_init_data(self, data: Optional[Dict[Any, TemporalDataFrame]]) \
-            -> Optional[Dict[str, TemporalDataFrame]]:
+            -> Dict[str, TemporalDataFrame]:
         """
         Function for checking, at Array container creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
@@ -236,12 +233,14 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
-            return None
+            return {'data': TemporalDataFrame(index=self._parent.obs.index, columns=self._parent.var.index,
+                                              time_list=self._parent.obs.time_points_column,
+                                              time_points=self._parent.time_points.value)}
 
         else:
             generalLogger.debug("  Data was found.")
             _data = {}
-            _shape = self._parent.shape
+            _shape = (self._parent.time_points.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
             _index = self._parent.obs.index
 
             generalLogger.debug(f"  Reference shape is {_shape}.")

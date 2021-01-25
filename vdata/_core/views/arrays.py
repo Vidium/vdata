@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import numpy as np
+import abc
 from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView
 
 from vdata.NameUtils import DataFrame
@@ -18,7 +19,7 @@ from ..._IO import generalLogger  #, VTypeError, ShapeError
 
 # ====================================================
 # code
-class ViewVBaseArrayContainer:
+class ViewVBaseArrayContainer(abc.ABC):
     """
     A base view of a VBaseArrayContainer.
     This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
@@ -43,17 +44,21 @@ class ViewVBaseArrayContainer:
         """
         return self._array_container.keys()
 
+    @abc.abstractmethod
     def values(self) -> Union[Tuple[()], ValuesView]:
         """
         Get values of the VBaseArrayContainer.
         """
-        return self._array_container.values()
+        # return self._array_container.values()
+        pass
 
+    @abc.abstractmethod
     def items(self) -> Union[Tuple[()], ItemsView]:
         """
         Get items of the VBaseArrayContainer.
         """
-        return self._array_container.items()
+        # return self._array_container.items()
+        pass
 
     def dict_copy(self) -> Dict[str, Union[DataFrame]]:  # Dict[str, Union[DataFrame, VPairwiseArray]]:
         """
@@ -118,6 +123,20 @@ class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
     #     else:
     #         self._array_container[array_name][np.ix_(self._time_points_slicer,
     #         self._obs_slicer, self._var_slicer)] = values
+
+    def values(self) -> Union[Tuple[()], ValuesView]:
+        """
+        Get values of the VBaseArrayContainer.
+        """
+        return {k: v[self._time_points_slicer, self._obs_slicer, self._var_slicer]
+                for k, v in self._array_container.items()}.values()
+
+    def items(self) -> Union[Tuple[()], ItemsView]:
+        """
+        Get items of the VBaseArrayContainer.
+        """
+        return {k: v[self._time_points_slicer, self._obs_slicer, self._var_slicer]
+                for k, v in self._array_container.items()}.items()
 
 
 # class ViewVAxisArrayContainer(ViewVBaseArrayContainer):

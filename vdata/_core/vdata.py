@@ -84,52 +84,7 @@ class VData:
                                                                                   time_points, uns,
                                                                                   time_col, time_list)
 
-        # set number of obs and vars from available data
-        self._n_time_points, self._n_obs, self._n_vars = 0, [0], 0
-
-        # if 'layers' is set, get all sizes from there
-        if _layers is not None:
-            ref_array = list(_layers.values())[0]
-            self._n_time_points = ref_array.shape[0]
-            self._n_obs = ref_array.shape[1]
-            self._n_vars = ref_array.shape[2]
-
-        # otherwise, check other arrays to get the sizes
-        else:
-            # set obs size
-            if self._obs is not None:
-                self._n_obs = self._obs.shape[1]
-            elif _obsm is not None:
-                self._n_obs = list(_obsm.values())[0].shape[0]
-            elif _obsp is not None:
-                self._n_obs = list(_obsp.values())[0].shape[0]
-            elif df_obs is not None:
-                self._n_obs = df_obs.shape[0]
-
-            # set var size
-            if self._var is not None:
-                self._n_vars = self._var.shape[0]
-            elif _varm is not None:
-                self._n_vars = list(_varm.values())[0].shape[0]
-            elif _varp is not None:
-                self._n_vars = list(_varp.values())[0].shape[0]
-            elif df_var is not None:
-                self._n_vars = df_var.shape[0]
-
-            # set time_points size
-            if self._time_points is not None:
-                self._n_time_points = len(self._time_points)
-
-        generalLogger.debug(f"Guessed dimensions are : ({self._n_time_points}, {self._n_obs}, {self._n_vars})")
-
-        # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
-        if self._var is None:
-            generalLogger.debug("Default empty DataFrame for vars.")
-            self._var = pd.DataFrame(index=range(self.n_var) if df_var is None else df_var)
-
-        if self._time_points is None:
-            generalLogger.debug("Default empty DataFrame for time points.")
-            self._time_points = pd.DataFrame(index=range(self._n_time_points))
+        ref_TDF = _layers[list(_layers.keys())[0]] if _layers is not None else None
 
         # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
         if self._obs is None:
@@ -140,11 +95,24 @@ class VData:
                 time_list = None
 
             self._obs = TemporalDataFrame(time_list=time_list,
-                                          index=range(self.n_obs_total) if df_obs is None else df_obs,
+                                          index=(ref_TDF.index if ref_TDF is not None else None) if df_obs is None
+                                          else df_obs,
                                           name='obs')
+
+        # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
+        if self._var is None:
+            generalLogger.debug("Default empty DataFrame for vars.")
+            self._var = pd.DataFrame(index=(range(ref_TDF.shape[2]) if ref_TDF is not None else None) if
+                                     df_var is None else df_var)
+
+        if self._time_points is None:
+            generalLogger.debug("Default empty DataFrame for time points.")
+            self._time_points = pd.DataFrame({"value": self.obs.time_points})
 
         # create arrays linked to VData
         self._layers = VLayerArrayContainer(self, data=_layers)
+
+        generalLogger.debug(f"Guessed dimensions are : ({self.n_time_points}, {self.n_obs}, {self.n_var})")
 
         # TODO
         self._obsm = None  # VAxisArrayContainer(self, 'obs', data=_obsm)
@@ -164,9 +132,9 @@ class VData:
         """
         generalLogger.debug(u'\u23BE VData repr : start --------------------------------------------------------- ')
 
-        _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
+        _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0] if len(self.n_obs) else 0
 
-        if self.is_empty:
+        if self.empty:
             generalLogger.debug('ViewVData is empty.')
             repr_str = f"Empty Vdata object ({_n_obs} obs x {self.n_var} vars over {self.n_time_points} " \
                        f"time point{'' if self.n_time_points == 1 else 's'})."
@@ -174,12 +142,13 @@ class VData:
         else:
             generalLogger.debug('VData is not empty.')
             repr_str = f"Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over {self.n_time_points} " \
-                       f"time point{'' if self.n_time_points == 1 else 's'}"
+                       f"time point{'' if self.n_time_points == 1 else 's'}."
 
-        for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp", "uns"]:
-            keys = getattr(self, attr).keys() if getattr(self, attr) is not None else ()
-            if len(keys) > 0:
-                repr_str += f"\n\t{attr}: {str(list(keys))[1:-1]}"
+        # TODO
+        for attr in ["layers", "obs", "var", "time_points", "uns"]:     # "obsm", "varm", "obsp", "varp"
+            obj = getattr(self, attr)
+            if obj is not None and not obj.empty:
+                repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
 
         generalLogger.debug(u'\u23BF VData repr : end ----------------------------------------------------------- ')
 
@@ -219,12 +188,14 @@ class VData:
 
     # Shapes -------------------------------------------------------------
     @property
-    def is_empty(self) -> bool:
+    def empty(self) -> bool:
         """
-        Is this VData object empty ? (no obs or no vars)
+        Is this VData object empty ? (no time points or no obs or no vars)
         :return: VData empty ?
         """
-        return self.layers.empty
+        if not self.n_time_points or not self.n_obs_total or not self.n_var:
+            return True
+        return False
 
     @property
     def n_time_points(self) -> int:
@@ -234,7 +205,7 @@ class VData:
         with integer values.
         :return: VData's number of time points
         """
-        return self._n_time_points
+        return self.layers.shape[1]
 
     @property
     def n_obs(self) -> List[int]:
@@ -246,7 +217,7 @@ class VData:
             - nb of observations in obsp
         :return: VData's number of observations
         """
-        return self._n_obs
+        return self.layers.shape[2]
 
     @property
     def n_obs_total(self) -> int:
@@ -254,7 +225,7 @@ class VData:
         Get the total number of observations across all time points.
         :return: the total number of observations across all time points.
         """
-        return sum(self._n_obs)
+        return sum(self.n_obs)
 
     @property
     def n_var(self) -> int:
@@ -266,7 +237,7 @@ class VData:
             - nb of variables in varp
         :return: VData's number of variables
         """
-        return self._n_vars
+        return self.layers.shape[3]
 
     @property
     def shape(self) -> Tuple[int, List[int], int]:
@@ -331,8 +302,13 @@ class VData:
         if not isinstance(df, (pd.DataFrame, TemporalDataFrame)):
             raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
-        elif df.shape[0] != self.n_obs:
-            raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
+        if isinstance(df, pd.DataFrame):
+            if df.shape[0] != self.n_obs_total:
+                raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs_total}.")
+
+        else:
+            if df.shape[1] != self.n_obs:
+                raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs}.")
 
         # cast to TemporalDataFrame
         if isinstance(df, pd.DataFrame):
@@ -703,11 +679,13 @@ class VData:
             # check that time_points and _time_list and _time_col match
             else:
                 if _time_list is not None:
-                    if not all(np.isin(_time_list, _time_points['value'])):
+                    if not all(match_time_points(_time_list, _time_points['value'])):
+                    # if not all(np.isin(_time_list, _time_points['value'])):
                         raise VValueError("There are values in 'time_list' unknown in 'time_points'.")
 
                 elif _time_col is not None:
-                    if not all(np.isin(_obs.time_points, _time_points['value'])):
+                    if not all(match_time_points(_obs.time_points, _time_points['value'])):
+                    # if not all(np.isin(_obs.time_points, _time_points['value'])):
                         raise VValueError("There are values in obs['time_col'] unknown in 'time_points'.")
 
                 return _time_points, len(_time_points)
@@ -850,7 +828,7 @@ class VData:
                         if not isinstance(value, (dict, (pd.DataFrame, TemporalDataFrame))):
                             raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
 
-                        if isinstance(data, pd.DataFrame):
+                        if isinstance(value, pd.DataFrame):
                             layers[str(key)] = TemporalDataFrame(value, dtype=self._dtype)
 
                         else:
@@ -859,7 +837,7 @@ class VData:
 
                 else:
                     raise VTypeError(f"Type '{type(data)}' is not allowed for 'data' parameter, should be a dict,"
-                                     f"a pandas DataFrame, a numpy array or an AnnData object.")
+                                     f"a pandas DataFrame, a TemporalDataFrame or an AnnData object.")
 
             else:
                 generalLogger.debug(f"    2. \u2717 'data' was not found.")
@@ -1058,12 +1036,13 @@ class VData:
 
         # check coherence with number of time points in VData
         if self._time_points is not None:
-            for attr in ('layers', ): #'obsm', 'varm'
+            # TODO
+            for attr in ('layers', ):  # 'obsm', 'varm'
                 dataset = getattr(self, attr)
-                if len(dataset):
-                    if len(self._time_points) != dataset.shape[0]:
-                        raise IncoherenceError(f"{attr} has {dataset.shape[0]} time points but {len(self._time_points)}"
-                                               f" {'was' if len(self._time_points) == 1 else 'were'} given.")
+                if len(self._time_points) != dataset.shape[1]:
+                    raise IncoherenceError(f"{attr} has {dataset.shape[0]} time point"
+                                           f"{'' if dataset.shape[0] == 1 else 's'} but {len(self._time_points)}"
+                                           f" {'was' if len(self._time_points) == 1 else 'were'} given.")
 
         generalLogger.debug("Time points were coherent across arrays.")
 
@@ -1149,8 +1128,8 @@ class VData:
                      self.dtype)
 
     # conversion ---------------------------------------------------------
-    def to_vdata(self, time_points_list: Optional[Union[str, TimePoint, Collection[Union[str, TimePoint]]]] = None,
-                 into_one: bool = True) \
+    def to_AnnData(self, time_points_list: Optional[Union[str, TimePoint, Collection[Union[str, TimePoint]]]] = None,
+                   into_one: bool = True, time_points_column: str = 'time_points') \
             -> Union[AnnData, List[AnnData]]:
         """
         Convert a VData object to an AnnData object.
@@ -1159,6 +1138,8 @@ class VData:
             None, all time points are selected.
         :param into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
             AnnData for each time point (False) ?
+        :param time_points_column: a column name for storing time points data in the obs DataFrame. This is only used
+            when concatenating the data into a single AnnData (i.e. into_one=True). Set to 'time_points' by default.
         :return: an AnnData object with data for selected time points.
         """
         generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
@@ -1180,7 +1161,22 @@ class VData:
             generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
                                 u'---------------------------------------------------------- ')
 
-            return AnnData()
+            view = self[time_points_list]
+            X_layer = list(view.layers.keys())[0]
+
+            X = view.layers[X_layer].to_pandas()
+            X.index = X.index.astype(str)
+            X.columns = X.columns.astype(str)
+
+            return AnnData(X=X,
+                           layers={key: layer.to_pandas() for key, layer in view.layers.items()},
+                           obs=view.obs.to_pandas(with_time_points=time_points_column),
+                           obsm=None,
+                           obsp=None,
+                           var=view.var,
+                           varm=None,
+                           varp=None,
+                           uns=view.uns)
 
         else:
             generalLogger.debug(f"Convert to many AnnData objects.")
@@ -1191,8 +1187,12 @@ class VData:
                 X_layer = list(view.layers.keys())[0]
                 # TODO : obsm, obsp, varm, varp
 
-                result.append(AnnData(X=view.layers[X_layer].to_pandas(),
-                                      layers={key: layer for key, layer in view.layers.items() if key != X_layer},
+                X = view.layers[X_layer].to_pandas()
+                X.index = X.index.astype(str)
+                X.columns = X.columns.astype(str)
+
+                result.append(AnnData(X=X,
+                                      layers={key: layer.to_pandas() for key, layer in view.layers.items()},
                                       obs=view.obs.to_pandas(),
                                       obsm=None,
                                       obsp=None,

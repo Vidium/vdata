@@ -207,16 +207,27 @@ class ViewTemporalDataFrame:
         Get a view on the parent TemporalDataFrame's raw pandas.DataFrame.
         :return: a view on the parent TemporalDataFrame's raw pandas.DataFrame.
         """
-        return self.parent_data.loc[self.index, self.columns]
+        return self.parent_data.loc[self.index, ['__TPID'] + list(self.columns)]
 
-    def to_pandas(self) -> Any:
+    def to_pandas(self, with_time_points: Optional[str] = None) -> Any:
         """
         TODO
+        :param with_time_points:
         """
         index = self.index[0] if len(self.index) == 1 else self.index
         columns = self.columns[0] if len(self.columns) == 1 else self.columns
 
-        return self.parent_data.loc[index, columns]
+        data = self.parent_data.loc[index, columns]
+
+        if with_time_points is not None:
+            if with_time_points != self._parent.time_points_column_name:
+                if with_time_points not in self.columns:
+                    data[with_time_points] = self.df_data['__TPID']
+
+                else:
+                    raise VValueError(f"Column '{with_time_points}' already exists.")
+
+        return data
 
     @property
     def parent_time_points_col(self) -> str:

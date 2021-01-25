@@ -126,7 +126,9 @@ class ViewVData:
         Is this view of a Vdata object empty ? (no obs or no vars)
         :return: is view empty ?
         """
-        return True if self.n_obs == 0 or self.n_var == 0 or self.n_time_points == 0 else False
+        if not self.n_time_points or not self.n_obs_total or not self.n_var:
+            return True
+        return False
 
     @property
     def n_time_points(self) -> int:
@@ -142,8 +144,15 @@ class ViewVData:
         Number of observations in this view of a VData object.
         :return: number of observations in this view
         """
-        print(self.obs)
-        return [self.obs.len_index(TP) for TP in self._time_points_slicer] if len(self._time_points_slicer) else [0]
+        return [self.obs.n_index_at(TP) for TP in self._time_points_slicer] if len(self._time_points_slicer) else [0]
+
+    @property
+    def n_obs_total(self) -> int:
+        """
+        Get the total number of observations across all time points.
+        :return: the total number of observations across all time points.
+        """
+        return sum(self.n_obs)
 
     @property
     def n_var(self) -> int:

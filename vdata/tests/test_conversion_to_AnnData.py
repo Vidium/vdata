@@ -27,6 +27,11 @@ data = {
 }
 
 v = read_from_dict(data)
-v['0h']
 
-print(v.to_vdata('0h', into_one=False))
+print(v)
+print(v['0h'])
+
+print(v.to_AnnData('0h', into_one=False))
+print(v.to_AnnData(into_one=False))
+
+print(v.to_AnnData(into_one=True))
