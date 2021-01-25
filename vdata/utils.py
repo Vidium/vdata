@@ -148,6 +148,20 @@ class TimePoint:
         """
         return f"{self.value} {self.unit}"
 
+    def __str__(self) -> str:
+        """
+        TODO
+        """
+        reversed_tp_units = {'seconds': 's',
+                             'minutes': 'm',
+                             'hours': 'h',
+                             'days': 'D',
+                             'months': 'M',
+                             'years': 'Y'}
+
+        return f"{self.value}" \
+               f"{reversed_tp_units[self.unit.unit] if self.unit.unit in reversed_tp_units.keys() else ''}"
+
     def __gt__(self, other):
         """
         Compare units with 'greater than'.

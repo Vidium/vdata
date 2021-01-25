@@ -259,23 +259,25 @@ class VData:
         """
         return self._time_points
 
-    # @time_points.setter
-    # def time_points(self, df: pd.DataFrame) -> None:
-    #     """
-    #     Set the time points data.
-    #     :param df: a pandas DataFrame with at least the 'value' column.
-    #     """
-    #     if not isinstance(df, pd.DataFrame):
-    #         raise VTypeError("'time points' must be a pandas DataFrame.")
-    #
-    #     elif df.shape[0] != self.n_time_points:
-    #         raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
-    #
-    #     elif 'value' not in df.columns:
-    #         raise VValueError(f"Time points DataFrame should contain a 'value' column.")
-    #
-    #     else:
-    #         self._time_points = df
+    @time_points.setter
+    def time_points(self, df: pd.DataFrame) -> None:
+        """
+        Set the time points data.
+        :param df: a pandas DataFrame with at least the 'value' column.
+        """
+        if not isinstance(df, pd.DataFrame):
+            raise VTypeError("'time points' must be a pandas DataFrame.")
+
+        elif df.shape[0] != self.n_time_points:
+            raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
+
+        elif 'value' not in df.columns:
+            raise VValueError(f"Time points DataFrame should contain a 'value' column.")
+
+        else:
+            # cast time points to TimePoint objects
+            df['value'] = to_tp_list(df['value'])
+            self._time_points = df
 
     @property
     def time_points_values(self) -> List[TimePoint]:
@@ -301,7 +303,6 @@ class VData:
         :param df: a pandas DataFrame or a TemporalDataFrame.
         """
         # TODO : is every thing checked here ?
-        # TODO : check matching index
         if not isinstance(df, (pd.DataFrame, TemporalDataFrame)):
             raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
@@ -318,6 +319,7 @@ class VData:
             df = TemporalDataFrame(df,
                                    time_list=self.obs.time_points_column,
                                    time_col=self.obs.time_points_column_name,
+                                   index=self.obs.index,
                                    name='obs')
 
         self._obs = df
@@ -591,13 +593,13 @@ class VData:
         """
         return self._obs
 
-    # @cells.setter
-    # def cells(self, df: Union[pd.DataFrame, TemporalDataFrame]) -> None:
-    #     """
-    #     Set cells (= obs) data.
-    #     :param df: a pandas DataFrame or a TemporalDataFrame.
-    #     """
-    #     self.obs = df
+    @cells.setter
+    def cells(self, df: Union[pd.DataFrame, TemporalDataFrame]) -> None:
+        """
+        Set cells (= obs) data.
+        :param df: a pandas DataFrame or a TemporalDataFrame.
+        """
+        self.obs = df
 
     @property
     def genes(self) -> pd.DataFrame:
@@ -607,13 +609,13 @@ class VData:
         """
         return self._var
 
-    # @genes.setter
-    # def genes(self, df: pd.DataFrame) -> None:
-    #     """
-    #     Set the var (= genes) data.
-    #     :param df: a pandas DataFrame.
-    #     """
-    #     self.var = df
+    @genes.setter
+    def genes(self, df: pd.DataFrame) -> None:
+        """
+        Set the var (= genes) data.
+        :param df: a pandas DataFrame.
+        """
+        self.var = df
 
     # init functions -----------------------------------------------------
 
@@ -1017,7 +1019,7 @@ class VData:
                     df.asColType(col_name, self._dtype)
                     generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
 
-                except ValueError:
+                except (ValueError, TypeError):
                     df.asColType(col_name, np.dtype('O'))
                     generalLogger.debug(f"Column '{col_name}' set to string.")
 

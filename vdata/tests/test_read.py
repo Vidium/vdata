@@ -7,7 +7,7 @@
 import numpy as np
 
 from vdata import setLoggingLevel, read, read_from_csv, read_from_dict
-from .test_write import test_write
+from vdata.tests.test_write import test_write
 
 
 # ====================================================

@@ -25,8 +25,8 @@ def test_write():
 
     v = VData(adata, time_col='Time_hour')
 
-    source = "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/vdata_with_traj_info.p"
-    uns = pickle.load(open(source, "rb"))
+    uns = {"colors": ['blue', 'red', 'yellow'],
+           "date": '25/01/2021'}
 
     v.uns = uns
 
