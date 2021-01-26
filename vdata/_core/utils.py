@@ -323,7 +323,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     if not isCollection(target_collection):
         raise VTypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
 
-    target_collection = set(e for e in np.unique(target_collection))
+    target_collection = set(e for e in target_collection)
 
     if not isCollection(element):
         element = [element]

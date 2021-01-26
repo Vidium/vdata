@@ -172,6 +172,68 @@ class ViewTemporalDataFrame:
         """
         return self.n_index
 
+    # TODO : not like this !
+    # def __add__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
+    #     """
+    #     Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
+    #     :param value: an int or a float to add to values.
+    #     :return: a TemporalDataFrame with new values.
+    #     """
+    #     index = self.index[0] if len(self.index) == 1 else self.index
+    #     columns = self.columns[0] if len(self.columns) == 1 else self.columns
+    #
+    #     self.parent_data.loc[index, columns] += value
+    #
+    #     return self
+
+    # def __sub__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
+    #     """
+    #     Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
+    #     :param value: an int or a float to subtract to values.
+    #     :return: a TemporalDataFrame with new values.
+    #     """
+    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
+    #     time_list = self._df['__TPID'] if time_col is None else None
+    #
+    #     return TemporalDataFrame(self.to_pandas() - value,
+    #                              time_list=time_list,
+    #                              time_col=time_col,
+    #                              time_points=self.time_points,
+    #                              index=self.index,
+    #                              name=self.name)
+    #
+    # def __mul__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
+    #     """
+    #     Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
+    #     :param value: an int or a float to multiply all values by.
+    #     :return: a TemporalDataFrame with new values.
+    #     """
+    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
+    #     time_list = self._df['__TPID'] if time_col is None else None
+    #
+    #     return TemporalDataFrame(self.to_pandas() * value,
+    #                              time_list=time_list,
+    #                              time_col=time_col,
+    #                              time_points=self.time_points,
+    #                              index=self.index,
+    #                              name=self.name)
+    #
+    # def __truediv__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
+    #     """
+    #     Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
+    #     :param value: an int or a float to divide all values by.
+    #     :return: a TemporalDataFrame with new values.
+    #     """
+    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
+    #     time_list = self._df['__TPID'] if time_col is None else None
+    #
+    #     return TemporalDataFrame(self.to_pandas() / value,
+    #                              time_list=time_list,
+    #                              time_col=time_col,
+    #                              time_points=self.time_points,
+    #                              index=self.index,
+    #                              name=self.name)
+
     def set(self, df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         """
         Set values for this ViewTemporalDataFrame.

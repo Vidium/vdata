@@ -6,7 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, List, Dict, Optional
+from typing import Union, Tuple, List, Dict, Optional, Any, NoReturn
 
 import vdata
 from vdata.NameUtils import PreSlicer
@@ -14,6 +14,7 @@ from .dataframe import ViewTemporalDataFrame
 from .arrays import ViewVLayerArrayContainer
 from ..utils import repr_array, repr_index, reformat_index
 from ..._IO import generalLogger
+from ..._IO.errors import VValueError, VTypeError, IncoherenceError, ShapeError
 
 
 # ====================================================
@@ -206,20 +207,20 @@ class ViewVData:
         """
         return self._obs
 
-    # @obs.setter
-    # def obs(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
-    #     if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
-    #         raise VTypeError("'obs' must be a TemporalDataFrame.")
-    #
-    #     elif df.columns != self._parent.obs.columns:
-    #         raise IncoherenceError("'obs' must have the same column names as the original 'obs' it replaces.")
-    #
-    #     elif df.shape[0] != self.n_obs:
-    #         raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
-    #
-    #     else:
-    #         df.index = self._parent.obs[self._obs_slicer].index
-    #         self._parent.obs[self._obs_slicer] = df
+    @obs.setter
+    def obs(self, df: Union['vdata.TemporalDataFrame', ViewTemporalDataFrame]) -> None:
+        if not isinstance(df, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
+            raise VTypeError("'obs' must be a TemporalDataFrame.")
+
+        elif df.columns != self._parent.obs.columns:
+            raise IncoherenceError("'obs' must have the same column names as the original 'obs' it replaces.")
+
+        elif df.shape[0] != self.n_obs:
+            raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
+
+        else:
+            df.index = self._parent.obs[self._obs_slicer].index
+            self._parent.obs[self._obs_slicer] = df
 
     @property
     def var(self) -> pd.DataFrame:
@@ -229,20 +230,20 @@ class ViewVData:
         """
         return self._var
 
-    # @var.setter
-    # def var(self, df: pd.DataFrame) -> None:
-    #     if not isinstance(df, pd.DataFrame):
-    #         raise VTypeError("'var' must be a pandas DataFrame.")
-    #
-    #     elif df.columns != self._parent.var.columns:
-    #         raise IncoherenceError("'var' must have the same column names as the original 'var' it replaces.")
-    #
-    #     elif df.shape[0] != self.n_var:
-    #         raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
-    #
-    #     else:
-    #         df.index = self._parent.var[self._var_slicer].index
-    #         self._parent.var[self._var_slicer] = df
+    @var.setter
+    def var(self, df: pd.DataFrame) -> None:
+        if not isinstance(df, pd.DataFrame):
+            raise VTypeError("'var' must be a pandas DataFrame.")
+
+        elif df.columns != self._parent.var.columns:
+            raise IncoherenceError("'var' must have the same column names as the original 'var' it replaces.")
+
+        elif df.shape[0] != self.n_var:
+            raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
+
+        else:
+            df.index = self._parent.var[self._var_slicer].index
+            self._parent.var[self._var_slicer] = df
 
     @property
     def uns(self) -> Optional[Dict]:
@@ -262,9 +263,9 @@ class ViewVData:
         """
         return self._layers
 
-    # @layers.setter
-    # def layers(self, *_: Any) -> NoReturn:
-    #     raise VValueError("Cannot set layers in a view. Use the original VData object.")
+    @layers.setter
+    def layers(self, *_: Any) -> NoReturn:
+        raise VValueError("Cannot set layers in a view. Use the original VData object.")
 
     # @property
     # def obsm(self) -> ViewVAxisArrayContainer:
