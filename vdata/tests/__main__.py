@@ -6,6 +6,7 @@
 # imports
 from vdata import setLoggingLevel
 
+from .test_TDF import test_TDF_creation
 from .test_object_creation_from_AnnData import test_object_creation_from_AnnData
 from .test_subsetting import test_sub_setting
 from .test_read import test_read
@@ -15,6 +16,7 @@ from .test_read import test_read
 # code
 setLoggingLevel('INFO')
 
+test_TDF_creation()
 test_object_creation_from_AnnData()
 test_sub_setting()
 test_read()

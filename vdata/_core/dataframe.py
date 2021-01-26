@@ -12,8 +12,8 @@ from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
-from .utils import repr_index, repr_array, to_tp_list, to_tp_tuple, to_list, reformat_index, match_time_points,\
-    unique_in_list
+from .utils import repr_index, repr_array, to_tp_list, to_tp_tuple, to_list, reformat_index, match_time_points, \
+    unique_in_list, trim_time_points, isCollection
 from .views.dataframe import ViewTemporalDataFrame
 from ..utils import TimePoint
 from .._IO import generalLogger
@@ -22,6 +22,219 @@ from .._IO.errors import VValueError, VTypeError, ShapeError
 
 # ====================================================
 # code
+def parse_index_and_time_points(_index: Optional[Collection],
+                                _data: Optional[Union[Dict, pd.DataFrame]],
+                                _time_list: Optional[Tuple],
+                                _time_col: Optional[str],
+                                _time_points: Optional[List]):
+    """
+    TODO
+    :return: index, data, time_list, time_points, time_points_col
+    """
+    # manage this :
+    # if time_col is not None:
+    #     generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
+    #                           "ignored.")
+
+    if _data is None:
+        if _time_col is not None:
+            generalLogger.warning("'time_col' parameter was set but no data was provided, 'time_col' will be "
+                                  "ignored.")
+
+        if _index is None:
+            if _time_list is None:
+                if _time_points is None:
+                    # nothing
+                    return [], None, [], [], '__TPID'
+
+                else:
+                    # only list of time points was provided
+                    return [], None, [], _time_points, '__TPID'
+
+            else:
+                if _time_points is None:
+                    # only a time_list was provided
+                    _time_points = list(unique_in_list(_time_list) - {TimePoint('*')})
+
+                    if not len(_time_points):
+                        generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                        _time_list = [TimePoint('0') for _ in range(len(_time_list))]
+                        _time_points = [TimePoint('0') for _ in range(len(_time_list))]
+
+                    return range(len(_time_list)), None, _time_list, _time_points, '__TPID'
+
+                else:
+                    # time_list and time_points were provided
+                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    if len(excluded_elements):
+                        generalLogger.warning(f"Time points {excluded_elements} were found in 'time_list'"
+                                              f"parameter but not in 'time_points'. They will be ignored.")
+
+                    return range(len(_time_list)), None, _time_list, _time_points, '__TPID'
+
+        else:
+            if _time_list is None:
+                if _time_points is None:
+                    # only the index was provided
+                    generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                    return _index, None, [TimePoint('0') for _ in range(len(_index))], [TimePoint('0')], '__TPID'
+
+                else:
+                    # index and time_points were provided
+                    return _index, None, [TimePoint('*') for _ in range(len(_index))], _time_points, '__TPID'
+
+            else:
+                if _time_points is None:
+                    # index and _time_list were provided
+                    if not len(_index) == len(_time_list):
+                        raise ShapeError(f"Lengths of 'index' and 'time_list' parameters do not match.")
+
+                    _time_points = list(unique_in_list(_time_list) - {TimePoint('*')})
+
+                    if not len(_time_points):
+                        generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                        _time_list = [TimePoint('0') for _ in range(len(_time_list))]
+                        _time_points = [TimePoint('0') for _ in range(len(_time_list))]
+
+                    return _index, None, _time_list, _time_points, '__TPID'
+
+                else:
+                    # index, _time_list and _time_points were provided
+                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    if len(excluded_elements):
+                        generalLogger.warning(f"Time points {excluded_elements} were found in 'time_list'"
+                                              f"parameter but not in 'time_points'. They will be ignored.")
+
+                    if not len(_index) == len(_time_list):
+                        raise ShapeError(f"Lengths of 'index' and 'time_list' parameters do not match.")
+
+                    return _index, None, _time_list, _time_points, '__TPID'
+
+    else:
+        tp_col = '__TPID'
+        # First, get data length
+
+        # ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+        # if data is a dict, check that the dict can be converted to a DataFrame
+        if isinstance(_data, dict):
+            # get number of rows in data
+            data_len = 1
+            for value in _data.values():
+                value_len = len(value) if isCollection(value) else 1
+
+                if value_len != data_len and data_len != 1 and value_len != 1:
+                    raise ShapeError("All items in 'data' must have the same length "
+                                     "(or be a unique value to set for all rows).")
+
+                if data_len == 1:
+                    data_len = value_len
+
+            generalLogger.debug(f"Found data in a dictionary with {data_len} rows.")
+
+            _data = pd.DataFrame(_data)
+
+        # ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+        # data is a pandas DataFrame
+        else:
+            data_len = len(_data)
+
+            generalLogger.debug(f"Found data in a DataFrame with {data_len} rows.")
+
+        # check column names are valid
+        for key in TemporalDataFrame_reserved_keys:
+            if key in _data.columns:
+                raise VValueError(f"'{key}' column is reserved and cannot be used in 'data'.")
+
+        # get time list from time_col if possible
+        if _time_col is not None:
+            if _time_list:
+                if _time_col in _data.columns:
+                    generalLogger.info(f"Using '{_time_col}' as time points data.")
+
+                    _data[_time_col] = to_tp_tuple(_data[_time_col])
+                    _time_list = _data[_time_col]
+
+                    tp_col = _time_col
+
+                else:
+                    raise VValueError(f"'{_time_col}' could not be found in 'data'.")
+
+            else:
+                generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
+                                      "ignored.")
+
+        # Then, parse data
+        if _index is None:
+            if _time_list is None:
+                if _time_points is None:
+                    # only data provided
+                    generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                    return range(data_len), _data, [TimePoint('0') for _ in range(data_len)], [TimePoint('0')], tp_col
+
+                else:
+                    # data and time points
+                    _index = np.concatenate([range(data_len) for _ in range(len(_time_points))])
+                    _data = pd.concat((_data for _ in range(len(_time_points))))
+                    return _index, _data, [tp for tp in _time_points for _ in range(data_len)], _time_points, tp_col
+
+            else:
+                if _time_points is None:
+                    # data and time list
+                    _time_points = list(unique_in_list(_time_list) - {TimePoint('*')})
+
+                    if not len(_time_points):
+                        generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                        _time_list = [TimePoint('0') for _ in range(len(_time_list))]
+                        _time_points = [TimePoint('0') for _ in range(len(_time_list))]
+
+                    return range(len(_time_list)), _data, _time_list, _time_points, tp_col
+
+                else:
+                    # data, time list and time points
+                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    if len(excluded_elements):
+                        generalLogger.warning(f"Time points {excluded_elements} were found in 'time_list'"
+                                              f"parameter but not in 'time_points'. They will be ignored.")
+
+                        # remove undesired time points from the data
+                        _data = _data[match_time_points(_data[tp_col], _time_points + [TimePoint('*')])]
+
+                        generalLogger.debug(f"New data has {len(_data)} rows.")
+
+                    return range(len(_time_list)), _data, _time_list, _time_points, tp_col
+
+        else:
+            if _time_list is None:
+                if _time_points is None:
+                    # data and index
+                    generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                    return _index, _data, [TimePoint('0') for _ in range(len(_index))], [TimePoint('0')], tp_col
+
+                else:
+                    # data, index and time points
+                    return _index, _data, [TimePoint('*') for _ in range(len(_index))], _time_points, tp_col
+
+            else:
+                if _time_points is None:
+                    # data, index, time list and time points
+                    _time_points = list(unique_in_list(_time_list) - {TimePoint('*')})
+
+                if not len(_time_points):
+                    generalLogger.info(f"Setting all time points to default value '{TimePoint('0')}'.")
+                    _time_list = [TimePoint('0') for _ in range(len(_time_list))]
+                    _time_points = [TimePoint('0') for _ in range(len(_time_list))]
+
+                if not len(_index) == len(_time_list):
+                    if len(_index) * len(_time_points) == len(_time_list):
+                        _index = np.concatenate([_index for _ in range(len(_time_points))])
+
+                    else:
+
+                        raise ShapeError(f"Lengths of 'index' and 'time_list' parameters do not match.")
+
+                return _index, _data, _time_list, _time_points, tp_col
+
+
 class TemporalDataFrame:
     """
     An extension to pandas DataFrames to include a notion of time on the rows.
@@ -75,103 +288,32 @@ class TemporalDataFrame:
         if columns is not None:
             columns = ['__TPID'] + list(columns)
 
+        # ---------------------------------------------------------------------
         # no data given, empty DataFrame is created
         if data is None or (isinstance(data, dict) and not len(data.keys())) or (isinstance(data, pd.DataFrame) and
                                                                                  not len(data.columns)):
             generalLogger.debug('Setting empty TemporalDataFrame.')
 
-            if time_list is None:
-                if self._time_points is not None:
-                    generalLogger.warning("Time points were given but cannot be used if 'time_list' is None.")
-
-                time_list = np.repeat(TimePoint('0'), len(index)) if index is not None else []
-
-            if time_col is not None:
-                generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
-                                      "ignored.")
+            index, _, time_list, self._time_points, _ = \
+                parse_index_and_time_points(index, None, time_list, time_col, self._time_points)
 
             self._df = pd.DataFrame({'__TPID': time_list}, index=index, columns=columns, dtype=dtype)
 
+        # ---------------------------------------------------------------------
         # data given
         elif isinstance(data, (dict, pd.DataFrame)):
-            # if data is a dict, check that the dict can be converted to a DataFrame
-            if isinstance(data, dict):
-                # get number of rows in data
-                data_len = 1
-                values = data.values() if isinstance(data, dict) else data.values
-                for value in values:
-                    value_len = len(value) if hasattr(value, '__len__') else 1
 
-                    if value_len != data_len and data_len != 1 and value_len != 1:
-                        raise ShapeError("All items in 'data' must have the same length "
-                                         "(or be a unique value to set for all rows).")
-
-                    if data_len == 1:
-                        data_len = value_len
-
-                generalLogger.debug(f"Found data in a dictionary with {data_len} rows.")
-
-                for key in TemporalDataFrame_reserved_keys:
-                    if key in data.keys():
-                        raise VValueError(f"'{key}' key is reserved and cannot be used in 'data'.")
-
-            else:
-                data_len = len(data)
-
+            if isinstance(data, pd.DataFrame):
                 # work on a copy of the data to avoid undesired modifications
                 data = data.copy()
 
-                generalLogger.debug(f"Found data in a DataFrame with {data_len} rows.")
+            index, data, time_list, self._time_points, self._time_points_col = \
+                parse_index_and_time_points(index, data, time_list, time_col, self._time_points)
 
-                for key in TemporalDataFrame_reserved_keys:
-                    if key in data.columns:
-                        raise VValueError(f"'{key}' column is reserved and cannot be used in 'data'.")
-
-            # no time points given
-            if time_list is None:
-                # no column to use as time point : all time points set to 0 by default
-                if time_col is None:
-                    default_TP = self._time_points[0] if self._time_points is not None else TimePoint('0')
-                    generalLogger.info(f"Setting all time points to default value '{default_TP}'.")
-                    time_list = [default_TP for _ in range(data_len)]
-
-                    generalLogger.debug(f"Set all time points to 0.")
-
-                # a column has been given to use as time point : check that it exists
-                elif (isinstance(data, dict) and time_col in data.keys()) or \
-                        (isinstance(data, pd.DataFrame) and time_col in data.columns):
-                    generalLogger.info(f"Using '{time_col}' as time points data.")
-                    data[time_col] = to_tp_tuple(data[time_col])
-                    time_list = data[time_col]
-                    self._time_points_col = time_col
-
-                    generalLogger.debug(f"Set time points from column '{time_col}' to {repr_array(time_list)}")
-
-                else:
-                    raise VValueError(f"'{time_col}' could not be found in the supplied DataFrame's columns.")
-
-            # time points given, check length is correct
-            else:
-                generalLogger.debug(f"Found time list : {repr_array(time_list)}.")
-
-                if time_col is not None:
-                    generalLogger.warning("Both 'time_list' and 'time_col' parameters were set, 'time_col' will be "
-                                          "ignored.")
-
-                if len(time_list) != data_len:
-                    raise VValueError(f"Supplied time points must be of length {data_len}.")
-
-            if isinstance(data, dict):
-                data = dict({'__TPID': time_list}, **data)
-
-            else:
-                data.insert(0, "__TPID", time_list)
+            data.insert(0, "__TPID", time_list)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
-            self._df = pd.DataFrame(data)
-
-            # cast to correct dtype
-            self.astype(dtype)
+            self._df = data
 
             if index is not None:
                 self._df.index = index
@@ -179,25 +321,15 @@ class TemporalDataFrame:
             if columns is not None:
                 self._df.columns = columns
 
-            if self._time_points is not None:
-                # TODO : does not work for tuples of time points !
-                undesired_time_points = \
-                    np.unique(self._df[~match_time_points(self._df[self._time_points_col],
-                                                          self._time_points + [TimePoint('*')])][self._time_points_col])
+            # cast to correct dtype
+            self.astype(dtype)
 
-                if len(undesired_time_points):
-                    generalLogger.warning(f"Time points {undesired_time_points} were found in 'data' but were not "
-                                          f"specified in 'time_points'. They will be deleted from the DataFrame, "
-                                          f"is this what you intended ?")
-                    # remove undesired time points from the data
-                    self._df = self._df[match_time_points(self._df[self._time_points_col],
-                                                          self._time_points + [TimePoint('*')])]
-
-                    generalLogger.debug(f"New data has {len(self._df)} rows.")
-
+        # ---------------------------------------------------------------------
+        # invalid data
         else:
             raise VTypeError(f"Type {type(data)} is not handled for 'data' parameter.")
 
+        # ---------------------------------------------------------------------
         # re-order TemporalDataFrame based on time points
         def sort_func(s: pd.Series) -> pd.Series:
             """TODO"""
@@ -212,14 +344,8 @@ class TemporalDataFrame:
         self._df.rename_axis('Index').sort_values(by=["__TPID", "Index"], inplace=True, key=lambda col: sort_func(col))
 
         # get list of time points that can be found in the DataFrame
-        unique_values = unique_in_list(self._df[self._time_points_col])
         if self._time_points is not None:
-            unique_values = unique_values.union(self._time_points)
-
-        self._time_points = sorted(unique_values - {TimePoint('*')})
-
-        if len(self._df) and not len(self._time_points):
-            self._time_points = [TimePoint('0')]
+            self._time_points = sorted(set(self._time_points) - {TimePoint('*')})
 
         generalLogger.debug(f"Found time points {self._time_points} from stored DataFrame.")
 
@@ -234,7 +360,7 @@ class TemporalDataFrame:
         if self.n_time_points:
             repr_str = f"TemporalDataFrame '{self.name}'\n"
             for TP in self.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
+                repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
                 repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
@@ -297,6 +423,9 @@ class TemporalDataFrame:
         index = reformat_index(index, self.time_points, self.index, self.columns)
 
         generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
+
+        if not len(index[0]):
+            raise VValueError("Time point not found.")
 
         return ViewTemporalDataFrame(self, index[0], index[1], index[2])
 
@@ -932,6 +1061,7 @@ class _ViLocIndexer:
     """
     Wrapper around pandas _iLocIndexer object for use in TemporalDataFrames.
     """
+
     def __init__(self, parent: TemporalDataFrame):
         """
         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
@@ -951,8 +1081,8 @@ class _ViLocIndexer:
             if isinstance(key[1], slice):
                 generalLogger.debug(f'Second item is a slice : update it.')
 
-                start = key[1].start+1 if key[1].start is not None else 1
-                stop = key[1].stop+1 if key[1].stop is not None else len(self.__parent.columns)+1
+                start = key[1].start + 1 if key[1].start is not None else 1
+                stop = key[1].stop + 1 if key[1].stop is not None else len(self.__parent.columns) + 1
                 step = key[1].step if key[1].step is not None else 1
 
                 new_key = [0] + list(range(start, stop, step))
@@ -962,7 +1092,7 @@ class _ViLocIndexer:
             elif isinstance(key[1], int):
                 generalLogger.debug(f'Second item is an int : update it.')
                 if isinstance(key[0], (list, np.ndarray, slice)):
-                    key = (key[0], [0, key[1]+1])
+                    key = (key[0], [0, key[1] + 1])
 
                 else:
                     key = (key[0], key[1] + 1)
@@ -974,7 +1104,7 @@ class _ViLocIndexer:
 
                 elif isinstance(key[1][0], int):
                     generalLogger.debug(f'Second item is an array of int : update it.')
-                    key = (key[0], [0] + [v+1 for v in key[1]])
+                    key = (key[0], [0] + [v + 1 for v in key[1]])
 
         result = self.__iloc[key]
         generalLogger.debug(f'.iloc data is : \n{result}')
@@ -1081,6 +1211,7 @@ class _VAtIndexer:
     """
     Wrapper around pandas _AtIndexer object for use in TemporalDataFrames.
     """
+
     def __init__(self, parent: TemporalDataFrame):
         """
         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
@@ -1118,6 +1249,7 @@ class _ViAtIndexer:
     """
     Wrapper around pandas _iAtIndexer object for use in TemporalDataFrames.
     """
+
     def __init__(self, parent: TemporalDataFrame):
         """
         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
@@ -1132,7 +1264,7 @@ class _ViAtIndexer:
         :return: the value stored at the row # and column #.
         """
         # increment key[1] by 1 because '__TPID' is masked
-        return self.__iat[key[0], key[1]+1]
+        return self.__iat[key[0], key[1] + 1]
 
     def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
         """
@@ -1142,11 +1274,10 @@ class _ViAtIndexer:
         """
         # increment key[1] by 1 because '__TPID' is masked
         # This as no real effect, it is done to check that the key (index, column) exists in the view.
-        self.__iat[key[0], key[1]+1] = value
+        self.__iat[key[0], key[1] + 1] = value
         # Actually set a value at the (index, column) key.
-        generalLogger.debug(f"Setting value '{value}' at row '{key[0]}' and col '{key[1]+1}'")
-        self.__parent.df_data.iat[key[0], key[1]+1] = value
-
+        generalLogger.debug(f"Setting value '{value}' at row '{key[0]}' and col '{key[1] + 1}'")
+        self.__parent.df_data.iat[key[0], key[1] + 1] = value
 
 # class _ViewVAtIndexer:
 #     """

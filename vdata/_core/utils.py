@@ -296,6 +296,38 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
     return mask
 
 
+def trim_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> Tuple[Collection, Set]:
+    """
+    TODO
+    """
+    tp_index = list(unique_in_list(tp_index))
+    tp_list = to_tp_list(tp_list)
+
+    result = []
+    excluded_elements = set()
+
+    for element in tp_list:
+        if isCollection(element):
+            if not all([isinstance(element[i], TimePoint) for i in range(len(element))]):
+                raise VTypeError("'tp_list' should be a collection of TimePoints or of tuples of TimePoints.")
+
+            res, excluded = trim_time_points(element, tp_index)
+            result.append(res)
+            excluded_elements = excluded_elements.union(excluded)
+
+        elif element == TimePoint('*'):
+            result.append(element)
+
+        else:
+            if element in tp_index:
+                result.append(element)
+
+            else:
+                excluded_elements.add(element)
+
+    return result, excluded_elements
+
+
 def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.ndarray]]) -> bool:
     """
     Whether a given array is in a collection of arrays.

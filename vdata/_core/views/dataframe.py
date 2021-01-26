@@ -114,6 +114,9 @@ class ViewTemporalDataFrame:
 
         generalLogger.debug(f'  Refactored index to : {repr_index(index)}')
 
+        if not len(index[0]):
+            raise VValueError("Time point not found.")
+
         return ViewTemporalDataFrame(self._parent, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
