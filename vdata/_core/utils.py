@@ -4,7 +4,7 @@
 # ====================================================
 # imports
 import numpy as np
-from typing import Union, Tuple, Sequence, Collection, Any, List, Set
+from typing import Union, Tuple, Collection, Any, List, Set, Optional
 
 from vdata.NameUtils import PreSlicer
 from ..utils import TimePoint
@@ -184,17 +184,24 @@ def to_tp_list(item: Any) -> List:
     return new_tp_list
 
 
-def to_tp_tuple(item: Any) -> Tuple:
+def to_tp_tuple(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> Tuple:
     """
     Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
     :param item: an object to convert to tuple of TimePoints.
+    :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
     :return: a (nested) tuple of TimePoints.
     """
     new_tp_list: List[Union[TimePoint, Tuple]] = []
 
+    if reference_time_points is None:
+        reference_time_points = [TimePoint('0')]
+
     for v in to_list(item):
         if isCollection(v):
-            new_tp_list.append(to_tp_tuple(v))
+            new_tp_list.append(to_tp_tuple(v, reference_time_points))
+
+        elif not isinstance(v, TimePoint) and v == '*':
+            new_tp_list.append(tuple(reference_time_points))
 
         else:
             new_tp_list.append(TimePoint(v))
@@ -213,7 +220,7 @@ def unique_in_list(c: Collection) -> Set:
 
     for value in c:
         if isCollection(value):
-            unique_values.union(unique_in_list(value))
+            unique_values = unique_values.union(unique_in_list(value))
 
         else:
             unique_values.add(value)
@@ -222,7 +229,7 @@ def unique_in_list(c: Collection) -> Set:
 
 
 # Representation ---------------------------------------------------------
-def repr_array(arr: Union[Sequence, range, slice]) -> str:
+def repr_array(arr: Union[Collection, range, slice]) -> str:
     """
     Get a short string representation of an array.
     :param: an array to represent.
@@ -272,26 +279,22 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
     tp_index = list(unique_in_list(tp_index))
     tp_list = to_tp_list(tp_list)
 
-    if TimePoint('*') in tp_index:
-        mask = np.array([True for _ in range(len(tp_list))], dtype=bool)
+    mask = np.array([False for _ in range(len(tp_list))], dtype=bool)
 
-    else:
-        mask = np.array([False for _ in range(len(tp_list))], dtype=bool)
+    if len(tp_index):
+        for tp_i, tp_value in enumerate(tp_list):
+            if not isCollection(tp_value) and tp_value.value == '*':
+                mask[tp_i] = True
 
-        if len(tp_index):
-            for tp_i, tp_value in enumerate(tp_list):
-                if not isCollection(tp_value) and tp_value.value == '*':
+            else:
+                if isCollection(tp_value):
+                    for one_tp_value in tp_value:
+                        if smart_isin(one_tp_value, tp_index):
+                            mask[tp_i] = True
+                            break
+
+                elif smart_isin(tp_value, tp_index):
                     mask[tp_i] = True
-
-                else:
-                    if isCollection(tp_value):
-                        for one_tp_value in tp_value:
-                            if smart_isin(one_tp_value, tp_index):
-                                mask[tp_i] = True
-                                break
-
-                    elif smart_isin(tp_value, tp_index):
-                        mask[tp_i] = True
 
     return mask
 
@@ -303,29 +306,31 @@ def trim_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> Tu
     tp_index = list(unique_in_list(tp_index))
     tp_list = to_tp_list(tp_list)
 
-    result = []
+    result: List = [None for _ in range(len(tp_list))]
     excluded_elements = set()
+    counter = 0
 
     for element in tp_list:
         if isCollection(element):
-            if not all([isinstance(element[i], TimePoint) for i in range(len(element))]):
-                raise VTypeError("'tp_list' should be a collection of TimePoints or of tuples of TimePoints.")
+            # if not all([isinstance(element[i], TimePoint) for i in range(len(element))]):
+            #     raise VTypeError("'tp_list' should be a collection of TimePoints or of tuples of TimePoints.")
 
             res, excluded = trim_time_points(element, tp_index)
-            result.append(res)
             excluded_elements = excluded_elements.union(excluded)
 
-        elif element == TimePoint('*'):
-            result.append(element)
+            if len(res):
+                result[counter] = res
+                counter += 1
 
         else:
             if element in tp_index:
-                result.append(element)
+                result[counter] = element
+                counter += 1
 
             else:
                 excluded_elements.add(element)
 
-    return result, excluded_elements
+    return result[:counter], excluded_elements
 
 
 def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.ndarray]]) -> bool:

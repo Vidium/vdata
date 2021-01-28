@@ -12,7 +12,7 @@ import pandas as pd
 from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
-    Iterator, TypeVar, Type, List, cast
+    Iterator, TypeVar, Type, List
 from typing_extensions import Literal
 
 from vdata.NameUtils import ArrayLike, ArrayLike_2D, ArrayLike_3D, DType, DataFrame
@@ -235,7 +235,8 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             generalLogger.debug("  No data was given.")
             return {'data': TemporalDataFrame(index=self._parent.obs.index, columns=self._parent.var.index,
                                               time_list=self._parent.obs.time_points_column,
-                                              time_points=self._parent.time_points.value)}
+                                              time_points=self._parent.time_points.value,
+                                              name='data')}
 
         else:
             generalLogger.debug("  Data was found.")

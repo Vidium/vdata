@@ -39,11 +39,18 @@ class Unit:
     """
     Simple class for storing a time point's unit.
     """
-    _units = list(time_point_units.keys())
+    _units = [None, 's', 'm', 'h', 'D', 'M', 'Y']
+    _units_order = {None: 0,
+                    's': 1,
+                    'm': 2,
+                    'h': 3,
+                    'D': 4,
+                    'M': 5,
+                    'Y': 6}
 
     def __init__(self, unit: Optional[str]):
         """
-        :param unit: a string representing the unit, in ['s', 'm', 'h', 'D', 'M', 'Y'].
+        :param unit: a string representing the unit, in [None, 's', 'm', 'h', 'D', 'M', 'Y'].
         """
         if unit not in Unit._units:
             raise VValueError(f"Invalid unit '{unit}', should be in {Unit._units}.")
@@ -61,31 +68,31 @@ class Unit:
         """
         Compare units with 'greater than'.
         """
-        return Unit._units.index(self.unit) > Unit._units.index(other.unit)
+        return Unit._units_order[self.unit] > Unit._units_order[other.unit]
 
     def __lt__(self, other):
         """
         Compare units with 'lesser than'.
         """
-        return Unit._units.index(self.unit) < Unit._units.index(other.unit)
+        return Unit._units_order[self.unit] < Unit._units_order[other.unit]
 
     def __ge__(self, other):
         """
         Compare units with 'greater or equal'.
         """
-        return Unit._units.index(self.unit) >= Unit._units.index(other.unit)
+        return Unit._units_order[self.unit] >= Unit._units_order[other.unit]
 
     def __le__(self, other):
         """
         Compare units with 'lesser or equal'.
         """
-        return Unit._units.index(self.unit) <= Unit._units.index(other.unit)
+        return Unit._units_order[self.unit] <= Unit._units_order[other.unit]
 
     def __eq__(self, other):
         """
         Compare units with 'equal'.
         """
-        return Unit._units.index(self.unit) == Unit._units.index(other.unit)
+        return self.unit == other.unit
 
 
 class TimePoint:
@@ -129,9 +136,6 @@ class TimePoint:
                     else:
                         return v, Unit(u)
 
-                elif time_point == '*':
-                    return '*', Unit(None)
-
                 else:
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
@@ -166,23 +170,13 @@ class TimePoint:
         """
         Compare units with 'greater than'.
         """
-        try:
-            return self.unit > other.unit or (self.unit == other.unit and
-                                              ((self.value != '*' and other.value == '*') or self.value > other.value))
-
-        except TypeError:
-            return False
+        return self.unit > other.unit or (self.unit == other.unit and self.value > other.value)
 
     def __lt__(self, other):
         """
         Compare units with 'lesser than'.
         """
-        try:
-            return self.unit < other.unit or (self.unit == other.unit and
-                                              ((self.value == '*' and other.value != '*') or self.value < other.value))
-
-        except TypeError:
-            return False
+        return self.unit < other.unit or (self.unit == other.unit and self.value < other.value)
 
     def __ge__(self, other):
         """

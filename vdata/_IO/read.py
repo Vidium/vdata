@@ -183,19 +183,15 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
         raise VTypeError("Data should be a dictionary with format : {data type: {time point: matrix}}")
 
     else:
-        for data_type, TP_matrices in data.items():
+        for data_index, (data_type, TP_matrices) in enumerate(data.items()):
             if not isinstance(TP_matrices, dict):
                 raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
-            all_same_shape = True
             ref_shape = None
 
             for matrix_index, matrix in TP_matrices.items():
                 if ref_shape is None:
                     ref_shape = matrix.shape
-
-                if all_same_shape and matrix.shape != ref_shape:
-                    all_same_shape = False
 
                 matrix_TP = utils.TimePoint(matrix_index)
                 if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
@@ -213,27 +209,13 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
             index = obs.index if obs is not None else None
             columns = var.index if var is not None else None
 
-            if all_same_shape:
-                time_list = ['*' for _ in range(ref_shape[0])]
+            _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
+                                                       time_points=_time_points,
+                                                       index=index,
+                                                       columns=columns,
+                                                       dtype=dtype)
 
-                _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
-                                                           time_list=time_list,
-                                                           time_points=_time_points,
-                                                           index=index,
-                                                           columns=columns,
-                                                           dtype=dtype,
-                                                           name=data_type)
-
-            else:
-                time_list = [utils.TimePoint(matrix_TP) for matrix_TP, matrix in TP_matrices.items() for _ in range(len(
-                    matrix))]
-
-                _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
-                                                           time_list=time_list,
-                                                           index=index,
-                                                           columns=columns,
-                                                           dtype=dtype,
-                                                           name=data_type)
+            generalLogger.info(f"Loaded layer '{data_type}' ({data_index}/{len(data)})")
 
         # if time points not given, build a DataFrame from time points found in 'data'
         if time_points is None:
