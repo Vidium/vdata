@@ -11,11 +11,10 @@ from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hash
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
+from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, to_tp_tuple, to_list, \
+    reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
-from .utils import repr_index, repr_array, to_tp_list, to_tp_tuple, to_list, reformat_index, match_time_points, \
-    unique_in_list, trim_time_points, isCollection
 from .views.dataframe import ViewTemporalDataFrame
-from ..utils import TimePoint
 from .._IO import generalLogger
 from .._IO.errors import VValueError, VTypeError, ShapeError
 

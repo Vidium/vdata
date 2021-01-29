@@ -1,7 +1,9 @@
 # coding: utf-8
-# Created on 11/12/20 4:15 PM
+# Created on 28/01/2021 16:55
 # Author : matteo
 
 # ====================================================
 # imports
-from .vdata import VData
+
+# ====================================================
+# code

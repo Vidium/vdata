@@ -15,9 +15,9 @@ from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
     Iterator, TypeVar, Type, List
 from typing_extensions import Literal
 
-from vdata.NameUtils import ArrayLike, ArrayLike_2D, ArrayLike_3D, DType, DataFrame
-from .dataframe import TemporalDataFrame
+from vdata.NameUtils import DType, DataFrame
 from . import vdata
+from .._TDF.dataframe import TemporalDataFrame
 from .._IO import generalLogger
 from .._IO.errors import ShapeError, IncoherenceError, VAttributeError
 
@@ -158,7 +158,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         """
         return self._data.items() if self._data is not None else ()
 
-    def dict_copy(self) -> Dict[str, ArrayLike]:
+    def dict_copy(self) -> Dict[str, D]:
         """
         Build a copy of this Array container in dict format.
         :return: Dictionary of (keys, Array) in this Array container.
@@ -325,7 +325,7 @@ class VAxisArrayContainer(VBase3DArrayContainer):
     """
 
     def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'],
-                 data: Optional[Dict[str, ArrayLike_3D]] = None,
+                 data: Optional[Dict[str, D]] = None,
                  col_names: Optional[Dict[str, Collection]] = None):
         """
         :param parent: the parent VData object this Array is linked to
@@ -338,7 +338,7 @@ class VAxisArrayContainer(VBase3DArrayContainer):
         # super().__init__(parent, data)
         # self._col_names = self._check_col_names(col_names)
 
-    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> Optional[Dict[str, 'VBaseArray']]:
+    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, 'VBaseArray']]:
         """
         Function for checking, at Array container creation, that the supplied data has the correct format :
             # TODO : this is not True for obsm and varm !
@@ -495,7 +495,7 @@ class VPairwiseArrayContainer(VBaseArrayContainer):
         VData.obsp['<array_name>']
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, ArrayLike_2D]]):
+    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, D]]):
         """
         :param parent: the parent VData object this Array is linked to
         :param axis: the axis this Array must conform to (obs or var)
@@ -513,7 +513,7 @@ class VPairwiseArrayContainer(VBaseArrayContainer):
         else:
             return f"Empty VPairwiseArrayContainer of {self.name}."
 
-    def __setitem__(self, key: str, value: ArrayLike_2D) -> None:
+    def __setitem__(self, key: str, value: DataFrame) -> None:
         """
         Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
         for obsm and (n_var, n_var) for varm.
@@ -536,7 +536,7 @@ class VPairwiseArrayContainer(VBaseArrayContainer):
 #         else:
 #             raise ShapeError("The supplied array-like object is not square.")
 
-    def _check_init_data(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> Optional[Dict[str, ArrayLike_2D]]:
+    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, D]]:
         """
         Function for checking, at Array creation, that the supplied data has the correct format:
             - all array-like objects in 'data' are square

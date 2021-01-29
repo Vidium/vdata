@@ -1,18 +1,13 @@
 # coding: utf-8
-# Created on 20/01/2021 16:58
+# Created on 29/01/2021 09:07
 # Author : matteo
 
 # ====================================================
 # imports
 import numpy as np
 
-from vdata import read_from_dict, setLoggingLevel
-
-
 # ====================================================
 # code
-setLoggingLevel('INFO')
-
 data = {
     'RNA': {
         '0h': np.zeros((7, 3)),
@@ -25,13 +20,3 @@ data = {
         '10h': 30 * np.ones((10, 3))
     }
 }
-
-v = read_from_dict(data)
-
-print(v)
-print(v['0h'])
-
-print(v.to_AnnData('0h', into_one=False))
-print(v.to_AnnData(into_one=False))
-
-print(v.to_AnnData(into_one=True))

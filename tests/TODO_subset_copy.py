@@ -1,5 +1,5 @@
 # coding: utf-8
-# Created on 11/27/20 9:39 AM
+# Created on 12/10/20 9:30 AM
 # Author : matteo
 
 # ====================================================
@@ -7,7 +7,7 @@
 import numpy as np
 import pandas as pd
 
-from .._core.vdata import VData
+from _core.vdata import VData
 
 
 # ====================================================
@@ -27,28 +27,10 @@ layers = {'spliced': np.zeros((3, 4, 3))}
 uns = {'color': ["#c1c1c1"], 'str': "test string", "int": 2}
 time_points = pd.DataFrame({"value": [5, 10, 15], "unit": ["hour", "hour", "hour"]})
 
+a = VData(data=expr_matrix, var=var, varm=varm, varp=varp, uns=uns, time_points=time_points, log_level='DEBUG')
+print(a[:])
+v = a[:2, (1, 4), ('a', 'c')]
+print(v)
 
-a = VData(data=expr_matrix,
-          obs=obs, obsm=obsm, obsp=obsp,
-          var=var, varm=varm, varp=varp,
-          uns=uns, time_points=time_points, log_level='DEBUG')
-print(a)
-
-b = a.copy()
+b = v.copy()
 print(b)
-
-a.obs = pd.DataFrame({"cell_name": ["c10", "c20", "c30", "c40"],
-                      "batch": [10, 10, 20, 20],
-                      "cat": pd.Series(["A", "B", "C", 10], dtype="category", index=[10, 20, 30, 40])},
-                     index=[10, 20, 30, 40])
-
-# should be different
-print(a.obs)
-print(b.obs)
-
-
-a.layers['data'] *= 3
-
-# should be different
-print(a.layers['data'])
-print(b.layers['data'])

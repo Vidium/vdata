@@ -9,11 +9,10 @@ import abc
 from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView
 
 from vdata.NameUtils import DataFrame
-from . import dataframe
+from vdata.utils import repr_array
 from ..arrays import VBaseArrayContainer, VLayerArrayContainer  #VAxisArrayContainer, VPairwiseArrayContainer,
                                                                 #VPairwiseArray
-from ..utils import repr_array
-
+from ..._TDF.views import dataframe
 from ..._IO import generalLogger  #, VTypeError, ShapeError
 
 

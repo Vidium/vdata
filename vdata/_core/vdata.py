@@ -10,17 +10,17 @@ from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
-from vdata.NameUtils import ArrayLike_2D, ArrayLike, DTypes, DType, PreSlicer, DataFrame
+from vdata.NameUtils import DTypes, DType, PreSlicer, DataFrame
+from .utils import array_isin
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
-from .dataframe import TemporalDataFrame
-from .views.vdata import ViewVData
-from .utils import reformat_index, repr_index, repr_array, array_isin, match_time_points, to_tp_list
-from ..utils import TimePoint
+from .views import ViewVData
+from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list
+from .._TDF.dataframe import TemporalDataFrame
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
 
-
-DF = TypeVar('DF', pd.DataFrame, TemporalDataFrame)
+DF = TypeVar('DF', bound=DataFrame)
+Array2D = Union[pd.DataFrame, np.ndarray]
 
 
 # ====================================================
@@ -33,13 +33,13 @@ class VData:
 
     # TODO : add support for backed data on .h5 file
     def __init__(self,
-                 data: Optional[Union[AnnData, ArrayLike, Dict[Any, ArrayLike]]] = None,
-                 obs: Optional[Union[pd.DataFrame, TemporalDataFrame]] = None,
-                 obsm: Optional[Dict[Any, ArrayLike]] = None,
-                 obsp: Optional[Dict[Any, ArrayLike]] = None,
+                 data: Optional[Union[AnnData, DataFrame, Dict[Any, DataFrame]]] = None,
+                 obs: Optional[DataFrame] = None,
+                 obsm: Optional[Dict[Any, DataFrame]] = None,
+                 obsp: Optional[Dict[Any, Array2D]] = None,
                  var: Optional[pd.DataFrame] = None,
-                 varm: Optional[Dict[Any, ArrayLike]] = None,
-                 varp: Optional[Dict[Any, ArrayLike]] = None,
+                 varm: Optional[Dict[Any, Array2D]] = None,
+                 varp: Optional[Dict[Any, Array2D]] = None,
                  time_points: Optional[pd.DataFrame] = None,
                  uns: Optional[Dict] = None,
                  time_col: Optional[str] = None,
@@ -624,23 +624,27 @@ class VData:
 
     # init functions -----------------------------------------------------
 
-    def _check_formats(self, data: Optional[Union[DataFrame, Dict[Any, DataFrame], AnnData]],
-                       obs: Optional[Union[pd.DataFrame, TemporalDataFrame]], obsm: Optional[Dict[Any, ArrayLike]],
-                       obsp: Optional[Dict[Any, ArrayLike]],
-                       var: Optional[pd.DataFrame], varm: Optional[Dict[Any, ArrayLike]],
-                       varp: Optional[Dict[Any, ArrayLike]],
+    def _check_formats(self, data: Optional[Union[AnnData, DataFrame, Dict[Any, DataFrame]]],
+                       obs: Optional[DataFrame],
+                       obsm: Optional[Dict[Any, DataFrame]],
+                       obsp: Optional[Dict[Any, Array2D]],
+                       var: Optional[pd.DataFrame],
+                       varm: Optional[Dict[Any, Array2D]],
+                       varp: Optional[Dict[Any, Array2D]],
                        time_points: Optional[pd.DataFrame],
                        uns: Optional[Dict],
                        time_col: Optional[str] = None,
                        time_list: Optional[List[str]] = None) -> Tuple[
-        Optional[Dict[str, TemporalDataFrame]], Optional[Dict[str, TemporalDataFrame]],
-        Optional[Dict[str, ArrayLike_2D]], Optional[Dict[str, TemporalDataFrame]],
-        Optional[Dict[str, pd.DataFrame]], Optional[pd.Index], Optional[pd.Index]
+        Optional[Dict[str, TemporalDataFrame]],
+        Optional[Dict[str, TemporalDataFrame]], Optional[Dict[str, pd.DataFrame]],
+        Optional[Dict[str, pd.DataFrame]], Optional[Dict[str, pd.DataFrame]],
+        Optional[pd.Index], Optional[pd.Index]
     ]:
         """
         Function for checking the types and formats of the parameters supplied to the VData object at creation.
         If the types are not accepted, an error is raised. obsm, obsp, varm, varp and layers are prepared for
         being converted into custom arrays for maintaining coherence with this VData object.
+
         :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
             and for each variable/gene.
             'data' can also be an AnnData to be converted to the VData format.
@@ -656,7 +660,8 @@ class VData:
             obs that contains time information.
         :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
             time information of the same length as the number of rows in obs.
-        :return: Arrays in correct format.
+
+        :return: Arrays in correct format (layers, obsm, obsp, varm, varp, obs index, var index).
         """
         def check_time_match(_time_points: Optional[pd.DataFrame],
                              _time_list: Optional[List[TimePoint]],

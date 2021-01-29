@@ -11,9 +11,8 @@ from typing_extensions import Literal
 
 import vdata
 from vdata.NameUtils import PreSlicer, DType
+from vdata.utils import repr_array, repr_index, reformat_index, match_time_points, to_tp_list, TimePoint
 from ..NameUtils import TemporalDataFrame_internal_attributes
-from ..utils import repr_array, repr_index, reformat_index, match_time_points, to_tp_list
-from ...utils import TimePoint
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
 

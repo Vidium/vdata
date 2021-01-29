@@ -6,12 +6,11 @@
 # imports
 import scanpy as sc
 import vdata
-from vdata import VData
 
 
 # ====================================================
 # code
-def test_object_creation_from_AnnData():
+def test_VData_creation_from_AnnData():
     source_vdata_path = \
         "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
 
@@ -19,7 +18,7 @@ def test_object_creation_from_AnnData():
 
     print(adata)
 
-    v = VData(adata, time_col='Time_hour')
+    v = vdata.VData(adata, time_col='Time_hour')
 
     print(v)
 
@@ -27,5 +26,5 @@ def test_object_creation_from_AnnData():
 if __name__ == "__main__":
     vdata.setLoggingLevel('DEBUG')
 
-    test_object_creation_from_AnnData()
+    test_VData_creation_from_AnnData()
 

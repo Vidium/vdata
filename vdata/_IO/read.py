@@ -89,7 +89,7 @@ def read_from_csv(directory: Union[Path, str],
                 elif f in ('obs.csv', ):
                     generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f[:-4]}'.")
                     if time_list is None and time_col is None:
-                        if metadata['obs']['time_points_column_name'] != '__TPID':
+                        if metadata is not None:
                             time_col = metadata['obs']['time_points_column_name']
 
                     data[f[:-4]] = TemporalDataFrame_read_csv(directory / f, time_list=time_list,

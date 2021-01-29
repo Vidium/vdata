@@ -10,9 +10,9 @@ from typing import Union, Tuple, List, Dict, Optional, Any, NoReturn
 
 import vdata
 from vdata.NameUtils import PreSlicer
-from .dataframe import ViewTemporalDataFrame
+from vdata.utils import repr_array, repr_index, reformat_index
 from .arrays import ViewVLayerArrayContainer
-from ..utils import repr_array, repr_index, reformat_index
+from ..._TDF.views.dataframe import ViewTemporalDataFrame
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VTypeError, IncoherenceError, ShapeError
 

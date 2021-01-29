@@ -19,7 +19,7 @@ from .utils import parse_path
 from .logger import generalLogger, getLoggingLevel
 from .errors import VPathError
 from ..NameUtils import H5Group
-from .. import _core
+from .. import _TDF
 
 
 # ====================================================
@@ -157,7 +157,7 @@ def write_DataFrame(data: pd.DataFrame, group: H5Group, key: str, key_level: int
 
 
 @write_data.register
-def write_TemporalDataFrame(data: '_core.TemporalDataFrame', group: H5Group, key: str, key_level: int = 0) -> None:
+def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing TemporalDataFrames to the h5 file. Each TemporalDataFrame is stored in a group, containing the
     index and the columns as Series.
