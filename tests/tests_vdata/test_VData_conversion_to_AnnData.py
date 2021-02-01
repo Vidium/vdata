@@ -13,13 +13,20 @@ from . import data
 def test_VData_conversion_to_AnnData():
     v = vdata.read_from_dict(data)
 
-    print(v)
-    print(v['0h'])
+    assert repr(v.to_AnnData('0h', into_one=False)) == "[AnnData object with n_obs × n_vars = 7 × 4\n" \
+                                                       "    layers: 'RNA', 'Protein']", \
+        repr(v.to_AnnData('0h', into_one=False))
 
-    print(v.to_AnnData('0h', into_one=False))
-    print(v.to_AnnData(into_one=False))
+    assert repr(v.to_AnnData(into_one=False)) == "[AnnData object with n_obs × n_vars = 7 × 4\n" \
+                                                 "    layers: 'RNA', 'Protein', " \
+                                                 "AnnData object with n_obs × n_vars = 3 × 4\n" \
+                                                 "    layers: 'RNA', 'Protein', " \
+                                                 "AnnData object with n_obs × n_vars = 10 × 4\n" \
+                                                 "    layers: 'RNA', 'Protein']", repr(v.to_AnnData(into_one=False))
 
-    print(v.to_AnnData(into_one=True))
+    assert repr(v.to_AnnData(into_one=True)) == "AnnData object with n_obs × n_vars = 20 × 4\n" \
+                                                "    obs: 'time_points'\n" \
+                                                "    layers: 'RNA', 'Protein'", repr(v.to_AnnData(into_one=True))
 
 
 if __name__ == '__main__':

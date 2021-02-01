@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 import vdata
 from vdata.NameUtils import PreSlicer, DType
-from vdata.utils import repr_array, repr_index, reformat_index, match_time_points, to_tp_list, TimePoint
+from vdata.utils import repr_array, repr_index, reformat_index, TimePoint
 from ..NameUtils import TemporalDataFrame_internal_attributes
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
@@ -24,12 +24,13 @@ class ViewTemporalDataFrame:
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    _internal_attributes = TemporalDataFrame_internal_attributes + ['parent', '_tp_slicer']
+    _internal_attributes = TemporalDataFrame_internal_attributes + ['parent', '_tp_slicer', '_parent_data']
 
-    def __init__(self, parent: 'vdata.TemporalDataFrame', tp_slicer: Collection[str], index_slicer: Collection,
-                 column_slicer: Collection):
+    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data,
+                 tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
         """
         :param parent: a parent TemporalDataFrame to view.
+        :param parent_data: the parent TemporalDataFrame's data.
         :param tp_slicer: a collection of time points to view.
         :param index_slicer: a pandas Index of rows to view.
         :param column_slicer: a pandas Index of columns to view.
@@ -39,23 +40,30 @@ class ViewTemporalDataFrame:
 
         # set attributes on init using object's __setattr__ method to avoid self's __setattr__ which would provoke bugs
         object.__setattr__(self, '_parent', parent)
-        object.__setattr__(self, 'index', index_slicer)
+        object.__setattr__(self, '_parent_data', parent_data)
+        object.__setattr__(self, 'index', pd.Index(index_slicer))
         object.__setattr__(self, 'columns', column_slicer)
 
-        tp_slicer = to_tp_list(tp_slicer)
-
+        # remove time points where the index does not match
         object.__setattr__(self, '_tp_slicer', np.array(tp_slicer)[
-            match_time_points(tp_slicer, self.parent_data.loc[self.index]['__TPID'].values)])
+            [any(self.index.isin(self._parent_data[time_point].index)) for time_point in tp_slicer]])
 
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
-        index_at_tp_slicer = self.parent_data[match_time_points(self.parent_data['__TPID'], tp_slicer)].index
-        object.__setattr__(self, 'index', np.array(index_slicer)[np.isin(index_slicer, index_at_tp_slicer)])
+        # remove index elements where time points do not match
+        valid_indexes = [self._parent_data[time_point].index for time_point in self._tp_slicer]
+        if len(valid_indexes):
+            index_at_tp_slicer = self.index[self.index.isin(np.unique(np.concatenate(valid_indexes)))]
+
+        else:
+            index_at_tp_slicer = pd.Index([])
+
+        object.__setattr__(self, 'index', index_at_tp_slicer)
 
         generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self.index)}")
 
         generalLogger.debug(f"\u23BF ViewTemporalDataFrame '{parent.name}':{id(self)} creation : end "
-                            f"---------------------------------------- ")
+                            f"------------------------------------------ ")
 
     def __repr__(self):
         """
@@ -83,17 +91,10 @@ class ViewTemporalDataFrame:
         :param func: the name of the function to use to limit the output ('head' or 'tail')
         :return: a representation of a single time point in this TemporalDataFrame object
         """
-        mask = match_time_points(self.parent_data['__TPID'], [time_point])
+        if time_point not in self._tp_slicer:
+            raise VValueError(f"TimePoint '{time_point}' is not present in this view.")
 
-        if len(mask):
-            mask &= np.array(self.index_bool)
-            return repr(self.parent_data.loc[mask, self.columns].__getattr__(func)(n=n))
-
-        else:
-            repr_str = f"Empty DataFrame\n" \
-                       f"Columns: {[col for col in self.columns]}\n" \
-                       f"Index: {[idx for idx in self.index]}"
-            return repr_str
+        return repr(self._parent_data[time_point].loc[self.index_at(time_point), self.columns].__getattr__(func)(n=n))
 
     def __getitem__(self, index: Union[PreSlicer,
                                        Tuple[PreSlicer],
@@ -116,7 +117,7 @@ class ViewTemporalDataFrame:
         if not len(index[0]):
             raise VValueError("Time point not found.")
 
-        return ViewTemporalDataFrame(self._parent, index[0], index[1], index[2])
+        return ViewTemporalDataFrame(self._parent, self._parent_data, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
@@ -257,39 +258,26 @@ class ViewTemporalDataFrame:
         else:
             self.parent_data.loc[self.index, self.columns] = df.df_data
 
-    @property
-    def parent_data(self) -> pd.DataFrame:
-        """
-        Get parent's _df.
-        :return: parent's _df.
-        """
-        return getattr(self._parent, '_df')
-
-    @property
-    def df_data(self) -> pd.DataFrame:
-        """
-        Get a view on the parent TemporalDataFrame's raw pandas.DataFrame.
-        :return: a view on the parent TemporalDataFrame's raw pandas.DataFrame.
-        """
-        return self.parent_data.loc[self.index, ['__TPID'] + list(self.columns)]
-
     def to_pandas(self, with_time_points: Optional[str] = None) -> Any:
         """
         TODO
         :param with_time_points:
         """
-        index = self.index[0] if len(self.index) == 1 else self.index
-        columns = self.columns[0] if len(self.columns) == 1 else self.columns
+        # index = self.index[0] if len(self.index) == 1 else self.index
+        # columns = self.columns[0] if len(self.columns) == 1 else self.columns
 
-        data = self.parent_data.loc[index, columns]
+        data = pd.DataFrame(columns=self.columns)
 
+        for time_point in self.time_points:
+            data = pd.concat((data, self._parent_data[time_point].loc[self.index_at(time_point), self.columns]))
+
+        # TODO : redo !
         if with_time_points is not None:
-            if with_time_points != self._parent.time_points_column_name:
-                if with_time_points not in self.columns:
-                    data[with_time_points] = self.df_data['__TPID']
+            if with_time_points not in self.columns:
+                data[with_time_points] = self._parent.time_points_column.values
 
-                else:
-                    raise VValueError(f"Column '{with_time_points}' already exists.")
+            else:
+                raise VValueError(f"Column '{with_time_points}' already exists.")
 
         return data
 
@@ -300,14 +288,6 @@ class ViewTemporalDataFrame:
         :return: parent's _time_points_col
         """
         return getattr(self._parent, '_time_points_col')
-
-    @property
-    def index_bool(self) -> List[bool]:
-        """
-        Returns a list of booleans indicating whether the parental DataFrame's indexes are present in this view
-        :return: a list of booleans indicating whether the parental DataFrame's indexes are present in this view
-        """
-        return [idx in self.index for idx in self._parent.index]
 
     @property
     def time_points(self) -> List[TimePoint]:
@@ -325,6 +305,13 @@ class ViewTemporalDataFrame:
         """
         return len(self.time_points)
 
+    def index_at(self, time_point: TimePoint) -> pd.Index:
+        """TODO"""
+        if time_point not in self._tp_slicer:
+            raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
+
+        return self._parent_data[time_point].index.intersection(self.index)
+
     @property
     def n_index(self) -> int:
         """
@@ -337,7 +324,7 @@ class ViewTemporalDataFrame:
         """
         :return: the length of the index at a given time point.
         """
-        return sum(match_time_points(self.df_data["__TPID"], [time_point]))
+        return len(self.index_at(time_point))
 
     @property
     def n_columns(self) -> int:
@@ -534,24 +521,23 @@ class ViewTemporalDataFrame:
         """
         raise VValueError("Cannot insert a column from a view.")
 
-    def items(self) -> List[Tuple[Optional[Hashable], pd.Series]]:
-        """
-        Iterate over (column name, Series) pairs.
-        :return: a tuple with the column name and the content as a Series.
-        """
-        return list(self.parent_data[self.index_bool].items())[1:]
+    # def items_at(self, time_point: TimePoint) -> Tuple[Optional[Hashable], pd.Series]:
+    #     """
+    #     Iterate over (column name, Series) pairs.
+    #     :return: a tuple with the column name and the content as a Series.
+    #     """
+    #     return self._parent_data[time_point].items()
 
     def keys(self) -> List[Optional[Hashable]]:
         """
         Get the ‘info axis’.
         :return: the ‘info axis’.
         """
-        keys = list(self.parent_data[self.index_bool].keys())
+        if self.n_time_points:
+            return list(self._parent_data[self.time_points[0]].keys())
 
-        if '__TPID' in keys:
-            keys.remove('__TPID')
-
-        return keys
+        else:
+            return []
 
     def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'vdata.TemporalDataFrame':
         """

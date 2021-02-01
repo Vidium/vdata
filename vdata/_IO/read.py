@@ -176,7 +176,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
     :return: a VData object containing the simulation's data
     """
     _data = {}
-    _time_points: List[utils.TimePoint] = []
+    _time_points: List[vdata.TimePoint] = []
     check_tp = False
 
     if not isinstance(data, dict):
@@ -187,13 +187,11 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
             if not isinstance(TP_matrices, dict):
                 raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
-            ref_shape = None
+            generalLogger.debug(f"Loading layer '{data_type}'.")
 
             for matrix_index, matrix in TP_matrices.items():
-                if ref_shape is None:
-                    ref_shape = matrix.shape
+                matrix_TP = vdata.TimePoint(matrix_index)
 
-                matrix_TP = utils.TimePoint(matrix_index)
                 if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
                     raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
                                      f"(numpy ndarray, pandas DatFrame).")
@@ -209,13 +207,24 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
             index = obs.index if obs is not None else None
             columns = var.index if var is not None else None
 
-            _data[data_type] = vdata.TemporalDataFrame(data=pd.DataFrame(np.vstack(list(TP_matrices.values()))),
+            generalLogger.debug(f"Found index is : {utils.repr_array(index)}.")
+            generalLogger.debug(f"Found columns is : {utils.repr_array(columns)}.")
+
+            loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())))
+            generalLogger.debug(f"Loaded : {loaded_data}.")
+
+            time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
+                         for _ in range(len(matrix))]
+            generalLogger.debug(f"Computed time list to be : {utils.repr_array(time_list)}.")
+
+            _data[data_type] = vdata.TemporalDataFrame(data=loaded_data,
                                                        time_points=_time_points,
+                                                       time_list=time_list,
                                                        index=index,
                                                        columns=columns,
                                                        dtype=dtype)
 
-            generalLogger.info(f"Loaded layer '{data_type}' ({data_index}/{len(data)})")
+            generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
 
         # if time points not given, build a DataFrame from time points found in 'data'
         if time_points is None:

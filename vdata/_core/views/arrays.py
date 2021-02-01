@@ -6,7 +6,7 @@
 # imports
 import numpy as np
 import abc
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView
+from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List
 
 from vdata.NameUtils import DataFrame
 from vdata.utils import repr_array
@@ -24,47 +24,43 @@ class ViewVBaseArrayContainer(abc.ABC):
     This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
     """
 
-    def __init__(self, array_container: VBaseArrayContainer):
+    def __init__(self, view_array_container: Dict[str, dataframe.ViewTemporalDataFrame]):
         """
-        :param array_container: a VBaseArrayContainer object to build a view on.
+        :param view_array_container: a VBaseArrayContainer object to build a view on.
         """
-        self._array_container = array_container
+        self._view_array_container = view_array_container
 
     def __repr__(self) -> str:
         """
         Description for this view of a VBaseArrayContainer object to print.
         :return: a description of this view
         """
-        return f"View of {self._array_container}"
+        return f"View of {self._view_array_container}"
 
     def keys(self) -> Union[Tuple[()], KeysView]:
         """
         Get keys of the VBaseArrayContainer.
         """
-        return self._array_container.keys()
+        return self._view_array_container.keys()
 
-    @abc.abstractmethod
     def values(self) -> Union[Tuple[()], ValuesView]:
         """
         Get values of the VBaseArrayContainer.
         """
-        # return self._array_container.values()
-        pass
+        return self._view_array_container.values()
 
-    @abc.abstractmethod
     def items(self) -> Union[Tuple[()], ItemsView]:
         """
         Get items of the VBaseArrayContainer.
         """
-        # return self._array_container.items()
-        pass
+        return self._view_array_container.items()
 
     def dict_copy(self) -> Dict[str, Union[DataFrame]]:  # Dict[str, Union[DataFrame, VPairwiseArray]]:
         """
         Build an actual copy of this Array view in dict format.
         :return: Dictionary of (keys, ArrayLike) in this Array view.
         """
-        return dict([(arr, self._array_container[arr]) for arr in self._array_container.keys()])
+        return dict([(arr, self._view_array_container[arr]) for arr in self._view_array_container.keys()])
 
 
 class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
@@ -80,29 +76,28 @@ class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
         :param var_slicer: the list of variables to view
         :param time_points_slicer: the list of time points to view
         """
-        generalLogger.debug(u'\u23BE ViewVLayersArraysContainer creation : begin '
-                            '--------------------------------------------- ')
-        super().__init__(array_container)
+        generalLogger.debug(f"== Creating ViewVLayersArraysContainer. ================================")
 
-        self._time_points_slicer = time_points_slicer
-        generalLogger.debug(f"  1. Time points slicer is : {repr_array(self._time_points_slicer)}.")
+        _view_array_container = {name: arr[time_points_slicer, obs_slicer, var_slicer]
+                                 for name, arr in array_container.items()}
 
-        # self._obs_slicer = self.__correct_obs_slicer(obs_slicer)
-        self._obs_slicer = obs_slicer
-        generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)}.")
+        super().__init__(_view_array_container)
 
-        self._var_slicer = var_slicer
-        generalLogger.debug(f"  3. Var slicer is : {repr_array(self._var_slicer)}.")
-
-        generalLogger.debug(u'\u23BF ViewVLayersArraysContainer creation : end '
-                            '----------------------------------------------- ')
+        # self._time_points_slicer = time_points_slicer
+        # generalLogger.debug(f"  1. Time points slicer is : {repr_array(self._time_points_slicer)}.")
+        #
+        # self._obs_slicer = obs_slicer
+        # generalLogger.debug(f"  2. Obs slicer is : {repr_array(self._obs_slicer)}.")
+        #
+        # self._var_slicer = var_slicer
+        # generalLogger.debug(f"  3. Var slicer is : {repr_array(self._var_slicer)}.")
 
     def __getitem__(self, array_name: str) -> dataframe.ViewTemporalDataFrame:
         """
         Get a specific Array in this view.
         :param array_name: the name of the Array to get
         """
-        return self._array_container[array_name][self._time_points_slicer, self._obs_slicer, self._var_slicer]
+        return self._view_array_container[array_name]
 
     # def __setitem__(self, array_name: str, values: ArrayLike_3D) -> None:
     #     """
@@ -123,19 +118,23 @@ class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
     #         self._array_container[array_name][np.ix_(self._time_points_slicer,
     #         self._obs_slicer, self._var_slicer)] = values
 
-    def values(self) -> Union[Tuple[()], ValuesView]:
+    def __len__(self) -> int:
         """
-        Get values of the VBaseArrayContainer.
+        Get the length of this ViewVLayerArrayContainer (the number of viewed layers).
         """
-        return {k: v[self._time_points_slicer, self._obs_slicer, self._var_slicer]
-                for k, v in self._array_container.items()}.values()
+        return len(self._view_array_container)
 
-    def items(self) -> Union[Tuple[()], ItemsView]:
+    @property
+    def shape(self) -> Tuple[int, int, List[int], int]:
         """
-        Get items of the VBaseArrayContainer.
+        The shape is computed from the shape of the Arrays viewed in this ViewVLayerArrayContainer.
+        See __len__ for getting the number of Arrays it views.
+        :return: shape of the contained Arrays.
         """
-        return {k: v[self._time_points_slicer, self._obs_slicer, self._var_slicer]
-                for k, v in self._array_container.items()}.items()
+        _first_TDF: dataframe.ViewTemporalDataFrame = self[list(self.keys())[0]]
+        _shape_TDF = _first_TDF.shape
+        _shape = len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
+        return _shape
 
 
 # class ViewVAxisArrayContainer(ViewVBaseArrayContainer):

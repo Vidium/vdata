@@ -133,7 +133,8 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
                     if not len(_index) == len(_time_list):
-                        raise ShapeError(f"Lengths of 'index' and 'time_list' parameters do not match.")
+                        raise ShapeError(f"Lengths of 'index' ({repr_array(_index)}) and 'time_list' "
+                                         f"({repr_array(_time_list)}) parameters do not match.")
 
                     _time_points = list(unique_in_list(_time_list))
 
@@ -191,11 +192,12 @@ def parse_index_and_time_points(_index: Optional[Collection],
 
         # get time list from time_col if possible
         if _time_col is not None:
-            if _time_list:
+            if _time_list is None:
                 if _time_col in _data.columns:
                     generalLogger.info(f"\tUsing '{_time_col}' as time points data.")
 
                     _data[_time_col] = to_tp_tuple(_data[_time_col])
+                    _time_list = _data[_time_col]
 
                     tp_col = _time_col
 
@@ -480,7 +482,7 @@ class TemporalDataFrame:
                                        Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
             -> 'ViewTemporalDataFrame':
         """
-        TODO : update !
+        TODO : update docstring !
         Get a view from the DataFrame using an index with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index or a 2-tuple of indexes.
             An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
@@ -510,9 +512,9 @@ class TemporalDataFrame:
         generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
 
         if not len(index[0]):
-            raise VValueError("Time point not found.")
+            raise VValueError("Time points not found in this TemporalDataFrame.")
 
-        return ViewTemporalDataFrame(self, index[0], index[1], index[2])
+        return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
                     df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
@@ -706,7 +708,7 @@ class TemporalDataFrame:
         _index = pd.Index([])
 
         for time_point in self.time_points:
-            _index = _index.union(self.index_at(time_point))
+            _index = _index.union(self.index_at(time_point), sort=False)
 
         return _index
 
@@ -973,7 +975,8 @@ class TemporalDataFrame:
         Iterate over (column name, Series) pairs.
         :return: a tuple with the column name and the content as a Series.
         """
-        return {time_point: list(self._df[time_point].items())[1:] for time_point in self.time_points}
+        for column in self.columns:
+            yield column, pd.concat((self._df[time_point][column] for time_point in self.time_points))
 
     def keys(self) -> List[Optional[Hashable]]:
         """
@@ -981,15 +984,10 @@ class TemporalDataFrame:
         :return: the ‘info axis’.
         """
         if self.n_time_points:
-            keys = list(self._df[self.time_points[0]].keys())
+            return list(self._df[self.time_points[0]].keys())
 
         else:
-            keys = []
-
-        if '__TPID' in keys:
-            keys.remove('__TPID')
-
-        return keys
+            return []
 
     def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
         """

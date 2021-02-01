@@ -169,14 +169,14 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
     df_group.attrs['type'] = 'TDF'
 
     # save column order
-    df_group.attrs["column_order"] = list(data.df_data.columns)
+    df_group.attrs["column_order"] = list(data.columns)
 
     # save index and series
-    df_group.attrs["index"] = list(data.df_data.index)
+    df_group.attrs["index"] = list(data.index)
 
     log_func: Literal['debug', 'info'] = 'info'
 
-    for i, (col_name, series) in enumerate(data.df_data.items()):
+    for i, (col_name, series) in enumerate(data.items()):
         write_series(series, df_group, str(col_name), key_level=key_level + 1, log_func=log_func)
 
         if log_func == 'info' and i > 0:

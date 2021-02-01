@@ -130,7 +130,7 @@ class TimePoint:
         :return: tuple of value and unit.
         """
         if isinstance(time_point, (int, float, np.int_, np.float_)):
-            return time_point, Unit(None)
+            return float(time_point), Unit(None)
 
         elif isinstance(time_point, (str, np.str_)):
             v = get_value(time_point)
@@ -144,13 +144,13 @@ class TimePoint:
                         raise VValueError(f"Invalid time point value '{time_point}'")
 
                     else:
-                        return v, Unit(u)
+                        return float(v), Unit(u)
 
                 else:
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
             else:
-                return v, Unit(None)
+                return float(v), Unit(None)
 
         else:
             raise VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")

@@ -192,6 +192,9 @@ class VData:
 
         generalLogger.debug(f"  Refactored index to \n{repr_index(index)}")
 
+        if not len(index[0]):
+            raise VValueError("Time points not found in this VData.")
+
         return ViewVData(self, index[0], index[1], index[2])
 
     # Shapes -------------------------------------------------------------
@@ -697,12 +700,10 @@ class VData:
             else:
                 if _time_list is not None:
                     if not all(match_time_points(_time_list, _time_points['value'])):
-                    # if not all(np.isin(_time_list, _time_points['value'])):
                         raise VValueError("There are values in 'time_list' unknown in 'time_points'.")
 
                 elif _time_col is not None:
                     if not all(match_time_points(_obs.time_points, _time_points['value'])):
-                    # if not all(np.isin(_obs.time_points, _time_points['value'])):
                         raise VValueError("There are values in obs['time_col'] unknown in 'time_points'.")
 
                 return _time_points, len(_time_points)

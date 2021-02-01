@@ -48,7 +48,7 @@ class ViewVData:
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer, self._var_slicer]
+        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
         self._time_points_slicer = np.array([e for e in self._time_points_slicer if e in self._obs.time_points])
@@ -130,7 +130,7 @@ class ViewVData:
         Is this view of a Vdata object empty ? (no obs or no vars)
         :return: is view empty ?
         """
-        if not self.n_time_points or not self.n_obs_total or not self.n_var:
+        if not len(self.layers) or not self.n_time_points or not self.n_obs_total or not self.n_var:
             return True
         return False
 
@@ -140,7 +140,7 @@ class ViewVData:
         Number of time points in this view of a VData object.
         :return: number of time points in this view
         """
-        return len(self._time_points_slicer)
+        return self.layers.shape[1]
 
     @property
     def n_obs(self) -> List[int]:
@@ -148,7 +148,7 @@ class ViewVData:
         Number of observations in this view of a VData object.
         :return: number of observations in this view
         """
-        return [self.obs.n_index_at(TP) for TP in self._time_points_slicer] if len(self._time_points_slicer) else [0]
+        return self.layers.shape[2]
 
     @property
     def n_obs_total(self) -> int:
@@ -164,15 +164,15 @@ class ViewVData:
         Number of variables in this view of a VData object.
         :return: number of variables in this view
         """
-        return len(self._var_slicer)
+        return self.layers.shape[3]
 
     @property
-    def shape(self) -> Tuple[int, List[int], int]:
+    def shape(self) -> Tuple[int, int, List[int], int]:
         """
         Shape of this view of a VData object.
         :return: view's shape
         """
-        return self.n_time_points, self.n_obs, self.n_var
+        return self.layers.shape
 
     # DataFrames ---------------------------------------------------------
     @property

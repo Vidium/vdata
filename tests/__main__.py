@@ -12,7 +12,7 @@ from tests.tests_TDF.test_TDF_subsetting import test_TDF_sub_setting
 from tests.tests_vdata.test_VData_creation import test_VData_creation, test_VData_creation_on_dtype, \
     test_VData_creation_with_uns
 from tests.tests_vdata.test_VData_creation_from_AnnData import test_VData_creation_from_AnnData
-from tests.tests_vdata.test_VData_subsetting import test_VData_simple_subset, test_VData_sub_setting
+from tests.tests_vdata.test_VData_subsetting import test_VData_sub_setting
 from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conversion_to_AnnData
 from tests.tests_vdata.test_VData_read import test_VData_read
 
@@ -40,7 +40,6 @@ test_VData_creation_from_AnnData()
 
 # VData sub-setting
 print('\n >>> VData sub-setting <<< \n')
-test_VData_simple_subset()
 test_VData_sub_setting()
 
 # VData conversion

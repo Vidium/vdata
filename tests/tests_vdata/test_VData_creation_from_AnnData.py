@@ -16,11 +16,14 @@ def test_VData_creation_from_AnnData():
 
     adata = sc.read(source_vdata_path)
 
-    print(adata)
-
     v = vdata.VData(adata, time_col='Time_hour')
 
-    print(v)
+    assert repr(v) == "Vdata object with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
+                      "over 10 time points.\n\t" \
+                      "layers: 'data'\n\t" \
+                      "obs: 'Cell_Type', 'Day', 'Time_hour'\n\t" \
+                      "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
+                      "time_points: 'value'", repr(v)
 
 
 if __name__ == "__main__":
