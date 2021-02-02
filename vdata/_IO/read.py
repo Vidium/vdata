@@ -10,7 +10,7 @@ import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection
+from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection, cast
 from typing_extensions import Literal
 
 import vdata
@@ -32,7 +32,8 @@ def read_from_csv(directory: Union[Path, str],
                   dtype: 'NameUtils.DType' = np.float32,
                   time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
                   time_col: Optional[str] = None,
-                  time_points: Optional[Collection[str]] = None) -> 'vdata.VData':
+                  time_points: Optional[Collection[str]] = None,
+                  name: Optional[Any] = None) -> 'vdata.VData':
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -57,6 +58,7 @@ def read_from_csv(directory: Union[Path, str],
         given. This column will be used as the time data.
     :param time_points: a list of time points that should exist. This is useful when using the '*' character to
         specify the list of time points that the TemporalDataFrame should cover.
+    :param name: an optional name for the loaded VData object.
     """
     directory = parse_path(directory)
 
@@ -114,7 +116,8 @@ def read_from_csv(directory: Union[Path, str],
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
-                       data['time_points'], dtype=data['dtype'])
+                       data['time_points'], dtype=data['dtype'],
+                       name=name)
 
 
 def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
@@ -149,7 +152,8 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
                    obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
-                   dtype: 'NameUtils.DType' = np.float32) -> 'vdata.VData':
+                   dtype: 'NameUtils.DType' = np.float32,
+                   name: Optional[Any] = None) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
 
@@ -167,11 +171,12 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
         - Y : years
 
     :param data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to
-        matrices of cells x genes
-    :param obs: a pandas DataFrame describing the observations (cells)
-    :param var: a pandas DataFrame describing the variables (genes)
-    :param time_points: a pandas DataFrame describing the time points
-    :param dtype: the data type for the matrices in VData
+        matrices of cells x genes.
+    :param obs: a pandas DataFrame describing the observations (cells).
+    :param var: a pandas DataFrame describing the variables (genes).
+    :param time_points: a pandas DataFrame describing the time points.
+    :param dtype: the data type for the matrices in VData.
+    :param name: an optional name for the loaded VData object.
 
     :return: a VData object containing the simulation's data
     """
@@ -230,7 +235,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
         if time_points is None:
             time_points = pd.DataFrame({"value": _time_points})
 
-        return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype)
+        return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, name=name)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -256,7 +261,7 @@ class H5GroupReader:
             return self._check_type(self.group[:])
         elif key is ...:
             return self._check_type(self.group[...])
-        elif key is ():
+        elif key == ():
             return self._check_type(self.group[()])
         else:
             return H5GroupReader(self.group[key])
@@ -339,13 +344,15 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None) -> 'vdata.VData':
+def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
+         name: Optional[Any] = None) -> 'vdata.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
     :param file: path to a .h5 file.
     :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
         the .h5 file.
+    :param name: an optional name for the loaded VData object.
     """
     file = parse_path(file)
 
@@ -374,7 +381,8 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None) -> '
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
-                       data['time_points'], data['uns'], dtype=data['dtype'])
+                       data['time_points'], data['uns'], dtype=data['dtype'],
+                       name=name)
 
 
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
@@ -389,7 +397,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
     data = {}
 
     for dataset_key in group.keys():
-        dataset_type = group[dataset_key].attrs("type")
+        dataset_type = cast(H5GroupReader, group[dataset_key]).attrs("type")
 
         data[utils.get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
 
@@ -431,19 +439,23 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     col_order = group.attrs('column_order')
     # get index
     index = group.attrs('index')
+    # get time_col
+    dataset_type = cast(H5GroupReader, group['time_col']).attrs("type")
+    time_col = func_[dataset_type](group['time_col'], level=level + 1)
+    # get time_list
+    if time_col is None:
+        dataset_type = cast(H5GroupReader, group['time_list']).attrs("type")
+        time_list = func_[dataset_type](group['time_list'], level=level + 1)
+    else:
+        time_list = None
 
     # get columns in right order
     data = {}
-    time_list = None
 
     log_func: Literal['debug', 'info'] = 'info'
 
     for i, col in enumerate(col_order):
-        if col == '__TPID':
-            time_list = read_h5_series(group[col], index, level=level+1)
-
-        else:
-            data[str(col)] = read_h5_series(group[col], index, level=level+1, log_func=log_func)
+        data[str(col)] = read_h5_series(cast(H5GroupReader, group[col]), index, level=level+1, log_func=log_func)
 
         if log_func == 'info' and i > 0:
             log_func = 'debug'
@@ -451,7 +463,8 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     if getLoggingLevel() != 'DEBUG':
         generalLogger.info(f"{spacer(level+1)}...")
 
-    return vdata.TemporalDataFrame(data, time_list=time_list, index=index, name=group.name.split("/")[-1])
+    return vdata.TemporalDataFrame(data, time_list=time_list, time_col=time_col,
+                                   index=index, name=group.name.split("/")[-1])
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
@@ -475,7 +488,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
         # get data
         categories = group.attrs('categories')
         ordered = utils.get_value(group.attrs('ordered'))
-        values = read_h5_array(group['values'], level=level+1, log_func=log_func)
+        values = read_h5_array(cast(H5GroupReader, group['values']), level=level+1, log_func=log_func)
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
 

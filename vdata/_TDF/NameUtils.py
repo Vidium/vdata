@@ -7,9 +7,12 @@
 
 # ====================================================
 # code
-TemporalDataFrame_internal_attributes = ['_time_points_col', '_df', '_time_points', 'TP_from_DF', 'name', '_name',
-                                         'time_points', 'time_points_column_name', 'time_points_column', 'columns',
-                                         'index', 'n_time_points', 'n_columns', 'dtypes', 'values', 'axes', 'ndim',
-                                         'size', 'shape', 'empty', 'at', 'iat', 'loc', 'iloc', '_len_index', '_columns']
 
-TemporalDataFrame_reserved_keys = ['__TPID', 'df_data']
+
+TemporalDataFrame_internal_attributes = ['name', '_time_points', 'time_points', '_time_points_col',
+                                         'time_points_column', 'time_points_column_name', 'n_time_points',
+                                         'index', 'n_index_total', '_columns', 'columns', 'n_columns',
+                                         '_df', 'shape', 'dtypes', 'values', 'axes', 'ndim', 'size', 'empty',
+                                         'at', 'iat', 'loc', 'iloc']
+
+TemporalDataFrame_reserved_keys = ['Time_Point']

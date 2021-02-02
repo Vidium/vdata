@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Hashable, Iterable
+from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iterable, Generator
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
@@ -43,7 +43,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
 
     :return: data, time_points, time_points_col, data columns
     """
-    generalLogger.debug(f"\t\u23BE Parse index and time points : begin ---------------------------------------- ")
+    generalLogger.debug("\t\u23BE Parse index and time points : begin ---------------------------------------- ")
 
     tp_col = None
 
@@ -148,7 +148,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                                               f"parameter but not in 'time_points'. They will be ignored.")
 
                     if not len(_index) == len(_time_list):
-                        raise ShapeError(f"Lengths of 'index' and 'time_list' parameters do not match.")
+                        raise ShapeError("Lengths of 'index' and 'time_list' parameters do not match.")
 
                 _time_list = np.array(_time_list)
 
@@ -234,7 +234,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
 
                 if data_len != len(_time_list):
-                    raise ShapeError(f"Length of 'time_list' and number of rows in 'data' do not match.")
+                    raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
 
                 if _time_points is None:
                     # data and time list
@@ -294,7 +294,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                             _data[tp].index = _index
 
                     else:
-                        raise ShapeError(f"Length of 'index' and number of rows in 'data' do not match.")
+                        raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")
 
                 else:
                     _data.index = _index
@@ -304,7 +304,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
 
                 if data_len != len(_time_list):
-                    raise ShapeError(f"Length of 'time_list' and number of rows in 'data' do not match.")
+                    raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
 
                 if _time_points is None:
                     # data, index and time list
@@ -321,7 +321,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                         _index = np.concatenate([_index for _ in _time_points])
 
                     else:
-                        raise ShapeError(f"Length of 'index' and number of rows in 'data' do not match.")
+                        raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")
 
                 _data.index = _index
                 _data = {tp: pd.DataFrame(_data.loc[match_time_points(_time_list, [tp])],
@@ -339,7 +339,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
     generalLogger.debug(f"\tSet 'time_points_column' to : {tp_col}.")
     generalLogger.debug(f"\tSet 'columns' to : {repr_array(_columns)}.")
 
-    generalLogger.debug(f"\t\u23BF Parse index and time points : end ------------------------------------------ ")
+    generalLogger.debug("\t\u23BF Parse index and time points : end ------------------------------------------ ")
     return _data, _time_points, tp_col, _columns
 
 
@@ -570,7 +570,7 @@ class TemporalDataFrame:
         Returns the length of info axis.
         :return: the length of info axis.
         """
-        return self.n_index
+        return self.n_index_total
 
     def __add__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
@@ -636,14 +636,17 @@ class TemporalDataFrame:
                                  index=self.index,
                                  name=self.name)
 
-    def to_pandas(self) -> Any:
+    def to_pandas(self, with_time_points: bool = False) -> Any:
         """
         Get the data in a pandas format.
         :return: the data in a pandas format.
         """
-        columns = self.columns[0] if len(self.columns) == 1 else self.columns
+        data = pd.concat([self._df[time_point] for time_point in self.time_points])
 
-        return self._df[columns]
+        if with_time_points:
+            data.insert(0, 'Time_Point', self.time_points_column.values)
+
+        return data
 
     @property
     def time_points(self) -> List[TimePoint]:
@@ -659,7 +662,7 @@ class TemporalDataFrame:
         Get the name of the column with time points data. Returns None if '__TPID' is used.
         :return: the name of the column with time points data.
         """
-        return self._time_points_col if self._time_points_col != '__TPID' else None
+        return self._time_points_col
 
     @property
     def time_points_column(self) -> pd.Series:
@@ -670,11 +673,7 @@ class TemporalDataFrame:
         _data = pd.Series([])
 
         for time_point in self.time_points:
-            if self._time_points_col is not None:
-                _data = pd.concat((_data, self._df[time_point][self._time_points_col]))
-
-            else:
-                _data = pd.concat((_data, pd.Series([time_point for _ in range(self.n_index_at(time_point))])))
+            _data = pd.concat((_data, pd.Series(np.repeat(time_point, self.n_index_at(time_point)))))
 
         return _data
 
@@ -700,15 +699,18 @@ class TemporalDataFrame:
         :param time_point: a time point in this TemporalDataFrame.
         :return: the length of the index at a given time point.
         """
-        return len(self._df[time_point].index)
+        return len(self.index_at(time_point))
 
     @property
     def index(self) -> pd.Index:
-        """TODO"""
+        """
+        Get the full index of this TemporalDataFrame (concatenated over all time points).
+        :return: the full index of this TemporalDataFrame.
+        """
         _index = pd.Index([])
 
         for time_point in self.time_points:
-            _index = _index.union(self.index_at(time_point), sort=False)
+            _index = _index.append(self.index_at(time_point))
 
         return _index
 
@@ -718,12 +720,12 @@ class TemporalDataFrame:
         Get the number of indexes.
         :return: the number of indexes.
         """
-        return sum([self.n_index_at(TP) for TP in self.time_points])
+        return len(self.index)
 
     @property
     def columns(self) -> pd.Index:
         """
-        Get the columns of this TemporalDataFrame (but mask the reserved __TPID column).
+        Get the columns of this TemporalDataFrame.
         :return: the column names of this TemporalDataFrame
         """
         if self.n_time_points:
@@ -749,7 +751,7 @@ class TemporalDataFrame:
         Get the number of columns in this TemporalDataFrame
         :return: the number of columns
         """
-        return len(self._columns)
+        return len(self.columns)
 
     @property
     def dtypes(self) -> pd.Series:
@@ -758,7 +760,7 @@ class TemporalDataFrame:
         :return: the dtypes in this TemporalDataFrame.
         """
         if self.n_time_points:
-            return self._df[self.time_points[0]][self.columns].dtypes
+            return self._df[self.time_points[0]].dtypes
 
         else:
             return pd.Series([])
@@ -805,7 +807,7 @@ class TemporalDataFrame:
         Return a Numpy representation of this TemporalDataFrame.
         :return: a Numpy representation of the DataFrame.
         """
-        return self._df[self.columns].values
+        return self.to_pandas().values
 
     @property
     def axes(self) -> List[pd.Index]:
@@ -813,7 +815,7 @@ class TemporalDataFrame:
         Return a list of the row axis labels.
         :return: a list of the row axis labels.
         """
-        return self._df[self.columns].axes
+        return [self.index, self.columns]
 
     @property
     def ndim(self) -> Literal[3]:
@@ -829,7 +831,7 @@ class TemporalDataFrame:
         Return the number of rows times number of columns.
         :return: an int representing the number of elements in this object.
         """
-        return self._df[self.columns].size
+        return len(self.columns) * self.n_index_total
 
     @property
     def shape(self) -> Tuple[int, List[int], int]:
@@ -840,17 +842,23 @@ class TemporalDataFrame:
         """
         return self.n_time_points, [self.n_index_at(TP) for TP in self.time_points], self.n_columns
 
-    def memory_usage(self, index: bool = True, deep: bool = False) -> Dict[TimePoint, pd.Series]:
+    def memory_usage(self, index: bool = True, deep: bool = False) -> pd.Series:
         """
         Return the memory usage of each column in bytes.
         The memory usage can optionally include the contribution of the index and elements of object dtype.
         :return: the memory usage of each column in bytes.
         """
-        mem_dict = {}
-        for time_point in self.time_points:
-            mem_dict[time_point] = self._df[time_point].memory_usage(index=index, deep=deep)
+        if self.n_time_points:
+            mem_usage = self._df[self.time_points[0]].memory_usage(index=index, deep=deep)
 
-        return mem_dict
+        else:
+            mem_usage = pd.Series([], dtype=object)
+
+        if self.n_time_points > 1:
+            for time_point in self.time_points[1:]:
+                mem_usage.add(self._df[time_point].memory_usage(index=index, deep=deep))
+
+        return mem_usage
 
     @property
     def empty(self) -> bool:
@@ -970,7 +978,7 @@ class TemporalDataFrame:
         for time_point in self.time_points:
             self._df[time_point].insert(loc, column, value, allow_duplicates)
 
-    def items(self) -> Dict[TimePoint, List[Tuple[Optional[Hashable], pd.Series]]]:
+    def items(self) -> Generator[Tuple[str, pd.Series], None, None]:
         """
         Iterate over (column name, Series) pairs.
         :return: a tuple with the column name and the content as a Series.
@@ -978,31 +986,22 @@ class TemporalDataFrame:
         for column in self.columns:
             yield column, pd.concat((self._df[time_point][column] for time_point in self.time_points))
 
-    def keys(self) -> List[Optional[Hashable]]:
+    def keys(self) -> pd.Index:
         """
         Get the ‘info axis’.
         :return: the ‘info axis’.
         """
-        if self.n_time_points:
-            return list(self._df[self.time_points[0]].keys())
-
-        else:
-            return []
+        return self.columns
 
     def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
         """
         Whether each element in the TemporalDataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.
         """
-        if self._time_points_col == '__TPID':
-            time_points = self._df['__TPID'].tolist()
-            time_col = None
+        _time_col = self.time_points_column_name
+        _time_list = self.time_points_column if self.time_points_column_name is None else None
 
-        else:
-            time_points = self._df[self._time_points_col].tolist()
-            time_col = self._time_points_col
-
-        return TemporalDataFrame(self._df.isin(values)[self.columns], time_points=time_points, time_col=time_col)
+        return TemporalDataFrame(self.to_pandas().isin(values)[self.columns], time_list=_time_list, time_col=_time_col)
 
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
            level: Any = None) -> 'TemporalDataFrame':
@@ -1013,37 +1012,38 @@ class TemporalDataFrame:
         :param axis: {0 or ‘index’, 1 or ‘columns’}
         :param level: int or label
         """
-        if self._time_points_col == '__TPID':
-            time_points = self._df['__TPID'].tolist()
-            time_col = None
+        _time_col = self.time_points_column_name
+        _time_list = self.time_points_column if self.time_points_column_name is None else None
 
-        else:
-            time_points = self._df[self._time_points_col].tolist()
-            time_col = self._time_points_col
-
-        return TemporalDataFrame(self._df.eq(other, axis, level)[self.columns],
-                                 time_points=time_points, time_col=time_col)
+        return TemporalDataFrame(self.to_pandas().eq(other, axis, level)[self.columns],
+                                 time_list=_time_list, time_col=_time_col)
 
     def copy(self) -> 'TemporalDataFrame':
         """
         Create a new copy of this TemporalDataFrame.
         :return: a copy of this TemporalDataFrame.
         """
+        # TODO : redo !
         time_points = self.df_data[self._time_points_col].copy() if self._time_points_col == '__TPID' else None
         time_col = self._time_points_col if self._time_points_col != '__TPID' else None
+
         return TemporalDataFrame(self.df_data[self.columns].copy(),
                                  time_points=time_points, time_col=time_col,
                                  index=self.index.copy(), columns=self.columns.copy())
 
     def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
-        """TODO"""
-        # get full DataFrame and rename the '__TPID' column to 'Time_Point'
-        data_to_save = self.df_data
-        data_to_save.rename(columns={'__TPID': 'Time_Point'}, inplace=True)
-
+        """
+        Save this TemporalDataFrame in a csv file.
+        :param path: a path to the csv file.
+        :param sep: String of length 1. Field delimiter for the output file.
+        :param na_rep: Missing data representation.
+        :param index: Write row names (index) ?
+        :param header: Write out the column names ? If a list of strings is given it is
+            assumed to be aliases for the column names.
+        """
         # save DataFrame to csv
-        data_to_save.to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
+        self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
 
 # TODO :
@@ -1069,13 +1069,13 @@ class _VLocIndexer:
         if isinstance(key, tuple):
             generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
             if isinstance(key[1], slice):
-                generalLogger.debug(f'Second item is a slice : checking ...')
+                generalLogger.debug('Second item is a slice : checking ...')
                 if key[1].start not in self.__parent.columns:
                     raise VValueError(f"Key '{key[1].start}' was not found in the column names.")
 
                 elif key[1].stop not in self.__parent.columns:
                     raise VValueError(f"Key '{key[1].stop}' was not found in the column names.")
-                generalLogger.debug(f'... OK')
+                generalLogger.debug('... OK')
 
             else:
                 # collection of column names
@@ -1109,12 +1109,12 @@ class _VLocIndexer:
 
         if isinstance(result, pd.DataFrame):
             if result.shape == (1, 2):
-                generalLogger.debug(f'.loc data is a DataFrame (a single value).')
+                generalLogger.debug('.loc data is a DataFrame (a single value).')
 
                 return result.iat[0, 1]
 
             else:
-                generalLogger.debug(f'.loc data is a DataFrame (multiple rows or columns).')
+                generalLogger.debug('.loc data is a DataFrame (multiple rows or columns).')
 
                 tp_slicer = set(result['__TPID'])
 
@@ -1122,17 +1122,17 @@ class _VLocIndexer:
 
         elif isinstance(result, pd.Series):
             if len(result) == 1:
-                generalLogger.debug(f'.loc data is a Series (a single value).')
+                generalLogger.debug('.loc data is a Series (a single value).')
 
                 return result.values[0]
 
             if len(result) == 2 and '__TPID' in result.index:
-                generalLogger.debug(f'.loc data is a Series (a single value).')
+                generalLogger.debug('.loc data is a Series (a single value).')
 
                 return result.iat[1]
 
             else:
-                generalLogger.debug(f'.loc data is a Series (a row).')
+                generalLogger.debug('.loc data is a Series (a row).')
 
                 tp_slicer = result['__TPID']
 
@@ -1140,7 +1140,7 @@ class _VLocIndexer:
                 return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         else:
-            generalLogger.debug(f'.loc data is a single value.')
+            generalLogger.debug('.loc data is a single value.')
 
             return result
 
@@ -1182,7 +1182,7 @@ class _ViLocIndexer:
         if isinstance(key, tuple):
             generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
             if isinstance(key[1], slice):
-                generalLogger.debug(f'Second item is a slice : update it.')
+                generalLogger.debug('Second item is a slice : update it.')
 
                 start = key[1].start + 1 if key[1].start is not None else 1
                 stop = key[1].stop + 1 if key[1].stop is not None else len(self.__parent.columns) + 1
@@ -1193,7 +1193,7 @@ class _ViLocIndexer:
                 key = (key[0], new_key)
 
             elif isinstance(key[1], int):
-                generalLogger.debug(f'Second item is an int : update it.')
+                generalLogger.debug('Second item is an int : update it.')
                 if isinstance(key[0], (list, np.ndarray, slice)):
                     key = (key[0], [0, key[1] + 1])
 
@@ -1202,11 +1202,11 @@ class _ViLocIndexer:
 
             elif isinstance(key[1], (list, np.ndarray)) and len(key[1]):
                 if isinstance(key[1][0], bool):
-                    generalLogger.debug(f'Second item is an array of bool : update it.')
+                    generalLogger.debug('Second item is an array of bool : update it.')
                     key = (key[0], [True] + key[1])
 
                 elif isinstance(key[1][0], int):
-                    generalLogger.debug(f'Second item is an array of int : update it.')
+                    generalLogger.debug('Second item is an array of int : update it.')
                     key = (key[0], [0] + [v + 1 for v in key[1]])
 
         result = self.__iloc[key]
@@ -1225,12 +1225,12 @@ class _ViLocIndexer:
 
         if isinstance(result, pd.DataFrame):
             if result.shape == (1, 2):
-                generalLogger.debug(f'.loc data is a DataFrame (a single value).')
+                generalLogger.debug('.loc data is a DataFrame (a single value).')
 
                 return result.iat[0, 1]
 
             else:
-                generalLogger.debug(f'.loc data is a DataFrame (multiple rows or columns).')
+                generalLogger.debug('.loc data is a DataFrame (multiple rows or columns).')
 
                 tp_slicer = sorted(set(result['__TPID']))
                 generalLogger.debug(f'tp slicer is {tp_slicer}.')
@@ -1240,17 +1240,17 @@ class _ViLocIndexer:
         elif isinstance(result, pd.Series):
             pass
             if len(result) == 1 and '__TPID' not in result.index:
-                generalLogger.debug(f'.loc data is a Series (a single value).')
+                generalLogger.debug('.loc data is a Series (a single value).')
 
                 return result.values[0]
 
             if len(result) == 2 and '__TPID' in result.index:
-                generalLogger.debug(f'.loc data is a Series (a single value).')
+                generalLogger.debug('.loc data is a Series (a single value).')
 
                 return result.iat[1]
 
             else:
-                generalLogger.debug(f'.loc data is a Series (a row).')
+                generalLogger.debug('.loc data is a Series (a row).')
 
                 tp_slicer = result['__TPID']
 
@@ -1258,7 +1258,7 @@ class _ViLocIndexer:
                 return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
 
         else:
-            generalLogger.debug(f'.loc data is a single value.')
+            generalLogger.debug('.loc data is a single value.')
 
             return result
 

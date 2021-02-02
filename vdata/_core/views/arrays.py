@@ -9,11 +9,9 @@ import abc
 from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List
 
 from vdata.NameUtils import DataFrame
-from vdata.utils import repr_array
-from ..arrays import VBaseArrayContainer, VLayerArrayContainer  #VAxisArrayContainer, VPairwiseArrayContainer,
-                                                                #VPairwiseArray
+from ..arrays import VLayerArrayContainer  # VAxisArrayContainer, VPairwiseArrayContainer, VPairwiseArray
 from ..._TDF.views import dataframe
-from ..._IO import generalLogger  #, VTypeError, ShapeError
+from ..._IO import generalLogger  # VTypeError, ShapeError
 
 
 # ====================================================
@@ -76,7 +74,7 @@ class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
         :param var_slicer: the list of variables to view
         :param time_points_slicer: the list of time points to view
         """
-        generalLogger.debug(f"== Creating ViewVLayersArraysContainer. ================================")
+        generalLogger.debug("== Creating ViewVLayersArraysContainer. ================================")
 
         _view_array_container = {name: arr[time_points_slicer, obs_slicer, var_slicer]
                                  for name, arr in array_container.items()}

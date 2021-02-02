@@ -10,11 +10,11 @@ from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
-from vdata.NameUtils import DTypes, DType, PreSlicer, DataFrame
+from vdata.NameUtils import DTypes, DType, str_DType, PreSlicer, DataFrame
 from .utils import array_isin
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .views import ViewVData
-from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list
+from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list, to_tp_tuple
 from .._TDF.dataframe import TemporalDataFrame
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
@@ -44,7 +44,7 @@ class VData:
                  uns: Optional[Dict] = None,
                  time_col: Optional[str] = None,
                  time_list: Optional[List[str]] = None,
-                 dtype: DType = np.float32,
+                 dtype: Union[DType, str_DType] = np.float32,
                  name: Optional[Any] = None):
         """
         :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
@@ -73,7 +73,7 @@ class VData:
         if dtype not in DTypes.keys():
             raise VTypeError(f"Incorrect data-type '{dtype}', should be in {list(DTypes.keys())}")
         else:
-            self._dtype = DTypes[dtype]
+            self._dtype: DType = DTypes[dtype]
         generalLogger.debug(f'Set data-type to {dtype}')
 
         self._obs = None
@@ -135,17 +135,13 @@ class VData:
         Description for this Vdata object to print.
         :return: a description of this Vdata object
         """
-        generalLogger.debug(u'\u23BE VData repr : start --------------------------------------------------------- ')
-
         _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0] if len(self.n_obs) else 0
 
         if self.empty:
-            generalLogger.debug('ViewVData is empty.')
             repr_str = f"Empty Vdata object ({_n_obs} obs x {self.n_var} vars over {self.n_time_points} " \
                        f"time point{'' if self.n_time_points == 1 else 's'})."
 
         else:
-            generalLogger.debug('VData is not empty.')
             repr_str = f"Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over {self.n_time_points} " \
                        f"time point{'' if self.n_time_points == 1 else 's'}."
 
@@ -157,8 +153,6 @@ class VData:
 
         if self.uns is not None and len(self.uns):
             repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
-
-        generalLogger.debug(u'\u23BF VData repr : end ----------------------------------------------------------- ')
 
         return repr_str
 
@@ -280,7 +274,7 @@ class VData:
             raise ShapeError(f"'time points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
 
         elif 'value' not in df.columns:
-            raise VValueError(f"Time points DataFrame should contain a 'value' column.")
+            raise VValueError("Time points DataFrame should contain a 'value' column.")
 
         else:
             # cast time points to TimePoint objects
@@ -713,6 +707,8 @@ class VData:
         df_obs, df_var = None, None
         layers = None
 
+        time_list = to_tp_tuple(time_list) if time_list is not None else None
+
         # time_points
         if time_points is not None:
             generalLogger.debug(f"  'time points' DataFrame is a {type(time_points).__name__}.")
@@ -792,10 +788,11 @@ class VData:
             # layers
             if data is not None:
                 layers = {}
+                _time_points = time_points.value.values if time_points is not None else None
 
                 # data is a unique pandas DataFrame or a TemporalDataFrame
                 if isinstance(data, pd.DataFrame):
-                    generalLogger.debug(f"    1. \u2713 'data' is a pandas DataFrame.")
+                    generalLogger.debug("    1. \u2713 'data' is a pandas DataFrame.")
 
                     if nb_time_points > 1:
                         raise VTypeError("'data' is a 2D pandas DataFrame but more than 1 time points were provided.")
@@ -803,14 +800,18 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
-                    layers = {'data': TemporalDataFrame(data, dtype=self._dtype, name='data')}
+                    layers = {'data': TemporalDataFrame(data, time_list=time_list, time_points=_time_points,
+                                                        dtype=self._dtype, name='data')}
+
+                    if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
+                        time_list = layers['data'].time_points_column
 
                 elif isinstance(data, TemporalDataFrame):
-                    generalLogger.debug(f"    1. \u2713 'data' is a TemporalDataFrame.")
+                    generalLogger.debug("    1. \u2713 'data' is a TemporalDataFrame.")
 
                     if time_points is not None:
                         if not time_points.value.equals(pd.Series(data.time_points)):
-                            raise VValueError(f"'time points' found in DataFrame do not match 'layers' time points.")
+                            raise VValueError("'time points' found in DataFrame do not match 'layers' time points.")
 
                     else:
                         time_points = pd.DataFrame({'value': data.time_points})
@@ -819,14 +820,17 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
+                    if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
+                        time_list = data.time_points_column
+
                     data.astype(self._dtype)
                     layers = {'data': data}
 
                 elif isinstance(data, dict):
-                    generalLogger.debug(f"    1. \u2713 'data' is a dictionary.")
+                    generalLogger.debug("    1. \u2713 'data' is a dictionary.")
 
                     for key, value in data.items():
-                        if not isinstance(value, (dict, (pd.DataFrame, TemporalDataFrame))):
+                        if not isinstance(value, (pd.DataFrame, TemporalDataFrame)):
                             raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
 
                         elif isinstance(value, pd.DataFrame):
@@ -834,7 +838,11 @@ class VData:
                                 df_obs = value.index
                                 df_var = value.columns
 
-                            layers[str(key)] = TemporalDataFrame(value, dtype=self._dtype, name=str(key))
+                            layers[str(key)] = TemporalDataFrame(value, time_list=time_list, time_points=_time_points,
+                                                                 dtype=self._dtype, name=str(key))
+
+                            if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
+                                time_list = layers[str(key)].time_points_column
 
                         else:
                             if df_obs is None:
@@ -844,11 +852,15 @@ class VData:
                                 if time_points is not None:
                                     if not time_points.value.equals(pd.Series(value.time_points)):
                                         raise VValueError(
-                                            f"'time points' found in DataFrame do not match 'layers' time points.")
+                                            f"'time points' found in DataFrame ({repr_array(time_points.value)}) do "
+                                            f"not match 'layers' time points ({repr_array(value.time_points)}).")
 
                                 else:
                                     time_points = pd.DataFrame({'value': value.time_points})
                                     nb_time_points = value.n_time_points
+
+                            if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
+                                time_list = value.time_points_column
 
                             value.astype(self._dtype)
                             value.name = f"{value.name}{'_' if value.name else ''}{str(key)}"
@@ -859,7 +871,7 @@ class VData:
                                      f"a pandas DataFrame, a TemporalDataFrame or an AnnData object.")
 
             else:
-                generalLogger.debug(f"    1. \u2717 'data' was not found.")
+                generalLogger.debug("    1. \u2717 'data' was not found.")
 
             # -----------------------------------------------------------------
             # obs
@@ -896,7 +908,7 @@ class VData:
                                     f"{[0] if nb_time_points == 1 else repr_array(time_points.value.values)}")
 
             else:
-                generalLogger.debug(f"    2. \u2717 'obs' was not found.")
+                generalLogger.debug("    2. \u2717 'obs' was not found.")
                 if time_list is not None:
                     generalLogger.warning("'time_list' parameter cannot be used since 'obs' was not found.")
                 if time_col is not None:
@@ -960,7 +972,7 @@ class VData:
                     var = self._check_df_types(var)
 
             else:
-                generalLogger.debug(f"    5. \u2717 'var' was not found.")
+                generalLogger.debug("    5. \u2717 'var' was not found.")
 
             # # -----------------------------------------------------------------
             # # varm
@@ -1014,10 +1026,10 @@ class VData:
             if uns is not None:
                 if not isinstance(uns, dict):
                     raise VTypeError("'uns' must be a dictionary.")
-                generalLogger.debug(f"    8. \u2713 'uns' is a dictionary.")
+                generalLogger.debug("    8. \u2713 'uns' is a dictionary.")
 
             else:
-                generalLogger.debug(f"    8. \u2717 'uns' was not found.")
+                generalLogger.debug("    8. \u2717 'uns' was not found.")
 
         # if time points are not given, assign default values 0, 1, 2, ...
         if time_points is None:
@@ -1035,7 +1047,7 @@ class VData:
                                 f"{repr_array(time_points.value.values)}")
 
         else:
-            generalLogger.debug(f"  Could not find time points.")
+            generalLogger.debug("  Could not find time points.")
 
         self._obs = obs
         self._var = var
@@ -1187,12 +1199,13 @@ class VData:
         Build an actual copy of this VData object and not a view.
         """
         # TODO
-        return VData(self.layers.dict_copy(),
-                     self.obs, None, None,  #self.obsm.dict_copy(), self.obsp.dict_copy(),
-                     self.var, None, None,  #self.varm.dict_copy(), self.varp.dict_copy(),
-                     self.time_points,
-                     self.uns,
-                     self.dtype)
+        return VData(data=self.layers.dict_copy(),
+                     obs=self.obs, obsm=None, obsp=None,  # self.obsm.dict_copy(), self.obsp.dict_copy(),
+                     var=self.var, varm=None, varp=None,  # self.varm.dict_copy(), self.varp.dict_copy(),
+                     time_points=self.time_points,
+                     uns=self.uns,
+                     dtype=self.dtype,
+                     name=f"{self.name}_copy")
 
     # conversion ---------------------------------------------------------
     def to_AnnData(self, time_points_list: Optional[Union[str, TimePoint, Collection[Union[str, TimePoint]]]] = None,
@@ -1213,22 +1226,22 @@ class VData:
                             u'---------------------------------------------------------- ')
 
         if time_points_list is None:
-            time_points_list = self.time_points_values
+            _time_points_list = np.array(self.time_points_values)
 
         else:
-            time_points_list = to_tp_list(time_points_list)
-            time_points_list = np.array(time_points_list)[np.where(match_time_points(time_points_list,
-                                                                                     self.time_points_values))]
+            _time_points_list = to_tp_list(time_points_list)
+            _time_points_list = np.array(_time_points_list)[np.where(match_time_points(_time_points_list,
+                                                                                       self.time_points_values))]
 
-        generalLogger.debug(f"Selected time points are : {repr_array(time_points_list)}")
+        generalLogger.debug(f"Selected time points are : {repr_array(_time_points_list)}")
 
         if into_one:
-            generalLogger.debug(f"Convert to one AnnData object.")
+            generalLogger.debug("Convert to one AnnData object.")
 
-            generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
-                                u'---------------------------------------------------------- ')
+            generalLogger.debug('\u23BF VData conversion to AnnData : end '
+                                '---------------------------------------------------------- ')
 
-            view = self[time_points_list]
+            view = self[_time_points_list]
             X_layer = list(view.layers.keys())[0]
 
             X = view.layers[X_layer].to_pandas()
@@ -1246,10 +1259,10 @@ class VData:
                            uns=view.uns)
 
         else:
-            generalLogger.debug(f"Convert to many AnnData objects.")
+            generalLogger.debug("Convert to many AnnData objects.")
 
             result = []
-            for time_point in time_points_list:
+            for time_point in _time_points_list:
                 view = self[time_point]
                 X_layer = list(view.layers.keys())[0]
                 # TODO : obsm, obsp, varm, varp

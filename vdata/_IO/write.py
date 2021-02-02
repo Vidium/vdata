@@ -100,6 +100,9 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
         generalLogger.info(f"{spacer(1)}Saving {dataset.name}")
         dataset.to_csv(directory, sep, na_rep, index, header, spacer=spacer(2))
 
+    if obj.uns is not None:
+        generalLogger.warning(f"'uns' data stored in VData '{obj.name}' cannot be saved to a csv.")
+
 
 @singledispatch
 def write_data(data, group: H5Group, key: str, key_level: int = 0,
@@ -173,6 +176,8 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
 
     # save index and series
     df_group.attrs["index"] = list(data.index)
+    write_data(data.time_points_column_name, df_group, 'time_col', key_level=key_level + 1)
+    write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1)
 
     log_func: Literal['debug', 'info'] = 'info'
 

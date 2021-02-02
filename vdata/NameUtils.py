@@ -10,6 +10,7 @@ import pandas as pd
 from typing import Union, Sequence
 from typing_extensions import Literal
 
+import vdata
 from . import utils
 
 # ====================================================
@@ -42,8 +43,9 @@ DTypes = {int: int,
           np.float128: np.float128,
           np.object: np.object}
 
-DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
-                      "float128"], int, float, np.int_, np.float_, np.object]
+DType = Union[int, float, np.int_, np.float_, np.object]
+str_DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
+                          "float128"]]
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

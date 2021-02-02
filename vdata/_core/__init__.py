@@ -5,3 +5,5 @@
 # ====================================================
 # imports
 from .vdata import VData
+
+__all__ = ['VData']

@@ -97,10 +97,13 @@ class Unit:
         """
         return Unit._units_order[self.value] <= Unit._units_order[other.value]
 
-    def __eq__(self, other: 'Unit') -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Compare units with 'equal'.
         """
+        if not isinstance(other, Unit):
+            raise VValueError(f"Cannot compare Unit with object of type '{type(other)}'.")
+
         return self.value == other.value
 
 
@@ -193,10 +196,13 @@ class TimePoint:
         """
         return self < other or self == other
 
-    def __eq__(self, other: 'TimePoint') -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Compare units with 'equal'.
         """
+        if not isinstance(other, TimePoint):
+            raise VValueError(f"Cannot compare TimePoint with object of type '{type(other)}'.")
+
         return self.unit == other.unit and self.value == other.value
 
     def __hash__(self) -> int:
@@ -233,6 +239,31 @@ def to_tp_list(item: Any) -> List:
             new_tp_list.append(TimePoint(v))
 
     return new_tp_list
+
+
+def to_tp_tuple(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> Tuple:
+    """
+    Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
+    :param item: an object to convert to tuple of TimePoints.
+    :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
+    :return: a (nested) tuple of TimePoints.
+    """
+    new_tp_list: List[Union[TimePoint, Tuple]] = []
+
+    if reference_time_points is None:
+        reference_time_points = [TimePoint('0')]
+
+    for v in to_list(item):
+        if isCollection(v):
+            new_tp_list.append(to_tp_tuple(v, reference_time_points))
+
+        elif not isinstance(v, TimePoint) and v == '*':
+            new_tp_list.append(tuple(reference_time_points))
+
+        else:
+            new_tp_list.append(TimePoint(v))
+
+    return tuple(new_tp_list)
 
 
 def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, on_time_point: bool = False) -> \
@@ -272,32 +303,6 @@ def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, 
 
     else:
         raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
-
-
-def to_tp_tuple(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> Tuple:
-    """
-    Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
-    :param item: an object to convert to tuple of TimePoints.
-    :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
-    :return: a (nested) tuple of TimePoints.
-    """
-    new_tp_list: List[Union[TimePoint, Tuple]] = []
-
-    if reference_time_points is None:
-        reference_time_points = [TimePoint('0')]
-
-    for v in to_list(item):
-        if isCollection(v):
-            new_tp_list.append(to_tp_tuple(v, reference_time_points))
-
-        elif not isinstance(v, TimePoint) and v == '*':
-            new_tp_list.append(tuple(reference_time_points))
-
-        else:
-            new_tp_list.append(TimePoint(v))
-
-    return tuple(new_tp_list)
-
 
 def unique_in_list(c: Collection) -> Set:
     """
@@ -383,7 +388,7 @@ def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> List[
             raise VValueError(f"The 'step' value is {step}, should be an int.")
 
         if step == 0:
-            raise VValueError(f"The 'step' value cannot be 0.")
+            raise VValueError("The 'step' value cannot be 0.")
 
     if step < 0:
         c = np.flip(c)

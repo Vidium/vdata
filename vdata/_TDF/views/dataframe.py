@@ -51,12 +51,13 @@ class ViewTemporalDataFrame:
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
         # remove index elements where time points do not match
-        valid_indexes = [self._parent_data[time_point].index for time_point in self._tp_slicer]
-        if len(valid_indexes):
-            index_at_tp_slicer = self.index[self.index.isin(np.unique(np.concatenate(valid_indexes)))]
+        if len(self._tp_slicer):
+            valid_indexes = np.concatenate([self._parent_data[time_point].index.values
+                                            for time_point in self._tp_slicer])
+            index_at_tp_slicer = pd.Index(np.intersect1d(self.index, valid_indexes))
 
         else:
-            index_at_tp_slicer = pd.Index([])
+            index_at_tp_slicer = pd.Index([], dtype=object)
 
         object.__setattr__(self, 'index', index_at_tp_slicer)
 
@@ -271,7 +272,6 @@ class ViewTemporalDataFrame:
         for time_point in self.time_points:
             data = pd.concat((data, self._parent_data[time_point].loc[self.index_at(time_point), self.columns]))
 
-        # TODO : redo !
         if with_time_points is not None:
             if with_time_points not in self.columns:
                 data[with_time_points] = self._parent.time_points_column.values
@@ -310,7 +310,7 @@ class ViewTemporalDataFrame:
         if time_point not in self._tp_slicer:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
-        return self._parent_data[time_point].index.intersection(self.index)
+        return self._parent_data[time_point].index.intersection(self.index, sort=False)
 
     @property
     def n_index(self) -> int:

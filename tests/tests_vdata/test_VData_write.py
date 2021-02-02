@@ -28,7 +28,7 @@ def test_VData_write():
 
     v.uns = uns
 
-    print(v)
+    # print(v)
 
     # write vdata in h5 file format
     v.write("~/vdata.h5")

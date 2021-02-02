@@ -12,7 +12,7 @@ import pandas as pd
 from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
-    Iterator, TypeVar, Type, List
+    Iterator, TypeVar, List
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, DataFrame
@@ -25,7 +25,7 @@ from .._IO.errors import ShapeError, IncoherenceError, VAttributeError
 # ====================================================
 # code
 
-D = TypeVar('D', DataFrame, Type['VPairwiseArray'])
+D = TypeVar('D', bound=DataFrame)
 
 
 # Containers ------------------------------------------------------------------
@@ -219,7 +219,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         :param parent: the parent VData object this Array is linked to
         :param data: a dictionary of array-like objects to store in this Array
         """
-        generalLogger.debug(f"== Creating VLayerArrayContainer. ================================")
+        generalLogger.debug("== Creating VLayerArrayContainer. ================================")
 
         super().__init__(parent, data)
 
@@ -338,7 +338,7 @@ class VAxisArrayContainer(VBase3DArrayContainer):
         # super().__init__(parent, data)
         # self._col_names = self._check_col_names(col_names)
 
-    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, 'VBaseArray']]:
+    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, TemporalDataFrame]]:
         """
         Function for checking, at Array container creation, that the supplied data has the correct format :
             # TODO : this is not True for obsm and varm !

@@ -6,3 +6,5 @@
 # imports
 from .vdata import ViewVData
 from .arrays import ViewVLayerArrayContainer
+
+__all__ = ['ViewVData', 'ViewVLayerArrayContainer']
