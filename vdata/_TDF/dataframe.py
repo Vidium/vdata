@@ -11,7 +11,7 @@ from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iter
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer
-from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, to_tp_tuple, to_list, \
+from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, to_list, \
     reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .views.dataframe import ViewTemporalDataFrame
@@ -196,7 +196,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 if _time_col in _data.columns:
                     generalLogger.info(f"\tUsing '{_time_col}' as time points data.")
 
-                    _data[_time_col] = to_tp_tuple(_data[_time_col])
+                    _data[_time_col] = to_tp_list(_data[_time_col])
                     _time_list = _data[_time_col]
 
                     tp_col = _time_col
@@ -390,7 +390,7 @@ class TemporalDataFrame:
         if self._time_points is not None:
             generalLogger.debug(f"User has defined time points : {repr_array(self._time_points)}.")
 
-        time_list = to_tp_tuple(time_list, self._time_points) if time_list is not None else None
+        time_list = to_tp_list(time_list, self._time_points) if time_list is not None else None
 
         # ---------------------------------------------------------------------
         # no data given, empty DataFrame is created

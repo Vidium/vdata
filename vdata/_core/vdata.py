@@ -14,7 +14,7 @@ from vdata.NameUtils import DTypes, DType, str_DType, PreSlicer, DataFrame
 from .utils import array_isin
 from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
 from .views import ViewVData
-from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list, to_tp_tuple
+from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list
 from .._TDF.dataframe import TemporalDataFrame
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
@@ -702,12 +702,12 @@ class VData:
 
                 return _time_points, len(_time_points)
 
-        generalLogger.debug(u"  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
+        generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
         df_obs, df_var = None, None
         layers = None
 
-        time_list = to_tp_tuple(time_list) if time_list is not None else None
+        verified_time_list = to_tp_list(time_list) if time_list is not None else None
 
         # time_points
         if time_points is not None:
@@ -743,11 +743,11 @@ class VData:
                     raise VValueError(f"'{attr}' should be set to None when importing data from an AnnData.")
 
             # import and cast obs to a TemporalDataFrame
-            obs = TemporalDataFrame(data.obs, time_list=time_list, time_col=time_col, name='obs')
+            obs = TemporalDataFrame(data.obs, time_list=verified_time_list, time_col=time_col, name='obs')
             reordering_index = obs.index
 
             # find time points list
-            time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+            time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col, obs)
 
             generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
                                 f"found after data extraction from the AnnData.")
@@ -800,11 +800,11 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
-                    layers = {'data': TemporalDataFrame(data, time_list=time_list, time_points=_time_points,
+                    layers = {'data': TemporalDataFrame(data, time_list=verified_time_list, time_points=_time_points,
                                                         dtype=self._dtype, name='data')}
 
-                    if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
-                        time_list = layers['data'].time_points_column
+                    if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
+                        verified_time_list = layers['data'].time_points_column
 
                 elif isinstance(data, TemporalDataFrame):
                     generalLogger.debug("    1. \u2713 'data' is a TemporalDataFrame.")
@@ -820,8 +820,8 @@ class VData:
                     df_obs = data.index
                     df_var = data.columns
 
-                    if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
-                        time_list = data.time_points_column
+                    if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
+                        verified_time_list = data.time_points_column
 
                     data.astype(self._dtype)
                     layers = {'data': data}
@@ -838,11 +838,13 @@ class VData:
                                 df_obs = value.index
                                 df_var = value.columns
 
-                            layers[str(key)] = TemporalDataFrame(value, time_list=time_list, time_points=_time_points,
+                            layers[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
+                                                                 time_points=_time_points,
                                                                  dtype=self._dtype, name=str(key))
 
-                            if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
-                                time_list = layers[str(key)].time_points_column
+                            if obs is not None and not isinstance(obs, TemporalDataFrame) \
+                                    and verified_time_list is None:
+                                verified_time_list = layers[str(key)].time_points_column
 
                         else:
                             if df_obs is None:
@@ -859,8 +861,9 @@ class VData:
                                     time_points = pd.DataFrame({'value': value.time_points})
                                     nb_time_points = value.n_time_points
 
-                            if obs is not None and not isinstance(obs, TemporalDataFrame) and time_list is None:
-                                time_list = value.time_points_column
+                            if obs is not None and not isinstance(obs, TemporalDataFrame) \
+                                    and verified_time_list is None:
+                                verified_time_list = value.time_points_column
 
                             value.astype(self._dtype)
                             value.name = f"{value.name}{'_' if value.name else ''}{str(key)}"
@@ -883,7 +886,7 @@ class VData:
 
                 elif isinstance(obs, pd.DataFrame):
                     _time_points = time_points.value.values if time_points is not None else None
-                    obs = self._check_df_types(TemporalDataFrame(obs, time_list=time_list, time_col=time_col,
+                    obs = self._check_df_types(TemporalDataFrame(obs, time_list=verified_time_list, time_col=time_col,
                                                                  time_points=_time_points,
                                                                  name='obs'))
 
@@ -891,7 +894,7 @@ class VData:
                     obs = self._check_df_types(obs)
                     obs.name = f"{obs.name}{'_' if obs.name else ''}obs"
 
-                    if time_list is not None:
+                    if verified_time_list is not None:
                         generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
                                               "TemporalDataFrame.")
                     if time_col is not None:
@@ -899,7 +902,7 @@ class VData:
                                               "TemporalDataFrame.")
 
                 # find time points list
-                time_points, nb_time_points = check_time_match(time_points, time_list, time_col, obs)
+                time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col, obs)
 
                 generalLogger.debug(
                     f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
@@ -909,7 +912,7 @@ class VData:
 
             else:
                 generalLogger.debug("    2. \u2717 'obs' was not found.")
-                if time_list is not None:
+                if verified_time_list is not None:
                     generalLogger.warning("'time_list' parameter cannot be used since 'obs' was not found.")
                 if time_col is not None:
                     generalLogger.warning("'time_col' parameter cannot be used since 'obs' was not found.")

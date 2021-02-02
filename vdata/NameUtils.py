@@ -7,7 +7,7 @@
 import h5py
 import numpy as np
 import pandas as pd
-from typing import Union, Sequence
+from typing import Union, Sequence, List
 from typing_extensions import Literal
 
 import vdata
@@ -54,3 +54,5 @@ H5Group = Union[h5py.File, h5py.Group, h5py.Dataset]
 
 Slicer = Union[Sequence[Union[int, float, str, bool, utils.TimePoint]], range, slice]
 PreSlicer = Union[int, float, str, utils.TimePoint, Slicer, 'ellipsis']
+
+TimePointList = List[Union['utils.TimePoint', 'TimePointList']]

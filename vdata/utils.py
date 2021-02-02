@@ -223,39 +223,21 @@ def to_list(value: Any) -> List[Any]:
         return [value]
 
 
-def to_tp_list(item: Any) -> List:
-    """
-    Converts a given object to a list of TimePoints (or list of list of TimePoints ...).
-    :param item: an object to convert to list of TimePoints.
-    :return: a (nested) list of TimePoints.
-    """
-    new_tp_list: List[Union[TimePoint, List]] = []
-
-    for v in to_list(item):
-        if isCollection(v):
-            new_tp_list.append(to_tp_list(v))
-
-        else:
-            new_tp_list.append(TimePoint(v))
-
-    return new_tp_list
-
-
-def to_tp_tuple(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> Tuple:
+def to_tp_list(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> 'NameUtils.TimePointList':
     """
     Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
     :param item: an object to convert to tuple of TimePoints.
     :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
     :return: a (nested) tuple of TimePoints.
     """
-    new_tp_list: List[Union[TimePoint, Tuple]] = []
+    new_tp_list: 'NameUtils.TimePointList' = []
 
     if reference_time_points is None:
         reference_time_points = [TimePoint('0')]
 
     for v in to_list(item):
         if isCollection(v):
-            new_tp_list.append(to_tp_tuple(v, reference_time_points))
+            new_tp_list.append(to_tp_list(v, reference_time_points))
 
         elif not isinstance(v, TimePoint) and v == '*':
             new_tp_list.append(tuple(reference_time_points))
@@ -263,7 +245,7 @@ def to_tp_tuple(item: Any, reference_time_points: Optional[Collection[TimePoint]
         else:
             new_tp_list.append(TimePoint(v))
 
-    return tuple(new_tp_list)
+    return new_tp_list
 
 
 def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, on_time_point: bool = False) -> \
@@ -506,7 +488,7 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
 
             else:
                 if isCollection(tp_value):
-                    for one_tp_value in tp_value:
+                    for one_tp_value in cast(Sequence, tp_value):
                         if smart_isin(one_tp_value, tp_index):
                             mask[tp_i] = True
                             break
@@ -536,7 +518,7 @@ def trim_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> Tu
 
     for element in tp_list:
         if isCollection(element):
-            res, excluded = trim_time_points(element, tp_index)
+            res, excluded = trim_time_points(cast(Sequence, element), tp_index)
             excluded_elements = excluded_elements.union(excluded)
 
             if len(res):
