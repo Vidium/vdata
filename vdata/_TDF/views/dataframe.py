@@ -12,7 +12,7 @@ from typing_extensions import Literal
 import vdata
 from vdata.NameUtils import PreSlicer, DType
 from vdata.utils import repr_array, repr_index, reformat_index, TimePoint
-from ..NameUtils import TemporalDataFrame_internal_attributes
+from ..NameUtils import ViewTemporalDataFrame_internal_attributes
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
 
@@ -23,8 +23,6 @@ class ViewTemporalDataFrame:
     """
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
-
-    _internal_attributes = TemporalDataFrame_internal_attributes + ['parent', '_tp_slicer', '_parent_data']
 
     def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data,
                  tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
@@ -137,7 +135,7 @@ class ViewTemporalDataFrame:
         :param attr: an attribute's name to get.
         :return: self.attr
         """
-        if attr not in ViewTemporalDataFrame._internal_attributes:
+        if attr not in ViewTemporalDataFrame_internal_attributes:
             raise AttributeError
 
         return object.__getattribute__(self, attr)
@@ -160,7 +158,7 @@ class ViewTemporalDataFrame:
         :param attr: an attribute's name
         :param value: a value to be set into the attribute
         """
-        if attr in ViewTemporalDataFrame._internal_attributes:
+        if attr in ViewTemporalDataFrame_internal_attributes:
             self._parent.__setattr__(attr, value)
 
         elif attr in self.columns:
@@ -304,6 +302,27 @@ class ViewTemporalDataFrame:
         :return: the number of time points.
         """
         return len(self.time_points)
+
+    @property
+    def time_points_column_name(self) -> Optional[str]:
+        """
+        Get the name of the column with time points data. Returns None if '__TPID' is used.
+        :return: the name of the column with time points data.
+        """
+        return self._parent.time_points_column_name
+
+    @property
+    def time_points_column(self) -> pd.Series:
+        """
+        Get the time points data for all rows in this TemporalDataFrame.
+        :return: the time points data.
+        """
+        _data = pd.Series([])
+
+        for time_point in self.time_points:
+            _data = pd.concat((_data, pd.Series(np.repeat(time_point, self.n_index_at(time_point)))))
+
+        return _data
 
     def index_at(self, time_point: TimePoint) -> pd.Index:
         """TODO"""
@@ -576,3 +595,60 @@ class ViewTemporalDataFrame:
                                        time_points=time_points, time_col=time_col)
 
     # TODO : copy method
+
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> Tuple[Dict, np.ndarray, pd.Index]:
+        """
+        Compute mean, min or max of the values over the requested axis.
+        """
+        if axis == 0:
+            _data = {'mean': [self._parent_data[tp].loc[self.index_at(tp), col].__getattr__(func)()
+                              for tp in self.time_points for col in self.columns]}
+            _time_list = np.repeat(self.time_points, self.n_columns)
+            _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
+
+        elif axis == 1:
+            _data = {'mean': [self._parent_data[tp].loc[row, self.columns].__getattr__(func)()
+                              for tp in self.time_points for row in self.index_at(tp)]}
+            _time_list = self.time_points_column
+            _index = self.index
+
+        else:
+            raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")
+
+        return _data, _time_list, _index
+
+    def mean(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+        """
+        Return the mean of the values over the requested axis.
+
+        :param axis: compute mean over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with mean values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
+
+        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
+        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def min(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+        """
+        Return the minimum of the values over the requested axis.
+
+        :param axis: compute minimum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with minimum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('min', axis)
+
+        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
+        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def max(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+        """
+        Return the maximum of the values over the requested axis.
+
+        :param axis: compute maximum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with maximum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('max', axis)
+
+        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
+        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)

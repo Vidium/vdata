@@ -715,6 +715,9 @@ class TemporalDataFrame:
         :param time_point: a time point in this TemporalDataFrame.
         :return: the index of this TemporalDataFrame
         """
+        if time_point not in self.time_points:
+            raise VValueError(f"TimePoint '{time_point}' cannot be found in this TemporalDataFrame.")
+
         return self._df[time_point].index
 
     def n_index_at(self, time_point: TimePoint) -> int:
@@ -1083,6 +1086,63 @@ class TemporalDataFrame:
         """
         # save DataFrame to csv
         self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
+
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> Tuple[Dict, np.ndarray, pd.Index]:
+        """
+        Compute mean, min or max of the values over the requested axis.
+        """
+        if axis == 0:
+            _data = {'mean': [self._df[tp][col].__getattr__(func)()
+                              for tp in self.time_points for col in self.columns]}
+            _time_list = np.repeat(self.time_points, self.n_columns)
+            _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
+
+        elif axis == 1:
+            _data = {'mean': [self._df[tp].loc[row].__getattr__(func)()
+                              for tp in self.time_points for row in self.index_at(tp)]}
+            _time_list = self.time_points_column
+            _index = self.index
+
+        else:
+            raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")
+
+        return _data, _time_list, _index
+
+    def mean(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
+        """
+        Return the mean of the values over the requested axis.
+
+        :param axis: compute mean over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with mean values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
+
+        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
+        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def min(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
+        """
+        Return the minimum of the values over the requested axis.
+
+        :param axis: compute minimum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with minimum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('min', axis)
+
+        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
+        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def max(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
+        """
+        Return the maximum of the values over the requested axis.
+
+        :param axis: compute maximum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with maximum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('max', axis)
+
+        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
+        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
 
 # TODO :

@@ -15,4 +15,7 @@ TemporalDataFrame_internal_attributes = ['name', '_time_points', 'time_points', 
                                          '_df', 'shape', 'dtypes', 'values', 'axes', 'ndim', 'size', 'empty',
                                          'at', 'iat', 'loc', 'iloc']
 
+ViewTemporalDataFrame_internal_attributes = TemporalDataFrame_internal_attributes + \
+                                            ['parent', '_tp_slicer', '_parent_data']
+
 TemporalDataFrame_reserved_keys = ['Time_Point']
