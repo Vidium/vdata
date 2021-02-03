@@ -82,7 +82,7 @@ class VData:
         self._uns: Optional[Dict] = None
 
         # check formats of arguments
-        _layers, _obsm, _obsp, _varm, _varp, df_obs, df_var = self._check_formats(data,
+        _layers, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(data,
                                                                                   obs, obsm, obsp,
                                                                                   var, varm, varp,
                                                                                   time_points, uns,
@@ -99,15 +99,15 @@ class VData:
                 time_list = None
 
             self._obs = TemporalDataFrame(time_list=time_list,
-                                          index=(ref_TDF.index if ref_TDF is not None else None) if df_obs is None
-                                          else df_obs,
+                                          index=(ref_TDF.index if ref_TDF is not None else None) if obs_index is None
+                                          else obs_index,
                                           name='obs')
 
         # make sure a pandas DataFrame is set to .var and .time_points, even if no data was supplied
         if self._var is None:
             generalLogger.debug("Default empty DataFrame for vars.")
             self._var = pd.DataFrame(index=(range(ref_TDF.shape[2]) if ref_TDF is not None else None) if
-                                     df_var is None else df_var)
+                                     var_index is None else var_index)
 
         if self._time_points is None:
             generalLogger.debug("Default empty DataFrame for time points.")
@@ -125,7 +125,7 @@ class VData:
         self._varp = None  # VPairwiseArrayContainer(self, 'var', data=_varp)
 
         # finish initializing VData
-        self._init_data(df_obs, df_var)
+        self._init_data(obs_index, var_index)
 
         generalLogger.debug(f"\u23BF VData '{self.name}' creation : end "
                             f"---------------------------------------------------------- ")
@@ -704,10 +704,11 @@ class VData:
 
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
-        df_obs, df_var = None, None
+        obs_index, var_index = None, None
         layers = None
 
         verified_time_list = to_tp_list(time_list) if time_list is not None else None
+        index = None
 
         # time_points
         if time_points is not None:
@@ -797,8 +798,8 @@ class VData:
                     if nb_time_points > 1:
                         raise VTypeError("'data' is a 2D pandas DataFrame but more than 1 time points were provided.")
 
-                    df_obs = data.index
-                    df_var = data.columns
+                    obs_index = data.index
+                    var_index = data.columns
 
                     layers = {'data': TemporalDataFrame(data, time_list=verified_time_list, time_points=_time_points,
                                                         dtype=self._dtype, name='data')}
@@ -817,8 +818,8 @@ class VData:
                         time_points = pd.DataFrame({'value': data.time_points})
                         nb_time_points = data.n_time_points
 
-                    df_obs = data.index
-                    df_var = data.columns
+                    obs_index = data.index
+                    var_index = data.columns
 
                     if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
                         verified_time_list = data.time_points_column
@@ -834,9 +835,9 @@ class VData:
                             raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
 
                         elif isinstance(value, pd.DataFrame):
-                            if df_obs is None:
-                                df_obs = value.index
-                                df_var = value.columns
+                            if obs_index is None:
+                                obs_index = value.index
+                                var_index = value.columns
 
                             layers[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
                                                                  time_points=_time_points,
@@ -847,9 +848,9 @@ class VData:
                                 verified_time_list = layers[str(key)].time_points_column
 
                         else:
-                            if df_obs is None:
-                                df_obs = value.index
-                                df_var = value.columns
+                            if obs_index is None:
+                                obs_index = value.index
+                                var_index = value.columns
 
                                 if time_points is not None:
                                     if not time_points.value.equals(pd.Series(value.time_points)):
@@ -900,6 +901,9 @@ class VData:
                     if time_col is not None:
                         generalLogger.warning("'time_col' parameter cannot be used since 'obs' is already a "
                                               "TemporalDataFrame.")
+
+                if obs_index is not None and all(obs.index.isin(obs_index)):
+                    obs.reindex(obs_index)
 
                 # find time points list
                 time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col, obs)
@@ -1059,7 +1063,7 @@ class VData:
 
         generalLogger.debug(u"  \u23BF Arrays' formats are OK.  -- -- -- -- -- -- -- -- -- ")
 
-        return layers, obsm, obsp, varm, varp, df_obs, df_var
+        return layers, obsm, obsp, varm, varp, obs_index, var_index
 
     def _check_df_types(self, df: DF) -> DF:
         """
@@ -1106,12 +1110,12 @@ class VData:
 
         return df
 
-    def _init_data(self, df_obs: Optional[pd.Index], df_var: Optional[pd.Index]) -> None:
+    def _init_data(self, obs_index: Optional[pd.Index], var_index: Optional[pd.Index]) -> None:
         """
         Function for finishing the initialization of the VData object. It checks for incoherence in the user-supplied
         arrays and raises an error in case something is wrong.
-        :param df_obs: If X was supplied as a pandas DataFrame, index of observations
-        :param df_var: If X was supplied as a pandas DataFrame, index of variables
+        :param obs_index: If X was supplied as a pandas DataFrame, index of observations
+        :param var_index: If X was supplied as a pandas DataFrame, index of variables
         """
         generalLogger.debug("Initialize the VData.")
 
@@ -1128,18 +1132,21 @@ class VData:
         generalLogger.debug("Time points were coherent across arrays.")
 
         # if data was given as a dataframe, check that obs and data match in row names
-        if self.obs.empty and df_obs is not None:
-            self.obs = pd.DataFrame(index=df_obs)
-        elif df_obs is not None:
-            if not self.obs.index.equals(df_obs):
-                raise VValueError(f"Indexes in dataFrames 'data' ({df_obs}) and 'obs' ({self.obs.index}) do not match.")
+        if self.obs.empty and obs_index is not None:
+            self.obs = pd.DataFrame(index=obs_index)
+
+        elif obs_index is not None:
+            if not self.obs.index.equals(obs_index):
+                raise VValueError(f"Indexes in dataFrames 'data' ({obs_index}) and 'obs' ({self.obs.index}) "
+                                  f"do not match.")
 
         # if data was given as a dataframe, check that var row names match data col names
-        if self.var.empty and df_var is not None:
-            self.var = pd.DataFrame(index=df_var)
-        elif df_var is not None:
-            if not self.var.index.equals(df_var):
-                raise VValueError(f"Columns in dataFrame 'data' ({df_var}) do not match index of 'var' "
+        if self.var.empty and var_index is not None:
+            self.var = pd.DataFrame(index=var_index)
+
+        elif var_index is not None:
+            if not self.var.index.equals(var_index):
+                raise VValueError(f"Columns in dataFrame 'data' ({var_index}) do not match index of 'var' "
                                   f"({self.var.index}).")
 
         # check coherence between layers, obs, var and time points

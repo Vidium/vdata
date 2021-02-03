@@ -216,7 +216,6 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
             generalLogger.debug(f"Found columns is : {utils.repr_array(columns)}.")
 
             loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())))
-            generalLogger.debug(f"Loaded : {loaded_data}.")
 
             time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
                          for _ in range(len(matrix))]

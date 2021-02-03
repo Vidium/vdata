@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iterable, Generator
 from typing_extensions import Literal
 
-from vdata.NameUtils import DType, PreSlicer
+from vdata.NameUtils import DType, PreSlicer, TimePointList
 from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, to_list, \
     reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
@@ -18,12 +18,14 @@ from .views.dataframe import ViewTemporalDataFrame
 from .._IO import generalLogger
 from .._IO.errors import VValueError, VTypeError, ShapeError
 
+# TODO : remove match_time_points
+
 
 # ====================================================
 # code
 def parse_index_and_time_points(_index: Optional[Collection],
                                 _data: Optional[Union[Dict, pd.DataFrame]],
-                                _time_list: Optional[Tuple],
+                                _time_list: TimePointList,
                                 _time_col: Optional[str],
                                 _time_points: Optional[List],
                                 _columns: Collection[str]) \
@@ -233,9 +235,6 @@ def parse_index_and_time_points(_index: Optional[Collection],
             else:
                 generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
 
-                if data_len != len(_time_list):
-                    raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
-
                 if _time_points is None:
                     # data and time list
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
@@ -256,10 +255,16 @@ def parse_index_and_time_points(_index: Optional[Collection],
 
                         generalLogger.debug(f"\tNew data has {len(_data)} rows.")
 
-                _time_list = np.array(_time_list)
+                if data_len != len(_time_list):
+                    if data_len * len(_time_points) == len(_time_list):
+                        _data = {tp: pd.DataFrame(_data, columns=_columns) for tp in _time_points}
 
-                _data = {tp: pd.DataFrame(_data.loc[match_time_points(_time_list, [tp])], columns=_columns) for tp in
-                         _time_points}
+                    else:
+                        raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
+
+                else:
+                    _data = {tp: pd.DataFrame(_data.loc[match_time_points(_time_list, [tp])], columns=_columns)
+                             for tp in _time_points}
 
         else:
             generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
@@ -323,9 +328,28 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     else:
                         raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")
 
+                #
+                _tmp_columns = _columns if _columns is not None else _data.columns
+                _expanded_time_list = []
+
+                for tp_i, tp in enumerate(_time_list):
+                    if isCollection(tp):
+                        _data = pd.concat([_data.iloc[:tp_i]] +
+                                          [pd.DataFrame(_data.iloc[tp_i]).T for _ in range(len(tp)-1)] +
+                                          [_data.iloc[tp_i:]], sort=False)
+
+                        for tp_bis in tp:
+                            _expanded_time_list.append(tp_bis)
+
+                    else:
+                        _expanded_time_list.append(tp)
+
                 _data.index = _index
-                _data = {tp: pd.DataFrame(_data.loc[match_time_points(_time_list, [tp])],
-                                          columns=_columns) for tp in _time_points}
+                _data['__tmp_time__'] = _expanded_time_list
+                _data.sort_values(by='__tmp_time__', inplace=True)
+
+                _data = {tp: pd.DataFrame(_data[_data['__tmp_time__'] == tp], columns=_tmp_columns)
+                         for tp in _time_points}
 
     if _columns is not None:
         _columns = pd.Index(_columns)
@@ -721,6 +745,21 @@ class TemporalDataFrame:
         :return: the number of indexes.
         """
         return len(self.index)
+
+    def reindex(self, values: Collection) -> None:
+        """TODO"""
+        if not isCollection(values):
+            raise VTypeError('New index should be an array of values.')
+
+        len_index = self.n_index_total
+
+        if not len(values) == len_index:
+            raise VValueError(f"Cannot reindex from an array of length {len(values)}, should be {len_index}.")
+
+        cnt = 0
+        for tp in self.time_points:
+            self._df[tp] = self._df[tp].reindex(values[cnt:cnt+self.n_index_at(tp)])
+            cnt += self.n_index_at(tp)
 
     @property
     def columns(self) -> pd.Index:
