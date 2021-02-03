@@ -626,7 +626,7 @@ class ViewTemporalDataFrame:
         """
         _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
 
-        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
+        _name = f"Mean of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
     def min(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
@@ -638,7 +638,7 @@ class ViewTemporalDataFrame:
         """
         _data, _time_list, _index = self.__mean_min_max_func('min', axis)
 
-        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
+        _name = f"Minimum of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
     def max(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
@@ -650,5 +650,5 @@ class ViewTemporalDataFrame:
         """
         _data, _time_list, _index = self.__mean_min_max_func('max', axis)
 
-        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
+        _name = f"Maximum of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)

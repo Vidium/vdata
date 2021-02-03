@@ -49,8 +49,7 @@ class Unit:
     Simple class for storing a time point's unit.
     """
     _units = [None, 's', 'm', 'h', 'D', 'M', 'Y']
-    _units_order = {None: 0,
-                    's': 1,
+    _units_order = {'s': 1,
                     'm': 2,
                     'h': 3,
                     'D': 4,
@@ -64,7 +63,7 @@ class Unit:
         if value not in Unit._units:
             raise VValueError(f"Invalid unit '{value}', should be in {Unit._units}.")
 
-        self.value = value
+        self.value = value if value is not None else 's'
 
     def __repr__(self) -> str:
         """
@@ -97,13 +96,10 @@ class Unit:
         """
         return Unit._units_order[self.value] <= Unit._units_order[other.value]
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: 'Unit') -> bool:
         """
         Compare units with 'equal'.
         """
-        if not isinstance(other, Unit):
-            raise VValueError(f"Cannot compare Unit with object of type '{type(other)}'.")
-
         return self.value == other.value
 
 
@@ -196,13 +192,10 @@ class TimePoint:
         """
         return self < other or self == other
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: 'TimePoint') -> bool:
         """
         Compare units with 'equal'.
         """
-        if not isinstance(other, TimePoint):
-            raise VValueError(f"Cannot compare TimePoint with object of type '{type(other)}'.")
-
         return self.unit == other.unit and self.value == other.value
 
     def __hash__(self) -> int:

@@ -7,6 +7,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from collections import Counter
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iterable, Generator
 from typing_extensions import Literal
 
@@ -321,6 +322,8 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # data, index, time list and time points
                     generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
 
+                _time_points = sorted(_time_points)
+
                 if len(_index) != data_len:
                     if len(_index) * len(_time_points) == data_len:
                         _index = np.concatenate([_index for _ in _time_points])
@@ -335,7 +338,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 for tp_i, tp in enumerate(_time_list):
                     if isCollection(tp):
                         _data = pd.concat([_data.iloc[:tp_i]] +
-                                          [pd.DataFrame(_data.iloc[tp_i]).T for _ in range(len(tp)-1)] +
+                                          [pd.DataFrame(_data.iloc[tp_i]).T for _ in range(len(set(tp))-1)] +
                                           [_data.iloc[tp_i:]], sort=False)
 
                         for tp_bis in tp:
@@ -345,11 +348,22 @@ def parse_index_and_time_points(_index: Optional[Collection],
                         _expanded_time_list.append(tp)
 
                 _data.index = _index
-                _data['__tmp_time__'] = _expanded_time_list
-                _data.sort_values(by='__tmp_time__', inplace=True)
 
-                _data = {tp: pd.DataFrame(_data[_data['__tmp_time__'] == tp], columns=_tmp_columns)
-                         for tp in _time_points}
+                if _expanded_time_list == sorted(_expanded_time_list):
+                    tp_occurrences = Counter(_expanded_time_list)
+                    tp_cumulative_occurrences = [0] + list(np.cumsum([tp_occurrences[tp] for tp in _time_points]))
+
+                    _data = {tp: pd.DataFrame(
+                        _data.iloc[tp_cumulative_occurrences[tp_i]:tp_cumulative_occurrences[tp_i + 1]],
+                        columns=_tmp_columns)
+                        for tp_i, tp in enumerate(_time_points)}
+
+                else:
+                    _data['__tmp_time__'] = _expanded_time_list
+                    _data.sort_values(by='__tmp_time__', inplace=True)
+
+                    _data = {tp: pd.DataFrame(_data[_data['__tmp_time__'] == tp], columns=_tmp_columns)
+                             for tp in _time_points}
 
     if _columns is not None:
         _columns = pd.Index(_columns)
