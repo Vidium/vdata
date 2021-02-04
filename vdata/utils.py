@@ -4,7 +4,9 @@
 
 # ====================================================
 # imports
+import builtins
 import numpy as np
+import pandas as pd
 from typing import Optional, Tuple, Union, Any, Collection, List, Set, Sequence, cast
 
 from . import NameUtils
@@ -28,11 +30,16 @@ def get_value(v: Any) -> Union[str, int, float]:
     :param v: an object for which to try to get the value.
     :return: the object's value (int or float) or the object itself.
     """
+    v = str(v)
+
+    if v in dir(builtins):
+        return v
+
     try:
-        return eval(str(v))
+        return eval(v)
 
     except (NameError, SyntaxError):
-        return str(v)
+        return v
 
 
 def isCollection(obj: Any) -> bool:
@@ -404,6 +411,9 @@ def repr_array(arr: Union['NameUtils.DType', Sequence, range, slice, 'ellipsis']
         arr = cast(Sequence, arr)
         if isinstance(arr, range) or len(arr) <= 4:
             return f"{str(arr)} ({len(arr)} value{'' if len(arr) == 1 else 's'} long)"
+
+        elif isinstance(arr, pd.Series):
+            return f"[{arr[0]} {arr[1]} ... {arr.iloc[-2]} {arr.iloc[-1]}] ({len(arr)} values long)"
 
         else:
             return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"

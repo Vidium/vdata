@@ -172,10 +172,10 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
     df_group.attrs['type'] = 'TDF'
 
     # save column order
-    df_group.attrs["column_order"] = list(data.columns)
+    write_data(data.columns, df_group, 'column_order', key_level=key_level + 1)
 
     # save index and series
-    df_group.attrs["index"] = list(data.index)
+    write_data(data.index, df_group, 'index', key_level=key_level + 1)
     write_data(data.time_points_column_name, df_group, 'time_col', key_level=key_level + 1)
     write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1)
 

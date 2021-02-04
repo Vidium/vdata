@@ -435,12 +435,17 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     generalLogger.info(f"{spacer(level)}Reading TemporalDataFrame {group.name}.")
 
     # get column order
-    col_order = group.attrs('column_order')
+    dataset_type = cast(H5GroupReader, group['column_order']).attrs("type")
+    col_order = func_[dataset_type](group['column_order'], level=level + 1)
+
     # get index
-    index = group.attrs('index')
+    dataset_type = cast(H5GroupReader, group['index']).attrs("type")
+    index = func_[dataset_type](group['index'], level=level + 1)
+
     # get time_col
     dataset_type = cast(H5GroupReader, group['time_col']).attrs("type")
     time_col = func_[dataset_type](group['time_col'], level=level + 1)
+
     # get time_list
     if time_col is None:
         dataset_type = cast(H5GroupReader, group['time_list']).attrs("type")
@@ -454,7 +459,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     log_func: Literal['debug', 'info'] = 'info'
 
     for i, col in enumerate(col_order):
-        data[str(col)] = read_h5_series(cast(H5GroupReader, group[col]), index, level=level+1, log_func=log_func)
+        data[col] = read_h5_series(cast(H5GroupReader, group[str(col)]), index, level=level+1, log_func=log_func)
 
         if log_func == 'info' and i > 0:
             log_func = 'debug'
