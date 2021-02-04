@@ -821,19 +821,21 @@ class TemporalDataFrame:
         else:
             return pd.Series([])
 
-    def astype(self, dtype: Union[DType, Dict[str, DType]]) -> None:
+    def astype(self, dtype: Optional[Union[DType, Dict[str, DType]]]) -> None:
         """
         Cast this TemporalDataFrame to a specified data type.
         :param dtype: a data type.
         """
-        for tp in self._time_points:
-            for column in self.columns:
-                if column != self._time_points_col:
-                    try:
-                        self._df[tp][column] = self._df[tp][column].astype(np.float).astype(dtype)
+        if dtype is not None:
+            raise VValueError(dtype)
+            for tp in self._time_points:
+                for column in self.columns:
+                    if column != self._time_points_col:
+                        try:
+                            self._df[tp][column] = self._df[tp][column].astype(np.float).astype(dtype)
 
-                    except ValueError:
-                        pass
+                        except ValueError:
+                            pass
 
     def asColType(self, col_name: str, dtype: Union[DType, Dict[str, DType]]) -> None:
         """

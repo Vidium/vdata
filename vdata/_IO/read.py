@@ -152,7 +152,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtil
                    obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
-                   dtype: 'NameUtils.DType' = np.float32,
+                   dtype: Optional['NameUtils.DType'] = None,
                    name: Optional[Any] = None) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
@@ -363,14 +363,14 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
             'layers': None,
             'obsm': None, 'obsp': None,
             'varm': None, 'varp': None,
-            'uns': None, 'dtype': dtype}
+            'uns': None}
 
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:
         for key in importFile.keys():
             generalLogger.info(f"Got key : '{key}'.")
 
-            if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns', 'dtype'):
+            if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
                 type_ = importFile[key].attrs('type')
                 data[key] = func_[type_](importFile[key])
 
@@ -380,7 +380,7 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
-                       data['time_points'], data['uns'], dtype=data['dtype'],
+                       data['time_points'], data['uns'], dtype=dtype,
                        name=name)
 
 

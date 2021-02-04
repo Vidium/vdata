@@ -44,7 +44,7 @@ class VData:
                  uns: Optional[Dict] = None,
                  time_col: Optional[str] = None,
                  time_list: Optional[List[str]] = None,
-                 dtype: Union[DType, str_DType] = np.float32,
+                 dtype: Optional[Union[DType, str_DType]] = None,
                  name: Optional[Any] = None):
         """
         :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
@@ -62,7 +62,7 @@ class VData:
             obs that contains time information.
         :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
             time information of the same length as the number of rows in obs.
-        :param dtype: a data type to impose on datasets stored in this VData
+        :param dtype: a data type to impose on datasets stored in this VData.
         """
         self.name = str(name) if name is not None else 'No_Name'
 
@@ -70,11 +70,14 @@ class VData:
                             f"-------------------------------------------------------- ")
 
         # first, check dtype is correct because it will be needed right away
-        if dtype not in DTypes.keys():
-            raise VTypeError(f"Incorrect data-type '{dtype}', should be in {list(DTypes.keys())}")
+        if dtype is not None:
+            if dtype not in DTypes.keys():
+                raise VTypeError(f"Incorrect data-type '{dtype}', should be in {list(DTypes.keys())}")
+            else:
+                self._dtype: DType = DTypes[dtype]
         else:
-            self._dtype: DType = DTypes[dtype]
-        generalLogger.debug(f'Set data-type to {dtype}')
+            self._dtype = None
+        generalLogger.debug(f'Set data-type to {self._dtype}')
 
         self._obs = None
         self._var = None
@@ -569,12 +572,16 @@ class VData:
         return self._dtype
 
     @dtype.setter
-    def dtype(self, type_: DType) -> None:
+    def dtype(self, type_: Union[DType, str_DType]) -> None:
         """
         Set the data type of this VData object.
         :param type_: a data type.
         """
-        self._dtype = type_
+        if dtype not in DTypes.keys():
+            raise VTypeError(f"Incorrect data-type '{type_}', should be in {list(DTypes.keys())}")
+        else:
+            self._dtype: DType = DTypes[type_]
+
         # update dtype of linked Arrays
         self.layers.update_dtype(type_)
 
@@ -1073,38 +1080,39 @@ class VData:
         """
         generalLogger.debug(u"  \u23BE Check DataFrame's column types.  -  -  -  -  -  -  -  -  -  -")
         # check index : convert to correct dtype if it is not a string type
-        try:
-            df.index.astype(self._dtype)
-        except TypeError:
-            df.index.astype(np.dtype('O'))
+        if self._dtype is not None:
+            try:
+                df.index.astype(self._dtype)
+            except TypeError:
+                df.index.astype(np.dtype('O'))
 
-        # check columns : convert to correct dtype if it is not a string type
-        if isinstance(df, pd.DataFrame):
-            for col_name in df.columns:
-                try:
-                    df[col_name].astype(self._dtype)
-                    generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
+            # check columns : convert to correct dtype if it is not a string type
+            if isinstance(df, pd.DataFrame):
+                for col_name in df.columns:
+                    try:
+                        df[col_name].astype(self._dtype)
+                        generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
 
-                except (ValueError, TypeError):
-                    if df[col_name].dtype.type in (np.datetime64, np.timedelta64, pd.CategoricalDtype.type):
-                        generalLogger.debug(f"Column '{col_name}' kept to {df[col_name].dtype.type}.")
+                    except (ValueError, TypeError):
+                        if df[col_name].dtype.type in (np.datetime64, np.timedelta64, pd.CategoricalDtype.type):
+                            generalLogger.debug(f"Column '{col_name}' kept to {df[col_name].dtype.type}.")
 
-                    else:
-                        df[col_name].astype(np.dtype('O'))
-                        generalLogger.debug(f"Column '{col_name}' set to string or TimePoint.")
+                        else:
+                            df[col_name].astype(np.dtype('O'))
+                            generalLogger.debug(f"Column '{col_name}' set to string or TimePoint.")
 
-        elif isinstance(df, TemporalDataFrame):
-            for col_name in df.columns:
-                try:
-                    df.asColType(col_name, self._dtype)
-                    generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
+            elif isinstance(df, TemporalDataFrame):
+                for col_name in df.columns:
+                    try:
+                        df.asColType(col_name, self._dtype)
+                        generalLogger.debug(f"Column '{col_name}' set to {self._dtype}.")
 
-                except (ValueError, TypeError):
-                    df.asColType(col_name, np.dtype('O'))
-                    generalLogger.debug(f"Column '{col_name}' set to string.")
+                    except (ValueError, TypeError):
+                        df.asColType(col_name, np.dtype('O'))
+                        generalLogger.debug(f"Column '{col_name}' set to string.")
 
-        else:
-            raise VTypeError(f"Invalid type '{type(df)}' for function '_check_df_types()'.")
+            else:
+                raise VTypeError(f"Invalid type '{type(df)}' for function '_check_df_types()'.")
 
         generalLogger.debug(u"  \u23BF DataFrame's column types are OK.  -  -  -  -  -  -  -  -  -  -")
 

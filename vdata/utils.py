@@ -23,6 +23,10 @@ time_point_units = {None: '(no unit)',
                     'M': 'months',
                     'Y': 'years'}
 
+_units = (None, 's', 'm', 'h', 'D', 'M', 'Y')
+
+_builtin_names = dir(builtins)
+
 
 def get_value(v: Any) -> Union[str, int, float]:
     """
@@ -32,7 +36,7 @@ def get_value(v: Any) -> Union[str, int, float]:
     """
     v = str(v)
 
-    if v in dir(builtins):
+    if v in _builtin_names:
         return v
 
     try:
@@ -55,7 +59,6 @@ class Unit:
     """
     Simple class for storing a time point's unit.
     """
-    _units = [None, 's', 'm', 'h', 'D', 'M', 'Y']
     _units_order = {'s': 1,
                     'm': 2,
                     'h': 3,
@@ -67,8 +70,8 @@ class Unit:
         """
         :param value: a string representing the unit, in [None, 's', 'm', 'h', 'D', 'M', 'Y'].
         """
-        if value not in Unit._units:
-            raise VValueError(f"Invalid unit '{value}', should be in {Unit._units}.")
+        if value not in _units:
+            raise VValueError(f"Invalid unit '{value}', should be in {_units}.")
 
         self.value = value if value is not None else 's'
 
@@ -128,35 +131,36 @@ class TimePoint:
             self.value, self.unit = self.__parse(time_point)
 
     @staticmethod
-    def __parse(time_point: 'NameUtils.DType') -> Tuple['NameUtils.DType', Unit]:
+    def __parse(time_point: Union[str, 'NameUtils.DType']) -> Tuple['NameUtils.DType', Unit]:
         """
         Get time point's value and unit.
 
         :param time_point: a time point's value given by the user.
         :return: tuple of value and unit.
         """
-        if isinstance(time_point, (int, float, np.int_, np.float_)):
+        _type_time_point = type(time_point)
+
+        if _type_time_point in (int, float, np.int_, np.float_):
             return float(time_point), Unit(None)
 
-        elif isinstance(time_point, (str, np.str_)):
-            v = get_value(time_point)
+        elif _type_time_point in (str, np.str_):
+            if time_point.endswith(_units[1:]) and len(time_point) > 1:
+                # try to get unit
+                v, u = get_value(time_point[:-1]), time_point[-1]
 
-            if isinstance(v, str):
-                if len(time_point) > 1:
-                    # try to get unit
-                    v, u = get_value(time_point[:-1]), time_point[-1]
-
-                    if not isinstance(v, (int, float, np.int, np.float)):
-                        raise VValueError(f"Invalid time point value '{time_point}'")
-
-                    else:
-                        return float(v), Unit(u)
-
-                else:
+                if not isinstance(v, (int, float, np.int, np.float)):
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
+                else:
+                    return float(v), Unit(u)
+
             else:
-                return float(v), Unit(None)
+                v = get_value(time_point)
+                if isinstance(v, str):
+                    raise VValueError(f"Invalid time point value '{time_point}'")
+
+                else:
+                    return float(v), Unit(None)
 
         else:
             raise VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")
