@@ -1238,55 +1238,13 @@ class _ViLocIndexer:
     Wrapper around pandas _iLocIndexer object for use in TemporalDataFrames.
     """
 
-    def __init__(self, parent: TemporalDataFrame):
+    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
         """
         :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
         """
         self.__parent = parent
-        self.__iloc = parent.df_data.iloc
-
-    def __getiLoc(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
-        """
-        Parse the key and get un-formatted data from the parent TemporalDataFrame.
-        :param key: iloc index.
-        :return: pandas DataFrame, Series or a single value.
-        """
-        generalLogger.debug(u'\u23BE .iloc access : begin ------------------------------------------------------ ')
-        if isinstance(key, tuple):
-            generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
-            if isinstance(key[1], slice):
-                generalLogger.debug('Second item is a slice : update it.')
-
-                start = key[1].start + 1 if key[1].start is not None else 1
-                stop = key[1].stop + 1 if key[1].stop is not None else len(self.__parent.columns) + 1
-                step = key[1].step if key[1].step is not None else 1
-
-                new_key = [0] + list(range(start, stop, step))
-
-                key = (key[0], new_key)
-
-            elif isinstance(key[1], int):
-                generalLogger.debug('Second item is an int : update it.')
-                if isinstance(key[0], (list, np.ndarray, slice)):
-                    key = (key[0], [0, key[1] + 1])
-
-                else:
-                    key = (key[0], key[1] + 1)
-
-            elif isinstance(key[1], (list, np.ndarray)) and len(key[1]):
-                if isinstance(key[1][0], bool):
-                    generalLogger.debug('Second item is an array of bool : update it.')
-                    key = (key[0], [True] + key[1])
-
-                elif isinstance(key[1][0], int):
-                    generalLogger.debug('Second item is an array of int : update it.')
-                    key = (key[0], [0] + [v + 1 for v in key[1]])
-
-        result = self.__iloc[key]
-        generalLogger.debug(f'.iloc data is : \n{result}')
-        generalLogger.debug(u'\u23BF .iloc access : end -------------------------------------------------------- ')
-
-        return result
+        self.__data = data
+        self.__pandas_data = parent.to_pandas()
 
     def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
         """
@@ -1294,7 +1252,10 @@ class _ViLocIndexer:
         :param key: loc index.
         :return: TemporalDataFrame or single value.
         """
-        result = self.__getiLoc(key)
+        generalLogger.debug(u'\u23BE .iloc access : begin ------------------------------------------------------- ')
+
+        result = self.__pandas_data.iloc[key]
+        generalLogger.debug(f'.iloc data is : \n{result}')
 
         if isinstance(result, pd.DataFrame):
             if result.shape == (1, 2):
@@ -1335,21 +1296,16 @@ class _ViLocIndexer:
 
             return result
 
+        generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
+        return final_result
+
     def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
         """
         Set rows and columns from the loc.
         :param key: loc index.
         :param value: pandas DataFrame, Series or a single value to set.
         """
-        # TODO : debug
-        # This as no real effect, it is done to check that the key exists in the view.
-        _ = self.__getiLoc(key)
-
-        if isinstance(value, TemporalDataFrame):
-            value = value.df_data[value.columns]
-
-        # Actually set a value at the (index, column) key.
-        self.__parent.df_data.iloc[key] = value
+        # TODO
 
 
 # class _ViLocIndexer:
