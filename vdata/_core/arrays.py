@@ -289,7 +289,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             _shape = (self._parent.time_points.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
             _index = self._parent.obs.index
             _columns = self._parent.var.index
-            _time_points = self._parent.time_points.index
+            _time_points: pd.Series = self._parent.time_points['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -326,7 +326,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                     raise IncoherenceError(f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
                                            f"index. ({_columns})")
 
-                if not _time_points.equals(TDF.time_points):
+                if not all(_time_points == TDF.time_points):
                     raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.time_points}) do not match "
                                            f"time_point's index. ({_time_points})")
 
@@ -392,7 +392,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                       self._parent.obs.shape[1],
                       list(self.data.values())[0].shape[2])
             _index = self._parent.obs.index
-            _time_points = self._parent.time_points.index
+            _time_points: pd.Series = self._parent.time_points['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -425,7 +425,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                     raise IncoherenceError(f"Index of TemporalDataFrame '{TDF_index}' ({TDF.index}) does not match "
                                            f"obs' index. ({_index})")
 
-                if not _time_points.equals(TDF.time_points):
+                if not all(_time_points == TDF.time_points):
                     raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.time_points}) "
                                            f"do not match time_point's index. ({_time_points})")
 
@@ -490,7 +490,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
             _data = dict()
             _shape = self._parent.obs.shape[1]
             _index = self._parent.obs.index
-            _time_points = self._parent.time_points.index
+            _time_points: pd.Series = self._parent.time_points['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -499,7 +499,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
 
                 _data[DF_dict_index] = dict()
 
-                if not _time_points.equals(data_time_points):
+                if not all(_time_points == data_time_points):
                     raise IncoherenceError(f"Time points of '{DF_dict_index}' ({data_time_points}) do not match "
                                            f"time_point's index. ({_time_points})")
 
