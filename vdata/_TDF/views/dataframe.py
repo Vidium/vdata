@@ -346,6 +346,14 @@ class ViewTemporalDataFrame:
         return len(self.index_at(time_point))
 
     @property
+    def n_index_total(self) -> int:
+        """
+        Get the number of indexes.
+        :return: the number of indexes.
+        """
+        return len(self.index)
+
+    @property
     def n_columns(self) -> int:
         """
         :return: the number of columns
@@ -382,7 +390,7 @@ class ViewTemporalDataFrame:
         Return a Numpy representation of the DataFrame.
         :return: a Numpy representation of the DataFrame.
         """
-        return self.df_data[self.columns].values
+        return self.to_pandas().values
 
     @property
     def axes(self) -> List[pd.Index]:
@@ -390,7 +398,7 @@ class ViewTemporalDataFrame:
         Return a list of the row axis labels.
         :return: a list of the row axis labels.
         """
-        return self.df_data[self.columns].axes
+        return [self.index, self.columns]
 
     @property
     def ndim(self) -> Literal[3]:
@@ -406,7 +414,7 @@ class ViewTemporalDataFrame:
         Return the number of rows times number of columns.
         :return: an int representing the number of elements in this object.
         """
-        return self.df_data[self.columns].size
+        return len(self.columns) * self.n_index_total
 
     @property
     def shape(self) -> Tuple[int, List[int], int]:
@@ -423,7 +431,11 @@ class ViewTemporalDataFrame:
         The memory usage can optionally include the contribution of the index and elements of object dtype.
         :return: the memory usage of each column in bytes.
         """
-        return self._parent.memory_usage(index=index, deep=deep)
+        selected_columns = list(self.columns)
+        if index:
+            selected_columns.insert(0, 'Index')
+
+        return self._parent.memory_usage(index=index, deep=deep)[selected_columns]
 
     @property
     def empty(self) -> bool:
@@ -431,7 +443,7 @@ class ViewTemporalDataFrame:
         Indicator whether DataFrame is empty.
         :return: True if this TemporalDataFrame is empty.
         """
-        if not self.n_time_points or not self.n_columns or not self.n_index:
+        if not self.n_time_points or not self.n_columns or not self.n_index_total:
             return True
 
         return False
