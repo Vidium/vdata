@@ -11,184 +11,229 @@ import abc
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Collection, Mapping, \
-    Iterator, TypeVar, List
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Mapping, Iterator, TypeVar, List
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, DataFrame
 from . import vdata
 from .._TDF.dataframe import TemporalDataFrame
-from .._IO import generalLogger
-from .._IO.errors import ShapeError, IncoherenceError, VAttributeError
+from .._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError
 
 
 # ====================================================
 # code
 
-D = TypeVar('D', bound=DataFrame)
+D = TypeVar('D', DataFrame, Dict['vdata.TimePoint', pd.DataFrame])
+D_DF = TypeVar('D_DF', bound=pd.DataFrame)
+D_TDF = TypeVar('D_TDF', bound=TemporalDataFrame)
 
 
 # Containers ------------------------------------------------------------------
+# Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 class VBaseArrayContainer(ABC, Mapping[str, D]):
     """
-    Base abstract class for Array containers linked to a VData object (obsm, obsp, varm, varp, layers).
+    Base abstract class for ArrayContainers linked to a VData object (obsm, obsp, varm, varp, layers).
     All Arrays have a '_parent' attribute for linking them to a VData and a '_data' dictionary
     attribute for storing 2D/3D arrays.
     """
 
     def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D]]):
         """
-        :param parent: the parent VData object this Array is linked to.
-        :param data: a dictionary of pandas DataFrames to store in this Array container.
+        :param parent: the parent VData object this ArrayContainer is linked to.
+        :param data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
+        DataFrames) to store in this ArrayContainer.
         """
+        generalLogger.debug(f"== Creating {self.__class__.__name__}. ==========================")
+
         self._parent = parent
         self._data = self._check_init_data(data)
 
     @abc.abstractmethod
-    def __repr__(self) -> str:
+    def _check_init_data(self, data: Optional[Dict[str, D]]) -> Dict[str, D]:
+        """
+        Function for checking, at ArrayContainer creation, that the supplied data has the correct format.
+        :param data: optional dictionary of data items.
+        :return: the data, if correct.
+        """
         pass
+
+    def __repr__(self) -> str:
+        """
+        Get a string representation of this ArrayContainer.
+        :return: a string representation of this ArrayContainer.
+        """
+        if len(self):
+            list_of_keys = "'" + "','".join(self.keys()) + "'"
+            return f"{self.__class__.__name__} with keys : {list_of_keys}."
+        else:
+            return f"Empty {self.__class__.__name__}."
 
     def __getitem__(self, item: str) -> D:
         """
-        Get a specific Array in _data.
-        :param item: key in _data
-        :return: Array stored in _data under the given key.
+        Get a specific data item stored in this ArrayContainer.
+        :param item: key in _data linked to a data item.
+        :return: data item stored in _data under the given key.
         """
-        if self._data and item in self._data.keys():
+        if len(self) and item in self.keys():
             return self._data[item]
 
         else:
-            raise VAttributeError(f"{self.name} array has no attribute '{item}'")
+            raise VAttributeError(f"{self.name} ArrayContainer has no attribute '{item}'")
 
     @abc.abstractmethod
-    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
+    def __setitem__(self, key: str, value: D) -> None:
         """
-        Set a specific Array in _data. The given Array must have the correct shape.
-        :param key: key for storing Array in _data.
-        :param value: an Array to store.
+        Set a specific data item in _data. The given data item must have the correct shape.
+        :param key: key for storing a data item in this ArrayContainer.
+        :param value: a data item to store.
         """
         pass
 
     def __len__(self) -> int:
         """
-        Length of the Array container : the number of Arrays in _data.
-        :return: number of Arrays in _data.
+        Length of this ArrayContainer : the number of data items in _data.
+        :return: number of data items in _data.
         """
-        return len(self._data.keys())
+        return len(self.keys())
 
     def __iter__(self) -> Iterator[str]:
         """
-        Iterate on the Array container's keys.
-        :return: an iterator over the Array container's keys.
+        Iterate on this ArrayContainer's keys.
+        :return: an iterator over this ArrayContainer's keys.
         """
         return iter(self.keys())
 
     @property
+    @abc.abstractmethod
     def empty(self) -> bool:
         """
-        Whether this Array container is empty or not.
-        :return: is this Array container empty ?
-        """
-        return all([TDF.empty for TDF in self.values()])
-
-    @abc.abstractmethod
-    def _check_init_data(self, data: Optional[Dict[str, D]]) -> Optional[Dict[str, D]]:
-        """
-        Function for checking, upon creation of this Array container, whether the supplied data has the correct
-        format.
-        :param data: dictionary of pandas DataFrames.
-        :return: dictionary of Arrays.
+        Whether this ArrayContainer is empty or not.
+        :return: is this ArrayContainer empty ?
         """
         pass
 
+    @abc.abstractmethod
     def update_dtype(self, type_: DType) -> None:
         """
-        Function for updating the data type of Arrays in the Array container.
+        Update the data type of Arrays stored in this ArrayContainer.
         :param type_: the new data type.
         """
-        if self._data is not None:
-            for arr_name, arr in self._data.items():
-                self._data[arr_name] = arr.astype(type_)
+        pass
 
     @property
     @abc.abstractmethod
     def name(self) -> str:
         """
-        Name for this Array container.
-        :return: name of this Array container.
+        Name for this ArrayContainer.
+        :return: the name of this ArrayContainer.
         """
         pass
 
     @property
     @abc.abstractmethod
-    def shape(self) -> Union[Tuple[int, int, int], Tuple[int, int]]:
+    def shape(self) -> Union[
+        Tuple[int, int, int],
+        Tuple[int, int, List[int]],
+        Tuple[int, int, List[int], int],
+        Tuple[int, int, List[int], List[int]]
+    ]:
         """
-        The shape of this Array container is computed from the shape of the Arrays it contains.
+        The shape of this ArrayContainer is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
-        :return: shape of this Array container.
+        :return: the shape of this ArrayContainer.
         """
         pass
 
     @property
-    def data(self) -> Optional[Dict[str, D]]:
+    def data(self) -> Dict[str, D]:
         """
-        Data of this Array container.
-        :return: the data of this Array container.
+        Data of this ArrayContainer.
+        :return: the data of this ArrayContainer.
         """
         return self._data
 
-    def keys(self) -> Union[Tuple[()], KeysView]:
+    def keys(self) -> KeysView[str]:
         """
-        KeysView of keys for getting the Arrays in this Array container.
-        :return: KeysView of this Array container.
+        KeysView of keys for getting the data items in this ArrayContainer.
+        :return: KeysView of this ArrayContainer.
         """
-        return self._data.keys() if self._data is not None else ()
+        return self._data.keys()
 
-    def values(self) -> Union[Tuple[()], ValuesView]:
+    def values(self) -> ValuesView[D]:
         """
-        ValuesView of Arrays in this Array container.
-        :return: ValuesView of this Array container.
+        ValuesView of data items in this ArrayContainer.
+        :return: ValuesView of this ArrayContainer.
         """
-        return self._data.values() if self._data is not None else ()
+        return self._data.values()
 
-    def items(self) -> Union[Tuple[()], ItemsView]:
+    def items(self) -> ItemsView[str, D]:
         """
-        ItemsView of pairs of keys and Arrays in this Array container.
-        :return: ItemsView of this Array container.
+        ItemsView of pairs of keys and data items in this ArrayContainer.
+        :return: ItemsView of this ArrayContainer.
         """
-        return self._data.items() if self._data is not None else ()
+        return self._data.items()
 
-    def dict_copy(self) -> Dict[str, D]:
+    @abc.abstractmethod
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
-        Build a copy of this Array container in dict format.
-        :return: Dictionary of (keys, Array) in this Array container.
+        Save this ArrayContainer in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
-        return dict(self._data) if self._data is not None else dict()
+        pass
 
 
-class VBase3DArrayContainer(VBaseArrayContainer, ABC):
+# 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
     """
-    Base abstract class for Array containers linked to a VData object that contain pseudo 3D Arrays (obsm,
-    varm, layers)
-    It is based on VBaseArrayContainer and defines some functions shared by obsm, varm and layers.
+    Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers)
+    It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
+
+    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_TDF]]):
+        """
+        :param parent: the parent VData object this ArrayContainer is linked to.
+        :param data: a dictionary of TemporalDataFrames in this ArrayContainer.
+        """
+
+        super().__init__(parent, data)
+
+    @property
+    def empty(self) -> bool:
+        """
+        Whether this ArrayContainer is empty or not.
+        :return: is this ArrayContainer empty ?
+        """
+        return all([TDF.empty for TDF in self.values()])
+
+    def update_dtype(self, type_: DType) -> None:
+        """
+        Update the data type of TemporalDataFrames stored in this ArrayContainer.
+        :param type_: the new data type.
+        """
+        for arr in self.values():
+            arr.astype(type_)
 
     @property
     def shape(self) -> Tuple[int, int, List[int], int]:
         """
-        The shape of the Array container is computed from the shape of the Arrays it contains.
-        See __len__ for getting the number of Arrays it contains.
-        :return: shape of the contained Arrays.
+        The shape of this ArrayContainer is computed from the shape of the TemporalDataFrames it contains.
+        See __len__ for getting the number of TemporalDataFrames it contains.
+        :return: the shape of this ArrayContainer.
         """
-        _first_TDF: TemporalDataFrame = self[list(self.keys())[0]]
+        _first_TDF = self[list(self.keys())[0]]
         _shape_TDF = _first_TDF.shape
-        _shape = len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
-        return _shape
+        return len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
-        Save the Array in CSV file format.
+        Save the ArrayContainer in CSV file format.
         :param directory: path to a directory for saving the Array
         :param sep: delimiter character
         :param na_rep: string to replace NAs
@@ -211,25 +256,27 @@ class VLayerArrayContainer(VBase3DArrayContainer):
     Class for layers.
     This object contains any number of TemporalDataFrames, with shapes (n_time_points, n_obs, n_var).
     The arrays-like objects can be accessed from the parent VData object by :
-        VData.layers['<array_name>']
+        VData.layers[<array_name>]
     """
 
-    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, TemporalDataFrame]]):
+    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_TDF]]):
         """
-        :param parent: the parent VData object this Array is linked to
-        :param data: a dictionary of array-like objects to store in this Array
+        :param parent: the parent VData object this VLayerArrayContainer is linked to.
+        :param data: a dictionary of TemporalDataFrames in this VLayerArrayContainer.
         """
-        generalLogger.debug("== Creating VLayerArrayContainer. ================================")
-
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[Dict[Any, TemporalDataFrame]]) \
-            -> Dict[str, TemporalDataFrame]:
+    def _check_init_data(self, data: Optional[Dict[Any, D_TDF]]) \
+            -> Dict[str, D_TDF]:
         """
-        Function for checking, at Array container creation, that the supplied data has the correct format :
+        Function for checking, at VLayerArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
             - the index of the TemporalDataFrames in 'data' match the index of the parent VData's obs TemporalDataFrame.
-        :return: the data (dictionary of Arrays), if correct
+            - the column names of the TemporalDataFrames in 'data' match the index of the parent VData's var DataFrame.
+            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
+            DataFrame.
+        :param data: optional dictionary of TemporalDataFrames.
+        :return: the data (dictionary of TemporalDataFrames), if correct.
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
@@ -243,6 +290,8 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             _data = {}
             _shape = (self._parent.time_points.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
             _index = self._parent.obs.index
+            _columns = self._parent.var.index
+            _time_points = self._parent.time_points.index
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -275,368 +324,504 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                     raise IncoherenceError(f"Index of layer '{TDF_index}' ({TDF.index}) does not match obs' index. ("
                                            f"{_index})")
 
+                if not _columns.equals(TDF.columns):
+                    raise IncoherenceError(f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
+                                           f"index. ({_columns})")
+
+                if not _time_points.equals(TDF.time_points):
+                    raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.time_points}) do not match "
+                                           f"time_point's index. ({_time_points})")
+
                 # checks passed, store the TemporalDataFrame
-                else:
-                    _data[str(TDF_index)] = TDF
+                _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __repr__(self) -> str:
-        if len(self):
-            list_of_keys = "'" + "','".join(self.keys()) + "'"
-            return f"VLayerArrayContainer with keys : {list_of_keys}."
-        else:
-            return "Empty VLayerArrayContainer of layers."
-
-    def __setitem__(self, key: str, value: TemporalDataFrame) -> None:
+    def __setitem__(self, key: str, value: D_TDF) -> None:
         """
-        Set specific Array in _data. The given Array must have the same shape as the parent.
-        :param key: key for storing Array in _data
-        :param value: an Array to store
+        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
+        :param key: key for storing a TemporalDataFrame in this VLayerArrayContainer.
+        :param value: a TemporalDataFrame to store.
         """
-        # first check that value has the correct shape
-        if value.shape == self._parent.shape:
-            if self._data is None:
-                self._data = {}
-            self._data[key] = value
-
-        else:
-            raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, "
-                             f"expected {self._parent.shape}")
-
-    @property
-    def name(self) -> str:
-        """
-        Name for the Array : layers.
-        :return: name of the array
-        """
-        return "layers"
-
-
-class VAxisArrayContainer(VBase3DArrayContainer):
-    """
-    Class for obsm and varm.
-    These objects contain any number of 3D array-like objects, with shape (n_time_points, n_obs, any)
-        and (n_var, any) respectively.
-    The arrays-like objects can be accessed from the parent VData object by :
-        VData.obsm['<array_name>'])
-        VData.varm['<array_name>'])
-    """
-
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'],
-                 data: Optional[Dict[str, D]] = None,
-                 col_names: Optional[Dict[str, Collection]] = None):
-        """
-        :param parent: the parent VData object this Array is linked to
-        :param data: a dictionary of array-like objects to store in this Array
-        :col_names: a dictionary of collections of column names to describe array-like objects stored in the Array
-        """
-        generalLogger.debug(f"== Creating {axis}m VAxisArrayContainer. ==============================")
         # TODO
-        # self._axis = axis
-        # super().__init__(parent, data)
-        # self._col_names = self._check_col_names(col_names)
-
-    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, TemporalDataFrame]]:
-        """
-        Function for checking, at Array container creation, that the supplied data has the correct format :
-            # TODO : this is not True for obsm and varm !
-            - all Arrays in 'data' have the same shape
-            - the shape of the Arrays in 'data' match the parent VData object's size
-        :return: the data (dictionary of Arrays), if correct
-        """
-#         if data is None or not len(data):
-#             generalLogger.debug("  No data was given.")
-#             return None
-#
-#         else:
-#             generalLogger.debug("  Data was found.")
-#             _data = {}
-#             _shape = self._parent.shape
-#
-#             generalLogger.debug(f"  Reference shape is {_shape}.")
-#
-#             for array_index, array in data.items():
-#                 array_shape = (array.shape[0], [array[i].shape[0] for i in range(len(array))], array[0].shape[1])
-#
-#                 generalLogger.debug(f"  Checking array '{array_index}' with shape {array_shape}.")
-#
-#                 if not all([array[0].shape[1] == array[i].shape[1] for i in range(array.shape[0])]):
-#                     raise IncoherenceError(f"{self.name} '{array_index}' has arrays of different third dimension, "
-#                                            f"should all be the same.")
-#
-#                 if _shape != array_shape:
-#
-#                     if _shape[0] != array_shape[0]:
-#                         raise IncoherenceError(f"{self.name} '{array_index}' has {array_shape[0]} "
-#                                                f"time point{'s' if array_shape[0] > 1 else ''}, "
-#                                                f"should have {_shape[0]}.")
-#
-#                     elif self.name in ("layers", "obsm") and _shape[1] != array_shape[1]:
-#                         for i in range(len(array)):
-#                             if _shape[1][i] != array_shape[1][i]:
-#                                 raise IncoherenceError(f"{self.name} '{array_index}' at time point {i} has"
-#                                                        f" {array_shape[1][i]} observations, "
-#                                                        f"should have {_shape[1][i]}.")
-#
-#                     elif self.name in ("layers", "varm"):
-#                         raise IncoherenceError(f"{self.name} '{array_index}' has  {array_shape[2]} variables, "
-#                                                f"should have {_shape[2]}.")
-#
-#                     else:
-#                         _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array],
-#                                                            dtype=object)
-#
-#                 else:
-#                     _data[str(array_index)] = np.array([arr.astype(self._parent.dtype) for arr in array],
-#                     dtype=object)
-#
-#             generalLogger.debug("  Data was OK.")
-#             return _data
-
-    def __repr__(self) -> str:
-        if len(self):
-            list_of_keys = "'" + "','".join(self.keys()) + "'"
-            return f"VAxisArrayContainer of {self.name} with keys : {list_of_keys}."
-        else:
-            return f"Empty VAxisArrayContainer of {self.name}."
-
-    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
-        """
-        Set specific Array in _data. The given Array must have the same shape as the parent.
-        :param key: key for storing Array in _data
-        :param value: an Array to store
-        """
-#         # first check that value has the correct shape
-#         if value.shape == self._parent.shape:
-#             if self._data is None:
-#                 self._data = {}
-#             self._data[key] = VAxisArray(value)
-#
-#         else:
-#             raise ShapeError(f"The supplied array-like object has incorrect shape {value.shape}, "
-#                              f"expected {self._parent.shape}")
-#
-#     def _check_col_names(self, col_names: Optional[Dict[str, Collection]]) -> Optional[Dict[str, Collection]]:
-#         """
-#         Function for checking that the supplied col names are of the right format :
-#             - same keys in 'col_names' as in 'data'
-#             - values in col_names are list of names for the columns of the array-like objects in 'data'.
-#         :param col_names: dictionary of column names per array-like object in 'data'
-#         :return: a properly formatted dictionary of column names per array-like object in 'data'
-#         """
-#         if self._data is None:
-#             if col_names is not None:
-#                 raise VValueError("Can't set col names if no data is supplied.")
-#
-#             else:
-#                 return None
-#
-#         else:
-#             _col_names: Dict[str, Collection] = {}
-#
-#             if col_names is None:
-#                 for k, v in self._data.items():
-#                     _col_names[k] = range(v.shape[2])
-#                 return _col_names
-#
-#             else:
-#                 if not isinstance(col_names, dict):
-#                     raise VTypeError("'col_names' must be a dictionary with same keys as 'data' and values as lists "
-#                                      "of column names for 'data'.")
-#
-#                 elif col_names.keys() != self._data.keys():
-#                     raise VValueError("'col_names' must be the same as 'data' keys.")
-#
-#                 else:
-#                     for k, v in col_names.items():
-#                         _col_names[str(k)] = list(v)
-#                     return _col_names
+        raise NotImplementedError
 
     @property
-    def name(self):
+    def name(self) -> Literal['layers']:
         """
-        Name for the Array, either obsm or varm.
-        :return: name of the array
+        Name for this VLayerArrayContainer : layers.
+        :return: name of this VLayerArrayContainer.
         """
-        return f"{self._axis}m"
-
-    def get_idx_names(self) -> pd.Index:
-        """
-        Get index for the Array :
-            - names of obs for layers and obsm
-            - names of var for varm
-        :return: index for the Array
-        """
-        # return getattr(self._parent, self._axis).index
-
-    def get_col_names(self, arr_name: Optional[str]) -> Collection:
-        """
-        Get columns for the Array :
-            - names of var for layers
-            - names of the columns for each array-like in obsm and varm
-        :param arr_name: the name of the array in obsm or varm
-        :return: columns for the Array
-        """
-#         if arr_name is None:
-#             raise VValueError("No array-like name supplied.")
-#         return self._col_names[arr_name] if self._col_names is not None else []
+        return 'layers'
 
 
-class VPairwiseArrayContainer(VBaseArrayContainer):
+class VObsmArrayContainer(VBase3DArrayContainer):
     """
-    Class for obsp and varp.
-    This object contains any number of 2D array-like objects, with shapes (n_time_points, n_obs, n_obs)
-        and (n_time_points, n_var, n_var)
-    respectively.
-    The arrays-like objects can be accessed from the parent VData object by :
-        VData.obsp['<array_name>']
-        VData.obsp['<array_name>']
+    Class for obsm.
+    This object contains any number of TemporalDataFrames, with shape (n_time_points, n_obs, any).
+    The TemporalDataFrames can be accessed from the parent VData object by :
+        VData.obsm[<array_name>])
     """
 
-    def __init__(self, parent: "vdata.VData", axis: Literal['obs', 'var'], data: Optional[Dict[Any, D]]):
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_TDF]] = None):
         """
-        :param parent: the parent VData object this Array is linked to
-        :param axis: the axis this Array must conform to (obs or var)
-        :param data: a dictionary of array-like objects to store in this Array
+        :param parent: the parent VData object this VObsmArrayContainer is linked to.
+        :param data: a dictionary of TemporalDataFrames in this VObsmArrayContainer.
         """
-        generalLogger.debug(f"== Creating {axis}p VPairwiseArrayContainer. ==========================")
+        super().__init__(parent, data)
+
+    def _check_init_data(self, data: Optional[Dict[str, D_TDF]]) \
+            -> Dict[str, D_TDF]:
+        """
+        Function for checking, at VObsmArrayContainer creation, that the supplied data has the correct format :
+            - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
+            number of columns).
+            - the index of the TemporalDataFrames in 'data' match the index of the parent VData's obs TemporalDataFrame.
+            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
+            DataFrame.
+        :param data: optional dictionary of TemporalDataFrames.
+        :return: the data (dictionary of TemporalDataFrames), if correct.
+        """
+        if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
+            return dict()
+
+        else:
+            generalLogger.debug("  Data was found.")
+            _data = {}
+            _shape = (self._parent.time_points.shape[0],
+                      self._parent.obs.shape[1],
+                      list(self.data.values())[0].shape[2])
+            _index = self._parent.obs.index
+            _time_points = self._parent.time_points.index
+
+            generalLogger.debug(f"  Reference shape is {_shape}.")
+
+            for TDF_index, TDF in data.items():
+                TDF_shape = TDF.shape
+
+                generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
+
+                if _shape != TDF_shape:
+
+                    # check that shapes match
+                    if _shape[0] != TDF_shape[0]:
+                        raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' has {TDF_shape[0]} "
+                                               f"time point{'s' if TDF_shape[0] > 1 else ''}, "
+                                               f"should have {_shape[0]}.")
+
+                    elif _shape[1] != TDF_shape[1]:
+                        for i in range(len(TDF.time_points)):
+                            if _shape[1][i] != TDF_shape[1][i]:
+                                raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' at time point {i} has"
+                                                       f" {TDF_shape[1][i]} rows, "
+                                                       f"should have {_shape[1][i]}.")
+
+                    else:
+                        raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' has  {TDF_shape[2]} columns, "
+                                               f"should have {_shape[2]}.")
+
+                # check that indexes match
+                if not _index.equals(TDF.index):
+                    raise IncoherenceError(f"Index of TemporalDataFrame '{TDF_index}' ({TDF.index}) does not match "
+                                           f"obs' index. ({_index})")
+
+                if not _time_points.equals(TDF.time_points):
+                    raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.time_points}) "
+                                           f"do not match time_point's index. ({_time_points})")
+
+                # checks passed, store the TemporalDataFrame
+                _data[str(TDF_index)] = TDF
+
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __setitem__(self, key: str, value: D_TDF) -> None:
+        """
+        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
+        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+        :param value: a TemporalDataFrame to store.
+        """
         # TODO
-#         self._axis = axis
-#         super().__init__(parent, data)
+        raise NotImplementedError
 
-    def __repr__(self) -> str:
-        if len(self):
-            list_of_keys = "'" + "','".join(self.keys()) + "'"
-            return f"VPairwiseArrayContainer of {self.name} with keys : {list_of_keys}."
+    @property
+    def name(self) -> Literal['obsm']:
+        """
+        Name for this VObsmArrayContainer : obsm.
+        :return: name of this VObsmArrayContainer.
+        """
+        return 'obsm'
+
+
+# Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimePoint', D_DF]]):
+    """
+    Class for obsp.
+    This object contains sets of <nb time points> 2D square DataFrames of shapes (<n_obs>, <n_obs>) for each time point.
+    The DataFrames can be accessed from the parent VData object by :
+        VData.obsp[<array_name>][<time point>]
+    """
+
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, Dict['vdata.TimePoint', D_DF]]]):
+        """
+        :param parent: the parent VData object this VObspArrayContainer is linked to.
+        :param data: a dictionary of array-like objects to store in this VObspArrayContainer.
+        """
+        super().__init__(parent, data)
+
+    def _check_init_data(self, data: Optional[Dict[str, Dict['vdata.TimePoint', D_DF]]]) \
+            -> Dict[str, Dict['vdata.TimePoint', D_DF]]:
+        """
+        Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
+            - the shape of the DataFrames in 'data' match the parent VData object's index length.
+            - the index and columns names of the DataFrames in 'data' match the index of the parent VData's obs
+            TemporalDataFrame.
+            - the time points of the dictionaries of DataFrames in 'data' match the index of the parent VData's
+            time_points DataFrame.
+        :param data: dictionary of dictionaries (TimePoint: DataFrame (n_obs x n_obs))
+        :return: the data (dictionary of dictionaries of DataFrames), if correct.
+        """
+        if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
+            return dict()
+
         else:
-            return f"Empty VPairwiseArrayContainer of {self.name}."
+            generalLogger.debug("  Data was found.")
+            _data = dict()
+            _shape = self._parent.obs.shape[1]
+            _index = self._parent.obs.index
+            _time_points = self._parent.time_points.index
 
-    def __setitem__(self, key: str, value: DataFrame) -> None:
-        """
-        Set specific array-like in _data. The given array-like must have a square shape (n_obs, n_obs)
-        for obsm and (n_var, n_var) for varm.
-        :param key: key for storing array-like in _data
-        :param value: an array-like to store
-        """
-#         # first check that value has the correct shape
-#         shape_parent = getattr(self._parent, f"n_{self._axis}")
-#
-#         if value.shape[0] == value.shape[1]:
-#             if value.shape[0] == shape_parent:
-#                 if self._data is None:
-#                     self._data = {}
-#                 self._data[key] = value
-#
-#             else:
-#                 raise IncoherenceError(f"The supplied array-like object has incorrect shape {value.shape}, "
-#                                        f"expected ({shape_parent}, {shape_parent})")
-#
-#         else:
-#             raise ShapeError("The supplied array-like object is not square.")
+            generalLogger.debug(f"  Reference shape is {_shape}.")
 
-    def _check_init_data(self, data: Optional[Dict[Any, D]]) -> Optional[Dict[str, D]]:
+            for DF_dict_index, DF_dict in data.items():
+                data_time_points = list(DF_dict.keys())
+
+                _data[DF_dict_index] = dict()
+
+                if not _time_points.equals(data_time_points):
+                    raise IncoherenceError(f"Time points of '{DF_dict_index}' ({data_time_points}) do not match "
+                                           f"time_point's index. ({_time_points})")
+
+                for time_point_index, (time_point, DF) in enumerate(DF_dict.items()):
+                    DF_shape = DF.shape
+
+                    generalLogger.debug(f"  Checking DataFrame at time point '{time_point}' with shape {DF_shape}.")
+
+                    # check that square
+                    if DF_shape[0] != DF_shape[1]:
+                        raise ShapeError(f"DataFrame at time point '{time_point}' in '{DF_dict_index}' should be "
+                                         f"square.")
+
+                    # check that shapes match
+                    if DF_shape[0] != _shape[time_point_index]:
+                        raise IncoherenceError(f"DataFrame at time point '{time_point}' in '{DF_dict_index}' "
+                                               f"has {DF_shape[0]} row{'s' if DF_shape[0] > 1 else ''}"
+                                               f" and column{'s' if DF_shape[0] > 1 else ''}, should have"
+                                               f" {_shape[time_point_index]}.")
+
+                    # check that indexes match
+                    if not _index.equals(DF.index):
+                        raise IncoherenceError(f"Index of DataFrame at time point '{time_point}' ({DF.index}) does not "
+                                               f"match obs' index. ({_index})")
+
+                    if not _index.equals(DF.columns):
+                        raise IncoherenceError(f"Column names of DataFrame at time point '{time_point}' ({DF.columns}) "
+                                               f"do not match obs' index. ({_index})")
+
+                    # checks passed, store the TemporalDataFrame
+                    _data[DF_dict_index][time_point] = DF
+
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __getitem__(self, item: str) -> D_DF:
         """
-        Function for checking, at Array creation, that the supplied data has the correct format:
-            - all array-like objects in 'data' are square
-            - their shape match the parent VData object's n_obs or n_var
-        :param data: dictionary of array-like objects.
-        :return: the data (dictionary of array-like objects), if correct
+        Get a specific set of DataFrames stored in this VObspArrayContainer.
+        :param item: key in _data linked to a set of DataFrames.
+        :return: set of DataFrames stored in _data under the given key.
         """
-#         if data is None or not len(data):
-#             generalLogger.debug("  No data was given.")
-#             return None
-#
-#         else:
-#             shape_parent = getattr(self._parent, f"n_{self._axis}")
-#             _data = {}
-#
-#             for array_index, array in data.items():
-#                 if array.shape[0] != array.shape[1]:
-#                     raise ShapeError(f"The array-like object '{array_index}' supplied to {self.name} is not square.")
-#
-#                 elif array.shape[0] != shape_parent:
-#                     raise IncoherenceError(f"The array-like object '{array_index}' supplied to {self.name} has shape "
-#                                            f"{array.shape}, it should have shape ({shape_parent}, {shape_parent})")
-#
-#                 else:
-#                     _data[str(array_index)] = array.astype(self._parent.dtype)
-#
-#             generalLogger.debug("  Data was OK.")
-#             return _data
+        return super().__getitem__(item)
+
+    def __setitem__(self, key: str, value: Dict['vdata.TimePoint', D_DF]) -> None:
+        """
+        Set a specific set of DataFrames in _data. The given set of DataFrames must have the correct shape.
+        :param key: key for storing a set of DataFrames in this VObspArrayContainer.
+        :param value: a set of DataFrames to store.
+        """
+        # TODO
+        raise NotImplementedError
 
     @property
-    def name(self) -> str:
+    def empty(self) -> bool:
         """
-        Name for the Array, either obsp or varp.
-        :return: name of the array
+        Whether this VObspArrayContainer is empty or not.
+        :return: is this VObspArrayContainer empty ?
         """
-#         return f"{self._axis}p"
+        if not len(self) or all([not len(self[set_name]) for set_name in self.keys()]) or \
+                all([self[set_name][tp].empty for set_name in self.keys() for tp in self[set_name].keys()]):
+            return True
+        return False
+
+    def update_dtype(self, type_: DType) -> None:
+        """
+        Update the data type of Arrays stored in this VObspArrayContainer.
+        :param type_: the new data type.
+        """
+        for set_name in self.keys():
+            for tp in self[set_name].keys():
+                self[set_name][tp] = self[set_name][tp].astype(type_)
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def name(self) -> Literal['obsp']:
         """
-        The shape of the Array is computed from the shape of the array-like objects it contains.
-        See __len__ for getting the number of array-like objects it contains.
-        :return: shape of the contained array-like objects.
+        Name for this VObspArrayContainer : obsp.
+        :return: the name of this VObspArrayContainer.
         """
-#         if self._data is not None:
-#             return self._data[list(self._data.keys())[0]].shape
-#
-#         else:
-#             return (self._parent.n_obs, self._parent.n_obs) \
-#                 if self._axis == "obs" else (self._parent.n_var, self._parent.n_var)
-#
-#     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-#                index: bool = True, header: bool = True) -> None:
-#         """
-#         Save the Array in CSV file format.
-#         :param directory: path to a directory for saving the Array
-#         :param sep: delimiter character
-#         :param na_rep: string to replace NAs
-#         :param index: write row names ?
-#         :param header: Write col names ?
-#         """
-#         # create sub directory for storing arrays
-#         os.makedirs(directory / self.name)
-#
-#         idx = getattr(self._parent, self._axis).index
-#
-#         for arr_name, arr in self.items():
-#             pd.DataFrame(arr, index=idx, columns=idx).to_csv(f"{directory / self.name / arr_name}.csv",
-#                                                              sep, na_rep, index=index, header=header)
-#
-#
-# # Arrays ----------------------------------------------------------------------
-# class VPairwiseArray:
-#     """"""
-#
-#     def __init__(self):
-#         raise NotImplementedError
-#
-#     def __repr__(self) -> str:
-#         """
-#         Description for this VPairwiseArray object to print.
-#         :return: a description of this VPairwiseArray object.
-#         """
-#         pass
-#
-#     def reorder(self, reference_index: Collection) -> None:
-#         """
-#         Reorder the Array to match the given reference_index.
-#         The given reference_index must contain all elements in the index of this array's DataFrame exactly once but
-#         can be in any desired order.
-#         :param reference_index: a collection of elements matching the index of this array's DataFrame.
-#         """
-#         pass
-#
-#     def astype(self, dtype: DType):
-#         """
-#         Modify the data type of elements stored in this Array.
-#         """
-#         pass
-#
-#     def shape(self):
-#         """TODO"""
-#         pass
+        return 'obsp'
+
+    @property
+    def shape(self) -> Tuple[int, int, List[int], List[int]]:
+        """
+        The shape of the VObspArrayContainer is computed from the shape of the Arrays it contains.
+        See __len__ for getting the number of Arrays it contains.
+        :return: shape of this VObspArrayContainer.
+        """
+        _first_dict = self[list(self.keys())[0]]
+        nb_time_points = len(_first_dict)
+        len_index = [len(df.index) for df in _first_dict.values()]
+        return len(self), nb_time_points, len_index, len_index
+
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True, spacer: str = '') -> None:
+        """
+        Save this VObspArrayContainer in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+        """
+        # create sub directory for storing sets
+        os.makedirs(directory / self.name)
+
+        for set_name, set_dict in self.items():
+            # create sub directory for storing arrays
+            os.makedirs(directory / self.name / set_name)
+
+            for arr_name, arr in set_dict.items():
+                generalLogger.info(f"{spacer}Saving {set_name}:{arr_name}")
+
+                # save array
+                arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+
+# 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
+    """
+    Base abstract class for ArrayContainers linked to a VData object that contain DataFrames (varm and varp)
+    It is based on VBaseArrayContainer and defines some functions shared by varm and varp.
+    """
+
+    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_DF]]):
+        """
+        :param parent: the parent VData object this ArrayContainer is linked to.
+        :param data: a dictionary of DataFrames in this ArrayContainer.
+        """
+
+        super().__init__(parent, data)
+
+    @property
+    def empty(self) -> bool:
+        """
+        Whether this ArrayContainer is empty or not.
+        :return: is this ArrayContainer empty ?
+        """
+        return all([DF.empty for DF in self.values()])
+
+    def update_dtype(self, type_: DType) -> None:
+        """
+        Update the data type of TemporalDataFrames stored in this ArrayContainer.
+        :param type_: the new data type.
+        """
+        for arr_name, arr in self.items():
+            self[arr_name] = arr.astype(type_)
+
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True, spacer: str = '') -> None:
+        """
+        Save the ArrayContainer in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+        """
+        # create sub directory for storing arrays
+        os.makedirs(directory / self.name)
+
+        for arr_name, arr in self.items():
+            generalLogger.info(f"{spacer}Saving {arr_name}")
+
+            # save array
+            arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+
+class VVarmArrayContainer(VBase2DArrayContainer):
+    """
+    Class for varm.
+    This object contains any number of DataFrames, with shape (n_var, any).
+    The DataFrames can be accessed from the parent VData object by :
+        VData.varm[<array_name>])
+    """
+
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_DF]] = None):
+        """
+        :param parent: the parent VData object this VVarmArrayContainer is linked to.
+        :param data: a dictionary of DataFrames in this VVarmArrayContainer.
+        """
+        super().__init__(parent, data)
+
+    def _check_init_data(self, data: Optional[Dict[str, D_DF]]) -> Dict[str, D_DF]:
+        """
+        Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
+            - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
+        :param data: optional dictionary of DataFrames.
+        :return: the data (dictionary of D_DF), if correct.
+        """
+        if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
+            return dict()
+
+        else:
+            generalLogger.debug("  Data was found.")
+            _data = dict()
+            _index = self._parent.var.index
+
+            for DF_index, DF in data.items():
+                # check that indexes match
+                if not _index.equals(DF.index):
+                    raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
+
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __getitem__(self, item: str) -> D_DF:
+        """
+        Get a specific DataFrame stored in this VVarmArrayContainer.
+        :param item: key in _data linked to a DataFrame.
+        :return: DataFrame stored in _data under the given key.
+        """
+        return super().__getitem__(item)
+
+    def __setitem__(self, key: str, value: D_DF) -> None:
+        """
+        Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
+        :param key: key for storing a DataFrame in this VVarmArrayContainer.
+        :param value: a DataFrame to store.
+        """
+        # TODO
+        raise NotImplementedError
+
+    @property
+    def name(self) -> Literal['varm']:
+        """
+        Name for this VVarmArrayContainer : varm.
+        :return: name of this VVarmArrayContainer.
+        """
+        return 'varm'
+
+    @property
+    def shape(self) -> Tuple[int, int, List[int]]:
+        """
+        The shape of this VVarmArrayContainer is computed from the shape of the DataFrames it contains.
+        See __len__ for getting the number of TemporalDataFrames it contains.
+        :return: the shape of this VVarmArrayContainer.
+        """
+        _first_DF = self[list(self.keys())[0]]
+        return len(self), _first_DF.shape[0], [DF.shape[1] for DF in self.values()]
+
+
+class VVarpArrayContainer(VBase2DArrayContainer):
+    """
+    Class for varp.
+    This object contains any number of DataFrames, with shape (n_var, n_var).
+    The DataFrames can be accessed from the parent VData object by :
+        VData.varp[<array_name>])
+    """
+
+    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_DF]] = None):
+        """
+        :param parent: the parent VData object this VVarmArrayContainer is linked to.
+        :param data: a dictionary of DataFrames in this VVarmArrayContainer.
+        """
+        super().__init__(parent, data)
+
+    def _check_init_data(self, data: Optional[Dict[str, D_DF]]) -> Dict[str, D_DF]:
+        """
+        Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
+            - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
+            DataFrame.
+        :param data: optional dictionary of DataFrames.
+        :return: the data (dictionary of D_DF), if correct.
+        """
+        if data is None or not len(data):
+            generalLogger.debug("  No data was given.")
+            return dict()
+
+        else:
+            generalLogger.debug("  Data was found.")
+            _data = dict()
+            _index = self._parent.var.index
+
+            for DF_index, DF in data.items():
+                # check that indexes match
+                if not _index.equals(DF.index):
+                    raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
+
+                # check that columns match
+                if not _index.equals(DF.columns):
+                    raise IncoherenceError(
+                        f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
+
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __getitem__(self, item: str) -> D_DF:
+        """
+        Get a specific DataFrame stored in this VVarpArrayContainer.
+        :param item: key in _data linked to a DataFrame.
+        :return: DataFrame stored in _data under the given key.
+        """
+        return super().__getitem__(item)
+
+    def __setitem__(self, key: str, value: D_DF) -> None:
+        """
+        Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
+        :param key: key for storing a DataFrame in this VVarpArrayContainer.
+        :param value: a DataFrame to store.
+        """
+        # TODO
+        raise NotImplementedError
+
+    @property
+    def name(self) -> Literal['varp']:
+        """
+        Name for this VVarpArrayContainer : varp.
+        :return: name of this VVarpArrayContainer.
+        """
+        return 'varp'
+
+    @property
+    def shape(self) -> Tuple[int, int, int]:
+        """
+        The shape of this VVarpArrayContainer is computed from the shape of the DataFrames it contains.
+        See __len__ for getting the number of TemporalDataFrames it contains.
+        :return: the shape of this VVarpArrayContainer.
+        """
+        _first_DF = self[list(self.keys())[0]]
+        return len(self), _first_DF.shape[0], _first_DF.shape[1]
