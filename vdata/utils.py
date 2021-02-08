@@ -59,7 +59,8 @@ class Unit:
     """
     Simple class for storing a time point's unit.
     """
-    _units_order = {'s': 1,
+    _units_order = {None: 0,
+                    's': 1,
                     'm': 2,
                     'h': 3,
                     'D': 4,
@@ -73,7 +74,7 @@ class Unit:
         if value not in _units:
             raise VValueError(f"Invalid unit '{value}', should be in {_units}.")
 
-        self.value = value if value is not None else 's'
+        self.value = value
 
     def __repr__(self) -> str:
         """

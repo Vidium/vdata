@@ -4,8 +4,6 @@
 
 # ====================================================
 # imports
-from __future__ import annotations
-
 import os
 import abc
 import pandas as pd
@@ -37,7 +35,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
     attribute for storing 2D/3D arrays.
     """
 
-    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D]]):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
@@ -195,7 +193,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 
-    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_TDF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_TDF]]):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this ArrayContainer.
@@ -259,7 +257,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         VData.layers[<array_name>]
     """
 
-    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_TDF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_TDF]]):
         """
         :param parent: the parent VData object this VLayerArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this VLayerArrayContainer.
@@ -364,7 +362,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         VData.obsm[<array_name>])
     """
 
-    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_TDF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_TDF]] = None):
         """
         :param parent: the parent VData object this VObsmArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this VObsmArrayContainer.
@@ -464,7 +462,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
         VData.obsp[<array_name>][<time point>]
     """
 
-    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, Dict['vdata.TimePoint', D_DF]]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, Dict['vdata.TimePoint', D_DF]]]):
         """
         :param parent: the parent VData object this VObspArrayContainer is linked to.
         :param data: a dictionary of array-like objects to store in this VObspArrayContainer.
@@ -626,7 +624,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
     It is based on VBaseArrayContainer and defines some functions shared by varm and varp.
     """
 
-    def __init__(self, parent: vdata.VData, data: Optional[Dict[str, D_DF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]]):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this ArrayContainer.
@@ -679,7 +677,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         VData.varm[<array_name>])
     """
 
-    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_DF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.
@@ -754,7 +752,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         VData.varp[<array_name>])
     """
 
-    def __init__(self, parent: "vdata.VData", data: Optional[Dict[str, D_DF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.

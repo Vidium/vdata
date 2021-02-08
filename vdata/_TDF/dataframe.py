@@ -711,6 +711,7 @@ class TemporalDataFrame:
         _data = pd.Series([])
 
         for time_point in self.time_points:
+            # noinspection PyTypeChecker
             _data = pd.concat((_data, pd.Series(np.repeat(time_point, self.n_index_at(time_point)))))
 
         return _data
@@ -827,7 +828,6 @@ class TemporalDataFrame:
         :param dtype: a data type.
         """
         if dtype is not None:
-            raise VValueError(dtype)
             for tp in self._time_points:
                 for column in self.columns:
                     if column != self._time_points_col:
@@ -1005,7 +1005,7 @@ class TemporalDataFrame:
 
         :return: a group of rows and columns
         """
-        return _VLocIndexer(self)
+        return _VLocIndexer(self, self._df)
 
     @property
     def iloc(self) -> '_ViLocIndexer':
@@ -1165,99 +1165,59 @@ class TemporalDataFrame:
 class _VLocIndexer:
     """
     Wrapper around pandas _LocIndexer object for use in TemporalDataFrames.
+    The loc can access elements by indexing with :
+        - a single element (TDF.loc[<element0>])                              --> on indexes
+        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
+
+    Allowed indexing elements are :
+        - a single label
+        - a list of labels
+        - a slice of labels
+        - a boolean array of the same length as the axis
     """
 
-    def __init__(self, parent: TemporalDataFrame):
+    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
         """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+        :param parent: a parent TemporalDataFrame.
+        :param data: the parent TemporalDataFrame's data to work on.
         """
         self.__parent = parent
-        self.__loc = parent.df_data.loc
+        self.__data = data
+        self.__pandas_data = parent.to_pandas()
 
-    def __getLoc(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
-        """
-        Parse the key and get un-formatted data from the parent TemporalDataFrame.
-        :param key: loc index.
-        :return: pandas DataFrame, Series or a single value.
-        """
-        generalLogger.debug(u'\u23BE .loc access : begin ------------------------------------------------------- ')
-        if isinstance(key, tuple):
-            generalLogger.debug(f'Key is a tuple : ({key[0]}, {key[1]})')
-            if isinstance(key[1], slice):
-                generalLogger.debug('Second item is a slice : checking ...')
-                if key[1].start not in self.__parent.columns:
-                    raise VValueError(f"Key '{key[1].start}' was not found in the column names.")
-
-                elif key[1].stop not in self.__parent.columns:
-                    raise VValueError(f"Key '{key[1].stop}' was not found in the column names.")
-                generalLogger.debug('... OK')
-
-            else:
-                # collection of column names
-                if isinstance(key[1], (tuple, list, pd.Index)):
-                    # prevent access to reserved columns
-                    for k in to_list(key[1]):
-                        if k not in self.__parent.columns:
-                            raise VValueError(f"Key '{k}' was not found in the column names.")
-
-                    # also get __TPID for getting time point data
-                    key = (key[0], ['__TPID'] + list(key[1]))
-
-                # single column name
-                else:
-                    # also get __TPID for getting time point data
-                    key = (key[0], ['__TPID', key[1]])
-
-        result = self.__loc[key]
-        generalLogger.debug(f'.loc data is : \n{result}')
-        generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
-
-        return result
-
-    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
+    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> ViewTemporalDataFrame:
         """
         Get rows and columns from the loc.
         :param key: loc index.
         :return: TemporalDataFrame or single value.
         """
-        result = self.__getLoc(key)
+        generalLogger.debug(u'\u23BE .loc access : begin ------------------------------------------------------- ')
+
+        result = self.__pandas_data.loc[key]
+        generalLogger.debug(f'.loc data is : \n{result}')
 
         if isinstance(result, pd.DataFrame):
-            if result.shape == (1, 2):
-                generalLogger.debug('.loc data is a DataFrame (a single value).')
-
-                return result.iat[0, 1]
-
-            else:
-                generalLogger.debug('.loc data is a DataFrame (multiple rows or columns).')
-
-                tp_slicer = set(result['__TPID'])
-
-                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+            generalLogger.debug('.loc data is a DataFrame.')
+            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
+                                                 self.__parent.time_points, result.index, result.columns)
 
         elif isinstance(result, pd.Series):
-            if len(result) == 1:
-                generalLogger.debug('.loc data is a Series (a single value).')
+            generalLogger.debug('.loc data is a Series.')
 
-                return result.values[0]
+            result = result.to_frame().T
 
-            if len(result) == 2 and '__TPID' in result.index:
-                generalLogger.debug('.loc data is a Series (a single value).')
-
-                return result.iat[1]
-
-            else:
-                generalLogger.debug('.loc data is a Series (a row).')
-
-                tp_slicer = result['__TPID']
-
-                result = result.to_frame().T
-                return ViewTemporalDataFrame(self.__parent, tp_slicer, result.index, result.columns[1:])
+            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
+                                                 self.__parent.time_points, result.index, result.columns)
 
         else:
             generalLogger.debug('.loc data is a single value.')
+            # in this case, the key has to be a tuple of 2 single values
 
-            return result
+            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
+                                                 self.__parent.time_points, [key[0]], [key[1]])
+
+        generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
+        return final_result
 
     def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
         """
@@ -1265,14 +1225,12 @@ class _VLocIndexer:
         :param key: loc index.
         :param value: pandas DataFrame, Series or a single value to set.
         """
-        # This as no real effect, it is done to check that the key exists in the view.
-        _ = self.__getLoc(key)
+        # get view on parent TemporalDataFrame from given key.
+        result = self[key]
 
-        if isinstance(value, TemporalDataFrame):
-            value = value.df_data[value.columns]
+        print(result.shape)
 
-        # Actually set a value at the (index, column) key.
-        self.__parent.df_data.loc[key] = value
+        # self.__data[result.time_points[0]].loc[result.index, result.columns] = value
 
 
 class _ViLocIndexer:

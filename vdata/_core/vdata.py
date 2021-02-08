@@ -12,7 +12,8 @@ from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
 from vdata.NameUtils import DTypes, DType, str_DType, PreSlicer, DataFrame
 from .utils import array_isin
-from .arrays import VLayerArrayContainer, VAxisArrayContainer, VPairwiseArrayContainer
+from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
+    VVarpArrayContainer
 from .views import ViewVData
 from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list
 from .._TDF.dataframe import TemporalDataFrame
@@ -416,7 +417,7 @@ class VData:
     #         self._layers = VLayerArrayContainer(self, data)
 
     @property
-    def obsm(self) -> VAxisArrayContainer:
+    def obsm(self) -> VObsmArrayContainer:
         """
         Get the obsm in this VData.
         :return: the obsm.
@@ -459,7 +460,7 @@ class VData:
     #         self._obsm = VAxisArrayContainer(self, 'obs', data)
 
     @property
-    def obsp(self) -> VPairwiseArrayContainer:
+    def obsp(self) -> VObspArrayContainer:
         """
         Get obsp in this VData.
         :return: the obsp.
@@ -490,7 +491,7 @@ class VData:
     #         self._obsp = VPairwiseArrayContainer(self, 'obs', data)
 
     @property
-    def varm(self) -> VAxisArrayContainer:
+    def varm(self) -> VVarmArrayContainer:
         """
         Get the varm in this VData.
         :return: the varm.
@@ -535,7 +536,7 @@ class VData:
     #         self._varm = VAxisArrayContainer(self, 'var', data)
 
     @property
-    def varp(self) -> VPairwiseArrayContainer:
+    def varp(self) -> VVarpArrayContainer:
         """
         Get the varp in this VData.
         :return: the varp.
@@ -577,7 +578,7 @@ class VData:
         Set the data type of this VData object.
         :param type_: a data type.
         """
-        if dtype not in DTypes.keys():
+        if type_ not in DTypes.keys():
             raise VTypeError(f"Incorrect data-type '{type_}', should be in {list(DTypes.keys())}")
         else:
             self._dtype: DType = DTypes[type_]
