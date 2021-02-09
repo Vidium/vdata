@@ -53,7 +53,7 @@ class BaseTemporalDataFrame(ABC):
                                        Tuple[PreSlicer],
                                        Tuple[PreSlicer, PreSlicer],
                                        Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
-            -> 'views.dataframe.ViewTemporalDataFrame':
+            -> 'views.ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
@@ -162,6 +162,15 @@ class BaseTemporalDataFrame(ABC):
         """
         return len(self.columns)
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """
+        Get the name of this TemporalDataFrame.
+        :return: the name of this TemporalDataFrame.
+        """
+        pass
+
     @abstractmethod
     def to_pandas(self, with_time_points: bool = False) -> pd.DataFrame:
         """
@@ -170,6 +179,38 @@ class BaseTemporalDataFrame(ABC):
         :return: the data in a pandas format.
         """
         pass
+
+    def _asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
+                   value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+        """
+        Common function for modifying all values in this TemporalDataFrame through the common operation (+, -, *, /).
+        :param operation: the operation to apply on the TemporalDataFrame.
+        :param value: an int or a float to add to values.
+        :return: a TemporalDataFrame with new values.
+        """
+        _data = self.to_pandas()
+
+        # avoid working on time points
+        if self.time_points_column_name is not None:
+            _data = _data.loc[:, _data.columns != self.time_points_column_name]
+
+        # transform the data by the operation and the value
+        _data = getattr(_data, operation)(value)
+
+        # insert back the time points
+        if self.time_points_column_name is not None:
+            _data.insert(list(self.columns).index(self.time_points_column_name), self.time_points_column_name,
+                         self.time_points_column)
+
+        time_col = self.time_points_column_name
+        time_list = self.time_points_column if time_col is None else None
+
+        return vdata.TemporalDataFrame(data=_data,
+                                       time_list=time_list,
+                                       time_col=time_col,
+                                       time_points=self.time_points,
+                                       index=self.index,
+                                       name=self.name)
 
     @property
     def values(self) -> np.ndarray:

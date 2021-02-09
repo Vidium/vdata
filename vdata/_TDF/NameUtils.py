@@ -9,7 +9,7 @@
 # code
 
 
-TemporalDataFrame_internal_attributes = ['name', '_time_points', 'time_points', '_time_points_column_name',
+TemporalDataFrame_internal_attributes = ['_name', 'name', '_time_points', 'time_points', '_time_points_column_name',
                                          'time_points_column', 'time_points_column_name', 'n_time_points',
                                          'index', 'n_index_total', '_columns', 'columns', 'n_columns',
                                          '_df', 'shape', 'dtypes', 'values', 'axes', 'ndim', 'size', 'empty',

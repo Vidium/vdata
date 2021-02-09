@@ -76,13 +76,13 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :return: a description of this view of a TemporalDataFrame object.
         """
         if self.n_time_points:
-            repr_str = f"{ViewTemporalDataFrame.__base_repr_str} '{self._parent.name}'\n"
+            repr_str = f"{ViewTemporalDataFrame.__base_repr_str} '{self.name}'\n"
             for TP in self.time_points:
                 repr_str += f"\033[4mTime point : {TP}\033[0m\n"
                 repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
-            repr_str = f"Empty {ViewTemporalDataFrame} '{self._parent.name}'\n" \
+            repr_str = f"Empty {ViewTemporalDataFrame} '{self.name}'\n" \
                        f"Columns: {[col for col in self.columns]}\n" \
                        f"Index: {[idx for idx in self.index]}"
 
@@ -111,7 +111,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :param index: A sub-setting index.
             See TemporalDataFrame's '__getitem__' method for more details.
         """
-        generalLogger.debug(f"ViewTemporalDataFrame '{self._parent.name}':{id(self)} sub-setting "
+        generalLogger.debug(f"ViewTemporalDataFrame '{self.name}':{id(self)} sub-setting "
                             f"- - - - - - - - - - - - - -")
         generalLogger.debug(f'  Got index : {repr_index(index)}')
 
@@ -163,67 +163,37 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
 
-    # TODO : not like this !
-    # def __add__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
-    #     """
-    #     Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
-    #     :param value: an int or a float to add to values.
-    #     :return: a TemporalDataFrame with new values.
-    #     """
-    #     index = self.index[0] if len(self.index) == 1 else self.index
-    #     columns = self.columns[0] if len(self.columns) == 1 else self.columns
-    #
-    #     self._parent_data.loc[index, columns] += value
-    #
-    #     return self
+    def __add__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+        """
+        Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
+        :param value: an int or a float to add to values.
+        :return: a TemporalDataFrame with new values.
+        """
+        return self._asmd_func('__add__', value)
 
-    # def __sub__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
-    #     """
-    #     Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
-    #     :param value: an int or a float to subtract to values.
-    #     :return: a TemporalDataFrame with new values.
-    #     """
-    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-    #     time_list = self._df['__TPID'] if time_col is None else None
-    #
-    #     return TemporalDataFrame(self.to_pandas() - value,
-    #                              time_list=time_list,
-    #                              time_col=time_col,
-    #                              time_points=self.time_points,
-    #                              index=self.index,
-    #                              name=self.name)
-    #
-    # def __mul__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
-    #     """
-    #     Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
-    #     :param value: an int or a float to multiply all values by.
-    #     :return: a TemporalDataFrame with new values.
-    #     """
-    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-    #     time_list = self._df['__TPID'] if time_col is None else None
-    #
-    #     return TemporalDataFrame(self.to_pandas() * value,
-    #                              time_list=time_list,
-    #                              time_col=time_col,
-    #                              time_points=self.time_points,
-    #                              index=self.index,
-    #                              name=self.name)
-    #
-    # def __truediv__(self, value: Union[int, float]) -> 'ViewTemporalDataFrame':
-    #     """
-    #     Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
-    #     :param value: an int or a float to divide all values by.
-    #     :return: a TemporalDataFrame with new values.
-    #     """
-    #     time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-    #     time_list = self._df['__TPID'] if time_col is None else None
-    #
-    #     return TemporalDataFrame(self.to_pandas() / value,
-    #                              time_list=time_list,
-    #                              time_col=time_col,
-    #                              time_points=self.time_points,
-    #                              index=self.index,
-    #                              name=self.name)
+    def __sub__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+        """
+        Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
+        :param value: an int or a float to subtract to values.
+        :return: a TemporalDataFrame with new values.
+        """
+        return self._asmd_func('__sub__', value)
+
+    def __mul__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+        """
+        Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
+        :param value: an int or a float to multiply all values by.
+        :return: a TemporalDataFrame with new values.
+        """
+        return self._asmd_func('__mul__', value)
+
+    def __truediv__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+        """
+        Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
+        :param value: an int or a float to divide all values by.
+        :return: a TemporalDataFrame with new values.
+        """
+        return self._asmd_func('__truediv__', value)
 
     def set(self, values: Any) -> None:
         """
@@ -352,6 +322,14 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return self._columns
 
     @property
+    def name(self) -> str:
+        """
+        Get the name of this view of a TemporalDataFrame.
+        :return: the name of this view of a TemporalDataFrame.
+        """
+        return self._parent.name
+
+    @property
     def dtypes(self) -> None:
         """
         Return the dtypes in the DataFrame.
@@ -462,7 +440,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
 
-        _name = f"Mean of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
+        _name = f"Mean of {self.name}'s view" if self.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
     def min(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
@@ -474,7 +452,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         _data, _time_list, _index = self.__mean_min_max_func('min', axis)
 
-        _name = f"Minimum of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
+        _name = f"Minimum of {self.name}'s view" if self.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
     def max(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
@@ -486,7 +464,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         _data, _time_list, _index = self.__mean_min_max_func('max', axis)
 
-        _name = f"Maximum of {self._parent.name}'s view" if self._parent.name != 'No_Name' else None
+        _name = f"Maximum of {self.name}'s view" if self.name != 'No_Name' else None
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
 
