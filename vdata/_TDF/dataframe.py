@@ -8,13 +8,14 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from collections import Counter
-from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iterable, Generator
+from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer, TimePointList
 from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, \
     reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
+from .base import BaseTemporalDataFrame, copy_TemporalDataFrame
 from .views.dataframe import ViewTemporalDataFrame
 from .._IO import generalLogger
 from .._IO.errors import VValueError, VTypeError, ShapeError
@@ -381,13 +382,15 @@ def parse_index_and_time_points(_index: Optional[Collection],
     return _data, _time_points, tp_col, _columns
 
 
-class TemporalDataFrame:
+class TemporalDataFrame(BaseTemporalDataFrame):
     """
     An extension to pandas DataFrames to include a notion of time on the rows.
     An hidden column '__TPID' contains for each row the list of time points this row appears in.
     This class implements a modified sub-setting mechanism to subset on time points and on the regular conditional
     selection.
     """
+
+    __base_repr_str = 'TemporalDataFrame'
 
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
                  time_list: Optional[Union[Collection, DType, Literal['*'], TimePoint]] = None,
@@ -436,7 +439,7 @@ class TemporalDataFrame:
                                                                                  not len(data.columns)):
             generalLogger.debug('Setting empty TemporalDataFrame.')
 
-            data, self._time_points, self._time_points_col, self._columns = \
+            data, self._time_points, self._time_points_column_name, self._columns = \
                 parse_index_and_time_points(index, None, time_list, time_col, self._time_points, columns)
 
             self._df = data
@@ -449,7 +452,7 @@ class TemporalDataFrame:
                 # work on a copy of the data to avoid undesired modifications
                 data = data.copy()
 
-            data, self._time_points, self._time_points_col, self._columns = \
+            data, self._time_points, self._time_points_column_name, self._columns = \
                 parse_index_and_time_points(index, data, time_list, time_col, self._time_points, columns)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
@@ -480,10 +483,10 @@ class TemporalDataFrame:
         :return: a description of this TemporalDataFrame object
         """
         if not self.empty:
-            repr_str = f"TemporalDataFrame '{self.name}'\n"
+            repr_str = f"{TemporalDataFrame.__base_repr_str} '{self.name}'\n"
 
         else:
-            repr_str = f"Empty TemporalDataFrame '{self.name}'\n" \
+            repr_str = f"Empty {TemporalDataFrame.__base_repr_str} '{self.name}'\n" \
 
         # represent at most 6 time points
         if len(self.time_points) > 6:
@@ -520,26 +523,23 @@ class TemporalDataFrame:
                                        Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
             -> 'ViewTemporalDataFrame':
         """
-        TODO : update docstring !
-        Get a view from the DataFrame using an index with the usual sub-setting mechanics.
-        :param index: A sub-setting index. It can be a single index or a 2-tuple of indexes.
+        Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
+        :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
             An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
-            Single indexes are converted to a 2-tuple :
-                * single index --> (index, :)
+            Indexes are converted to a 3-tuple :
+                * TDF[index]            --> (index, :, :)
+                * TDF[index1, index2]   --> (index1, index2, :)
 
-            The first element in the 2-tuple is the list of time points to select, the second element is a
-            collection of bool that can be obtained from conditions on the TemporalDataFrame as it is done with
-            pandas DataFrrepr_indexames.
+            The first element in the 3-tuple is the list of time points to select, the second element is a
+            collection of rows to select, the third element is a collection of columns to select.
 
             The values ':' or '...' are shortcuts for 'take all values'.
 
             Example:
                 * TemporalDataFrame[:] or TemporalDataFrame[...]    --> select all data
                 * TemporalDataFrame[0]                              --> select all data from time point 0
-                * TemporalDataFrame[[0, 1], <condition>]            --> select all data from time points 0 and 1 which
-                                                                        match the condition. <condition> takes the form
-                                                                        of a list of booleans indicating the rows to
-                                                                        select with 'True'.
+                * TemporalDataFrame[[0, 1], [1, 2, 3], 'col1']      --> select data from time points 0 and 1 for rows
+                                                                    with index in [1, 2, 3] and column 'col1'
         :return: a view on a sub-set of a TemporalDataFrame
         """
         generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
@@ -553,16 +553,6 @@ class TemporalDataFrame:
             raise VValueError("Time points not found in this TemporalDataFrame.")
 
         return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2])
-
-    def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
-                    df: Union[pd.DataFrame, 'TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
-        """
-        Set values in the DataFrame with a DataFrame.
-        The columns and the number of rows must match.
-        :param index: a sub-setting index. (see __getitem__ for more details)
-        :param df: a DataFrame with values to set.
-        """
-        self[index].set(df)
 
     def __getattribute__(self, attr: str) -> Any:
         """
@@ -583,7 +573,7 @@ class TemporalDataFrame:
         :return: a column with name <attr> from the DataFrame
         """
         if attr in self.columns:
-            return self._df[attr]
+            return self.loc[:, attr]
 
         else:
             return object.__getattribute__(self, attr)
@@ -598,17 +588,10 @@ class TemporalDataFrame:
             object.__setattr__(self, attr, value)
 
         elif attr in self.columns:
-            self._df[attr] = value
+            self.loc[:, attr] = value
 
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
-
-    def __len__(self) -> int:
-        """
-        Returns the length of info axis.
-        :return: the length of info axis.
-        """
-        return self.n_index_total
 
     def __asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
                     value: Union[int, float]) -> 'TemporalDataFrame':
@@ -701,31 +684,7 @@ class TemporalDataFrame:
         Get the name of the column with time points data. Returns None if '__TPID' is used.
         :return: the name of the column with time points data.
         """
-        return self._time_points_col
-
-    @property
-    def time_points_column(self) -> pd.Series:
-        """
-        Get the time points data for all rows in this TemporalDataFrame.
-        :return: the time points data.
-        """
-        _data = pd.Series([])
-
-        for time_point in self.time_points:
-            # noinspection PyTypeChecker
-            _data = pd.concat((_data, pd.Series(np.repeat(time_point, self.n_index_at(time_point)))))
-
-        _data.index = self.index
-
-        return _data
-
-    @property
-    def n_time_points(self) -> int:
-        """
-        Get the number of distinct time points in this TemporalDataFrame.
-        :return: the number of time points.
-        """
-        return len(self.time_points)
+        return self._time_points_column_name
 
     def index_at(self, time_point: TimePoint) -> pd.Index:
         """
@@ -737,14 +696,6 @@ class TemporalDataFrame:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this TemporalDataFrame.")
 
         return self._df[time_point].index
-
-    def n_index_at(self, time_point: TimePoint) -> int:
-        """
-        Get the length of the index at a given time point.
-        :param time_point: a time point in this TemporalDataFrame.
-        :return: the length of the index at a given time point.
-        """
-        return len(self.index_at(time_point))
 
     @property
     def index(self) -> pd.Index:
@@ -759,27 +710,21 @@ class TemporalDataFrame:
 
         return _index
 
-    @property
-    def n_index_total(self) -> int:
+    def reindex(self, index: Collection) -> None:
         """
-        Get the number of indexes.
-        :return: the number of indexes.
+        Conform the index of this TemporalDataFrame to the new index.
         """
-        return len(self.index)
-
-    def reindex(self, values: Collection) -> None:
-        """TODO"""
-        if not isCollection(values):
+        if not isCollection(index):
             raise VTypeError('New index should be an array of values.')
 
         len_index = self.n_index_total
 
-        if not len(values) == len_index:
-            raise VValueError(f"Cannot reindex from an array of length {len(values)}, should be {len_index}.")
+        if not len(index) == len_index:
+            raise VValueError(f"Cannot reindex from an array of length {len(index)}, should be {len_index}.")
 
         cnt = 0
         for tp in self.time_points:
-            self._df[tp] = self._df[tp].reindex(values[cnt:cnt+self.n_index_at(tp)])
+            self._df[tp] = self._df[tp].reindex(index[cnt:cnt+self.n_index_at(tp)])
             cnt += self.n_index_at(tp)
 
     @property
@@ -806,14 +751,6 @@ class TemporalDataFrame:
         self._columns = values
 
     @property
-    def n_columns(self) -> int:
-        """
-        Get the number of columns in this TemporalDataFrame
-        :return: the number of columns
-        """
-        return len(self.columns)
-
-    @property
     def dtypes(self) -> pd.Series:
         """
         Return the dtypes in this TemporalDataFrame.
@@ -833,7 +770,7 @@ class TemporalDataFrame:
         if dtype is not None:
             for tp in self._time_points:
                 for column in self.columns:
-                    if column != self._time_points_col:
+                    if column != self._time_points_column_name:
                         try:
                             self._df[tp][column] = self._df[tp][column].astype(np.float).astype(dtype)
 
@@ -862,47 +799,6 @@ class TemporalDataFrame:
                                       null_counts=null_counts)
             print("\n")
 
-    @property
-    def values(self) -> np.ndarray:
-        """
-        Return a Numpy representation of this TemporalDataFrame.
-        :return: a Numpy representation of the DataFrame.
-        """
-        return self.to_pandas().values
-
-    @property
-    def axes(self) -> List[pd.Index]:
-        """
-        Return a list of the row axis labels.
-        :return: a list of the row axis labels.
-        """
-        return [self.index, self.columns]
-
-    @property
-    def ndim(self) -> Literal[3]:
-        """
-        Return an int representing the number of axes / array dimensions.
-        :return: 3
-        """
-        return 3
-
-    @property
-    def size(self) -> int:
-        """
-        Return the number of rows times number of columns.
-        :return: an int representing the number of elements in this object.
-        """
-        return len(self.columns) * self.n_index_total
-
-    @property
-    def shape(self) -> Tuple[int, List[int], int]:
-        """
-        Return a tuple representing the dimensionality of this TemporalDataFrame
-        (nb_time_points, [n_index_at(time point) for all time points], nb_col).
-        :return: a tuple representing the dimensionality of this TemporalDataFrame
-        """
-        return self.n_time_points, [self.n_index_at(TP) for TP in self.time_points], self.n_columns
-
     def memory_usage(self, index: bool = True, deep: bool = False) -> pd.Series:
         """
         Return the memory usage of each column in bytes.
@@ -920,61 +816,6 @@ class TemporalDataFrame:
                 mem_usage.add(self._df[time_point].memory_usage(index=index, deep=deep))
 
         return mem_usage
-
-    @property
-    def empty(self) -> bool:
-        """
-        Indicator whether this TemporalDataFrame is empty.
-        :return: True if this TemporalDataFrame is empty.
-        """
-        if not self.n_time_points or not self.n_columns or not self.n_index_total:
-            return True
-
-        return False
-
-    def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
-        """
-        This function returns the first n rows for the object based on position.
-
-        For negative values of n, this function returns all rows except the last n rows.
-        :return: the first n rows.
-        """
-        sub_TDF = self[time_points]
-
-        if sub_TDF.n_time_points:
-            repr_str = ""
-            for TP in sub_TDF.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{sub_TDF[TP].one_TP_repr(TP, n)}\n"
-
-        else:
-            repr_str = f"Empty TemporalDataFrame\n" \
-                       f"Columns: {[col for col in sub_TDF.columns]}\n" \
-                       f"Index: {[idx for idx in sub_TDF.index]}"
-
-        return repr_str
-
-    def tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
-        """
-        This function returns the last n rows for the object based on position.
-
-        For negative values of n, this function returns all rows except the first n rows.
-        :return: the last n rows.
-        """
-        sub_TDF = self[time_points]
-
-        if sub_TDF.n_time_points:
-            repr_str = ""
-            for TP in sub_TDF.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{sub_TDF[TP].one_TP_repr(TP, n, func='tail')}\n"
-
-        else:
-            repr_str = f"Empty TemporalDataFrame\n" \
-                       f"Columns: {[col for col in sub_TDF.columns]}\n" \
-                       f"Index: {[idx for idx in sub_TDF.index]}"
-
-        return repr_str
 
     @property
     def at(self) -> '_VAtIndexer':
@@ -1004,7 +845,7 @@ class TemporalDataFrame:
             - A slice object with labels, e.g. 'a':'f'.
             - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
-            for indexing (one of the above) TODO
+            for indexing (one of the above)
 
         :return: a group of rows and columns
         """
@@ -1039,58 +880,12 @@ class TemporalDataFrame:
         for time_point in self.time_points:
             self._df[time_point].insert(loc, column, value, allow_duplicates)
 
-    def items(self) -> Generator[Tuple[str, pd.Series], None, None]:
-        """
-        Iterate over (column name, Series) pairs.
-        :return: a tuple with the column name and the content as a Series.
-        """
-        for column in self.columns:
-            yield column, pd.concat((self._df[time_point][column] for time_point in self.time_points))
-
-    def keys(self) -> pd.Index:
-        """
-        Get the ‘info axis’.
-        :return: the ‘info axis’.
-        """
-        return self.columns
-
-    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'TemporalDataFrame':
-        """
-        Whether each element in the TemporalDataFrame is contained in values.
-        :return: whether each element in the DataFrame is contained in values.
-        """
-        _time_col = self.time_points_column_name
-        _time_list = self.time_points_column if self.time_points_column_name is None else None
-
-        return TemporalDataFrame(self.to_pandas().isin(values)[self.columns], time_list=_time_list, time_col=_time_col)
-
-    def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
-           level: Any = None) -> 'TemporalDataFrame':
-        """
-        Get Equal to of TemporalDataFrame and other, element-wise (binary operator eq).
-        Equivalent to '=='.
-        :param other: Any single or multiple element data structure, or list-like object.
-        :param axis: {0 or ‘index’, 1 or ‘columns’}
-        :param level: int or label
-        """
-        _time_col = self.time_points_column_name
-        _time_list = self.time_points_column if self.time_points_column_name is None else None
-
-        return TemporalDataFrame(self.to_pandas().eq(other, axis, level)[self.columns],
-                                 time_list=_time_list, time_col=_time_col)
-
     def copy(self) -> 'TemporalDataFrame':
         """
         Create a new copy of this TemporalDataFrame.
         :return: a copy of this TemporalDataFrame.
         """
-        # TODO : redo !
-        time_points = self.df_data[self._time_points_col].copy() if self._time_points_col == '__TPID' else None
-        time_col = self._time_points_col if self._time_points_col != '__TPID' else None
-
-        return TemporalDataFrame(self.df_data[self.columns].copy(),
-                                 time_points=time_points, time_col=time_col,
-                                 index=self.index.copy(), columns=self.columns.copy())
+        return copy_TemporalDataFrame(self)
 
     def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
@@ -1168,15 +963,15 @@ class _VAtIndexer:
     """
     Wrapper around pandas _AtIndexer object for use in TemporalDataFrames.
     The .at can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])                              --> on indexes
+        - a single element (TDF.loc[<element0>])    --> on indexes
 
     Allowed indexing elements are :
         - a single label
     """
 
-    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: 'TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
         """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+        :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
         self.__parent = parent
@@ -1220,7 +1015,8 @@ class _ViAtIndexer:
 
     def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
         """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
+        :param parent: a parent TemporalDataFrame.
+        :param data: the parent TemporalDataFrame's data to work on.
         """
         self.__parent = parent
         self.__data = data
@@ -1254,135 +1050,3 @@ class _ViAtIndexer:
                 row_cumul += len(self.__data[tp])
 
         self.__data[target_tp].iat[key[0] - row_cumul, key[1]] = value
-
-
-class _VLocIndexer:
-    """
-    Wrapper around pandas _LocIndexer object for use in TemporalDataFrames.
-    The .loc can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])                              --> on indexes
-        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
-
-    Allowed indexing elements are :
-        - a single label
-        - a list of labels
-        - a slice of labels
-        - a boolean array of the same length as the axis
-    """
-
-    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
-        """
-        :param parent: a parent TemporalDataFrame.
-        :param data: the parent TemporalDataFrame's data to work on.
-        """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> ViewTemporalDataFrame:
-        """
-        Get rows and columns from the loc.
-        :param key: loc index.
-        :return: TemporalDataFrame or single value.
-        """
-        generalLogger.debug(u'\u23BE .loc access : begin ------------------------------------------------------- ')
-
-        result = self.__pandas_data.loc[key]
-        generalLogger.debug(f'.loc data is : \n{result}')
-
-        if isinstance(result, pd.DataFrame):
-            generalLogger.debug('.loc data is a DataFrame.')
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, result.index, result.columns)
-
-        elif isinstance(result, pd.Series):
-            generalLogger.debug('.loc data is a Series.')
-
-            result = result.to_frame().T
-
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, result.index, result.columns)
-
-        else:
-            generalLogger.debug('.loc data is a single value.')
-            # in this case, the key has to be a tuple of 2 single values
-
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, [key[0]], [key[1]])
-
-        generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
-        return final_result
-
-    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
-        """
-        Set rows and columns from the loc.
-        :param key: loc index.
-        :param value: pandas DataFrame, Series or a single value to set.
-        """
-        self[key].set(value)
-
-
-class _ViLocIndexer:
-    """
-    Wrapper around pandas _iLocIndexer object for use in TemporalDataFrames.
-    The .iloc can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])                              --> on indexes
-        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
-
-    Allowed indexing elements are :
-        - a single integer
-        - a list of integers
-        - a slice of integers
-        - a boolean array of the same length as the axis
-    """
-
-    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
-        """
-        :param parent: a parent TemporalDataFrame from a ViewTemporalDataFrames.
-        :param data: the parent TemporalDataFrame's data to work on.
-        """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> Any:
-        """
-        Get rows and columns from the loc.
-        :param key: loc index.
-        :return: TemporalDataFrame or single value.
-        """
-        generalLogger.debug(u'\u23BE .iloc access : begin ------------------------------------------------------- ')
-
-        result = self.__pandas_data.iloc[key]
-        generalLogger.debug(f'.iloc data is : \n{result}')
-
-        if isinstance(result, pd.DataFrame):
-            generalLogger.debug('.iloc data is a DataFrame.')
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, result.index, result.columns)
-
-        elif isinstance(result, pd.Series):
-            generalLogger.debug('.iloc data is a Series.')
-
-            result = result.to_frame().T
-
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, result.index, result.columns)
-
-        else:
-            generalLogger.debug('.iloc data is a single value.')
-            # in this case, the key has to be a tuple of 2 single values
-
-            final_result = ViewTemporalDataFrame(self.__parent, self.__data,
-                                                 self.__parent.time_points, [key[0]], [key[1]])
-
-        generalLogger.debug(u'\u23BF .iloc access : end --------------------------------------------------------- ')
-        return final_result
-
-    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
-        """
-        Set rows and columns from the loc.
-        :param key: loc index.
-        :param value: pandas DataFrame, Series or a single value to set.
-        """
-        self[key].set(value)
