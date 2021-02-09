@@ -12,7 +12,7 @@ from typing import Dict, Union, Optional, Collection, Tuple, Any, List, IO, Iter
 from typing_extensions import Literal
 
 from vdata.NameUtils import DType, PreSlicer, TimePointList
-from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, to_list, \
+from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, \
     reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .views.dataframe import ViewTemporalDataFrame
@@ -677,6 +677,7 @@ class TemporalDataFrame:
     def to_pandas(self, with_time_points: bool = False) -> Any:
         """
         Get the data in a pandas format.
+        :param with_time_points: add a column with time points data ?
         :return: the data in a pandas format.
         """
         data = pd.concat([self._df[time_point] for time_point in self.time_points])
@@ -1317,13 +1318,7 @@ class _VLocIndexer:
         :param key: loc index.
         :param value: pandas DataFrame, Series or a single value to set.
         """
-        # TODO
-        # get view on parent TemporalDataFrame from given key.
-        result = self[key]
-
-        print(result.shape)
-
-        # self.__data[result.time_points[0]].loc[result.index, result.columns] = value
+        self[key].set(value)
 
 
 class _ViLocIndexer:
@@ -1389,4 +1384,4 @@ class _ViLocIndexer:
         :param key: loc index.
         :param value: pandas DataFrame, Series or a single value to set.
         """
-        # TODO
+        self[key].set(value)

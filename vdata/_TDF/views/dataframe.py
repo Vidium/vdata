@@ -6,12 +6,12 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn, Hashable, IO, Iterable
+from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn, Hashable, IO, Iterable, cast
 from typing_extensions import Literal
 
 import vdata
-from vdata.NameUtils import PreSlicer, DType
-from vdata.utils import repr_array, repr_index, reformat_index, TimePoint
+from vdata.NameUtils import PreSlicer, DType, DataFrame
+from vdata.utils import repr_array, repr_index, reformat_index, TimePoint, isCollection
 from ..NameUtils import ViewTemporalDataFrame_internal_attributes
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
@@ -24,7 +24,7 @@ class ViewTemporalDataFrame:
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data,
+    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', DataFrame],
                  tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
         """
         :param parent: a parent TemporalDataFrame to view.
@@ -40,7 +40,7 @@ class ViewTemporalDataFrame:
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_parent_data', parent_data)
         object.__setattr__(self, 'index', pd.Index(index_slicer))
-        object.__setattr__(self, 'columns', column_slicer)
+        object.__setattr__(self, 'columns', pd.Index(column_slicer))
 
         # remove time points where the index does not match
         object.__setattr__(self, '_tp_slicer', np.array(tp_slicer)[
@@ -119,14 +119,14 @@ class ViewTemporalDataFrame:
         return ViewTemporalDataFrame(self._parent, self._parent_data, index[0], index[1], index[2])
 
     def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
-                    df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
+                    values: Any) -> None:
         """
         Set values in the parent TemporalDataFrame from this view with a DataFrame.
         The columns and the rows must match.
         :param index: a sub-setting index. (see __getitem__ for more details)
-        :param df: a DataFrame with values to set.
+        :param values: values to set.
         """
-        self[index].set(df)
+        self[index].set(values)
 
     def __getattribute__(self, attr: str) -> Any:
         """
@@ -162,7 +162,7 @@ class ViewTemporalDataFrame:
             self._parent.__setattr__(attr, value)
 
         elif attr in self.columns:
-            self.parent_data.loc[self.index, attr] = value
+            self._parent_data.loc[self.index, attr] = value
 
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
@@ -184,7 +184,7 @@ class ViewTemporalDataFrame:
     #     index = self.index[0] if len(self.index) == 1 else self.index
     #     columns = self.columns[0] if len(self.columns) == 1 else self.columns
     #
-    #     self.parent_data.loc[index, columns] += value
+    #     self._parent_data.loc[index, columns] += value
     #
     #     return self
 
@@ -236,31 +236,66 @@ class ViewTemporalDataFrame:
     #                              index=self.index,
     #                              name=self.name)
 
-    def set(self, df: Union[pd.DataFrame, 'vdata.TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
+    def set(self, values: Any) -> None:
         """
         Set values for this ViewTemporalDataFrame.
-        Values can be given in a pandas.DataFrame, a TemporalDataFrame or an other ViewTemporalDataFrame.
-        To set values, the columns and indexes must match ALL columns and indexes in this ViewTemporalDataFrame.
-        :param df: a pandas.DataFrame, TemporalDataFrame or ViewTemporalDataFrame with new values to set.
+        Values can be given as a single value, a collection of values a pandas.DataFrame, a TemporalDataFrame or an
+        other ViewTemporalDataFrame.
+        To set values from DataFrames, the columns and indexes must match ALL columns and indexes in this
+        ViewTemporalDataFrame.
+        :param values: new values to set to this view.
         """
-        assert isinstance(df, (pd.DataFrame, vdata.TemporalDataFrame, ViewTemporalDataFrame)), \
-            "Cannot set values from non DataFrame object."
-        # This is done to prevent introduction of NaNs
-        assert self.n_columns == len(df.columns), "Columns must match."
-        assert self.columns.equals(df.columns), "Columns must match."
-        assert len(self) == len(df), "Number of rows must match."
-        assert self.index.equals(df.index), "Indexes must match."
+        if isinstance(values, pd.DataFrame):
+            # only one tp in this view
+            # same rows
+            # same columns
+            assert self.n_time_points == 1
+            assert self.columns.equals(values.columns)
+            assert self.index.equals(values.index)
 
-        if isinstance(df, pd.DataFrame):
-            self.parent_data.loc[self.index, self.columns] = df
+            self._parent_data[self.time_points[0]].loc[self.index, self.columns] = values
+
+        elif isinstance(values, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
+            # same tp
+            # same rows in all tp
+            # same columns in all tp
+            assert self.time_points == values.time_points
+            assert self.columns.equals(values.columns)
+            assert self.index.equals(values.index)
+
+            for tp in self.time_points:
+                self._parent_data[tp].loc[self.index_at(tp), self.columns] = values[tp].to_pandas()
+
+        elif isCollection(values):
+            values = list(values)
+            # only one row or only one column
+            if self.n_columns == 1:
+                assert len(values) == self.n_index_total, "The length of the index in this view does not match the " \
+                                                          "length of the array of values."
+
+                idx_cnt = 0
+
+                for tp in self.time_points:
+                    self._parent_data[tp].loc[self.index_at(tp), self.columns] = \
+                        values[idx_cnt:idx_cnt+self.n_index_at(tp)]
+                    idx_cnt += self.n_index_at(tp)
+
+            elif self.n_index_total == 1:
+                assert len(values) == self.n_columns, "The number of columns in this view does not match the length " \
+                                                      "of the array of values."
+                self._parent_data[self.time_points[0]].loc[self.index] = values
+
+            else:
+                raise VValueError(f"Cannot set values in this view with shape {self.shape} from an array of values.")
 
         else:
-            self.parent_data.loc[self.index, self.columns] = df.df_data
+            self._parent_data.loc[self.index, self.columns] = values
 
     def to_pandas(self, with_time_points: Optional[str] = None) -> Any:
         """
-        TODO
-        :param with_time_points:
+        Get the data in a pandas format.
+        :param with_time_points: add a column with time points data ?
+        :return: the data in a pandas format.
         """
         # index = self.index[0] if len(self.index) == 1 else self.index
         # columns = self.columns[0] if len(self.columns) == 1 else self.columns
@@ -366,7 +401,7 @@ class ViewTemporalDataFrame:
         Return the dtypes in the DataFrame.
         :return: the dtypes in the DataFrame.
         """
-        return self.parent_data[self.columns].dtypes
+        return self._parent_data[self.columns].dtypes
 
     def astype(self, dtype: Union[DType, Dict[str, DType]]) -> NoReturn:
         """
@@ -525,7 +560,7 @@ class ViewTemporalDataFrame:
     #
     #     :return: a group of rows and columns
     #     """
-    #     return _VLocIndexer(self.parent_data[self.index_bool], self.parent_data[self.index_bool].loc,
+    #     return _VLocIndexer(self._parent_data[self.index_bool], self._parent_data[self.index_bool].loc,
     #                         self.parent_time_points_col)
 
     # @property
@@ -544,7 +579,7 @@ class ViewTemporalDataFrame:
     #
     #     :return: a group of rows and columns
     #     """
-    #     return _ViLocIndexer(self.parent_data[self.index_bool].iloc)
+    #     return _ViLocIndexer(self._parent_data[self.index_bool].iloc)
 
     def insert(self, *args, **kwargs) -> NoReturn:
         """
@@ -576,14 +611,14 @@ class ViewTemporalDataFrame:
         :return: whether each element in the DataFrame is contained in values.
         """
         if self._time_points_col == '__TPID':
-            time_points = self.parent_data[self.index_bool]['__TPID'].tolist()
+            time_points = self._parent_data[self.index_bool]['__TPID'].tolist()
             time_col = None
 
         else:
-            time_points = self.parent_data[self.index_bool][self._time_points_col].tolist()
+            time_points = self._parent_data[self.index_bool][self._time_points_col].tolist()
             time_col = self.parent_time_points_col
 
-        return vdata.TemporalDataFrame(self.parent_data.isin(values)[self.columns], time_points=time_points,
+        return vdata.TemporalDataFrame(self._parent_data.isin(values)[self.columns], time_points=time_points,
                                        time_col=time_col)
 
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
