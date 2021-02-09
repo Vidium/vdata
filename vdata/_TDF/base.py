@@ -10,31 +10,13 @@ from abc import ABC, abstractmethod
 from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Optional, Dict
 from typing_extensions import Literal
 
+import vdata
 from vdata.NameUtils import PreSlicer
 from vdata.utils import TimePoint
-from . import dataframe
-from . import views
 
 
 # ====================================================
 # code
-def copy_TemporalDataFrame(TDF: Union['dataframe.TemporalDataFrame', 'views.dataframe.ViewTemporalDataFrame']) \
-        -> 'dataframe.TemporalDataFrame':
-    """
-    Create a new copy of a TemporalDataFrame.
-    :return: a copy of a TemporalDataFrame.
-    """
-    _time_list = TDF.time_points_column if TDF.time_points_column_name is None else None
-
-    return dataframe.TemporalDataFrame(data=TDF.to_pandas(),
-                                       time_list=_time_list,
-                                       time_col=TDF.time_points_column_name,
-                                       time_points=TDF.time_points,
-                                       index=TDF.index.copy(),
-                                       columns=TDF.columns.copy(),
-                                       name=TDF.name)
-
-
 class BaseTemporalDataFrame(ABC):
     """
     Base abstract class for TemporalDataFrames and ViewTemporalDataFrames.
@@ -304,7 +286,7 @@ class BaseTemporalDataFrame(ABC):
         for column in self.columns:
             yield column, _data[column]
 
-    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'dataframe.TemporalDataFrame':
+    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'vdata.TemporalDataFrame':
         """
         Whether each element in the TemporalDataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.
@@ -312,10 +294,10 @@ class BaseTemporalDataFrame(ABC):
         _time_col = self.time_points_column_name
         _time_list = self.time_points_column if _time_col is None else None
 
-        return dataframe.TemporalDataFrame(self.to_pandas().isin(values), time_list=_time_list, time_col=_time_col)
+        return vdata.TemporalDataFrame(self.to_pandas().isin(values), time_list=_time_list, time_col=_time_col)
 
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
-           level: Any = None) -> 'dataframe.TemporalDataFrame':
+           level: Any = None) -> 'vdata.TemporalDataFrame':
         """
         Get Equal to of TemporalDataFrame and other, element-wise (binary operator eq).
         Equivalent to '=='.
@@ -326,5 +308,5 @@ class BaseTemporalDataFrame(ABC):
         _time_col = self.time_points_column_name
         _time_list = self.time_points_column if self.time_points_column_name is None else None
 
-        return dataframe.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
-                                           time_col=_time_col)
+        return vdata.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
+                                       time_col=_time_col)

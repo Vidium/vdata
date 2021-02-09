@@ -14,14 +14,16 @@ from vdata.NameUtils import PreSlicer, DType, DataFrame
 from vdata.utils import repr_array, repr_index, reformat_index, TimePoint, isCollection
 from ..NameUtils import ViewTemporalDataFrame_internal_attributes
 from .. import dataframe
-from ..base import BaseTemporalDataFrame
+from .. import base
+from .. import copy
+from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VAttributeError
 
 
 # ==========================================
 # code
-class ViewTemporalDataFrame(BaseTemporalDataFrame):
+class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     """
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
@@ -402,20 +404,20 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return _ViewViAtIndexer(self._parent, self._parent_data)
 
     @property
-    def loc(self) -> '_ViewVLocIndexer':
+    def loc(self) -> _VLocIndexer:
         """
         Access a group of rows and columns by label(s) or a boolean array.
         :return: a group of rows and columns
         """
-        return _ViewVLocIndexer(self._parent, self._parent_data)
+        return _VLocIndexer(self._parent, self._parent_data)
 
     @property
-    def iloc(self) -> '_ViewViLocIndexer':
+    def iloc(self) -> _ViLocIndexer:
         """
         Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
         :return: a group of rows and columns
         """
-        return _ViewViLocIndexer(self._parent, self._parent_data)
+        return _ViLocIndexer(self._parent, self._parent_data)
 
     def insert(self, *args, **kwargs) -> NoReturn:
         """
@@ -428,7 +430,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         Create a new copy of this view of a TemporalDataFrame.
         :return: a copy of this view of a TemporalDataFrame.
         """
-        return dataframe.copy_TemporalDataFrame(self)
+        return copy.copy_TemporalDataFrame(self)
 
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> Tuple[Dict, np.ndarray, pd.Index]:
         """
@@ -488,7 +490,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
 
-class _ViewVAtIndexer:
+class _ViewVAtIndexer(_VAtIndexer):
     """
     Wrapper around pandas _AtIndexer object for use in views of TemporalDataFrames.
     The .at can access elements by indexing with :
@@ -503,17 +505,7 @@ class _ViewVAtIndexer:
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Tuple[Any, Any]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row index and column name.
-        :return: the value stored at the row index and column name.
-        """
-        return self.__pandas_data.at[key]
+        super().__init__(parent, data)
 
     def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
         """
@@ -521,20 +513,13 @@ class _ViewVAtIndexer:
         :param key: a tuple of row index and column name.
         :param value: a value to set.
         """
+        # check that data can be found from the given key, to avoid setting data not accessible from the view
         _ = self[key]
 
-        row, col = key[0], key[1]
-        target_tp = None
-
-        for tp in self.__parent.time_points:
-            if row in self.__data[tp].index:
-                target_tp = tp
-                break
-
-        self.__data[target_tp].at[key] = value
+        super().__setitem__(key, value)
 
 
-class _ViewViAtIndexer:
+class _ViewViAtIndexer(_ViAtIndexer):
     """
     Wrapper around pandas _iAtIndexer object for use in views of TemporalDataFrames.
     The .iat can access elements by indexing with :
@@ -549,17 +534,7 @@ class _ViewViAtIndexer:
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Tuple[int, int]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row # and column #
-        :return: the value stored at the row # and column #.
-        """
-        return self.__pandas_data.iat[key]
+        super().__init__(parent, data)
 
     def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
         """
@@ -569,17 +544,4 @@ class _ViewViAtIndexer:
         """
         _ = self[key]
 
-        row, col = key[0], key[1]
-        target_tp = None
-
-        row_cumul = 0
-        for tp in self.__parent.time_points:
-
-            if row_cumul + len(self.__data[tp]) >= row:
-                target_tp = tp
-                break
-
-            else:
-                row_cumul += len(self.__data[tp])
-
-        self.__data[target_tp].iat[key[0] - row_cumul, key[1]] = value
+        super().__setitem__(key, value)

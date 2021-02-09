@@ -15,7 +15,9 @@ from vdata.NameUtils import DType, PreSlicer, TimePointList
 from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, \
     reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
-from .base import BaseTemporalDataFrame, copy_TemporalDataFrame
+from .base import BaseTemporalDataFrame
+from .copy import copy_TemporalDataFrame
+from .indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from .views.dataframe import ViewTemporalDataFrame
 from .._IO import generalLogger
 from .._IO.errors import VValueError, VTypeError, ShapeError
@@ -957,96 +959,3 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
         return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
-
-
-class _VAtIndexer:
-    """
-    Wrapper around pandas _AtIndexer object for use in TemporalDataFrames.
-    The .at can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])    --> on indexes
-
-    Allowed indexing elements are :
-        - a single label
-    """
-
-    def __init__(self, parent: 'TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
-        """
-        :param parent: a parent TemporalDataFrame.
-        :param data: the parent TemporalDataFrame's data to work on.
-        """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Tuple[Any, Any]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row index and column name.
-        :return: the value stored at the row index and column name.
-        """
-        return self.__pandas_data.at[key]
-
-    def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
-        """
-        Set values using the _AtIndexer.
-        :param key: a tuple of row index and column name.
-        :param value: a value to set.
-        """
-        row, col = key[0], key[1]
-        target_tp = None
-
-        for tp in self.__parent.time_points:
-            if row in self.__data[tp].index:
-                target_tp = tp
-                break
-
-        self.__data[target_tp].at[key] = value
-
-
-class _ViAtIndexer:
-    """
-    Wrapper around pandas _iAtIndexer object for use in TemporalDataFrames.
-    The .iat can access elements by indexing with :
-        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
-
-    Allowed indexing elements are :
-        - a single integer
-    """
-
-    def __init__(self, parent: TemporalDataFrame, data: Dict[TimePoint, pd.DataFrame]):
-        """
-        :param parent: a parent TemporalDataFrame.
-        :param data: the parent TemporalDataFrame's data to work on.
-        """
-        self.__parent = parent
-        self.__data = data
-        self.__pandas_data = parent.to_pandas()
-
-    def __getitem__(self, key: Tuple[int, int]) -> Any:
-        """
-        Get values using the _AtIndexer.
-        :param key: a tuple of row # and column #
-        :return: the value stored at the row # and column #.
-        """
-        return self.__pandas_data.iat[key]
-
-    def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
-        """
-        Set values using the _AtIndexer.
-        :param key: a tuple of row # and column #.
-        :param value: a value to set.
-        """
-        row, col = key[0], key[1]
-        target_tp = None
-
-        row_cumul = 0
-        for tp in self.__parent.time_points:
-
-            if row_cumul + len(self.__data[tp]) >= row:
-                target_tp = tp
-                break
-
-            else:
-                row_cumul += len(self.__data[tp])
-
-        self.__data[target_tp].iat[key[0] - row_cumul, key[1]] = value
