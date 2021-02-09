@@ -610,21 +610,45 @@ class TemporalDataFrame:
         """
         return self.n_index_total
 
+    def __asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
+                    value: Union[int, float]) -> 'TemporalDataFrame':
+        """
+        Common function for modifying all values in this TemporalDataFrame through the common operation (+, -, *, /).
+        :param operation: the operation to apply on the TemporalDataFrame.
+        :param value: an int or a float to add to values.
+        :return: a TemporalDataFrame with new values.
+        """
+        _data = self.to_pandas()
+
+        # avoid working on time points
+        if self.time_points_column_name is not None:
+            _data = _data.loc[:, _data.columns != self.time_points_column_name]
+
+        # add the value to the data
+        _data = getattr(_data, operation)(value)
+
+        # insert back the time points
+        if self.time_points_column_name is not None:
+            _data.insert(list(self.columns).index(self.time_points_column_name), self.time_points_column_name,
+                         self.time_points_column)
+
+        time_col = self.time_points_column_name
+        time_list = self.time_points_column if time_col is None else None
+
+        return TemporalDataFrame(data=_data,
+                                 time_list=time_list,
+                                 time_col=time_col,
+                                 time_points=self.time_points,
+                                 index=self.index,
+                                 name=self.name)
+
     def __add__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
         Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
         :param value: an int or a float to add to values.
         :return: a TemporalDataFrame with new values.
         """
-        time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-        time_list = self._df['__TPID'] if time_col is None else None
-
-        return TemporalDataFrame(self.to_pandas() + value,
-                                 time_list=time_list,
-                                 time_col=time_col,
-                                 time_points=self.time_points,
-                                 index=self.index,
-                                 name=self.name)
+        return self.__asmd_func('__add__', value)
 
     def __sub__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
@@ -632,15 +656,7 @@ class TemporalDataFrame:
         :param value: an int or a float to subtract to values.
         :return: a TemporalDataFrame with new values.
         """
-        time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-        time_list = self._df['__TPID'] if time_col is None else None
-
-        return TemporalDataFrame(self.to_pandas() - value,
-                                 time_list=time_list,
-                                 time_col=time_col,
-                                 time_points=self.time_points,
-                                 index=self.index,
-                                 name=self.name)
+        return self.__asmd_func('__sub__', value)
 
     def __mul__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
@@ -648,15 +664,7 @@ class TemporalDataFrame:
         :param value: an int or a float to multiply all values by.
         :return: a TemporalDataFrame with new values.
         """
-        time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-        time_list = self._df['__TPID'] if time_col is None else None
-
-        return TemporalDataFrame(self.to_pandas() * value,
-                                 time_list=time_list,
-                                 time_col=time_col,
-                                 time_points=self.time_points,
-                                 index=self.index,
-                                 name=self.name)
+        return self.__asmd_func('__mul__', value)
 
     def __truediv__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
@@ -664,17 +672,9 @@ class TemporalDataFrame:
         :param value: an int or a float to divide all values by.
         :return: a TemporalDataFrame with new values.
         """
-        time_col = self.time_points_column_name if self.time_points_column_name != '__TPID' else None
-        time_list = self._df['__TPID'] if time_col is None else None
+        return self.__asmd_func('__truediv__', value)
 
-        return TemporalDataFrame(self.to_pandas() / value,
-                                 time_list=time_list,
-                                 time_col=time_col,
-                                 time_points=self.time_points,
-                                 index=self.index,
-                                 name=self.name)
-
-    def to_pandas(self, with_time_points: bool = False) -> Any:
+    def to_pandas(self, with_time_points: bool = False) -> pd.DataFrame:
         """
         Get the data in a pandas format.
         :param with_time_points: add a column with time points data ?
@@ -714,6 +714,8 @@ class TemporalDataFrame:
         for time_point in self.time_points:
             # noinspection PyTypeChecker
             _data = pd.concat((_data, pd.Series(np.repeat(time_point, self.n_index_at(time_point)))))
+
+        _data.index = self.index
 
         return _data
 
@@ -1162,7 +1164,6 @@ class TemporalDataFrame:
         return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
 
-# TODO :
 class _VAtIndexer:
     """
     Wrapper around pandas _AtIndexer object for use in TemporalDataFrames.
