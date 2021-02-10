@@ -26,6 +26,9 @@ time_point_units = {None: '(no unit)',
 _units = (None, 's', 'm', 'h', 'D', 'M', 'Y')
 
 _builtin_names = dir(builtins)
+_builtin_names.remove('False')
+_builtin_names.remove('True')
+_builtin_names.remove('None')
 
 
 def get_value(v: Any) -> Union[str, int, float]:

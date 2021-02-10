@@ -875,7 +875,8 @@ class VData:
                                 verified_time_list = value.time_points_column
 
                             value.astype(self._dtype)
-                            value.name = f"{value.name}{'_' if value.name else ''}{str(key)}"
+                            value.name = f"{value.name}{'_' if value.name != 'No_Name' else ''}" \
+                                         f"{str(key) if value.name != 'No_Name' else ''}"
                             layers[str(key)] = value
 
                 else:

@@ -728,6 +728,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._name
 
+    @name.setter
+    def name(self, value: str) -> None:
+        """
+        Set a new name for this TemporalDataFrame.
+        :param value: the new name for this TemporalDataFrame.
+        """
+        self._name = value
+
     @property
     def dtypes(self) -> pd.Series:
         """

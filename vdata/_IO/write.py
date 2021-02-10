@@ -58,8 +58,6 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
         write_data(obj.time_points, save_file, 'time_points')
         # save uns
         write_data(obj.uns, save_file, 'uns')
-        # save descriptive data about the VData object
-        write_data(obj.dtype, save_file, 'dtype')
 
 
 def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
