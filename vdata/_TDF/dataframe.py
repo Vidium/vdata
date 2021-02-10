@@ -855,16 +855,27 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return _ViLocIndexer(self, self._df)
 
-    def insert(self, loc, column, value, allow_duplicates=False) -> None:
+    def insert(self, loc, column, values, allow_duplicates=False) -> None:
         """
         Insert column into TemporalDataFrame at specified location.
         :param loc: Insertion index. Must verify 0 <= loc <= len(columns).
         :param column: str, number, or hashable object. Label of the inserted column.
-        :param value: int, Series, or array-like
+        :param values: int, Series, or array-like
         :param allow_duplicates: duplicate column allowed ?
         """
-        for time_point in self.time_points:
-            self._df[time_point].insert(loc, column, value, allow_duplicates)
+        if isCollection(values):
+            if self.n_index_total != len(values):
+                raise VValueError("Length of values does not match length of index.")
+
+            cumul = 0
+            for time_point in self.time_points:
+                values_to_insert = values[cumul:cumul + self.n_index_at(time_point)]
+                cumul += self.n_index_at(time_point)
+                self._df[time_point].insert(loc, column, values_to_insert, allow_duplicates)
+
+        else:
+            for time_point in self.time_points:
+                self._df[time_point].insert(loc, column, values, allow_duplicates)
 
     def copy(self) -> 'TemporalDataFrame':
         """
