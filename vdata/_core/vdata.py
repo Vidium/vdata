@@ -39,7 +39,7 @@ class VData:
                  obsm: Optional[Dict[Any, DataFrame]] = None,
                  obsp: Optional[Dict[Any, Array2D]] = None,
                  var: Optional[pd.DataFrame] = None,
-                 varm: Optional[Dict[Any, Array2D]] = None,
+                 varm: Optional[Dict[Any, pd.DataFrame]] = None,
                  varp: Optional[Dict[Any, Array2D]] = None,
                  time_points: Optional[pd.DataFrame] = None,
                  uns: Optional[Dict] = None,
@@ -87,20 +87,18 @@ class VData:
 
         # check formats of arguments
         _layers, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(data,
-                                                                                  obs, obsm, obsp,
-                                                                                  var, varm, varp,
-                                                                                  time_points, uns,
-                                                                                  time_col, time_list)
+                                                                                        obs, obsm, obsp,
+                                                                                        var, varm, varp,
+                                                                                        time_points, uns,
+                                                                                        time_col, time_list)
 
-        ref_TDF = _layers[list(_layers.keys())[0]] if _layers is not None else None
+        ref_TDF = list(_layers.values())[0] if _layers is not None else None
 
         # make sure a TemporalDataFrame is set to .obs, even if not data was supplied
         if self._obs is None:
             generalLogger.debug("Default empty TemporalDataFrame for obs.")
-            if _layers is not None:
-                time_list = list(_layers.values())[0].time_points_column
-            else:
-                time_list = None
+
+            time_list = ref_TDF.time_points_column if ref_TDF is not None else None
 
             self._obs = TemporalDataFrame(time_list=time_list,
                                           index=(ref_TDF.index if ref_TDF is not None else None) if obs_index is None
@@ -122,11 +120,10 @@ class VData:
 
         generalLogger.debug(f"Guessed dimensions are : ({self.n_time_points}, {self.n_obs}, {self.n_var})")
 
-        # TODO
-        self._obsm = None  # VAxisArrayContainer(self, 'obs', data=_obsm)
-        self._obsp = None  # VPairwiseArrayContainer(self, 'obs', data=_obsp)
-        self._varm = None  # VAxisArrayContainer(self, 'var', data=_varm)
-        self._varp = None  # VPairwiseArrayContainer(self, 'var', data=_varp)
+        self._obsm = VObsmArrayContainer(self, data=_obsm)
+        self._obsp = VObspArrayContainer(self, data=_obsp)
+        self._varm = VVarmArrayContainer(self, data=_varm)
+        self._varp = VVarpArrayContainer(self, data=_varp)
 
         # finish initializing VData
         self._init_data(obs_index, var_index)
@@ -634,7 +631,7 @@ class VData:
                        obsm: Optional[Dict[Any, DataFrame]],
                        obsp: Optional[Dict[Any, Array2D]],
                        var: Optional[pd.DataFrame],
-                       varm: Optional[Dict[Any, Array2D]],
+                       varm: Optional[Dict[Any, pd.DataFrame]],
                        varp: Optional[Dict[Any, Array2D]],
                        time_points: Optional[pd.DataFrame],
                        uns: Optional[Dict],
@@ -716,7 +713,6 @@ class VData:
         layers = None
 
         verified_time_list = to_tp_list(time_list) if time_list is not None else None
-        index = None
 
         # time_points
         if time_points is not None:
@@ -832,8 +828,7 @@ class VData:
                     if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
                         verified_time_list = data.time_points_column
 
-                    data.astype(self._dtype)
-                    layers = {'data': data}
+                    layers = {'data': self._check_df_types(data)}
 
                 elif isinstance(data, dict):
                     generalLogger.debug("    1. \u2713 'data' is a dictionary.")
@@ -874,10 +869,10 @@ class VData:
                                     and verified_time_list is None:
                                 verified_time_list = value.time_points_column
 
-                            value.astype(self._dtype)
-                            value.name = f"{value.name}{'_' if value.name != 'No_Name' else ''}" \
-                                         f"{str(key) if value.name != 'No_Name' else ''}"
-                            layers[str(key)] = value
+                            value.name = f"{value.name if value.name != 'No_Name' else ''}" \
+                                         f"{'_' if value.name != 'No_Name' else ''}" \
+                                         f"{str(key)}"
+                            layers[str(key)] = self._check_df_types(value)
 
                 else:
                     raise VTypeError(f"Type '{type(data)}' is not allowed for 'data' parameter, should be a dict,"
@@ -892,17 +887,19 @@ class VData:
                 generalLogger.debug(f"    2. \u2713 'obs' is a {type(obs).__name__}.")
 
                 if not isinstance(obs, (pd.DataFrame, TemporalDataFrame)):
-                    raise VTypeError("obs must be a pandas DataFrame or a TemporalDataFrame.")
+                    raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
                 elif isinstance(obs, pd.DataFrame):
                     _time_points = time_points.value.values if time_points is not None else None
-                    obs = self._check_df_types(TemporalDataFrame(obs, time_list=verified_time_list, time_col=time_col,
-                                                                 time_points=_time_points,
-                                                                 name='obs'))
+                    obs = TemporalDataFrame(obs, time_list=verified_time_list, time_col=time_col,
+                                            time_points=_time_points, dtype=self._dtype,
+                                            name='obs')
 
                 else:
                     obs = self._check_df_types(obs)
-                    obs.name = f"{obs.name}{'_' if obs.name else ''}obs"
+                    obs.name = f"{obs.name if obs.name != 'No_Name' else ''}" \
+                               f"{'_' if obs.name != 'No_Name' else ''}" \
+                               f"obs"
 
                     if verified_time_list is not None:
                         generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
@@ -913,6 +910,9 @@ class VData:
 
                 if obs_index is not None and all(obs.index.isin(obs_index)):
                     obs.reindex(obs_index)
+
+                else:
+                    obs_index = obs.index
 
                 # find time points list
                 time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col, obs)
@@ -930,52 +930,90 @@ class VData:
                 if time_col is not None:
                     generalLogger.warning("'time_col' parameter cannot be used since 'obs' was not found.")
 
-            # # -----------------------------------------------------------------
-            # # obsm
-            # if obsm is not None:
-            #     generalLogger.debug(f"    3. \u2713 'obsm' is a {type(obsm).__name__}.")
-            #
-            #     if not isinstance(obsm, dict):
-            #         raise VTypeError("obsm must be a dictionary.")
-            #     else:
-            #         for key, value in obsm.items():
-            #             if not isinstance(value, np.ndarray):
-            #                 raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim not in (2, 3):
-            #                 raise VTypeError(f"obsm '{key}' must be a 2D or 3D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim == 2:
-            #                 if nb_time_points > 1:
-            #                     raise VTypeError(f"obsm '{key}' must be a 3D array-like object (numpy array) "
-            #                                      f"if providing more than 1 time point.")
-            #
-            #                 value = reshape_to_3D(value)
-            #
-            #             obsm[str(key)] = value
-            #
-            # else:
-            #     generalLogger.debug(f"    3. \u2717 'obsm' was not found.")
-            #
-            # # -----------------------------------------------------------------
-            # # obsp
-            # if obsp is not None:
-            #     generalLogger.debug(f"    4. \u2713 'obsp' is a {type(obsp).__name__}.")
-            #
-            #     if isinstance(obsp, dict):
-            #         for key, value in obsp.items():
-            #             if not isinstance(value, (np.ndarray, pd.DataFrame)) and value.ndim != 2:
-            #                 raise VTypeError(f"'{key}' object in obsp is not a 2D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #
-            #         obsp = dict((str(k), v) for k, v in obsp.items())
-            #
-            #     else:
-            #         raise VTypeError("obsp must be a dictionary of 2D array-like object "
-            #                          "(numpy array, pandas DataFrame).")
-            #
-            # else:
-            #     generalLogger.debug(f"    4. \u2717 'obsp' was not found.")
+            # -----------------------------------------------------------------
+            # obsm
+            if obsm is not None:
+                generalLogger.debug(f"    3. \u2713 'obsm' is a {type(obsm).__name__}.")
+
+                if obs is None and layers is None:
+                    raise VValueError("'obsm' parameter cannot be set unless either 'data' or 'obs' are set.")
+
+                valid_obsm = {}
+                _time_points = time_points.value.values if time_points is not None else None
+
+                if not isinstance(obsm, dict):
+                    raise VTypeError("'obsm' must be a dictionary of DataFrames.")
+
+                else:
+                    for key, value in obsm.items():
+                        if not isinstance(value, (pd.DataFrame, TemporalDataFrame)):
+                            raise VTypeError(f"'obsm' '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
+
+                        elif isinstance(value, pd.DataFrame):
+                            valid_obsm[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
+                                                                     time_points=_time_points,
+                                                                     dtype=self._dtype, name=str(key))
+
+                        else:
+                            value.name = f"{value.name if value.name != 'No_Name' else ''}" \
+                                         f"{'_' if value.name != 'No_Name' else ''}" \
+                                         f"{str(key)}"
+                            valid_obsm[str(key)] = self._check_df_types(value)
+
+                            if verified_time_list is not None:
+                                generalLogger.warning(f"'time_list' parameter cannot be used since 'obsm' '{key}' is "
+                                                      "already a TemporalDataFrame.")
+                            if time_col is not None:
+                                generalLogger.warning(f"'time_col' parameter cannot be used since 'obsm' '{key}' is "
+                                                      "already a TemporalDataFrame.")
+
+                        if all(valid_obsm[str(key)].index.isin(obs_index)):
+                            valid_obsm[str(key)].reindex(obs_index)
+
+                        else:
+                            raise VValueError("Index of 'obsm' does not match 'obs' and 'layers' indexes.")
+
+            else:
+                generalLogger.debug(f"    3. \u2717 'obsm' was not found.")
+
+            # -----------------------------------------------------------------
+            # obsp
+            if obsp is not None:
+                generalLogger.debug(f"    4. \u2713 'obsp' is a {type(obsp).__name__}.")
+
+                if obs is None and layers is None:
+                    raise VValueError("'obsp' parameter cannot be set unless either 'data' or 'obs' are set.")
+
+                valid_obsp = {}
+
+                if not isinstance(obsp, dict):
+                    raise VTypeError("'obsp' must be a dictionary of 2D numpy arrays or pandas DataFrames.")
+
+                else:
+                    for key, value in obsp.items():
+                        if not isinstance(value, (np.ndarray, pd.DataFrame)) and value.ndim != 2:
+                            raise VTypeError(f"'obsp' '{key}' must be a 2D numpy array or pandas DataFrame.")
+
+                        if isinstance(value, pd.DataFrame):
+                            if all(value.index.isin(obs_index)):
+                                value.reindex(obs_index)
+
+                                if all(value.columns.isin(obs_index)):
+                                    value = value[obs_index]
+
+                                else:
+                                    raise VValueError("Column names of 'obsp' do not match 'obs' and 'layers' indexes.")
+
+                            else:
+                                raise VValueError(f"Index of 'obsp' '{key}' does not match 'obs' and 'layers' indexes.")
+
+                        else:
+                            value = pd.DataFrame(value, index=obs_index, columns=obs_index)
+
+                        valid_obsp[str(key)] = self._check_df_types(value)
+
+            else:
+                generalLogger.debug(f"    4. \u2717 'obsp' was not found.")
 
             # -----------------------------------------------------------------
             # var
@@ -990,52 +1028,76 @@ class VData:
             else:
                 generalLogger.debug("    5. \u2717 'var' was not found.")
 
-            # # -----------------------------------------------------------------
-            # # varm
-            # if varm is not None:
-            #     generalLogger.debug(f"    6. \u2713 'varm' is a {type(varm).__name__}.")
-            #
-            #     if not isinstance(varm, dict):
-            #         raise VTypeError("varm must be a dictionary.")
-            #     else:
-            #         for key, value in varm.items():
-            #             if not isinstance(value, np.ndarray):
-            #                 raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object "
-            #                                  f"(numpy arrays).")
-            #             elif value.ndim not in (2, 3):
-            #                 raise VTypeError(f"varm '{key}' must be a 2D or 3D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #             elif value.ndim == 2:
-            #                 if nb_time_points > 1:
-            #                     raise VTypeError(f"varm '{key}' must be a 3D array-like object (numpy array) "
-            #                                      f"if providing more than 1 time point.")
-            #
-            #                 value = reshape_to_3D(value)
-            #
-            #             varm[str(key)] = value
-            #
-            # else:
-            #     generalLogger.debug(f"    6. \u2717 'varm' was not found.")
-            #
-            # # -----------------------------------------------------------------
-            # # varp
-            # if varp is not None:
-            #     generalLogger.debug(f"    7. \u2713 'varp' is a {type(varp).__name__}.")
-            #
-            #     if isinstance(varp, dict):
-            #         for key, value in varp.items():
-            #             if not isinstance(value, (np.ndarray, pd.DataFrame)) and value.ndim != 2:
-            #                 raise VTypeError(f"'{key}' object in varp is not a 2D array-like object "
-            #                                  f"(numpy array, pandas DataFrame).")
-            #
-            #         varp = dict((str(k), v) for k, v in varp.items())
-            #
-            #     else:
-            #         raise VTypeError("'varp' must be a dictionary of 2D array-like object "
-            #                          "(numpy array, pandas DataFrame).")
-            #
-            # else:
-            #     generalLogger.debug(f"    7. \u2717 'varp' was not found.")
+            # -----------------------------------------------------------------
+            # varm
+            if varm is not None:
+                generalLogger.debug(f"    6. \u2713 'varm' is a {type(varm).__name__}.")
+
+                if var is None and layers is None:
+                    raise VValueError("'obsm' parameter cannot be set unless either 'data' or 'var' are set.")
+
+                valid_varm = {}
+
+                if not isinstance(varm, dict):
+                    raise VTypeError("'varm' must be a dictionary of DataFrames.")
+
+                else:
+                    for key, value in varm.items():
+                        if not isinstance(value, pd.DataFrame):
+                            raise VTypeError(f"'varm' '{key}' must be a pandas DataFrame.")
+
+                        else:
+                            valid_varm[str(key)] = self._check_df_types(value)
+
+                            if all(valid_varm[str(key)].index.isin(var_index)):
+                                valid_varm[str(key)].reindex(var_index)
+
+                            else:
+                                raise VValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
+
+            else:
+                generalLogger.debug(f"    6. \u2717 'varm' was not found.")
+
+            # -----------------------------------------------------------------
+            # varp
+            if varp is not None:
+                generalLogger.debug(f"    7. \u2713 'varp' is a {type(varp).__name__}.")
+
+                if var is None and layers is None:
+                    raise VValueError("'varp' parameter cannot be set unless either 'data' or 'var' are set.")
+
+                valid_varp = {}
+
+                if not isinstance(varp, dict):
+                    raise VTypeError("'varp' must be a dictionary of 2D numpy arrays or pandas DataFrames.")
+
+                else:
+                    for key, value in varp.items():
+                        if not isinstance(value, (np.ndarray, pd.DataFrame)) and value.ndim != 2:
+                            raise VTypeError(f"'varp' '{key}' must be 2D numpy array or pandas DataFrame.")
+
+                        if isinstance(value, pd.DataFrame):
+                            if all(value.index.isin(var_index)):
+                                value.reindex(var_index)
+
+                                if all(value.columns.isin(var_index)):
+                                    value = value[var_index]
+
+                                else:
+                                    raise VValueError(
+                                        f"Column names of 'varp' '{key}' do not match 'var' and 'layers' column names.")
+
+                            else:
+                                raise VValueError(f"Index of 'varp' '{key}' does not match 'var' and 'layers' column "
+                                                  f"names.")
+
+                        else:
+                            value = pd.DataFrame(value, index=var_index, columns=var_index)
+
+                        valid_varp[str(key)] = self._check_df_types(value)
+
+            else:
+                generalLogger.debug(f"    7. \u2717 'varp' was not found.")
 
             # # -----------------------------------------------------------------
             # uns
@@ -1131,10 +1193,9 @@ class VData:
 
         # check coherence with number of time points in VData
         if self._time_points is not None:
-            # TODO
-            for attr in ('layers', ):  # 'obsm', 'varm'
+            for attr in ('layers', 'obsm'):
                 dataset = getattr(self, attr)
-                if len(self._time_points) != dataset.shape[1]:
+                if not dataset.empty and len(self._time_points) != dataset.shape[1]:
                     raise IncoherenceError(f"{attr} has {dataset.shape[0]} time point"
                                            f"{'' if dataset.shape[0] == 1 else 's'} but {len(self._time_points)}"
                                            f" {'was' if len(self._time_points) == 1 else 'were'} given.")
@@ -1178,18 +1239,18 @@ class VData:
                                                f"{layer[0].shape[1]}, should be {self.n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
-        if self._obsm is not None and self.n_obs != self._obsm.shape[1]:
-            raise IncoherenceError(f"obs and obsm have different lengths ({self.n_obs} vs {self._obsm.shape[1]})")
-
-        if self._obsp is not None and self.n_obs != self._obsp.shape[0]:
-            raise IncoherenceError(f"obs and obsp have different lengths ({self.n_obs} vs {self._obsp.shape[0]})")
+        for attr in ('obsm', 'obsp'):
+            dataset = getattr(self, attr)
+            if not dataset.empty and self.n_obs != dataset.shape[2]:
+                raise IncoherenceError(f"'obs' and '{attr}' have different lengths ({self.n_obs} vs "
+                                       f"{dataset.shape[2]})")
 
         # check coherence between var, varm, varp shapes
-        if self._varm is not None and self.n_var != self._varm.shape[1]:
-            raise IncoherenceError(f"var and varm have different lengths ({self.n_var} vs {self._varm.shape[1]})")
-
-        if self._varp is not None and self.n_var != self._varp.shape[0]:
-            raise IncoherenceError(f"var and varp have different lengths ({self.n_var} vs {self._varp.shape[0]})")
+        for attr in ('varm', 'varp'):
+            dataset = getattr(self, attr)
+            if not dataset.empty and self.n_var != dataset.shape[1]:
+                raise IncoherenceError(f"'var' and 'varm' have different lengths ({self.n_var} vs "
+                                       f"{dataset.shape[1]})")
 
     # writing ------------------------------------------------------------
     def write(self, file: Union[str, Path]) -> None:

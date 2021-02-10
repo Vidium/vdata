@@ -10,7 +10,7 @@ import vdata
 # ====================================================
 # code
 def test_TDF_sub_setting():
-    data = {'col1': [1, 2, 3, 4, 5, 6, 7, 8, 9]}
+    data = {'col1': [1., 2., 3., 4., 5., 6., 7., 8., 9.]}
 
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
                                   time_col=None, time_points=['0h', '5h', '10h'],

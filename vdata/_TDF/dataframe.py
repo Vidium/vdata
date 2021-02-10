@@ -770,7 +770,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param dtype: a data type.
         """
         for tp in self._time_points:
-            self._df[tp][col_name].astype(dtype)
+            self._df[tp][col_name] = self._df[tp][col_name].astype(dtype)
 
     def info(self, verbose: Optional[bool] = None, buf: Optional[IO[str]] = None, max_cols: Optional[int] = None,
              memory_usage: Optional[Union[bool, str]] = None, null_counts: Optional[bool] = None) -> None:

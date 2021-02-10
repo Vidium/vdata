@@ -224,9 +224,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
         See __len__ for getting the number of TemporalDataFrames it contains.
         :return: the shape of this ArrayContainer.
         """
-        _first_TDF = self[list(self.keys())[0]]
-        _shape_TDF = _first_TDF.shape
-        return len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
+        if len(self):
+            _first_TDF = list(self.values())[0]
+            _shape_TDF = _first_TDF.shape
+            return len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
+
+        else:
+            return 0, 0, [], 0
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
@@ -587,10 +591,14 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
         See __len__ for getting the number of Arrays it contains.
         :return: shape of this VObspArrayContainer.
         """
-        _first_dict = self[list(self.keys())[0]]
-        nb_time_points = len(_first_dict)
-        len_index = [len(df.index) for df in _first_dict.values()]
-        return len(self), nb_time_points, len_index, len_index
+        if len(self):
+            _first_dict = list(self.values())[0]
+            nb_time_points = len(_first_dict)
+            len_index = [len(df.index) for df in _first_dict.values()]
+            return len(self), nb_time_points, len_index, len_index
+
+        else:
+            return 0, 0, [], []
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
@@ -740,8 +748,12 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         See __len__ for getting the number of TemporalDataFrames it contains.
         :return: the shape of this VVarmArrayContainer.
         """
-        _first_DF = self[list(self.keys())[0]]
-        return len(self), _first_DF.shape[0], [DF.shape[1] for DF in self.values()]
+        if len(self):
+            _first_DF = list(self.values())[0]
+            return len(self), _first_DF.shape[0], [DF.shape[1] for DF in self.values()]
+
+        else:
+            return 0, 0, []
 
 
 class VVarpArrayContainer(VBase2DArrayContainer):
@@ -821,5 +833,9 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         See __len__ for getting the number of TemporalDataFrames it contains.
         :return: the shape of this VVarpArrayContainer.
         """
-        _first_DF = self[list(self.keys())[0]]
-        return len(self), _first_DF.shape[0], _first_DF.shape[1]
+        if len(self):
+            _first_DF = self[list(self.keys())[0]]
+            return len(self), _first_DF.shape[0], _first_DF.shape[1]
+
+        else:
+            return 0, 0, 0

@@ -189,7 +189,7 @@ def test_VData_creation():
         _ = vdata.VData(data=None, obs=obs, var=None, time_points=None, name=16)
 
     except vdata.VTypeError as e:
-        assert e.msg == "obs must be a pandas DataFrame or a TemporalDataFrame."
+        assert e.msg == "'obs' must be a pandas DataFrame or a TemporalDataFrame."
 
     # data is a pd.DataFrame
     data = pd.DataFrame(expr_data_simple, index=obs_index_data, columns=var_index_data)

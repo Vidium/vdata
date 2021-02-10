@@ -268,7 +268,7 @@ def test_TDF_creation():
                         "Index: [a, b, c]\n\n", repr(TDF)
 
     # data is a dictionary
-    data = {'col1': [1, 2, 3, 4, 5, 6, 7, 8, 9]}
+    data = {'col1': [1., 2., 3., 4., 5., 6., 7., 8., 9.]}
 
     #   time_list is None
     #       time_points is None

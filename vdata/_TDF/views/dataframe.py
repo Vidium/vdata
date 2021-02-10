@@ -28,7 +28,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    __base_repr_str = 'View of a TemporalDataFrame'
+    __base_repr_str = 'View of TemporalDataFrame'
 
     def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', DataFrame],
                  tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
@@ -82,7 +82,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 repr_str += f"{self.one_TP_repr(TP)}\n\n"
 
         else:
-            repr_str = f"Empty {ViewTemporalDataFrame} '{self.name}'\n" \
+            repr_str = f"Empty {ViewTemporalDataFrame.__base_repr_str} '{self.name}'\n" \
                        f"Columns: {[col for col in self.columns]}\n" \
                        f"Index: {[idx for idx in self.index]}"
 
