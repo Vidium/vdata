@@ -83,7 +83,7 @@ class VData:
         self._obs = None
         self._var = None
         self._time_points = None
-        self._uns: Optional[Dict] = None
+        self._uns: Dict = {}
 
         # check formats of arguments
         _layers, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(data,
@@ -350,7 +350,7 @@ class VData:
             self._var = df
 
     @property
-    def uns(self) -> Optional[Dict]:
+    def uns(self) -> Dict:
         """
         Get the uns dictionary in this VData.
         :return: the uns dictionary in this VData.
@@ -358,7 +358,7 @@ class VData:
         return self._uns
 
     @uns.setter
-    def uns(self, data: Optional[Dict]) -> None:
+    def uns(self, data: Dict) -> None:
         if not isinstance(data, dict):
             raise VTypeError("'uns' must be a dictionary.")
 
