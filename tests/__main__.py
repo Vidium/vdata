@@ -15,6 +15,7 @@ from tests.tests_vdata.test_VData_creation_from_AnnData import test_VData_creati
 from tests.tests_vdata.test_VData_subsetting import test_VData_sub_setting
 from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conversion_to_AnnData
 from tests.tests_vdata.test_VData_read import test_VData_read
+from tests.tests_vdata.test_VData_copy import test_VData_copy, test_VData_copy_subset
 
 
 # ====================================================
@@ -49,3 +50,8 @@ test_VData_conversion_to_AnnData()
 # VData read / write
 print('\n >>> VData read / write <<< \n')
 test_VData_read()
+
+# VData copy
+print('\n >>> VData copy <<< \n')
+test_VData_copy()
+test_VData_copy_subset()

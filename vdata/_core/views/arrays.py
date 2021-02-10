@@ -53,12 +53,13 @@ class ViewVBaseArrayContainer(abc.ABC):
         """
         return self._view_array_container.items()
 
-    def dict_copy(self) -> Dict[str, Union[DataFrame]]:  # Dict[str, Union[DataFrame, VPairwiseArray]]:
+    @abc.abstractmethod
+    def dict_copy(self) -> Dict[str, DataFrame]:
         """
-        Build an actual copy of this Array view in dict format.
-        :return: Dictionary of (keys, ArrayLike) in this Array view.
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
         """
-        return dict([(arr, self._view_array_container[arr]) for arr in self._view_array_container.keys()])
+        pass
 
 
 class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
@@ -133,6 +134,13 @@ class ViewVLayerArrayContainer(ViewVBaseArrayContainer):
         _shape_TDF = _first_TDF.shape
         _shape = len(self), _shape_TDF[0], _shape_TDF[1], _shape_TDF[2]
         return _shape
+
+    def dict_copy(self) -> Dict[str, DataFrame]:
+        """
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
+        """
+        return {k: v.copy() for k, v in self.items()}
 
 
 # class ViewVAxisArrayContainer(ViewVBaseArrayContainer):

@@ -172,6 +172,14 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         return self._data.items()
 
     @abc.abstractmethod
+    def dict_copy(self) -> Dict[str, D]:
+        """
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
+        """
+        pass
+
+    @abc.abstractmethod
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
@@ -231,6 +239,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
 
         else:
             return 0, 0, [], 0
+
+    def dict_copy(self) -> Dict[str, D_TDF]:
+        """
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
+        """
+        return {k: v.copy() for k, v in self.items()}
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
@@ -600,6 +615,13 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
         else:
             return 0, 0, [], []
 
+    def dict_copy(self) -> Dict[str, Dict['vdata.TimePoint', D_DF]]:
+        """
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
+        """
+        return {k: {vdata.TimePoint(tp): v.copy() for tp, v in d.items()} for k, d in self.items()}
+
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
@@ -655,6 +677,13 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
         """
         for arr_name, arr in self.items():
             self[arr_name] = arr.astype(type_)
+
+    def dict_copy(self) -> Dict[str, D_DF]:
+        """
+        Dictionary of keys and data items in this ArrayContainer.
+        :return: Dictionary of this ArrayContainer.
+        """
+        return {k: v.copy() for k, v in self.items()}
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:

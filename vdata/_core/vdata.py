@@ -835,7 +835,8 @@ class VData:
 
                     for key, value in data.items():
                         if not isinstance(value, (pd.DataFrame, TemporalDataFrame)):
-                            raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
+                            raise VTypeError(f"Layer '{key}' must be a TemporalDataFrame or a pandas DataFrame, "
+                                             f"it is a {type(value)}.")
 
                         elif isinstance(value, pd.DataFrame):
                             if obs_index is None:
@@ -1277,12 +1278,20 @@ class VData:
     # copy ---------------------------------------------------------------
     def copy(self) -> 'VData':
         """
-        Build an actual copy of this VData object and not a view.
+        Build a deep copy of this VData object and not a view.
+        :return: a new VData, which is a deep copy of this VData.
         """
-        # TODO
+        _obsp = {key: pd.DataFrame(index=self.obs.index, columns=self.obs.index) for key in self.obsp.keys()}
+
+        index_cumul = 0
+        for key in self.obsp.keys():
+            for arr in self.obsp[key]:
+                _obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
+                index_cumul += len(arr)
+
         return VData(data=self.layers.dict_copy(),
-                     obs=self.obs, obsm=None, obsp=None,  # self.obsm.dict_copy(), self.obsp.dict_copy(),
-                     var=self.var, varm=None, varp=None,  # self.varm.dict_copy(), self.varp.dict_copy(),
+                     obs=self.obs, obsm=self.obsm.dict_copy(), obsp=_obsp,
+                     var=self.var, varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
                      time_points=self.time_points,
                      uns=self.uns,
                      dtype=self.dtype,

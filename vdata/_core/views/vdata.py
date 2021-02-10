@@ -32,6 +32,7 @@ class ViewVData:
         :param var_slicer: the list of variables to view
         :param time_points_slicer: the list of time points to view
         """
+        self.name = f"{parent.name}_view"
         generalLogger.debug(u'\u23BE ViewVData creation : start ----------------------------------------------------- ')
 
         self._parent = parent
@@ -74,7 +75,7 @@ class ViewVData:
         self._obsp = None
         self._varm = None
         self._varp = None
-        self._uns = None
+        self._uns = self._parent.uns
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
@@ -251,7 +252,6 @@ class ViewVData:
         Get a view on the uns dictionary in this ViewVData.
         :return: a view on the uns dictionary in this ViewVData.
         """
-        # TODO : not a view here, should it be a view ?
         return self._uns
 
     # Array containers ---------------------------------------------------
@@ -349,9 +349,12 @@ class ViewVData:
         """
         Build an actual VData object from this view.
         """
-        return vdata.VData(self.layers.dict_copy(),
-                           self.obs.copy(), None, None,  # self.obsm.dict_copy(), self.obsp.dict_copy(),
-                           # self.var, None, None,  # self.varm.dict_copy(), self.varp.dict_copy(),
-                           # self.time_points,
-                           # self.uns,
-                           self._parent.dtype)
+        return vdata.VData(data=self.layers.dict_copy(),
+                           obs=self.obs.copy(), obsm=None, obsp=None,
+                           # obsm=self.obsm.dict_copy(), obsp=self.obsp.dict_copy(),
+                           var=self.var, varm=None, varp=None,
+                           # varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
+                           time_points=self.time_points,
+                           uns=self.uns,
+                           dtype=self._parent.dtype,
+                           name=f"{self.name}_copy")
