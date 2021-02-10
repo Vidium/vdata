@@ -593,7 +593,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             self.loc[:, attr] = value
 
         else:
-            raise AttributeError(f"'{attr}' is not a valid attribute name.")
+            self.insert(self.n_columns, attr, value)
 
     def __add__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
