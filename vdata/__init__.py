@@ -9,9 +9,9 @@
 from ._core import VData
 from ._TDF import TemporalDataFrame
 from ._IO import read, read_from_dict, read_from_csv, setLoggingLevel, getLoggingLevel, VTypeError, VValueError, \
-    ShapeError, IncoherenceError, VPathError, VAttributeError
+    ShapeError, IncoherenceError, VPathError, VAttributeError, concatenate
 from .utils import TimePoint
 
 __all__ = ["VData", "TemporalDataFrame", "read", "read_from_dict", "read_from_csv", "setLoggingLevel",
            "getLoggingLevel", "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError",
-           "VAttributeError", 'TimePoint']
+           "VAttributeError", 'TimePoint', 'concatenate']

@@ -954,3 +954,36 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
         return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def merge(self, other: 'TemporalDataFrame', name: Optional[str] = None) -> 'TemporalDataFrame':
+        """
+        Merge two TemporalDataFrames together, by rows. The column names and time points must match.
+        :param other: a TemporalDataFrame to merge with this one.
+        :param name: a name for the merged TemporalDataFrame.
+        :return: a new merged TemporalDataFrame.
+        """
+        if not self.time_points == other.time_points:
+            raise VValueError("Cannot merge TemporalDataFrames with different time points.")
+
+        if not self.columns.equals(other.columns):
+            raise VValueError("Cannot merge TemporalDataFrames with different columns.")
+
+        if not self.time_points_column_name == other.time_points_column_name:
+            raise VValueError("Cannot merge TemporalDataFrames with different 'time_col' parameter values.")
+
+        _data = pd.DataFrame(columns=self.columns)
+
+        for time_point in self.time_points:
+            _data = _data.reset_index().merge(self[time_point].to_pandas().reset_index(),
+                                              how='outer').set_index('index')
+            _data = _data.reset_index().merge(other[time_point].to_pandas().reset_index(),
+                                              how='outer').set_index('index')
+
+        if self.time_points_column_name is None:
+            _time_list = [time_point for time_point in self.time_points
+                          for _ in range(self.n_index_at(time_point) + other.n_index_at(time_point))]
+
+        else:
+            _time_list = None
+
+        return TemporalDataFrame(data=_data, time_list=_time_list, time_col=self.time_points_column_name, name=name)

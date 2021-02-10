@@ -146,8 +146,7 @@ class VData:
             repr_str = f"Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over {self.n_time_points} " \
                        f"time point{'' if self.n_time_points == 1 else 's'}."
 
-        # TODO
-        for attr in ["layers", "obs", "var", "time_points"]:     # "obsm", "varm", "obsp", "varp"
+        for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
             obj = getattr(self, attr)
             if obj is not None and not obj.empty:
                 repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
@@ -583,11 +582,10 @@ class VData:
         # update dtype of linked Arrays
         self.layers.update_dtype(type_)
 
-        # TODO
-        # self.obsm.update_dtype(type_)
-        # self.obsp.update_dtype(type_)
-        # self.varm.update_dtype(type_)
-        # self.varp.update_dtype(type_)
+        self.obsm.update_dtype(type_)
+        self.obsp.update_dtype(type_)
+        self.varm.update_dtype(type_)
+        self.varp.update_dtype(type_)
 
         generalLogger.info(f"Set type {type_} for VData object.")
 
@@ -748,7 +746,8 @@ class VData:
                     raise VValueError(f"'{attr}' should be set to None when importing data from an AnnData.")
 
             # import and cast obs to a TemporalDataFrame
-            obs = TemporalDataFrame(data.obs, time_list=verified_time_list, time_col=time_col, name='obs')
+            obs = TemporalDataFrame(data.obs, time_list=verified_time_list, time_col=time_col, name='obs',
+                                    dtype=self.dtype)
             reordering_index = obs.index
 
             # find time points list
@@ -762,21 +761,19 @@ class VData:
             if array_isin(data.X, data.layers.values()):
                 layers = dict((key, TemporalDataFrame(
                     pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
-                    time_list=obs.time_points_column, name=key
-                ))
-                              for key, arr in data.layers.items())
+                    time_list=obs.time_points_column, name=key, dtype=self.dtype)
+                               ) for key, arr in data.layers.items())
 
             else:
                 layers = dict({"data": TemporalDataFrame(
                     pd.DataFrame(data.X, index=data.obs.index, columns=data.var.index).reindex(reordering_index),
-                    time_list=obs.time_points_column, name='data'
-                )},
+                    time_list=obs.time_points_column, name='data', dtype=self.dtype)
+                },
                               **dict((key, TemporalDataFrame(
                                   pd.DataFrame(arr, index=data.obs.index, columns=data.var.index).reindex(
                                       reordering_index),
-                                  time_list=obs.time_points_column, name=key
-                              ))
-                                     for key, arr in data.layers.items()))
+                                  time_list=obs.time_points_column, name=key, dtype=self.dtype)
+                                      ) for key, arr in data.layers.items()))
 
             # import other arrays
             obsm, obsp = dict(data.obsm), dict(data.obsp)
@@ -1137,11 +1134,10 @@ class VData:
 
         return layers, obsm, obsp, varm, varp, obs_index, var_index
 
-    def _check_df_types(self, df: DF) -> DF:
+    def _check_df_types(self, df: DataFrame) -> DataFrame:
         """
         Function for coercing data types of the columns and of the index in a pandas DataFrame.
-        :param df: a pandas DataFrame
-        # TODO check this function is called when it should be ! is it called in creation from AnnData ?
+        :param df: a pandas DataFrame or a TemporalDataFrame.
         """
         generalLogger.debug(u"  \u23BE Check DataFrame's column types.  -  -  -  -  -  -  -  -  -  -")
         # check index : convert to correct dtype if it is not a string type
@@ -1341,11 +1337,10 @@ class VData:
             return AnnData(X=X,
                            layers={key: layer.to_pandas() for key, layer in view.layers.items()},
                            obs=view.obs.to_pandas(with_time_points=time_points_column),
-                           obsm=None,
-                           obsp=None,
+                           obsm={key: arr.to_pandas() for key, arr in view.obsm.items()},
                            var=view.var,
-                           varm=None,
-                           varp=None,
+                           varm={key: arr for key, arr in view.varm.items()},
+                           varp={key: arr for key, arr in view.varp.items()},
                            uns=view.uns)
 
         else:
@@ -1355,7 +1350,6 @@ class VData:
             for time_point in _time_points_list:
                 view = self[time_point]
                 X_layer = list(view.layers.keys())[0]
-                # TODO : obsm, obsp, varm, varp
 
                 X = view.layers[X_layer].to_pandas()
                 X.index = X.index.astype(str)
@@ -1364,11 +1358,10 @@ class VData:
                 result.append(AnnData(X=X,
                                       layers={key: layer.to_pandas() for key, layer in view.layers.items()},
                                       obs=view.obs.to_pandas(),
-                                      obsm=None,
-                                      obsp=None,
+                                      obsm={key: arr.to_pandas() for key, arr in view.obsm.items()},
                                       var=view.var,
-                                      varm=None,
-                                      varp=None,
+                                      varm={key: arr for key, arr in view.varm.items()},
+                                      varp={key: arr for key, arr in view.varp.items()},
                                       uns=view.uns))
 
             generalLogger.debug(u'\u23BF VData conversion to AnnData : end '

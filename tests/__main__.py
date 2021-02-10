@@ -16,6 +16,7 @@ from tests.tests_vdata.test_VData_subsetting import test_VData_sub_setting
 from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conversion_to_AnnData
 from tests.tests_vdata.test_VData_read import test_VData_read
 from tests.tests_vdata.test_VData_copy import test_VData_copy, test_VData_copy_subset
+from tests.tests_vdata.test_VData_concatenate import test_VData_concatenate
 
 
 # ====================================================
@@ -55,3 +56,7 @@ test_VData_read()
 print('\n >>> VData copy <<< \n')
 test_VData_copy()
 test_VData_copy_subset()
+
+# VData concatenate
+print('\n >>> VData concatenate <<< \n')
+test_VData_concatenate()
