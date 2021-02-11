@@ -363,7 +363,7 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
             'layers': None,
             'obsm': None, 'obsp': None,
             'varm': None, 'varp': None,
-            'uns': None}
+            'uns': {}}
 
     # import data from file
     with H5GroupReader(h5py.File(file, "r")) as importFile:

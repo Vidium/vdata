@@ -103,7 +103,7 @@ class ViewVData:
             if len(keys) > 0:
                 repr_str += f"\n\t{attr_name}: {str(list(keys))[1:-1]}"
 
-        if self.uns is not None and len(self.uns):
+        if len(self.uns):
             repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
 
         return repr_str
@@ -247,7 +247,7 @@ class ViewVData:
             self._parent.var[self._var_slicer] = df
 
     @property
-    def uns(self) -> Optional[Dict]:
+    def uns(self) -> Dict:
         """
         Get a view on the uns dictionary in this ViewVData.
         :return: a view on the uns dictionary in this ViewVData.

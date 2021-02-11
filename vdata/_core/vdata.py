@@ -151,7 +151,7 @@ class VData:
             if obj is not None and not obj.empty:
                 repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
 
-        if self.uns is not None and len(self.uns):
+        if len(self.uns):
             repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
 
         return repr_str
@@ -1127,8 +1127,10 @@ class VData:
 
         self._obs = obs
         self._var = var
-        self._uns = dict(zip([str(k) for k in uns.keys()], uns.values())) if uns is not None else None
         self._time_points = time_points
+
+        if uns is not None:
+            self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
 
         generalLogger.debug(u"  \u23BF Arrays' formats are OK.  -- -- -- -- -- -- -- -- -- ")
 
