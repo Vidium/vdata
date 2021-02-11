@@ -197,7 +197,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
 # 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
     """
-    Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers)
+    Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers).
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 

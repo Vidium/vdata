@@ -6,59 +6,200 @@
 # imports
 import numpy as np
 import abc
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List
+from pathlib import Path
+from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator
 
 from vdata.NameUtils import DataFrame
-from ..arrays import VLayerArrayContainer  # VAxisArrayContainer, VPairwiseArrayContainer, VPairwiseArray
+from ..arrays import VBaseArrayContainer, VLayerArrayContainer, D
 from ..._TDF.views import dataframe
-from ..._IO import generalLogger  # VTypeError, ShapeError
+from ..._IO import generalLogger
 
 
 # ====================================================
 # code
+# Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 class ViewVBaseArrayContainer(abc.ABC):
     """
-    A base view of a VBaseArrayContainer.
+    A base abstract class for views of VBaseArrayContainers.
     This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
     """
 
-    def __init__(self, view_array_container: Dict[str, dataframe.ViewTemporalDataFrame]):
+    def __init__(self, array_container: VBaseArrayContainer):
         """
-        :param view_array_container: a VBaseArrayContainer object to build a view on.
+        :param array_container: a VBaseArrayContainer object to build a view on.
         """
-        self._view_array_container = view_array_container
+        self._array_container = array_container
 
     def __repr__(self) -> str:
         """
-        Description for this view of a VBaseArrayContainer object to print.
-        :return: a description of this view
+        Description for this view  to print.
+        :return: a description of this view.
         """
-        return f"View of {self._view_array_container}"
-
-    def keys(self) -> Union[Tuple[()], KeysView]:
-        """
-        Get keys of the VBaseArrayContainer.
-        """
-        return self._view_array_container.keys()
-
-    def values(self) -> Union[Tuple[()], ValuesView]:
-        """
-        Get values of the VBaseArrayContainer.
-        """
-        return self._view_array_container.values()
-
-    def items(self) -> Union[Tuple[()], ItemsView]:
-        """
-        Get items of the VBaseArrayContainer.
-        """
-        return self._view_array_container.items()
+        return f"View of {self._array_container}"
 
     @abc.abstractmethod
-    def dict_copy(self) -> Dict[str, DataFrame]:
+    def __getitem__(self, item: str) -> D:
         """
-        Dictionary of keys and data items in this ArrayContainer.
-        :return: Dictionary of this ArrayContainer.
+        Get a specific data item stored in this view.
+        :param item: key in _data linked to a data item.
+        :return: data item stored in _data under the given key.
         """
+        pass
+
+    @abc.abstractmethod
+    def __setitem__(self, key: str, value: D) -> None:
+        """
+        Set a specific data item in this view. The given data item must have the correct shape.
+        :param key: key for storing a data item in this view.
+        :param value: a data item to store.
+        """
+        pass
+
+    def __len__(self) -> int:
+        """
+        Length of this view : the number of data items in the VBaseArrayContainer.
+        :return: number of data items in the VBaseArrayContainer.
+        """
+        return len(self.keys())
+
+    def __iter__(self) -> Iterator[str]:
+        """
+        Iterate on this view's keys.
+        :return: an iterator over this view's keys.
+        """
+        return iter(self.keys())
+
+    @property
+    @abc.abstractmethod
+    def empty(self) -> bool:
+        """
+        Whether this view is empty or not.
+        :return: is this view empty ?
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> str:
+        """
+        Name for this view.
+        :return: the name of this view.
+        """
+        return f"{self._array_container.name}_view"
+
+    @property
+    @abc.abstractmethod
+    def shape(self) -> Union[
+        Tuple[int, int, int],
+        Tuple[int, int, List[int]],
+        Tuple[int, int, List[int], int],
+        Tuple[int, int, List[int], List[int]]
+    ]:
+        """
+        The shape of this view is computed from the shape of the Arrays it contains.
+        See __len__ for getting the number of Arrays it contains.
+        :return: the shape of this view.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def data(self) -> Dict[str, D]:
+        """
+        Data of this view.
+        :return: the data of this view.
+        """
+        pass
+
+    def keys(self) -> KeysView[str]:
+        """
+        KeysView of keys for getting the data items in this view.
+        :return: KeysView of this view.
+        """
+        return self._array_container.keys()
+
+    def values(self) -> ValuesView[D]:
+        """
+        ValuesView of data items in this view.
+        :return: ValuesView of this view.
+        """
+        return self.data.values()
+
+    def items(self) -> ItemsView[str, D]:
+        """
+        ItemsView of pairs of keys and data items in this view.
+        :return: ItemsView of this view.
+        """
+        return self.data.items()
+
+    @abc.abstractmethod
+    def dict_copy(self) -> Dict[str, D]:
+        """
+        Dictionary of keys and data items in this view.
+        :return: Dictionary of this view.
+        """
+        pass
+
+    @abc.abstractmethod
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True, spacer: str = '') -> None:
+        """
+        Save this view in CSV file format.
+        :param directory: path to a directory for saving the Array
+        :param sep: delimiter character
+        :param na_rep: string to replace NAs
+        :param index: write row names ?
+        :param header: Write col names ?
+        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+        """
+        pass
+
+
+# 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+class ViewVBase3DArrayContainer(ViewVBaseArrayContainer):
+    """
+    Base abstract class for views of ArrayContainers.
+    It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
+    """
+
+    def __init__(self, array_container: VBaseArrayContainer):
+        """
+        :param array_container: a VBaseArrayContainer object to build a view on.
+        """
+        super().__init__(array_container)
+
+    def __getitem__(self, item: str) -> D:
+        pass
+
+    def __setitem__(self, key: str, value: D) -> None:
+        pass
+
+    @property
+    def empty(self) -> bool:
+        pass
+
+    @property
+    def name(self) -> str:
+        pass
+
+    @property
+    def shape(self) -> Union[
+        Tuple[int, int, int],
+        Tuple[int, int, List[int]],
+        Tuple[int, int, List[int], int],
+        Tuple[int, int, List[int], List[int]]
+    ]:
+        pass
+
+    @property
+    def data(self) -> Dict[str, D]:
+        pass
+
+    def dict_copy(self) -> Dict[str, D]:
+        pass
+
+    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "", index: bool = True, header: bool = True,
+               spacer: str = '') -> None:
         pass
 
 

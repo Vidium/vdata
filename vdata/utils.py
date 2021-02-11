@@ -294,6 +294,7 @@ def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, 
     else:
         raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
+
 def unique_in_list(c: Collection) -> Set:
     """
     Get the set of unique elements in a (nested) collection of elements.

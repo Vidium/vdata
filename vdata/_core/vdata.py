@@ -972,7 +972,7 @@ class VData:
                             raise VValueError("Index of 'obsm' does not match 'obs' and 'layers' indexes.")
 
             else:
-                generalLogger.debug(f"    3. \u2717 'obsm' was not found.")
+                generalLogger.debug("    3. \u2717 'obsm' was not found.")
 
             # -----------------------------------------------------------------
             # obsp
@@ -1011,7 +1011,7 @@ class VData:
                         valid_obsp[str(key)] = self._check_df_types(value)
 
             else:
-                generalLogger.debug(f"    4. \u2717 'obsp' was not found.")
+                generalLogger.debug("    4. \u2717 'obsp' was not found.")
 
             # -----------------------------------------------------------------
             # var
@@ -1054,7 +1054,7 @@ class VData:
                                 raise VValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
 
             else:
-                generalLogger.debug(f"    6. \u2717 'varm' was not found.")
+                generalLogger.debug("    6. \u2717 'varm' was not found.")
 
             # -----------------------------------------------------------------
             # varp
@@ -1095,7 +1095,7 @@ class VData:
                         valid_varp[str(key)] = self._check_df_types(value)
 
             else:
-                generalLogger.debug(f"    7. \u2717 'varp' was not found.")
+                generalLogger.debug("    7. \u2717 'varp' was not found.")
 
             # # -----------------------------------------------------------------
             # uns

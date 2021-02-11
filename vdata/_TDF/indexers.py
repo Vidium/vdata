@@ -48,7 +48,7 @@ class _VAtIndexer:
         :param key: a tuple of row index and column name.
         :param value: a value to set.
         """
-        row, col = key[0], key[1]
+        row = key[0]
         target_tp = None
 
         for tp in self.__parent.time_points:
@@ -92,7 +92,7 @@ class _ViAtIndexer:
         :param key: a tuple of row # and column #.
         :param value: a value to set.
         """
-        row, col = key[0], key[1]
+        row = key[0]
         target_tp = None
 
         row_cumul = 0
