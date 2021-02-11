@@ -3,8 +3,13 @@
 # Author : matteo
 # ====================================================
 # imports
+import pandas as pd
 import numpy as np
-from typing import Union, Collection
+from typing import Union, Collection, Dict
+
+import vdata
+from .arrays import VObspArrayContainer
+from . import views
 
 
 # ====================================================
@@ -22,3 +27,16 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
             return True
 
     return False
+
+
+def compact_obsp(obsp: Union[VObspArrayContainer, 'views.ViewVObspArrayContainer'], index: pd.Index) \
+        -> Dict['vdata.TimePoint', pd.DataFrame]:
+    _obsp = {key: pd.DataFrame(index=index, columns=index) for key in obsp.keys()}
+
+    index_cumul = 0
+    for key in obsp.keys():
+        for arr in obsp[key]:
+            _obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
+            index_cumul += len(arr)
+
+    return _obsp

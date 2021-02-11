@@ -6,12 +6,13 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, List, Dict, Optional, Any, NoReturn
+from typing import Union, Tuple, List, Dict, Any, NoReturn
 
 import vdata
 from vdata.NameUtils import PreSlicer
-from vdata.utils import repr_array, repr_index, reformat_index
-from .arrays import ViewVLayerArrayContainer
+from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
+from .. import utils
+from ...utils import repr_array, repr_index, reformat_index
 from ..._TDF.views.dataframe import ViewTemporalDataFrame
 from ..._IO import generalLogger
 from ..._IO.errors import VValueError, VTypeError, IncoherenceError, ShapeError
@@ -65,16 +66,16 @@ class ViewVData:
                             f" selected)")
 
         # subset and store arrays
-        self._layers = ViewVLayerArrayContainer(self._parent.layers, self._time_points_slicer,
-                                                self._obs_slicer, self._var_slicer)
+        self._layers = ViewVTDFArrayContainer(self._parent.layers, self._time_points_slicer,
+                                              self._obs_slicer, self._var_slicer)
         self._time_points = self._parent.time_points[self._parent.time_points.value.isin(self._time_points_slicer)]
         self._var = self._parent.var.loc[self._var_slicer]
 
-        # TODO
-        self._obsm = None
-        self._obsp = None
-        self._varm = None
-        self._varp = None
+        self._obsm = ViewVTDFArrayContainer(self._parent.obsm, self._time_points_slicer,
+                                            self._obs_slicer, self._var_slicer)
+        self._obsp = ViewVObspArrayContainer(self._parent.obsp, self._time_points_slicer, self._obs_slicer)
+        self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
+        self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
         self._uns = self._parent.uns
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
@@ -96,7 +97,7 @@ class ViewVData:
             repr_str = f"View of a Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
 
-        for attr_name in ["layers", "obs", "var", "time_points", ]:  # "obsm", "varm", "obsp", "varp"
+        for attr_name in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
             attr = getattr(self, attr_name)
             keys = attr.keys() if attr is not None else ()
 
@@ -256,7 +257,7 @@ class ViewVData:
 
     # Array containers ---------------------------------------------------
     @property
-    def layers(self) -> ViewVLayerArrayContainer:
+    def layers(self) -> ViewVTDFArrayContainer:
         """
         Get a view on the layers in this ViewVData.
         :return: a view on the layers.
@@ -267,57 +268,53 @@ class ViewVData:
     def layers(self, *_: Any) -> NoReturn:
         raise VValueError("Cannot set layers in a view. Use the original VData object.")
 
-    # @property
-    # def obsm(self) -> ViewVAxisArrayContainer:
-    #     """
-    #     Get a view on the obsm in this ViewVData.
-    #     :return: a view on the obsm.
-    #     """
-    #     return self._obsm
-    #     # return ViewVAxisArrayContainer(self._parent.obsm, self._time_points_array_slicer, self._obs_array_slicer)
+    @property
+    def obsm(self) -> ViewVTDFArrayContainer:
+        """
+        Get a view on the obsm in this ViewVData.
+        :return: a view on the obsm.
+        """
+        return self._obsm
 
-    # @obsm.setter
-    # def obsm(self, *_: Any) -> NoReturn:
-    #     raise VValueError("Cannot set obsm in a view. Use the original VData object.")
+    @obsm.setter
+    def obsm(self, *_: Any) -> NoReturn:
+        raise VValueError("Cannot set obsm in a view. Use the original VData object.")
 
-    # @property
-    # def obsp(self) -> ViewVPairwiseArrayContainer:
-    #     """
-    #     Get a view on the obsp in this ViewVData.
-    #     :return: a view on the obsp.
-    #     """
-    #     return self._obsp
-    #     # return ViewVPairwiseArrayContainer(self._parent.obsp, self._obs_array_slicer)
+    @property
+    def obsp(self) -> ViewVObspArrayContainer:
+        """
+        Get a view on the obsp in this ViewVData.
+        :return: a view on the obsp.
+        """
+        return self._obsp
 
-    # @obsp.setter
-    # def obsp(self, *_: Any) -> NoReturn:
-    #     raise VValueError("Cannot set obsp in a view. Use the original VData object.")
+    @obsp.setter
+    def obsp(self, *_: Any) -> NoReturn:
+        raise VValueError("Cannot set obsp in a view. Use the original VData object.")
 
-    # @property
-    # def varm(self) -> ViewVAxisArrayContainer:
-    #     """
-    #     Get a view on the varm in this ViewVData.
-    #     :return: a view on the varm.
-    #     """
-    #     return self._varm
-    #     # return ViewVAxisArrayContainer(self._parent.varm, self._time_points_array_slicer, self._var_array_slicer)
+    @property
+    def varm(self) -> ViewVVarmArrayContainer:
+        """
+        Get a view on the varm in this ViewVData.
+        :return: a view on the varm.
+        """
+        return self._varm
 
-    # @varm.setter
-    # def varm(self, *_: Any) -> NoReturn:
-    #     raise VValueError("Cannot set varm in a view. Use the original VData object.")
+    @varm.setter
+    def varm(self, *_: Any) -> NoReturn:
+        raise VValueError("Cannot set varm in a view. Use the original VData object.")
 
-    # @property
-    # def varp(self) -> ViewVPairwiseArrayContainer:
-    #     """
-    #     Get a view on the varp in this ViewVData.
-    #     :return: a view on the varp.
-    #     """
-    #     return self._varp
-    #     # return ViewVPairwiseArrayContainer(self._parent.varp, self._var_array_slicer)
+    @property
+    def varp(self) -> ViewVVarpArrayContainer:
+        """
+        Get a view on the varp in this ViewVData.
+        :return: a view on the varp.
+        """
+        return self._varp
 
-    # @varp.setter
-    # def varp(self, *_: Any) -> NoReturn:
-    #     raise VValueError("Cannot set varp in a view. Use the original VData object.")
+    @varp.setter
+    def varp(self, *_: Any) -> NoReturn:
+        raise VValueError("Cannot set varp in a view. Use the original VData object.")
 
     # Aliases ------------------------------------------------------------
     @property
@@ -328,9 +325,9 @@ class ViewVData:
         """
         return self.obs
 
-    # @cells.setter
-    # def cells(self, df: Union[TemporalDataFrame, ViewTemporalDataFrame]) -> None:
-    #     self.obs = df
+    @cells.setter
+    def cells(self, df: Union['vdata.TemporalDataFrame', ViewTemporalDataFrame]) -> None:
+        self.obs = df
 
     @property
     def genes(self) -> pd.DataFrame:
@@ -340,20 +337,22 @@ class ViewVData:
         """
         return self.var
 
-    # @genes.setter
-    # def genes(self, df: pd.DataFrame) -> None:
-    #     self.var = df
+    @genes.setter
+    def genes(self, df: pd.DataFrame) -> None:
+        self.var = df
 
     # copy ---------------------------------------------------------------
     def copy(self) -> 'vdata.VData':
         """
         Build an actual VData object from this view.
         """
+        _obsp = utils.compact_obsp(self.obsp, self.obs.index)
+
         return vdata.VData(data=self.layers.dict_copy(),
-                           obs=self.obs.copy(), obsm=None, obsp=None,
-                           # obsm=self.obsm.dict_copy(), obsp=self.obsp.dict_copy(),
-                           var=self.var, varm=None, varp=None,
-                           # varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
+                           obs=self.obs.copy(),
+                           obsm=self.obsm.dict_copy(), obsp=_obsp,
+                           var=self.var,
+                           varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
                            time_points=self.time_points,
                            uns=self.uns,
                            dtype=self._parent.dtype,

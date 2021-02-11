@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
 from vdata.NameUtils import DTypes, DType, str_DType, PreSlicer, DataFrame
-from .utils import array_isin
+from .utils import array_isin, compact_obsp
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from .views import ViewVData
@@ -1279,13 +1279,7 @@ class VData:
         Build a deep copy of this VData object and not a view.
         :return: a new VData, which is a deep copy of this VData.
         """
-        _obsp = {key: pd.DataFrame(index=self.obs.index, columns=self.obs.index) for key in self.obsp.keys()}
-
-        index_cumul = 0
-        for key in self.obsp.keys():
-            for arr in self.obsp[key]:
-                _obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
-                index_cumul += len(arr)
+        _obsp = compact_obsp(self.obsp, self.obs.index)
 
         return VData(data=self.layers.dict_copy(),
                      obs=self.obs, obsm=self.obsm.dict_copy(), obsp=_obsp,

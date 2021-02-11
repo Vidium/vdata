@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Mapping, Iterator, TypeVar, List
 from typing_extensions import Literal
 
+import vdata
 from vdata.NameUtils import DType, DataFrame
-from . import vdata
 from .._TDF.dataframe import TemporalDataFrame
-from .._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError
+from .._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
 
 
 # ====================================================
@@ -355,14 +355,29 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __setitem__(self, key: str, value: D_TDF) -> None:
+    def __setitem__(self, key: str, value: TemporalDataFrame) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
         :param key: key for storing a TemporalDataFrame in this VLayerArrayContainer.
         :param value: a TemporalDataFrame to store.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(value, TemporalDataFrame):
+            raise VTypeError(f"Cannot set layer '{key}' from non TemporalDataFrame object.")
+
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set layer '{key}' because of shape mismatch.")
+
+        _first_TDF = list(self.values())[0]
+        if not _first_TDF.time_points == value.time_points:
+            raise VValueError("Time points do not match.")
+
+        if not _first_TDF.index.equals(value.index):
+            raise VValueError("Index does not match.")
+
+        if not _first_TDF.columns.equals(value.columns):
+            raise VValueError("Column names do not match.")
+
+        self._data[key] = value
 
     @property
     def name(self) -> Literal['layers']:
@@ -505,6 +520,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
             return dict()
 
         else:
+            # TODO : cut obsp into square DataFrames
             generalLogger.debug("  Data was found.")
             _data = dict()
             _shape = self._parent.obs.shape[1]
@@ -554,7 +570,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __getitem__(self, item: str) -> D_DF:
+    def __getitem__(self, item: str) -> Mapping['vdata.TimePoint', D_DF]:
         """
         Get a specific set of DataFrames stored in this VObspArrayContainer.
         :param item: key in _data linked to a set of DataFrames.
@@ -607,7 +623,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
         :return: shape of this VObspArrayContainer.
         """
         if len(self):
-            _first_dict = list(self.values())[0]
+            _first_dict: Dict['vdata.TimePoint', pd.DataFrame] = list(self.values())[0]
             nb_time_points = len(_first_dict)
             len_index = [len(df.index) for df in _first_dict.values()]
             return len(self), nb_time_points, len_index, len_index
