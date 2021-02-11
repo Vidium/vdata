@@ -35,6 +35,8 @@ def test_VData_concatenate():
 
     v2 = vdata.VData(expr_data_complex_modif, time_points=time_points, obs=obs, var=var, uns=uns, name=2)
 
+    v2.set_obs_index([f"C_{i}" for i in range(6, 12)])
+
     v_merged = vdata.concatenate(v1, v2)
 
     assert repr(v_merged) == "Vdata object with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
@@ -44,11 +46,11 @@ def test_VData_concatenate():
                              "time_points: 'value'\n\t" \
                              "uns: 'colors', 'date'", repr(v_merged)
 
-    assert v_merged.obs.index.equals(pd.Index(['C_0', 'C_1', 'C_2', 'C_3', 'C_0', 'C_1', 'C_2', 'C_3',
-                                               'C_4', 'C_5', 'C_4', 'C_5'])), v_merged.obs.index
+    assert v_merged.obs.index.equals(pd.Index(['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8', 'C_9',
+                                               'C_4', 'C_5', 'C_10', 'C_11'])), v_merged.obs.index
 
-    assert v_merged.layers['spliced'].index.equals(pd.Index(['C_0', 'C_1', 'C_2', 'C_3', 'C_0', 'C_1', 'C_2', 'C_3',
-                                                             'C_4', 'C_5', 'C_4', 'C_5'])), \
+    assert v_merged.layers['spliced'].index.equals(pd.Index(['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8', 'C_9',
+                                                             'C_4', 'C_5', 'C_10', 'C_11'])), \
         v_merged.layers['spliced'].index
 
 

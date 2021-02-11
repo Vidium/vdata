@@ -18,7 +18,7 @@ from .. import base
 from .. import copy
 from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from ..._IO import generalLogger
-from ..._IO.errors import VValueError, VAttributeError
+from ..._IO.errors import VValueError, VAttributeError, VTypeError
 
 
 # ==========================================
@@ -289,10 +289,29 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     @property
     def index(self):
         """
-        Get the full index of this TemporalDataFrame (concatenated over all time points).
-        :return: the full index of this TemporalDataFrame.
+        Get the full index of this view (concatenated over all time points).
+        :return: the full index of this view.
         """
         return self._index
+
+    @index.setter
+    def index(self, values: Collection) -> None:
+        """
+        Set a new index for observations in this view.
+        :param values: collection of new index values.
+        """
+        if not isCollection(values):
+            raise VTypeError('New index should be an array of values.')
+
+        len_index = self.n_index_total
+
+        if not len(values) == len_index:
+            raise VValueError(f"Cannot reindex from an array of length {len(values)}, should be {len_index}.")
+
+        cnt = 0
+        for tp in self.time_points:
+            self._parent_data[tp].loc[self.index_at(tp)].index = values[cnt:cnt + self.n_index_at(tp)]
+            cnt += self.n_index_at(tp)
 
     def index_at(self, time_point: TimePoint) -> pd.Index:
         """
@@ -304,14 +323,6 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
         return self._parent_data[time_point].index.intersection(self.index, sort=False)
-
-    @property
-    def n_index(self) -> int:
-        """
-        Get the number of indexes.
-        :return: the number of indexes.
-        """
-        return sum([self.n_index_at(TP) for TP in self.time_points])
 
     @property
     def columns(self) -> pd.Index:

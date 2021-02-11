@@ -326,6 +326,21 @@ class VData:
 
         self._obs = df
 
+    def set_obs_index(self, values: Collection) -> None:
+        """
+        Set a new index for observations.
+        :param values: collection of new index values.
+        """
+        for layer in self.layers.values():
+            layer.index = values
+
+        self.obs.index = values
+
+        for TDF in self.obsm.values():
+            TDF.index = values
+
+        self.obsp.set_index(values)
+
     @property
     def var(self) -> pd.DataFrame:
         """

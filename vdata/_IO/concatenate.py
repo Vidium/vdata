@@ -80,6 +80,9 @@ def concatenate(*args: 'vdata.VData', name: Optional[str] = None) -> 'vdata.VDat
             _data[key] = _data[key].merge(next_VData.layers[key])
 
         # concat other data
+        if any(_obs.index.isin(next_VData.obs.index)):
+            raise VValueError("Cannot merge VData objects with common obs index values.")
+
         _obs = _obs.merge(next_VData.obs)
 
         # TODO : obsm, obsp, varm, varp

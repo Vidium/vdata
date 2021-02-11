@@ -9,7 +9,8 @@ import abc
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Mapping, Iterator, TypeVar, List
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Mapping, Iterator, TypeVar, \
+    List, Collection
 from typing_extensions import Literal
 
 import vdata
@@ -661,6 +662,10 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
 
                 # save array
                 arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+    def set_index(self, values: Collection) -> None:
+        # TODO
+        print('WIP')
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -

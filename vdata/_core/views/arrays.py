@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import abc
 from pathlib import Path
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator, Mapping, TypeVar
+from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator, Mapping, TypeVar, Collection
 
 import vdata
 from ..arrays import VBaseArrayContainer
@@ -366,6 +366,10 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['vda
 
                 # save array
                 arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+    def set_index(self, values: Collection) -> None:
+        # TODO
+        print('WIP')
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -

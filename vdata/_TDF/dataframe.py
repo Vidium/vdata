@@ -680,6 +680,25 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return _index
 
+    @index.setter
+    def index(self, values: Collection) -> None:
+        """
+        Set a new index for observations.
+        :param values: collection of new index values.
+        """
+        if not isCollection(values):
+            raise VTypeError('New index should be an array of values.')
+
+        len_index = self.n_index_total
+
+        if not len(values) == len_index:
+            raise VValueError(f"Cannot reindex from an array of length {len(values)}, should be {len_index}.")
+
+        cnt = 0
+        for tp in self.time_points:
+            self._df[tp].index = values[cnt:cnt+self.n_index_at(tp)]
+            cnt += self.n_index_at(tp)
+
     def reindex(self, index: Collection) -> None:
         """
         Conform the index of this TemporalDataFrame to the new index.
