@@ -15,7 +15,7 @@ from .utils import array_isin, compact_obsp, expand_obsp
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from .views import ViewVData
-from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list
+from ..utils import TimePoint, reformat_index, repr_index, repr_array, match_time_points, to_tp_list, isCollection
 from .._TDF.dataframe import TemporalDataFrame
 from .._IO.write import generalLogger, write_vdata, write_vdata_to_csv
 from .._IO.errors import VTypeError, IncoherenceError, VValueError, ShapeError
@@ -332,6 +332,9 @@ class VData:
         Set a new index for observations.
         :param values: collection of new index values.
         """
+        if not isCollection(values):
+            VTypeError("'values' parameter must be a collection of index values.")
+
         for layer in self.layers.values():
             layer.index = values
 

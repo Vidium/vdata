@@ -475,7 +475,11 @@ def test_VData_creation_full():
                     obsm=obsm, obsp=obsp, varm=varm, varp=varp,
                     name=1)
 
-    print(v)
+    print(v.obsp['pair'])
+
+    v.set_obs_index([f"C_{i}" for i in range(6, 12)])
+
+    print(v.obsp['pair'])
 
 
 if __name__ == '__main__':
