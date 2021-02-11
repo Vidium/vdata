@@ -425,7 +425,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             _data = {}
             _shape = (self._parent.time_points.shape[0],
                       self._parent.obs.shape[1],
-                      list(self.data.values())[0].shape[2])
+                      'Any')
             _index = self._parent.obs.index
             _time_points: pd.Series = self._parent.time_points['value']
 
@@ -452,8 +452,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                                                        f"should have {_shape[1][i]}.")
 
                     else:
-                        raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' has  {TDF_shape[2]} columns, "
-                                               f"should have {_shape[2]}.")
+                        pass
 
                 # check that indexes match
                 if not _index.equals(TDF.index):
@@ -521,11 +520,9 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
             return dict()
 
         else:
-            # TODO : cut obsp into square DataFrames
             generalLogger.debug("  Data was found.")
             _data = dict()
             _shape = self._parent.obs.shape[1]
-            _index = self._parent.obs.index
             _time_points: pd.Series = self._parent.time_points['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
@@ -541,6 +538,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, Mapping['vdata.TimeP
 
                 for time_point_index, (time_point, DF) in enumerate(DF_dict.items()):
                     DF_shape = DF.shape
+                    _index = self._parent.obs.index_at(time_point)
 
                     generalLogger.debug(f"  Checking DataFrame at time point '{time_point}' with shape {DF_shape}.")
 
@@ -755,7 +753,6 @@ class VVarmArrayContainer(VBase2DArrayContainer):
 
         else:
             generalLogger.debug("  Data was found.")
-            _data = dict()
             _index = self._parent.var.index
 
             for DF_index, DF in data.items():
@@ -764,7 +761,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
                     raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
 
             generalLogger.debug("  Data was OK.")
-            return _data
+            return data
 
     def __getitem__(self, item: str) -> D_DF:
         """
@@ -835,7 +832,6 @@ class VVarpArrayContainer(VBase2DArrayContainer):
 
         else:
             generalLogger.debug("  Data was found.")
-            _data = dict()
             _index = self._parent.var.index
 
             for DF_index, DF in data.items():
@@ -849,7 +845,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
                         f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
 
             generalLogger.debug("  Data was OK.")
-            return _data
+            return data
 
     def __getitem__(self, item: str) -> D_DF:
         """

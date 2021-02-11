@@ -5,7 +5,7 @@
 # imports
 import pandas as pd
 import numpy as np
-from typing import Union, Collection, Dict
+from typing import Union, Collection, Dict, Optional
 
 import vdata
 from .arrays import VObspArrayContainer
@@ -29,8 +29,29 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
     return False
 
 
+def expand_obsp(data: Optional[Dict[str, pd.DataFrame]], time_points: Dict['vdata.TimePoint', pd.Index]) \
+        -> Dict[str, Dict['vdata.TimePoint', pd.DataFrame]]:
+    """
+    TODO
+    """
+    if data is None:
+        return {}
+
+    _obsp = {}
+    for key, DF in data.items():
+        _obsp[key] = {}
+
+        for tp, index in time_points.items():
+            _obsp[key][tp] = data[key].loc[index, index]
+
+    return _obsp
+
+
 def compact_obsp(obsp: Union[VObspArrayContainer, 'views.ViewVObspArrayContainer'], index: pd.Index) \
-        -> Dict['vdata.TimePoint', pd.DataFrame]:
+        -> Dict[str, pd.DataFrame]:
+    """
+    TODO
+    """
     _obsp = {key: pd.DataFrame(index=index, columns=index) for key in obsp.keys()}
 
     index_cumul = 0

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
 
 from vdata.NameUtils import DTypes, DType, str_DType, PreSlicer, DataFrame
-from .utils import array_isin, compact_obsp
+from .utils import array_isin, compact_obsp, expand_obsp
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from .views import ViewVData
@@ -121,7 +121,8 @@ class VData:
         generalLogger.debug(f"Guessed dimensions are : ({self.n_time_points}, {self.n_obs}, {self.n_var})")
 
         self._obsm = VObsmArrayContainer(self, data=_obsm)
-        self._obsp = VObspArrayContainer(self, data=_obsp)
+        self._obsp = VObspArrayContainer(self, data=expand_obsp(_obsp, {tp: self._obs.index_at(tp)
+                                                                        for tp in self.time_points.value}))
         self._varm = VVarmArrayContainer(self, data=_varm)
         self._varp = VVarpArrayContainer(self, data=_varp)
 
@@ -148,7 +149,7 @@ class VData:
 
         for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
             obj = getattr(self, attr)
-            if obj is not None and not obj.empty:
+            if not obj.empty:
                 repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
 
         if len(self.uns):
@@ -917,6 +918,7 @@ class VData:
                     if verified_time_list is not None:
                         generalLogger.warning("'time_list' parameter cannot be used since 'obs' is already a "
                                               "TemporalDataFrame.")
+
                     if time_col is not None:
                         generalLogger.warning("'time_col' parameter cannot be used since 'obs' is already a "
                                               "TemporalDataFrame.")
@@ -963,6 +965,12 @@ class VData:
                             raise VTypeError(f"'obsm' '{key}' must be a TemporalDataFrame or a pandas DataFrame.")
 
                         elif isinstance(value, pd.DataFrame):
+                            if verified_time_list is None:
+                                if obs is not None:
+                                    verified_time_list = obs.time_points_column
+                                else:
+                                    verified_time_list = list(layers.values())[0].time_points_column
+
                             valid_obsm[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
                                                                      time_points=_time_points,
                                                                      dtype=self._dtype, name=str(key))
@@ -984,7 +992,9 @@ class VData:
                             valid_obsm[str(key)].reindex(obs_index)
 
                         else:
-                            raise VValueError("Index of 'obsm' does not match 'obs' and 'layers' indexes.")
+                            raise VValueError(f"Index of 'obsm' '{key}' does not match 'obs' and 'layers' indexes.")
+
+                obsm = valid_obsm
 
             else:
                 generalLogger.debug("    3. \u2717 'obsm' was not found.")
@@ -1024,6 +1034,8 @@ class VData:
                             value = pd.DataFrame(value, index=obs_index, columns=obs_index)
 
                         valid_obsp[str(key)] = self._check_df_types(value)
+
+                obsp = valid_obsp
 
             else:
                 generalLogger.debug("    4. \u2717 'obsp' was not found.")
@@ -1068,6 +1080,8 @@ class VData:
                             else:
                                 raise VValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
 
+                varm = valid_varm
+
             else:
                 generalLogger.debug("    6. \u2717 'varm' was not found.")
 
@@ -1108,6 +1122,8 @@ class VData:
                             value = pd.DataFrame(value, index=var_index, columns=var_index)
 
                         valid_varp[str(key)] = self._check_df_types(value)
+
+                varp = valid_varp
 
             else:
                 generalLogger.debug("    7. \u2717 'varp' was not found.")
@@ -1156,7 +1172,7 @@ class VData:
         Function for coercing data types of the columns and of the index in a pandas DataFrame.
         :param df: a pandas DataFrame or a TemporalDataFrame.
         """
-        generalLogger.debug(u"  \u23BE Check DataFrame's column types.  -  -  -  -  -  -  -  -  -  -")
+        generalLogger.debug(u"  \u23BE Check DataFrame's column types.   -  -  -  -  -  -  -  -  -  -")
         # check index : convert to correct dtype if it is not a string type
         if self._dtype is not None:
             try:
@@ -1206,13 +1222,12 @@ class VData:
         generalLogger.debug("Initialize the VData.")
 
         # check coherence with number of time points in VData
-        if self._time_points is not None:
-            for attr in ('layers', 'obsm'):
-                dataset = getattr(self, attr)
-                if not dataset.empty and len(self._time_points) != dataset.shape[1]:
-                    raise IncoherenceError(f"{attr} has {dataset.shape[0]} time point"
-                                           f"{'' if dataset.shape[0] == 1 else 's'} but {len(self._time_points)}"
-                                           f" {'was' if len(self._time_points) == 1 else 'were'} given.")
+        for attr in ('layers', 'obsm'):
+            dataset = getattr(self, attr)
+            if not dataset.empty and len(self._time_points) != dataset.shape[1]:
+                raise IncoherenceError(f"{attr} has {dataset.shape[0]} time point"
+                                       f"{'' if dataset.shape[0] == 1 else 's'} but {len(self._time_points)}"
+                                       f" {'was' if len(self._time_points) == 1 else 'were'} given.")
 
         generalLogger.debug("Time points were coherent across arrays.")
 

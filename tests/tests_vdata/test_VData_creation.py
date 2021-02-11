@@ -450,9 +450,38 @@ def test_VData_creation_with_uns():
                       "uns: 'colors', 'date'", repr(v)
 
 
+def test_VData_creation_full():
+    time_points = pd.DataFrame({"value": ['0h', '5h']})
+    var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]}, index=["g1", "g2", "g3"])
+    obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
+                                   'data_bis': np.random.randint(0, 20, 6)},
+                                  time_list=["0h", "0h", "0h", "0h", "5h", "5h"],
+                                  index=obs_index_data, name='obs')
+    uns = {"colors": ['blue', 'red', 'yellow'],
+           "date": '25/01/2021'}
+
+    obsm = {'umap': pd.DataFrame({'X1': [4, 5, 6, 7, 8, 9], 'X2': [1, 2, 3, 9, 8, 7]}, index=obs_index_data),
+            'pca': pd.DataFrame({'X1': [-4, -5, -6, -7, -8, -9], 'X2': [-1, -2, -3, -9, -8, -7]}, index=obs_index_data)}
+    obsp = {'pair': np.array([[1, 1, 1, 1, 0, 0],
+                              [1, 1, 1, 1, 0, 0],
+                              [1, 1, 1, 1, 0, 0],
+                              [1, 1, 1, 1, 0, 0],
+                              [0, 0, 0, 0, 2, 2],
+                              [0, 0, 0, 0, 2, 2]])}
+    varm = {'test': pd.DataFrame({'col': [7, 8, 9]}, index=["g1", "g2", "g3"])}
+    varp = {'test2': pd.DataFrame({'g1': [0, 0, 1], 'g2': [0, 1, 0], 'g3': [1, 0, 0]}, index=["g1", "g2", "g3"])}
+
+    v = vdata.VData(expr_data_complex, time_points=time_points, obs=obs, var=var, uns=uns,
+                    obsm=obsm, obsp=obsp, varm=varm, varp=varp,
+                    name=1)
+
+    print(v)
+
+
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')
 
-    test_VData_creation()
-    test_VData_creation_on_dtype()
-    test_VData_creation_with_uns()
+    # test_VData_creation()
+    # test_VData_creation_on_dtype()
+    # test_VData_creation_with_uns()
+    test_VData_creation_full()

@@ -10,7 +10,7 @@ from tests.tests_TDF.test_TDF_creation import test_TDF_creation
 from tests.tests_TDF.test_TDF_subsetting import test_TDF_sub_setting
 
 from tests.tests_vdata.test_VData_creation import test_VData_creation, test_VData_creation_on_dtype, \
-    test_VData_creation_with_uns
+    test_VData_creation_with_uns, test_VData_creation_full
 from tests.tests_vdata.test_VData_creation_from_AnnData import test_VData_creation_from_AnnData
 from tests.tests_vdata.test_VData_subsetting import test_VData_sub_setting
 from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conversion_to_AnnData
@@ -36,6 +36,7 @@ print('\n >>> VData creation <<< \n')
 test_VData_creation()
 test_VData_creation_on_dtype()
 test_VData_creation_with_uns()
+test_VData_creation_full()
 
 print('\n >>> VData creation from AnnData <<< \n')
 test_VData_creation_from_AnnData()
