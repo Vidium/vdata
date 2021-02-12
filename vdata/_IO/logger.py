@@ -16,6 +16,9 @@ from typing import Optional, Type
 from . import errors
 from .. import NameUtils
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 # ====================================================
 colors = {"TCYAN": '\033[36m', "TORANGE": '\033[33m', "TRED": '\033[31m',
           "BBLACK": '\033[40m', "BGREY": '\033[100m',

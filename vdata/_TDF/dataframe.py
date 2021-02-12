@@ -392,8 +392,6 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     selection.
     """
 
-    __base_repr_str = 'TemporalDataFrame'
-
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame]] = None,
                  time_list: Optional[Union[Collection, DType, Literal['*'], TimePoint]] = None,
                  time_col: Optional[str] = None,
@@ -485,39 +483,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :return: a description of this TemporalDataFrame object
         """
         if not self.empty:
-            repr_str = f"{TemporalDataFrame.__base_repr_str} '{self.name}'\n"
+            repr_str = f"TemporalDataFrame '{self.name}'\n"
 
         else:
-            repr_str = f"Empty {TemporalDataFrame.__base_repr_str} '{self.name}'\n" \
+            repr_str = f"Empty TemporalDataFrame '{self.name}'\n"
 
-        # represent at most 6 time points
-        if len(self.time_points) > 6:
-            for TP in self.time_points[:3]:
-                repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
-                repr_str += f"{self.one_TP_repr(TP)}\n\n"
-
-            repr_str += f"\nSkipped time points {repr_array(self.time_points[3:-3])} ...\n\n\n"
-
-            for TP in self.time_points[-3:]:
-                repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
-                repr_str += f"{self.one_TP_repr(TP)}\n\n"
-
-        else:
-            for TP in self.time_points:
-                repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
-                repr_str += f"{self.one_TP_repr(TP)}\n\n"
+        repr_str += self._head()
 
         return repr_str
-
-    def one_TP_repr(self, time_point: TimePoint, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
-        """
-        Representation of a single time point in this TemporalDataFrame to print.
-        :param time_point: the time point to represent.
-        :param n: the number of rows to print. Defaults to all.
-        :param func: the name of the function to use to limit the output ('head' or 'tail')
-        :return: a representation of a single time point in this TemporalDataFrame object
-        """
-        return repr(self._df[time_point][self.columns].__getattr__(func)(n=n))
 
     def __getitem__(self, index: Union[PreSlicer,
                                        Tuple[PreSlicer],

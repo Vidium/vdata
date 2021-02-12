@@ -9,12 +9,13 @@ import numpy as np
 import pandas as pd
 import abc
 from pathlib import Path
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator, Mapping, TypeVar, Collection
+from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator, Mapping, TypeVar, Collection,\
+    Any
 
 import vdata
 from ..arrays import VBaseArrayContainer
 from ..._TDF.views import dataframe
-from ..._IO import generalLogger, VTypeError
+from ..._IO import generalLogger, VTypeError, VValueError, ShapeError
 
 
 # ====================================================
@@ -193,7 +194,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         return self._array_container[item][self._time_points_slicer, self._obs_slicer, self._var_slicer]
 
-    def __setitem__(self, key: str, value: Union['vdata.TemporalDataFrame', 'dataframe.ViewTemporalDataFrame']) -> None:
+    def __setitem__(self, key: str, value: Any) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
         :param key: key for storing a data item in this view.
@@ -295,9 +296,27 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['vda
         :param value: a data item to store.
         """
         if not isinstance(value, dict):
-            raise VTypeError("'value' parameter must be a dictionary of TimePoints:")
+            raise VTypeError(f"Cannot set obsp view '{key}' from non dict object.")
+
+        if not all([isinstance(tp, vdata.TimePoint) and tp in self._time_points_slicer
+                    for tp in value.keys()]):
+            raise VValueError("Time points do not match.")
 
         for tp, DF in value.items():
+            if not isinstance(DF, pd.DataFrame):
+                raise VTypeError(f"Value at time point '{tp}' should be a pandas DataFrame.")
+
+            _index = self._array_container[key][tp].loc[self._obs_slicer]
+
+            if not DF.shape == (len(_index), len(_index)):
+                raise ShapeError(f"DataFrame at time point '{tp}' should have shape ({len(_index)}, {len(_index)}).")
+
+            if not DF.index.equals(_index):
+                raise VValueError(f"Index of DataFrame at time point '{tp}' does not match.")
+
+            if not DF.columns.equals(_index):
+                raise VValueError(f"Column names of DataFrame at time point '{tp}' do not match.")
+
             self._array_container[key][tp].loc[self._obs_slicer, self._obs_slicer] = DF
 
     @property
@@ -368,8 +387,19 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['vda
                 arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
     def set_index(self, values: Collection) -> None:
-        # TODO
-        print('WIP')
+        """
+        Set a new index for rows and columns.
+        :param values: collection of new index values.
+        """
+        for set_name in self.keys():
+
+            index_cumul = 0
+            for arr in self[set_name].values():
+
+                arr.index = values[index_cumul:index_cumul + len(arr)]
+                arr.columns = values[index_cumul:index_cumul + len(arr)]
+
+                index_cumul += len(arr)
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
@@ -395,14 +425,6 @@ class ViewVBase2DArrayContainer(ViewVBaseArrayContainer, abc.ABC, Mapping[str, D
         :return: data item stored in _data under the given key.
         """
         return self._array_container[item].loc[self._var_slicer]
-
-    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
-        """
-        Set a specific data item in this view. The given data item must have the correct shape.
-        :param key: key for storing a data item in this view.
-        :param value: a data item to store.
-        """
-        self[key] = value
 
     def values(self) -> ValuesView[pd.DataFrame]:
         """
@@ -449,6 +471,23 @@ class ViewVBase2DArrayContainer(ViewVBaseArrayContainer, abc.ABC, Mapping[str, D
 
 class ViewVVarmArrayContainer(ViewVBase2DArrayContainer):
 
+    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
+        """
+        Set a specific data item in this view. The given data item must have the correct shape.
+        :param key: key for storing a data item in this view.
+        :param value: a data item to store.
+        """
+        if not isinstance(value, pd.DataFrame):
+            raise VTypeError(f"Cannot set varm view '{key}' from non pandas DataFrame object.")
+
+        if not self.shape[1] == value.shape[0]:
+            raise ShapeError(f"Cannot set varm '{key}' because of shape mismatch.")
+
+        if not pd.Index(self._var_slicer).equals(value.index):
+            raise VValueError("Index does not match.")
+
+        self[key] = value
+
     @property
     def shape(self) -> Tuple[int, int, List[int]]:
         """
@@ -473,6 +512,28 @@ class ViewVVarmArrayContainer(ViewVBase2DArrayContainer):
 
 
 class ViewVVarpArrayContainer(ViewVBase2DArrayContainer):
+
+    def __setitem__(self, key: str, value: pd.DataFrame) -> None:
+        """
+        Set a specific data item in this view. The given data item must have the correct shape.
+        :param key: key for storing a data item in this view.
+        :param value: a data item to store.
+        """
+        if not isinstance(value, pd.DataFrame):
+            raise VTypeError(f"Cannot set varp view '{key}' from non pandas DataFrame object.")
+
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set varp '{key}' because of shape mismatch.")
+
+        _index = pd.Index(self._var_slicer)
+
+        if not _index.equals(value.index):
+            raise VValueError("Index does not match.")
+
+        if not _index.equals(value.columns):
+            raise VValueError("column names do not match.")
+
+        self[key] = value
 
     @property
     def shape(self) -> Tuple[int, int, int]:

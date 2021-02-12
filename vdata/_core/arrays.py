@@ -297,6 +297,30 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
 
         super().__init__(parent, data)
 
+    def __setitem__(self, key: str, value: D_TDF) -> None:
+        """
+        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
+        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+        :param value: a TemporalDataFrame to store.
+        """
+        if not isinstance(value, TemporalDataFrame):
+            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
+
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
+
+        _first_TDF = list(self.values())[0]
+        if not _first_TDF.time_points == value.time_points:
+            raise VValueError("Time points do not match.")
+
+        if not _first_TDF.index.equals(value.index):
+            raise VValueError("Index does not match.")
+
+        if not _first_TDF.columns.equals(value.columns):
+            raise VValueError("Column names do not match.")
+
+        self._data[key] = value
+
     @property
     def empty(self) -> bool:
         """
@@ -443,30 +467,6 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __setitem__(self, key: str, value: TemporalDataFrame) -> None:
-        """
-        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
-        :param key: key for storing a TemporalDataFrame in this VLayerArrayContainer.
-        :param value: a TemporalDataFrame to store.
-        """
-        if not isinstance(value, TemporalDataFrame):
-            raise VTypeError(f"Cannot set layer '{key}' from non TemporalDataFrame object.")
-
-        if not self.shape[1:] == value.shape:
-            raise ShapeError(f"Cannot set layer '{key}' because of shape mismatch.")
-
-        _first_TDF = list(self.values())[0]
-        if not _first_TDF.time_points == value.time_points:
-            raise VValueError("Time points do not match.")
-
-        if not _first_TDF.index.equals(value.index):
-            raise VValueError("Index does not match.")
-
-        if not _first_TDF.columns.equals(value.columns):
-            raise VValueError("Column names do not match.")
-
-        self._data[key] = value
-
     @property
     def name(self) -> Literal['layers']:
         """
@@ -556,15 +556,6 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __setitem__(self, key: str, value: D_TDF) -> None:
-        """
-        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
-        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
-        :param value: a TemporalDataFrame to store.
-        """
-        # TODO
-        raise NotImplementedError
-
     @property
     def name(self) -> Literal['obsm']:
         """
@@ -619,6 +610,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
 
                 _data[DF_dict_index] = TimePointDict({})
 
+                # noinspection PyTypeChecker
                 if not all(_time_points == data_time_points):
                     raise IncoherenceError(f"Time points of '{DF_dict_index}' ({data_time_points}) do not match "
                                            f"time_point's index. ({_time_points})")
@@ -670,8 +662,29 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         :param key: key for storing a set of DataFrames in this VObspArrayContainer.
         :param value: a set of DataFrames to store.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(value, dict):
+            raise VTypeError(f"Cannot set obsp '{key}' from non dict object.")
+
+        if not all([isinstance(tp, vdata.TimePoint) and tp in self._parent.time_points.value
+                    for tp in value.keys()]):
+            raise VValueError(f"Time points do not match.")
+
+        for tp, DF in value.items():
+            if not isinstance(DF, pd.DataFrame):
+                raise VTypeError(f"Value at time point '{tp}' should be a pandas DataFrame.")
+
+            _index = self._parent.obs.index_at(tp)
+
+            if not DF.shape == (len(_index), len(_index)):
+                raise ShapeError(f"DataFrame at time point '{tp}' should have shape ({len(_index)}, {len(_index)}).")
+
+            if not DF.index.equals(_index):
+                raise VValueError(f"Index of DataFrame at time point '{tp}' does not match.")
+
+            if not DF.columns.equals(_index):
+                raise VValueError(f"Column names of DataFrame at time point '{tp}' do not match.")
+
+        self._data[key] = TimePointDict(value)
 
     @property
     def empty(self) -> bool:
@@ -756,7 +769,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         for set_name in self.keys():
 
             index_cumul = 0
-            for tp, arr in self[set_name].items():
+            for arr in self[set_name].values():
                 arr.index = values[index_cumul:index_cumul + len(arr)]
                 arr.columns = values[index_cumul:index_cumul + len(arr)]
 
@@ -874,8 +887,16 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         :param key: key for storing a DataFrame in this VVarmArrayContainer.
         :param value: a DataFrame to store.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(value, pd.DataFrame):
+            raise VTypeError(f"Cannot set varm '{key}' from non pandas DataFrame object.")
+
+        if not self.shape[1] == value.shape[0]:
+            raise ShapeError(f"Cannot set varm '{key}' because of shape mismatch.")
+
+        if not self._parent.var.index.equals(value.index):
+            raise VValueError("Index does not match.")
+
+        self._data[key] = value
 
     @property
     def name(self) -> Literal['varm']:
@@ -958,8 +979,19 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         :param key: key for storing a DataFrame in this VVarpArrayContainer.
         :param value: a DataFrame to store.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(value, pd.DataFrame):
+            raise VTypeError(f"Cannot set varp '{key}' from non pandas DataFrame object.")
+
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set varp '{key}' because of shape mismatch.")
+
+        if not self._parent.var.index.equals(value.index):
+            raise VValueError("Index does not match.")
+
+        if not self._parent.var.index.equals(value.columns):
+            raise VValueError("column names do not match.")
+
+        self._data[key] = value
 
     @property
     def name(self) -> Literal['varp']:

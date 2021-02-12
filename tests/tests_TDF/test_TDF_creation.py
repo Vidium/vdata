@@ -17,7 +17,10 @@ def test_TDF_creation():
     #       time_points is None
     #           index is None
     TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=None, index=None, name=1)
-    assert repr(TDF) == "Empty TemporalDataFrame '1'\n", repr(TDF)
+    assert repr(TDF) == "Empty TemporalDataFrame '1'\n" \
+                        "Time points: []\n" \
+                        "Columns: []\n" \
+                        "Index: []", repr(TDF)
 
     #           index is a Collection of values
     TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=None, index=['a', 'b', 'c'],
@@ -281,11 +284,7 @@ def test_TDF_creation():
                         "1   2.0\n" \
                         "2   3.0\n" \
                         "3   4.0\n" \
-                        "4   5.0\n" \
-                        "5   6.0\n" \
-                        "6   7.0\n" \
-                        "7   8.0\n" \
-                        "8   9.0\n\n", repr(TDF)
+                        "4   5.0\n\n", repr(TDF)
 
     #           index is a Collection of values, same length as data
     TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=None,
@@ -297,11 +296,7 @@ def test_TDF_creation():
                         "b   2.0\n" \
                         "c   3.0\n" \
                         "d   4.0\n" \
-                        "e   5.0\n" \
-                        "f   6.0\n" \
-                        "g   7.0\n" \
-                        "h   8.0\n" \
-                        "i   9.0\n\n", repr(TDF)
+                        "e   5.0\n\n", repr(TDF)
 
     #       time_points is a Collection of time points
     #           index is None
@@ -314,33 +309,21 @@ def test_TDF_creation():
                         "1   2.0\n" \
                         "2   3.0\n" \
                         "3   4.0\n" \
-                        "4   5.0\n" \
-                        "5   6.0\n" \
-                        "6   7.0\n" \
-                        "7   8.0\n" \
-                        "8   9.0\n\n" \
+                        "4   5.0\n\n" \
                         "\033[4mTime point : 5.0 hours\033[0m\n" \
                         "   col1\n" \
                         "0   1.0\n" \
                         "1   2.0\n" \
                         "2   3.0\n" \
                         "3   4.0\n" \
-                        "4   5.0\n" \
-                        "5   6.0\n" \
-                        "6   7.0\n" \
-                        "7   8.0\n" \
-                        "8   9.0\n\n" \
+                        "4   5.0\n\n" \
                         "\033[4mTime point : 10.0 hours\033[0m\n" \
                         "   col1\n" \
                         "0   1.0\n" \
                         "1   2.0\n" \
                         "2   3.0\n" \
                         "3   4.0\n" \
-                        "4   5.0\n" \
-                        "5   6.0\n" \
-                        "6   7.0\n" \
-                        "7   8.0\n" \
-                        "8   9.0\n\n", repr(TDF)
+                        "4   5.0\n\n", repr(TDF)
 
     #           index is a Collection of values, same length as data
     TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=['0h', '5h', '10h'],
@@ -352,33 +335,21 @@ def test_TDF_creation():
                         "b   2.0\n" \
                         "c   3.0\n" \
                         "d   4.0\n" \
-                        "e   5.0\n" \
-                        "f   6.0\n" \
-                        "g   7.0\n" \
-                        "h   8.0\n" \
-                        "i   9.0\n\n" \
+                        "e   5.0\n\n" \
                         "\033[4mTime point : 5.0 hours\033[0m\n" \
                         "   col1\n" \
                         "a   1.0\n" \
                         "b   2.0\n" \
                         "c   3.0\n" \
                         "d   4.0\n" \
-                        "e   5.0\n" \
-                        "f   6.0\n" \
-                        "g   7.0\n" \
-                        "h   8.0\n" \
-                        "i   9.0\n\n" \
+                        "e   5.0\n\n" \
                         "\033[4mTime point : 10.0 hours\033[0m\n" \
                         "   col1\n" \
                         "a   1.0\n" \
                         "b   2.0\n" \
                         "c   3.0\n" \
                         "d   4.0\n" \
-                        "e   5.0\n" \
-                        "f   6.0\n" \
-                        "g   7.0\n" \
-                        "h   8.0\n" \
-                        "i   9.0\n\n", repr(TDF)
+                        "e   5.0\n\n", repr(TDF)
 
     #   time_list is a Collection of time points
     #       time_points is None
@@ -476,7 +447,7 @@ def test_TDF_creation():
                         "\n" \
                         "\033[4mTime point : 15.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
-                        "Columns: [col1]\n" \
+                        "Columns: ['col1']\n" \
                         "Index: []\n\n", repr(TDF)
 
     #           index is a Collection of values, same length as data
@@ -504,7 +475,7 @@ def test_TDF_creation():
                         "\n" \
                         "\033[4mTime point : 15.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
-                        "Columns: [col1]\n" \
+                        "Columns: ['col1']\n" \
                         "Index: []\n\n", repr(TDF)
 
     #           index is a Collection of values, divides data

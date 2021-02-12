@@ -29,10 +29,15 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
     return False
 
 
-def expand_obsp(data: Optional[Dict[str, pd.DataFrame]], time_points: Dict['vdata.TimePoint', pd.Index]) \
+def expand_obsp(data: Optional[Dict[str, pd.DataFrame]],
+                time_points: Dict['vdata.TimePoint', pd.Index]) \
         -> Dict[str, Dict['vdata.TimePoint', pd.DataFrame]]:
     """
-    TODO
+    Transform square pandas DataFrames describing an obsp into multiple smaller square pandas DataFrames by cutting
+    by TimePoint.
+    :param data: an optional dictionary of str:square pandas DataFrames.
+    :param time_points: a dictionary of TimePoint:index at TimePoint.
+    :return: a dictionary of str:dictionary of TimePoint:square DataFrame for the TimePoint.
     """
     if data is None:
         return {}
@@ -50,12 +55,17 @@ def expand_obsp(data: Optional[Dict[str, pd.DataFrame]], time_points: Dict['vdat
 def compact_obsp(obsp: Union[VObspArrayContainer, 'views.ViewVObspArrayContainer'], index: pd.Index) \
         -> Dict[str, pd.DataFrame]:
     """
-    TODO
+    Transform back a collection of small square DataFrames into a single large square DataFrame where all TimePoints
+    come after one another.
+    :param obsp: the obsp object to get the small square DataFrames from.
+    :param index: the final concatenated index over all TimePoints.
+    :return: a dictionary of str:large concatenated square DataFrame.
     """
     _obsp = {key: pd.DataFrame(index=index, columns=index) for key in obsp.keys()}
 
-    index_cumul = 0
     for key in obsp.keys():
+
+        index_cumul = 0
         for arr in obsp[key]:
             _obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
             index_cumul += len(arr)

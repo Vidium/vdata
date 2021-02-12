@@ -5,5 +5,6 @@
 # ====================================================
 # imports
 from .vdata import VData
+from .concatenate import concatenate
 
-__all__ = ['VData']
+__all__ = ['VData', 'concatenate']

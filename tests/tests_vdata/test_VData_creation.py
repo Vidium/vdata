@@ -475,17 +475,35 @@ def test_VData_creation_full():
                     obsm=obsm, obsp=obsp, varm=varm, varp=varp,
                     name=1)
 
-    print(v.obsp['pair'])
+    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+                      "layers: 'spliced', 'unspliced'\n\t" \
+                      "obs: 'data', 'data_bis'\n\t" \
+                      "var: 'gene_name'\n\t" \
+                      "time_points: 'value'\n\t" \
+                      "obsm: 'umap', 'pca'\n\t" \
+                      "varm: 'test'\n\t" \
+                      "obsp: 'pair'\n\t" \
+                      "varp: 'test2'\n\t" \
+                      "uns: 'colors', 'date'", repr(v)
 
     v.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
-    print(v.obsp['pair'])
+    assert repr(v.obsp['pair']) == "\033[4mTime point : 0.0 hours\033[0m\n" \
+                                   "     C_6  C_7  C_8  C_9\n" \
+                                   "C_6    1    1    1    1\n" \
+                                   "C_7    1    1    1    1\n" \
+                                   "C_8    1    1    1    1\n" \
+                                   "C_9    1    1    1    1\n\n" \
+                                   "\033[4mTime point : 5.0 hours\033[0m\n" \
+                                   "      C_10  C_11\n" \
+                                   "C_10     2     2\n" \
+                                   "C_11     2     2\n\n", repr(v.obsp['pair'])
 
 
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')
 
-    # test_VData_creation()
-    # test_VData_creation_on_dtype()
-    # test_VData_creation_with_uns()
+    test_VData_creation()
+    test_VData_creation_on_dtype()
+    test_VData_creation_with_uns()
     test_VData_creation_full()

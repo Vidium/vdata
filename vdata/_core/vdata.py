@@ -122,7 +122,7 @@ class VData:
 
         self._obsm = VObsmArrayContainer(self, data=_obsm)
         self._obsp = VObspArrayContainer(self, data=expand_obsp(_obsp, {tp: self._obs.index_at(tp)
-                                                                        for tp in self.time_points.value}))
+                                                                        for tp in self.obs.time_points}))
         self._varm = VVarmArrayContainer(self, data=_varm)
         self._varp = VVarpArrayContainer(self, data=_varp)
 
@@ -305,25 +305,36 @@ class VData:
         Set the obs data.
         :param df: a pandas DataFrame or a TemporalDataFrame.
         """
-        # TODO : is every thing checked here ?
         if not isinstance(df, (pd.DataFrame, TemporalDataFrame)):
             raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
-        if isinstance(df, pd.DataFrame):
-            if df.shape[0] != self.n_obs_total:
-                raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs_total}.")
+        if not df.shape[0] == self.obs.n_index_total:
+            raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs_total}.")
 
-        else:
-            if df.shape[1] != self.n_obs:
-                raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs}.")
-
-        # cast to TemporalDataFrame
         if isinstance(df, pd.DataFrame):
+            # cast to TemporalDataFrame
+            if self.obs.time_points_column_name is not None and self.obs.time_points_column_name in df.columns:
+                _time_col = self.obs.time_points_column_name
+            else:
+                _time_col = None
+
+            _time_list = self.obs.time_points_column if _time_col is None else None
+
             df = TemporalDataFrame(df,
-                                   time_list=self.obs.time_points_column,
-                                   time_col=self.obs.time_points_column_name,
+                                   time_list=_time_list,
+                                   time_col=_time_col,
                                    index=self.obs.index,
                                    name='obs')
+
+        else:
+            if df.time_points != self.obs.time_points:
+                raise VValueError("'obs' time points do not match.")
+
+            if not df.index.equals(self.obs.index):
+                raise VValueError("'obs' index does not match.")
+
+            if not df.columns.equals(self.obs.columns):
+                raise VValueError("'obs' column names do not match.")
 
         self._obs = df
 
@@ -385,7 +396,6 @@ class VData:
             self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
 
     # Array containers ---------------------------------------------------
-    # TODO : docstrings
     @property
     def layers(self) -> VLayerArrayContainer:
         """
@@ -393,43 +403,6 @@ class VData:
         :return: the layers.
         """
         return self._layers
-
-    # @layers.setter
-    # def layers(self, data: Optional[Union[ArrayLike, Dict[Any, ArrayLike]]]) -> None:
-    #     if data is None:
-    #         self._layers = VLayerArrayContainer(self, None)
-    #
-    #     else:
-    #         if isinstance(data, (np.ndarray, pd.DataFrame)):
-    #             data = {"data": data}
-    #
-    #         elif not isinstance(data, dict):
-    #             raise VTypeError("'layers' should be set with a 3D array-like object (numpy array) "
-    #                              "or with a dictionary of them.")
-    #
-    #         for arr_index, arr in data.items():
-    #             if self.n_time_points > 1:
-    #                 if not isinstance(arr, np.ndarray):
-    #                     raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object "
-    #                                      f"(numpy array).")
-    #
-    #                 elif arr.ndim != 3:
-    #                     raise VTypeError(f"'{arr_index}' array for layers should be a 3D array-like object "
-    #                                      f"(numpy array).")
-    #
-    #             else:
-    #                 if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-    #                     raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object "
-    #                                      f"(numpy array, pandas DataFrame).")
-    #
-    #                 elif arr.ndim not in (2, 3):
-    #                     raise VTypeError(f"'{arr_index}' array for layers should be a 2D or 3D array-like object "
-    #                                      f"(numpy array, pandas DataFrame).")
-    #
-    #                 elif arr.ndim == 2:
-    #                     data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
-    #
-    #         self._layers = VLayerArrayContainer(self, data)
 
     @property
     def obsm(self) -> VObsmArrayContainer:
@@ -439,41 +412,6 @@ class VData:
         """
         return self._obsm
 
-    # @obsm.setter
-    # def obsm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
-    #     if data is None:
-    #         self._obsm = VAxisArrayContainer(self, 'obs', None)
-    #
-    #     else:
-    #         if not isinstance(data, dict):
-    #             raise VTypeError("'obsm' should be set with a dictionary of 3D array-like objects (numpy array).")
-    #
-    #         for arr_index, arr in data.items():
-    #             if self.n_time_points > 1:
-    #                 if not isinstance(arr, np.ndarray):
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array).")
-    #
-    #                 elif arr.ndim != 3:
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for obsm should be a 3D array-like object (numpy array).")
-    #
-    #             else:
-    #                 if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for obsm should be a 2D or 3D array-like object "
-    #                         f"(numpy array, pandas DataFrame).")
-    #
-    #                 elif arr.ndim not in (2, 3):
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for obsm should be a 2D or 3D array-like object "
-    #                         f"(numpy array, pandas DataFrame).")
-    #
-    #                 elif arr.ndim == 2:
-    #                     data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
-    #
-    #         self._obsm = VAxisArrayContainer(self, 'obs', data)
-
     @property
     def obsp(self) -> VObspArrayContainer:
         """
@@ -481,29 +419,6 @@ class VData:
         :return: the obsp.
         """
         return self._obsp
-
-    # @obsp.setter
-    # def obsp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
-    #     if data is None:
-    #         self._obsp = VPairwiseArrayContainer(self, 'obs', None)
-    #
-    #     else:
-    #         if not isinstance(data, dict):
-    #             raise VTypeError(
-    #                 "'obsp' should be set with a dictionary of 2D array-like objects (numpy array).")
-    #
-    #         for arr_index, arr in data.items():
-    #             if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-    #                 raise VTypeError(
-    #                     f"'{arr_index}' array for obsp should be a 2D array-like object "
-    #                     f"(numpy array, pandas DataFrame).")
-    #
-    #             elif arr.ndim != 2:
-    #                 raise VTypeError(
-    #                     f"'{arr_index}' array for obsm should be a 2D array-like object "
-    #                     f"(numpy array, pandas DataFrame).")
-    #
-    #         self._obsp = VPairwiseArrayContainer(self, 'obs', data)
 
     @property
     def varm(self) -> VVarmArrayContainer:
@@ -513,43 +428,6 @@ class VData:
         """
         return self._varm
 
-    # @varm.setter
-    # def varm(self, data: Optional[Dict[Any, ArrayLike_3D]]) -> None:
-    #     if data is None:
-    #         self._varm = VAxisArrayContainer(self, 'var', None)
-    #
-    #     else:
-    #         if not isinstance(data, dict):
-    #             raise VTypeError("'varm' should be set with a dictionary of 3D array-like objects (numpy array).")
-    #
-    #         for arr_index, arr in data.items():
-    #             if self.n_time_points > 1:
-    #                 if not isinstance(arr, np.ndarray):
-    #                     raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object "
-    #                                      f"(numpy array).")
-    #
-    #                 elif arr.ndim != 3:
-    #                     raise VTypeError(f"'{arr_index}' array for varm should be a 3D array-like object "
-    #                                      f"(numpy array).")
-    #
-    #             else:
-    #                 if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} "
-    #                         f"3D array-like object "
-    #                         f"(numpy array{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
-    #
-    #                 elif arr.ndim not in (2, 3):
-    #                     raise VTypeError(
-    #                         f"'{arr_index}' array for varm should be a{' 2D or' if self.n_time_points == 1 else ''} "
-    #                         f"3D array-like object "
-    #                         f"(numpy array{', pandas DataFrame' if self.n_time_points == 1 else ''}).")
-    #
-    #                 elif arr.ndim == 2:
-    #                     data[arr_index] = reshape_to_3D(arr, np.zeros(len(arr)))
-    #
-    #         self._varm = VAxisArrayContainer(self, 'var', data)
-
     @property
     def varp(self) -> VVarpArrayContainer:
         """
@@ -557,26 +435,6 @@ class VData:
         :return: the varp.
         """
         return self._varp
-
-    # @varp.setter
-    # def varp(self, data: Optional[Dict[Any, ArrayLike_2D]]) -> None:
-    #     if data is None:
-    #         self._varp = VPairwiseArrayContainer(self, 'var', None)
-    #
-    #     else:
-    #         if not isinstance(data, dict):
-    #             raise VTypeError("'varp' should be set with a dictionary of 2D array-like objects (numpy array).")
-    #
-    #         for arr_index, arr in data.items():
-    #             if not isinstance(arr, (np.ndarray, pd.DataFrame)):
-    #                 raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object "
-    #                                  f"(numpy array, pandas DataFrame).")
-    #
-    #             elif arr.ndim != 2:
-    #                 raise VTypeError(f"'{arr_index}' array for varp should be a 2D array-like object "
-    #                                  f"(numpy array, pandas DataFrame).")
-    #
-    #         self._varp = VPairwiseArrayContainer(self, 'var', data)
 
     # Special ------------------------------------------------------------
     @property
@@ -844,7 +702,7 @@ class VData:
                     if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
                         verified_time_list = data.time_points_column
 
-                    layers = {'data': self._check_df_types(data)}
+                    layers = {'data': self._check_df_types(data.copy())}
 
                 elif isinstance(data, dict):
                     generalLogger.debug("    1. \u2713 'data' is a dictionary.")
@@ -868,6 +726,8 @@ class VData:
                                 verified_time_list = layers[str(key)].time_points_column
 
                         else:
+                            value = value.copy()
+
                             if obs_index is None:
                                 obs_index = value.index
                                 var_index = value.columns
@@ -1235,19 +1095,13 @@ class VData:
         generalLogger.debug("Time points were coherent across arrays.")
 
         # if data was given as a dataframe, check that obs and data match in row names
-        if self.obs.empty and obs_index is not None:
-            self.obs = pd.DataFrame(index=obs_index)
-
-        elif obs_index is not None:
+        if obs_index is not None:
             if not self.obs.index.equals(obs_index):
                 raise VValueError(f"Indexes in dataFrames 'data' ({obs_index}) and 'obs' ({self.obs.index}) "
                                   f"do not match.")
 
         # if data was given as a dataframe, check that var row names match data col names
-        if self.var.empty and var_index is not None:
-            self.var = pd.DataFrame(index=var_index)
-
-        elif var_index is not None:
+        if var_index is not None:
             if not self.var.index.equals(var_index):
                 raise VValueError(f"Columns in dataFrame 'data' ({var_index}) do not match index of 'var' "
                                   f"({self.var.index}).")

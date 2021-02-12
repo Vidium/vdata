@@ -16,7 +16,7 @@ def test_TDF_sub_setting():
                                   time_col=None, time_points=['0h', '5h', '10h'],
                                   index=['a', 'b', 'c'], name=1)
     assert repr(TDF['0h']) == "View of TemporalDataFrame '1'\n" \
-                              "\033[4mTime point : 0.0h\033[0m\n" \
+                              "\033[4mTime point : 0.0 hours\033[0m\n" \
                               "   col1\n" \
                               "a   1.0\n" \
                               "b   2.0\n" \
@@ -29,6 +29,7 @@ def test_TDF_sub_setting():
         assert e.msg == "Time points not found in this TemporalDataFrame."
 
     assert repr(TDF['0h', 'z']) == "Empty View of TemporalDataFrame '1'\n" \
+                                   "Time points: []\n" \
                                    "Columns: ['col1']\n" \
                                    "Index: []", repr(TDF['0h', 'z'])
 
@@ -38,7 +39,7 @@ def test_TDF_sub_setting():
                                   time_col=None, time_points=[0., .5, 1.],
                                   index=['a', 'b', 'c'], name=1)
     assert repr(TDF[0]) == "View of TemporalDataFrame '1'\n" \
-                           "\033[4mTime point : 0.0\033[0m\n" \
+                           "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                            "   col1\n" \
                            "a   1.0\n" \
                            "b   2.0\n" \

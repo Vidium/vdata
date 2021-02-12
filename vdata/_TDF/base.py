@@ -12,7 +12,7 @@ from typing_extensions import Literal
 
 import vdata
 from vdata.NameUtils import PreSlicer
-from vdata.utils import TimePoint
+from vdata.utils import TimePoint, repr_array
 
 
 # ====================================================
@@ -21,8 +21,6 @@ class BaseTemporalDataFrame(ABC):
     """
     Base abstract class for TemporalDataFrames and ViewTemporalDataFrames.
     """
-
-    __base_repr_str = ''
 
     @property
     @abstractmethod
@@ -264,51 +262,90 @@ class BaseTemporalDataFrame(ABC):
 
         return False
 
-    # TODO : these two functions should print and not return, to be usable by the user
-    # TODO : they could be used better with time points in one_tp_repr()
-    def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+    def _head_tail_func(self, n: int = 5, time_points: PreSlicer = slice(None, None, None),
+                        func: Literal['head', 'tail'] = 'head') -> str:
         """
-        This function returns the first n rows for the object based on position.
+        This function returns the first (or last) n rows for the object based on position.
+        For negative values of n, this function returns all rows except the last (or first) n rows.
 
-        For negative values of n, this function returns all rows except the last n rows.
+        :param n: number of row to represent.
+        :param time_points: time points to be represented
+        :param func: function to use. Either 'head' or 'tail'.
+
         :return: the first n rows.
         """
-        sub_TDF = self[time_points]
+        repr_str = ""
 
-        if sub_TDF.n_time_points:
-            repr_str = ""
-            for TP in sub_TDF.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{sub_TDF[TP].one_TP_repr(TP, n)}\n"
+        if time_points == slice(None):
+            time_points = self.time_points
+
+        if len(time_points):
+            sub_TDF = self[time_points]
+
+            TP_cnt = 0
+            suppl_TPs = []
+
+            for TP in time_points:
+                if TP_cnt < 5:
+                    repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
+
+                    if TP in sub_TDF.time_points:
+                        repr_str += f"{getattr(sub_TDF[TP].to_pandas(), func)(n)}\n\n"
+                        TP_cnt += 1
+
+                    else:
+                        repr_str += f"Empty DataFrame\n" \
+                                    f"Columns: {[col for col in self.columns]}\n" \
+                                    f"Index: []\n\n"
+
+                else:
+                    suppl_TPs.append(TP)
+
+            if len(suppl_TPs):
+                repr_str += f"\nSkipped time points {repr_array(suppl_TPs)} ...\n\n\n"
 
         else:
-            repr_str = f"Empty {self.__class__.__base_repr_str}\n" \
-                       f"Columns: {[col for col in sub_TDF.columns]}\n" \
-                       f"Index: {[idx for idx in sub_TDF.index]}"
+            repr_str = f"Time points: []\n" \
+                       f"Columns: {[col for col in self.columns]}\n" \
+                       f"Index: {[idx for idx in self.index]}"
 
         return repr_str
 
-    def tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+    def _head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+        """
+        This function returns the first n rows for the object based on position.
+        For negative values of n, this function returns all rows except the last n rows.
+
+        :return: the first n rows.
+        """
+        return self._head_tail_func(n, time_points)
+
+    def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> None:
+        """
+        This function prints the first n rows for the object based on position.
+        For negative values of n, this function returns all rows except the last n rows.
+
+        :return: the first n rows.
+        """
+        print(self._head(n, time_points))
+
+    def _tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
         """
         This function returns the last n rows for the object based on position.
-
         For negative values of n, this function returns all rows except the first n rows.
+
         :return: the last n rows.
         """
-        sub_TDF = self[time_points]
+        return self._head_tail_func(n, time_points, 'tail')
 
-        if sub_TDF.n_time_points:
-            repr_str = ""
-            for TP in sub_TDF.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{sub_TDF[TP].one_TP_repr(TP, n, func='tail')}\n"
+    def tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> None:
+        """
+        This function prints the last n rows for the object based on position.
+        For negative values of n, this function returns all rows except the first n rows.
 
-        else:
-            repr_str = f"Empty {self.__class__.__base_repr_str}\n" \
-                       f"Columns: {[col for col in sub_TDF.columns]}\n" \
-                       f"Index: {[idx for idx in sub_TDF.index]}"
-
-        return repr_str
+        :return: the last n rows.
+        """
+        print(self._tail(n, time_points))
 
     def keys(self) -> pd.Index:
         """

@@ -46,14 +46,12 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
         write_data(obj.layers.data, save_file, 'layers')
         # save obs
         write_data(obj.obs, save_file, 'obs')
-        # TODO
-        # write_data(obj.obsm.data, save_file, 'obsm')
-        # write_data(obj.obsp.data, save_file, 'obsp')
+        write_data(obj.obsm.data, save_file, 'obsm')
+        write_data(obj.obsp.data, save_file, 'obsp')
         # save var
         write_data(obj.var, save_file, 'var')
-        # TODO
-        # write_data(obj.varm.data, save_file, 'varm')
-        # write_data(obj.varp.data, save_file, 'varp')
+        write_data(obj.varm.data, save_file, 'varm')
+        write_data(obj.varp.data, save_file, 'varp')
         # save time points
         write_data(obj.time_points, save_file, 'time_points')
         # save uns
@@ -93,8 +91,7 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
     generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame time_points")
     obj.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
 
-    # TODO
-    for dataset in (obj.layers,):  # (obj.obsm, obj.obsp, obj.varm, obj.varp):
+    for dataset in (obj.layers, obj.obsm, obj.obsp, obj.varm, obj.varp):
         generalLogger.info(f"{spacer(1)}Saving {dataset.name}")
         dataset.to_csv(directory, sep, na_rep, index, header, spacer=spacer(2))
 
@@ -209,8 +206,10 @@ def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0
         values = pd.Series(np.array(series.values))
         write_data(values, series_group, "values", key_level=key_level+1, log_func=log_func)
         # save categories
+        # noinspection PyUnresolvedReferences
         series_group.attrs["categories"] = np.array(series.values.categories, dtype='S')
         # save ordered
+        # noinspection PyUnresolvedReferences
         series_group.attrs["ordered"] = series.values.ordered
 
     # Series of regular data

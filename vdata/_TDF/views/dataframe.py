@@ -28,8 +28,6 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    __base_repr_str = 'View of TemporalDataFrame'
-
     def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', DataFrame],
                  tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
         """
@@ -75,31 +73,15 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Description for this view of a TemporalDataFrame object to print.
         :return: a description of this view of a TemporalDataFrame object.
         """
-        if self.n_time_points:
-            repr_str = f"{ViewTemporalDataFrame.__base_repr_str} '{self.name}'\n"
-            for TP in self.time_points:
-                repr_str += f"\033[4mTime point : {TP}\033[0m\n"
-                repr_str += f"{self.one_TP_repr(TP)}\n\n"
+        if not self.empty:
+            repr_str = f"View of TemporalDataFrame '{self.name}'\n"
 
         else:
-            repr_str = f"Empty {ViewTemporalDataFrame.__base_repr_str} '{self.name}'\n" \
-                       f"Columns: {[col for col in self.columns]}\n" \
-                       f"Index: {[idx for idx in self.index]}"
+            repr_str = f"Empty View of TemporalDataFrame '{self.name}'\n"
+
+        repr_str += self._head()
 
         return repr_str
-
-    def one_TP_repr(self, time_point: TimePoint, n: Optional[int] = None, func: Literal['head', 'tail'] = 'head'):
-        """
-        Representation of a single time point in this view of a TemporalDataFrame to print.
-        :param time_point: the time point to represent.
-        :param n: the number of rows to print. Defaults to all.
-        :param func: the name of the function to use to limit the output ('head' or 'tail').
-        :return: a representation of a single time point in this view of a TemporalDataFrame object.
-        """
-        if time_point not in self._tp_slicer:
-            raise VValueError(f"TimePoint '{time_point}' is not present in this view.")
-
-        return repr(self._parent_data[time_point].loc[self.index_at(time_point), self.columns].__getattr__(func)(n=n))
 
     def __getitem__(self, index: Union[PreSlicer,
                                        Tuple[PreSlicer],
