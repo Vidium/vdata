@@ -406,16 +406,14 @@ def test_VData_creation_on_dtype():
     data = pd.DataFrame(expr_data_simple, columns=['g1', 'g2', 'g3'])
 
     v = vdata.VData(data, time_points=time_points, obs=obs, var=var, dtype=np.float128, name=43)
-    assert v.layers['data'].dtypes.equals(pd.Series([np.float128, np.float128, np.float128],
-                                                    index=['g1', 'g2', 'g3'])), v.layers['data'].dtypes
+
+    assert v.layers['data'].dtype == np.float128, v.layers['data'].dtype
 
     # data is a dict[str, pd.DataFrame]
     data = expr_data_medium
 
     v = vdata.VData(data, time_points=time_points, obs=obs, var=var, dtype=np.float128, name=44)
-    assert v.layers['spliced'].dtypes.equals(pd.Series([np.float128, np.float128, np.float128],
-                                                       index=['g1', 'g2', 'g3'])), \
-        v.layers['spliced'].dtypes
+    assert v.layers['spliced'].dtype == np.float128, v.layers['spliced'].dtype
 
     # data is a dict[str, np.array]
     data = expr_data_complex
@@ -426,8 +424,7 @@ def test_VData_creation_on_dtype():
                                   index=obs_index_data)
 
     v = vdata.VData(data, time_points=time_points, obs=obs, var=var, dtype=np.float128, name=45)
-    assert v.layers['spliced'].dtypes.equals(pd.Series([np.float128, np.float128, np.float128],
-                                                       index=['g1', 'g2', 'g3'])), v.layers['spliced'].dtypes
+    assert v.layers['spliced'].dtype == np.float128, v.layers['spliced'].dtype
 
 
 def test_VData_creation_with_uns():

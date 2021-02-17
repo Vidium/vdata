@@ -22,7 +22,7 @@ def copy_TemporalDataFrame(TDF: Union['vdata.TemporalDataFrame', 'views.ViewTemp
 
     return vdata.TemporalDataFrame(data=TDF.to_pandas(),
                                    time_list=_time_list,
-                                   time_col=TDF.time_points_column_name,
+                                   time_col_name=TDF.time_points_column_name,
                                    time_points=TDF.time_points,
                                    index=TDF.index.copy(),
                                    columns=TDF.columns.copy(),

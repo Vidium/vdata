@@ -92,21 +92,38 @@ def read_from_csv(directory: Union[Path, str],
                     generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f[:-4]}'.")
                     if time_list is None and time_col is None:
                         if metadata is not None:
-                            time_col = metadata['obs']['time_points_column_name']
+                            this_time_col = metadata['obs']['time_points_column_name']
+                        else:
+                            this_time_col = None
+                    else:
+                        this_time_col = time_col
 
                     data[f[:-4]] = TemporalDataFrame_read_csv(directory / f, time_list=time_list,
-                                                              time_col=time_col, time_points=time_points)
+                                                              time_col=this_time_col, time_points=time_points)
 
             else:
                 dataset_dict = {}
                 generalLogger.info(f"{spacer(1)}Reading group '{f}'.")
 
                 for dataset in os.listdir(directory / f):
-                    if f in ('layers', ):
-                        generalLogger.info(f"{spacer(2)} Reading {dataset}")
+                    if f in ('layers', 'obsm'):
+                        generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {dataset[:-4]}")
+                        if time_list is None and time_col is None:
+                            if metadata is not None:
+                                this_time_col = metadata[f][dataset[:-4]]['time_points_column_name']
+                            else:
+                                this_time_col = None
+                        else:
+                            this_time_col = time_col
+
                         dataset_dict[dataset[:-4]] = TemporalDataFrame_read_csv(directory / f / dataset,
                                                                                 time_list=time_list,
+                                                                                time_col=this_time_col,
                                                                                 time_points=time_points)
+
+                    elif f in ('varm', 'varp'):
+                        generalLogger.info(f"{spacer(2)} Reading pandas DataFrame {dataset}")
+                        dataset_dict[dataset[:-4]] = pd.read_csv(directory / f, index_col=0)
 
                     else:
                         raise NotImplementedError
@@ -136,19 +153,19 @@ def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
         specify the list of time points that the TemporalDataFrame should cover.
     :return: a TemporalDataFrame built from the .csv file.
     """
-    df = pd.read_csv(file, index_col=0, sep=sep, )
+    df = pd.read_csv(file, index_col=0, sep=sep)
 
-    if time_list is None and time_col is None:
-        time_list = df['Time_Point'].values.tolist()
+    if time_list is None and time_col == 'Time_Point':
+        time_list = df[time_col].values.tolist()
+        del df[time_col]
+        time_col = None
 
-    del df['Time_Point']
-
-    return vdata.TemporalDataFrame(df, time_list=time_list, time_col=time_col, time_points=time_points)
+    return vdata.TemporalDataFrame(df, time_list=time_list, time_col_name=time_col, time_points=time_points)
 
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], 'NameUtils.ArrayLike_2D']],
+def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.ndarray, pd.DataFrame]]],
                    obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
@@ -272,6 +289,9 @@ class H5GroupReader:
     def __exit__(self, *_):
         self.group.__exit__()
 
+    def close(self):
+        self.group.file.close()
+
     @property
     def name(self) -> str:
         """
@@ -279,6 +299,22 @@ class H5GroupReader:
         :return: the group's name.
         """
         return self.group.name
+
+    @property
+    def filename(self) -> str:
+        """
+        Get the filename of the group.
+        :return: the group's filename.
+        """
+        return self.group.file.filename
+
+    @property
+    def parent(self) -> 'H5GroupReader':
+        """
+        Get the parent H5GroupReader.
+        :return: the parent H5GroupReader.
+        """
+        return H5GroupReader(self.group.parent)
 
     def keys(self) -> AbstractSet:
         """
@@ -366,22 +402,22 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
             'uns': {}}
 
     # import data from file
-    with H5GroupReader(h5py.File(file, "r")) as importFile:
-        for key in importFile.keys():
-            generalLogger.info(f"Got key : '{key}'.")
+    importFile = H5GroupReader(h5py.File(file, "r"))
+    for key in importFile.keys():
+        generalLogger.info(f"Got key : '{key}'.")
 
-            if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
-                type_ = importFile[key].attrs('type')
-                data[key] = func_[type_](importFile[key])
+        if key in ('obs', 'var', 'time_points', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
+            type_ = importFile[key].attrs('type')
+            data[key] = func_[type_](importFile[key])
 
-            else:
-                generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
+        else:
+            generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
     return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
                        data['time_points'], data['uns'], dtype=dtype,
-                       name=name)
+                       name=name, file=importFile)
 
 
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
@@ -435,40 +471,19 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     generalLogger.info(f"{spacer(level)}Reading TemporalDataFrame {group.name}.")
 
     # get column order
-    dataset_type = cast(H5GroupReader, group['column_order']).attrs("type")
-    col_order = func_[dataset_type](group['column_order'], level=level + 1)
+    dataset_type = cast(H5GroupReader, group['columns']).attrs("type")
+    columns = func_[dataset_type](group['columns'], level=level + 1)
 
     # get index
     dataset_type = cast(H5GroupReader, group['index']).attrs("type")
     index = func_[dataset_type](group['index'], level=level + 1)
 
     # get time_col
-    dataset_type = cast(H5GroupReader, group['time_col']).attrs("type")
-    time_col = func_[dataset_type](group['time_col'], level=level + 1)
+    dataset_type = cast(H5GroupReader, group['time_col_name']).attrs("type")
+    time_col_name = func_[dataset_type](group['time_col_name'], level=level + 1)
 
-    # get time_list
-    if time_col is None:
-        dataset_type = cast(H5GroupReader, group['time_list']).attrs("type")
-        time_list = func_[dataset_type](group['time_list'], level=level + 1)
-    else:
-        time_list = None
-
-    # get columns in right order
-    data = {}
-
-    log_func: Literal['debug', 'info'] = 'info'
-
-    for i, col in enumerate(col_order):
-        data[col] = read_h5_series(cast(H5GroupReader, group[str(col)]), index, level=level+1, log_func=log_func)
-
-        if log_func == 'info' and i > 0:
-            log_func = 'debug'
-
-    if getLoggingLevel() != 'DEBUG':
-        generalLogger.info(f"{spacer(level+1)}...")
-
-    return vdata.TemporalDataFrame(data, time_list=time_list, time_col=time_col,
-                                   index=index, name=group.name.split("/")[-1])
+    return vdata.TemporalDataFrame(group['data'].group, time_col_name=time_col_name,
+                                   index=index, columns=columns, name=group.name.split("/")[-1])
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
@@ -485,7 +500,8 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
 
     # simple Series
     if group.isinstance(h5py.Dataset):
-        return pd.Series(read_h5_array(group, level=level+1, log_func=log_func), index=index)
+        values = read_h5_array(group, level=level+1, log_func=log_func)
+        return pd.Series(values, index=index)
 
     # categorical Series
     elif group.isinstance(h5py.Group):
@@ -538,6 +554,12 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
 
 
 def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
+    """
+    Function for reading 'None' from a .h5 file.
+
+    :param _: a H5GroupReader from which to read a value.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    """
     generalLogger.info(f"{spacer(level)}Reading None.")
     return None
 

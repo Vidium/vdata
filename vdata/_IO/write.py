@@ -16,7 +16,7 @@ from typing_extensions import Literal
 
 import vdata
 from .utils import parse_path
-from .logger import generalLogger, getLoggingLevel
+from .logger import generalLogger
 from .errors import VPathError
 from ..NameUtils import H5Group
 from .. import _TDF
@@ -53,6 +53,7 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
         write_data(obj.varm.data, save_file, 'varm')
         write_data(obj.varp.data, save_file, 'varp')
         # save time points
+        obj.time_points.value = [str(e) for e in obj.time_points.value]
         write_data(obj.time_points, save_file, 'time_points')
         # save uns
         write_data(obj.uns, save_file, 'uns')
@@ -81,7 +82,15 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
 
     # save metadata
     with open(directory / ".metadata.json", 'w') as metadata:
-        json.dump({"obs": {"time_points_column_name": obj.obs.time_points_column_name}}, metadata)
+        json.dump({"obs": {"time_points_column_name": obj.obs.time_points_column_name},
+                   "obsm": {obsm_TDF_name:
+                            {"time_points_column_name": obsm_TDF.time_points_column_name if
+                                obsm_TDF.time_points_column_name is not None else 'Time_Point'}
+                            for obsm_TDF_name, obsm_TDF in obj.obsm.items()},
+                   "layers": {layer_TDF_name:
+                              {"time_points_column_name": layer_TDF.time_points_column_name if
+                                  layer_TDF.time_points_column_name is not None else 'Time_Point'}
+                              for layer_TDF_name, layer_TDF in obj.layers.items()}}, metadata)
 
     # save matrices
     generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame obs")
@@ -167,23 +176,17 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
     df_group.attrs['type'] = 'TDF'
 
     # save column order
-    write_data(data.columns, df_group, 'column_order', key_level=key_level + 1)
+    write_data(data.columns, df_group, 'columns', key_level=key_level + 1)
 
     # save index and series
     write_data(data.index, df_group, 'index', key_level=key_level + 1)
-    write_data(data.time_points_column_name, df_group, 'time_col', key_level=key_level + 1)
-    write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1)
+    write_data(data.time_points_column_name, df_group, 'time_col_name', key_level=key_level + 1)
 
-    log_func: Literal['debug', 'info'] = 'info'
+    data_group = df_group.create_group('data', track_order=True)
 
-    for i, (col_name, series) in enumerate(data.items()):
-        write_series(series, df_group, str(col_name), key_level=key_level + 1, log_func=log_func)
-
-        if log_func == 'info' and i > 0:
-            log_func = 'debug'
-
-    if getLoggingLevel() != 'DEBUG':
-        generalLogger.info(f"{spacer(key_level+1)}...")
+    for time_point in data.time_points:
+        generalLogger.info(f"{spacer(key_level+1)}Saving time point {time_point}")
+        data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True)
 
 
 @write_data.register(pd.Series)

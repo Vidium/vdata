@@ -16,15 +16,15 @@ def test_TDF_creation():
     #   time_list is None
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=None, index=None, name=1)
+    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col_name=None, time_points=None, index=None, name=1)
     assert repr(TDF) == "Empty TemporalDataFrame '1'\n" \
                         "Time points: []\n" \
                         "Columns: []\n" \
                         "Index: []", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=None, index=['a', 'b', 'c'],
-                                  name=2)
+    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col_name=None, time_points=None,
+                                  index=['a', 'b', 'c'], name=2)
     assert repr(TDF) == "Empty TemporalDataFrame '2'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -33,7 +33,7 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=['0h', '5h'], index=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col_name=None, time_points=['0h', '5h'], index=None,
                                   name=3)
     assert repr(TDF) == "Empty TemporalDataFrame '3'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -47,7 +47,7 @@ def test_TDF_creation():
                         "Index: []\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col=None, time_points=['0h', '5h'],
+    TDF = vdata.TemporalDataFrame(data=None, time_list=None, time_col_name=None, time_points=['0h', '5h'],
                                   index=['a', 'b', 'c'], name=4)
     assert repr(TDF) == "Empty TemporalDataFrame '4'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -63,7 +63,7 @@ def test_TDF_creation():
     #   time_list is a time point
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col=None, time_points=None, index=None, name=5)
+    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col_name=None, time_points=None, index=None, name=5)
     assert repr(TDF) == "Empty TemporalDataFrame '5'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -71,7 +71,7 @@ def test_TDF_creation():
                         "Index: [0]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col=None, time_points=None, index=['a'], name=6)
+    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col_name=None, time_points=None, index=['a'], name=6)
     assert repr(TDF) == "Empty TemporalDataFrame '6'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -80,7 +80,7 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col=None, time_points=['0h', '5h'], index=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col_name=None, time_points=['0h', '5h'], index=None,
                                   name=7)
     assert repr(TDF) == "Empty TemporalDataFrame '7'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -94,7 +94,7 @@ def test_TDF_creation():
                         "Index: []\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col=None, time_points=['0h', '5h'], index=['a'],
+    TDF = vdata.TemporalDataFrame(data=None, time_list='0h', time_col_name=None, time_points=['0h', '5h'], index=['a'],
                                   name=8)
     assert repr(TDF) == "Empty TemporalDataFrame '8'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -110,7 +110,7 @@ def test_TDF_creation():
     #   time_list is a Collection of time points
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col=None, time_points=None, index=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col_name=None, time_points=None, index=None,
                                   name=9)
     assert repr(TDF) == "Empty TemporalDataFrame '9'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -124,7 +124,7 @@ def test_TDF_creation():
                         "Index: [1]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col=None, time_points=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col_name=None, time_points=None,
                                   index=['a', 'b'], name=10)
     assert repr(TDF) == "Empty TemporalDataFrame '10'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -139,8 +139,8 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col=None, time_points=['0h', '5h', '10h'],
-                                  index=None, name=11)
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col_name=None,
+                                  time_points=['0h', '5h', '10h'], index=None, name=11)
     assert repr(TDF) == "Empty TemporalDataFrame '11'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -157,8 +157,8 @@ def test_TDF_creation():
                         "Index: []\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col=None, time_points=['0h', '5h', '10h'],
-                                  index=['a', 'b'], name=12)
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['0h', '5h'], time_col_name=None,
+                                  time_points=['0h', '5h', '10h'], index=['a', 'b'], name=12)
     assert repr(TDF) == "Empty TemporalDataFrame '12'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -177,7 +177,7 @@ def test_TDF_creation():
     #   time_list is '*'
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col=None, time_points=None, index=None, name=13)
+    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col_name=None, time_points=None, index=None, name=13)
     assert repr(TDF) == "Empty TemporalDataFrame '13'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -185,7 +185,7 @@ def test_TDF_creation():
                         "Index: [0]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col=None, time_points=None, index=['a'], name=14)
+    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col_name=None, time_points=None, index=['a'], name=14)
     assert repr(TDF) == "Empty TemporalDataFrame '14'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -194,7 +194,7 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col=None, time_points=['0h', '5h'], index=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col_name=None, time_points=['0h', '5h'], index=None,
                                   name=15)
     assert repr(TDF) == "Empty TemporalDataFrame '15'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -208,7 +208,7 @@ def test_TDF_creation():
                         "Index: [0]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col=None, time_points=['0h', '5h'], index=['a'],
+    TDF = vdata.TemporalDataFrame(data=None, time_list='*', time_col_name=None, time_points=['0h', '5h'], index=['a'],
                                   name=16)
     assert repr(TDF) == "Empty TemporalDataFrame '16'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -224,8 +224,8 @@ def test_TDF_creation():
     #   time_list is a Collection of '*'
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col=None, time_points=None, index=None,
-                                  name=17)
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col_name=None, time_points=None,
+                                  index=None, name=17)
     assert repr(TDF) == "Empty TemporalDataFrame '17'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                         "Empty DataFrame\n" \
@@ -233,7 +233,7 @@ def test_TDF_creation():
                         "Index: [0, 1, 2]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col=None, time_points=None,
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col_name=None, time_points=None,
                                   index=['a', 'b', 'c'], name=18)
     assert repr(TDF) == "Empty TemporalDataFrame '18'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
@@ -243,7 +243,7 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col=None, time_points=['0h', '5h'],
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col_name=None, time_points=['0h', '5h'],
                                   index=None, name=19)
     assert repr(TDF) == "Empty TemporalDataFrame '19'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -257,7 +257,7 @@ def test_TDF_creation():
                         "Index: [0, 1, 2]\n\n", repr(TDF)
 
     #           index is a Collection of values
-    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col=None, time_points=['0h', '5h'],
+    TDF = vdata.TemporalDataFrame(data=None, time_list=['*', '*', '*'], time_col_name=None, time_points=['0h', '5h'],
                                   index=['a', 'b', 'c'], name=20)
     assert repr(TDF) == "Empty TemporalDataFrame '20'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -276,7 +276,7 @@ def test_TDF_creation():
     #   time_list is None
     #       time_points is None
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=None, index=None, name=21)
+    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col_name=None, time_points=None, index=None, name=21)
     assert repr(TDF) == "TemporalDataFrame '21'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
                         "   col1\n" \
@@ -287,7 +287,7 @@ def test_TDF_creation():
                         "4   5.0\n\n", repr(TDF)
 
     #           index is a Collection of values, same length as data
-    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=None,
+    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col_name=None, time_points=None,
                                   index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=22)
     assert repr(TDF) == "TemporalDataFrame '22'\n" \
                         "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
@@ -300,8 +300,8 @@ def test_TDF_creation():
 
     #       time_points is a Collection of time points
     #           index is None
-    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=['0h', '5h', '10h'], index=None,
-                                  name=23)
+    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col_name=None, time_points=['0h', '5h', '10h'],
+                                  index=None, name=23)
     assert repr(TDF) == "TemporalDataFrame '23'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "   col1\n" \
@@ -326,7 +326,7 @@ def test_TDF_creation():
                         "4   5.0\n\n", repr(TDF)
 
     #           index is a Collection of values, same length as data
-    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col=None, time_points=['0h', '5h', '10h'],
+    TDF = vdata.TemporalDataFrame(data=data, time_list=None, time_col_name=None, time_points=['0h', '5h', '10h'],
                                   index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=24)
     assert repr(TDF) == "TemporalDataFrame '24'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -355,7 +355,7 @@ def test_TDF_creation():
     #       time_points is None
     #           index is None
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=None, index=None, name=25)
+                                  time_col_name=None, time_points=None, index=None, name=25)
     assert repr(TDF) == "TemporalDataFrame '25'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
                         "   col1\n" \
@@ -377,7 +377,7 @@ def test_TDF_creation():
 
     #           index is a Collection of values, same length as data
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=None,
+                                  time_col_name=None, time_points=None,
                                   index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=26)
     assert repr(TDF) == "TemporalDataFrame '26'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -400,7 +400,7 @@ def test_TDF_creation():
 
     #           index is a Collection of values, divides data
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=None,
+                                  time_col_name=None, time_points=None,
                                   index=['a', 'b', 'c'], name=27)
     assert repr(TDF) == "TemporalDataFrame '27'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -424,7 +424,7 @@ def test_TDF_creation():
     #       time_points is a Collection of time points
     #           index is None
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=['0h', '5h', '10h', '15h'],
+                                  time_col_name=None, time_points=['0h', '5h', '10h', '15h'],
                                   index=None, name=28)
     assert repr(TDF) == "TemporalDataFrame '28'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -452,7 +452,7 @@ def test_TDF_creation():
 
     #           index is a Collection of values, same length as data
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=['0h', '5h', '10h', '15h'],
+                                  time_col_name=None, time_points=['0h', '5h', '10h', '15h'],
                                   index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=29)
     assert repr(TDF) == "TemporalDataFrame '29'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -480,7 +480,7 @@ def test_TDF_creation():
 
     #           index is a Collection of values, divides data
     TDF = vdata.TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                  time_col=None, time_points=['0h', '5h', '10h'],
+                                  time_col_name=None, time_points=['0h', '5h', '10h'],
                                   index=['a', 'b', 'c'], name=30)
     assert repr(TDF) == "TemporalDataFrame '30'\n" \
                         "\033[4mTime point : 0.0 hours\033[0m\n" \

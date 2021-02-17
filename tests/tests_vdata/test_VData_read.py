@@ -20,10 +20,10 @@ def test_VData_read():
     # then load data
     # load from .h5 file
     v = vdata.read("~/vdata.h5", name=1)
-    assert repr(v) == "Vdata object with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
-                      "over 10 time points.\n\t" \
+    assert repr(v) == "Backed Vdata object with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
+                      "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
-                      "obs: 'Cell_Type', 'Day', 'Time_hour'\n\t" \
+                      "obs: 'Cell_Type', 'Day'\n\t" \
                       "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
                       "time_points: 'value'\n\t" \
                       "uns: 'colors', 'date'", repr(v)
@@ -33,7 +33,7 @@ def test_VData_read():
     assert repr(v) == "Vdata object with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
-                      "obs: 'Cell_Type', 'Day', 'Time_hour'\n\t" \
+                      "obs: 'Cell_Type', 'Day'\n\t" \
                       "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
                       "time_points: 'value'", repr(v)
 

@@ -4,13 +4,14 @@
 
 # ====================================================
 # imports
+import numpy as np
 import pandas as pd
 from typing import Any, Dict, Tuple, Union
 
 from vdata.utils import TimePoint
 from . import dataframe
 from . import views
-from .._IO import generalLogger
+from .._IO import generalLogger, VValueError
 
 
 # ====================================================
@@ -19,28 +20,27 @@ class _VAtIndexer:
     """
     Wrapper around pandas _AtIndexer object for use in TemporalDataFrames.
     The .at can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])    --> on indexes
+        - a single element (TDF.at[<element0>])    --> on indexes
 
     Allowed indexing elements are :
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
         self.__parent = parent
         self.__data = data
-        self.__pandas_data = parent.to_pandas()
 
-    def __getitem__(self, key: Tuple[Any, Any]) -> Any:
+    def __getitem__(self, key: Tuple[Any, Any]) -> 'views.ViewTemporalDataFrame':
         """
         Get values using the _AtIndexer.
         :param key: a tuple of row index and column name.
         :return: the value stored at the row index and column name.
         """
-        return self.__pandas_data.at[key]
+        return self.__parent[:, key[0], key[1]]
 
     def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
         """
@@ -48,35 +48,45 @@ class _VAtIndexer:
         :param key: a tuple of row index and column name.
         :param value: a value to set.
         """
-        row = key[0]
-        target_tp = None
-
-        for tp in self.__parent.time_points:
-            if row in self.__data[tp].index:
-                target_tp = tp
-                break
-
-        self.__data[target_tp].at[key] = value
+        self.__parent[:, key[0], key[1]] = value
 
 
 class _ViAtIndexer:
     """
     Wrapper around pandas _iAtIndexer object for use in TemporalDataFrames.
     The .iat can access elements by indexing with :
-        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
+        - a 2-tuple of elements (TDF.iat[<element0>, <element1>])             --> on indexes and columns
 
     Allowed indexing elements are :
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
         self.__parent = parent
         self.__data = data
-        self.__pandas_data = parent.to_pandas()
+
+    def __get_target_tp(self, index_key: int) -> Tuple[TimePoint, int]:
+        """
+        Get the time point where the data needs to be accessed.
+        :return: the time point and the index offset.
+        """
+        target_tp = None
+        cnt = 0
+        for time_point in self.__parent.time_points:
+            if index_key < cnt + len(self.__data[time_point]):
+                target_tp = time_point
+                break
+
+            cnt += len(self.__data[time_point])
+
+        if target_tp is None:
+            raise VValueError("Index out of range.")
+
+        return target_tp, cnt
 
     def __getitem__(self, key: Tuple[int, int]) -> Any:
         """
@@ -84,7 +94,9 @@ class _ViAtIndexer:
         :param key: a tuple of row # and column #
         :return: the value stored at the row # and column #.
         """
-        return self.__pandas_data.iat[key]
+        target_tp, offset = self.__get_target_tp(key[0])
+
+        return self.__data[target_tp][key[0] - offset, key[1]]
 
     def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
         """
@@ -92,20 +104,9 @@ class _ViAtIndexer:
         :param key: a tuple of row # and column #.
         :param value: a value to set.
         """
-        row = key[0]
-        target_tp = None
+        target_tp, offset = self.__get_target_tp(key[0])
 
-        row_cumul = 0
-        for tp in self.__parent.time_points:
-
-            if row_cumul + len(self.__data[tp]) >= row:
-                target_tp = tp
-                break
-
-            else:
-                row_cumul += len(self.__data[tp])
-
-        self.__data[target_tp].iat[key[0] - row_cumul, key[1]] = value
+        self.__data[target_tp][key[0] - offset, key[1]] = value
 
 
 class _VLocIndexer:
@@ -122,7 +123,8 @@ class _VLocIndexer:
         - a boolean array of the same length as the axis
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
+                 data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -182,8 +184,8 @@ class _ViLocIndexer:
     """
     Wrapper around pandas _iLocIndexer object for use in TemporalDataFrames.
     The .iloc can access elements by indexing with :
-        - a single element (TDF.loc[<element0>])                              --> on indexes
-        - a 2-tuple of elements (TDF.loc[<element0>, <element1>])             --> on indexes and columns
+        - a single element (TDF.iloc[<element0>])                              --> on indexes
+        - a 2-tuple of elements (TDF.iloc[<element0>, <element1>])             --> on indexes and columns
 
     Allowed indexing elements are :
         - a single integer
@@ -192,7 +194,8 @@ class _ViLocIndexer:
         - a boolean array of the same length as the axis
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
+                 data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.

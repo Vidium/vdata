@@ -30,7 +30,7 @@ def test_VData_sub_setting():
 
     assert repr(sub_vdata) == "View of a Vdata object with n_obs x n_var = [5, 5] x 4 over 2 time points\n\t" \
                               "layers: 'data'\n\t" \
-                              "obs: 'Cell_Type', 'Day', 'Time_hour'\n\t" \
+                              "obs: 'Cell_Type', 'Day'\n\t" \
                               "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
                               "time_points: 'value'", repr(sub_vdata)
 

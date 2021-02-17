@@ -22,23 +22,6 @@ class BaseTemporalDataFrame(ABC):
     Base abstract class for TemporalDataFrames and ViewTemporalDataFrames.
     """
 
-    @property
-    @abstractmethod
-    def index(self) -> pd.Index:
-        """
-        Get the full index of this TemporalDataFrame (concatenated over all time points).
-        :return: the full index of this TemporalDataFrame.
-        """
-        pass
-
-    @property
-    def n_index_total(self) -> int:
-        """
-        Get the number of indexes.
-        :return: the number of indexes.
-        """
-        return len(self.index)
-
     def __len__(self) -> int:
         """
         Returns the length of info axis.
@@ -86,20 +69,12 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def time_points(self) -> List[TimePoint]:
+    def index(self) -> pd.Index:
         """
-        Get the list of time points in this TemporalDataFrame.
-        :return: the list of time points in this TemporalDataFrame.
+        Get the full index of this TemporalDataFrame (concatenated over all time points).
+        :return: the full index of this TemporalDataFrame.
         """
         pass
-
-    @property
-    def n_time_points(self) -> int:
-        """
-        Get the number of distinct time points in this TemporalDataFrame.
-        :return: the number of time points.
-        """
-        return len(self.time_points)
 
     @abstractmethod
     def index_at(self, time_point: TimePoint) -> pd.Index:
@@ -117,6 +92,31 @@ class BaseTemporalDataFrame(ABC):
         :return: the length of the index at a given time point.
         """
         return len(self.index_at(time_point))
+
+    @property
+    def n_index_total(self) -> int:
+        """
+        Get the number of indexes.
+        :return: the number of indexes.
+        """
+        return sum([self.n_index_at(time_point) for time_point in self.time_points])
+
+    @property
+    @abstractmethod
+    def time_points(self) -> List[TimePoint]:
+        """
+        Get the list of time points in this TemporalDataFrame.
+        :return: the list of time points in this TemporalDataFrame.
+        """
+        pass
+
+    @property
+    def n_time_points(self) -> int:
+        """
+        Get the number of distinct time points in this TemporalDataFrame.
+        :return: the number of time points.
+        """
+        return len(self.time_points)
 
     @property
     def time_points_column(self) -> pd.Series:
@@ -200,12 +200,12 @@ class BaseTemporalDataFrame(ABC):
             _data.insert(list(self.columns).index(self.time_points_column_name), self.time_points_column_name,
                          self.time_points_column)
 
-        time_col = self.time_points_column_name
-        time_list = self.time_points_column if time_col is None else None
+        time_col_name = self.time_points_column_name
+        time_list = self.time_points_column if time_col_name is None else None
 
         return vdata.TemporalDataFrame(data=_data,
                                        time_list=time_list,
-                                       time_col=time_col,
+                                       time_col_name=time_col_name,
                                        time_points=self.time_points,
                                        index=self.index,
                                        name=self.name)
@@ -290,7 +290,8 @@ class BaseTemporalDataFrame(ABC):
                     repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
 
                     if TP in sub_TDF.time_points:
-                        repr_str += f"{getattr(sub_TDF[TP].to_pandas(), func)(n)}\n\n"
+                        with_tp_col = True if self.time_points_column_name is not None and len(self.columns) else False
+                        repr_str += f"{getattr(sub_TDF[TP].to_pandas(with_time_points=with_tp_col), func)(n)}\n\n"
                         TP_cnt += 1
 
                     else:

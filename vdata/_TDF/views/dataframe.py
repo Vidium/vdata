@@ -6,11 +6,11 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn, IO
+from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
 from typing_extensions import Literal
 
 import vdata
-from vdata.NameUtils import PreSlicer, DType, DataFrame
+from vdata.NameUtils import PreSlicer, DType
 from vdata.utils import repr_array, repr_index, reformat_index, TimePoint, isCollection
 from ..NameUtils import ViewTemporalDataFrame_internal_attributes
 from .. import dataframe
@@ -28,7 +28,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', DataFrame],
+    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', np.ndarray],
                  tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
         """
         :param parent: a parent TemporalDataFrame to view.
@@ -44,18 +44,17 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_parent_data', parent_data)
         object.__setattr__(self, '_index', pd.Index(index_slicer))
-        object.__setattr__(self, '_columns', pd.Index(column_slicer))
+        object.__setattr__(self, '_columns', pd.Index(np.intersect1d(column_slicer, parent.columns)))
 
         # remove time points where the index does not match
-        object.__setattr__(self, '_tp_slicer', np.array(tp_slicer)[
-            [any(self.index.isin(self._parent_data[time_point].index)) for time_point in tp_slicer]])
+        object.__setattr__(self, '_tp_slicer', sorted(np.array(tp_slicer)[
+            [any(self.index.isin(parent.index_at(time_point))) for time_point in tp_slicer]]))
 
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
         # remove index elements where time points do not match
         if len(self._tp_slicer):
-            valid_indexes = np.concatenate([self._parent_data[time_point].index.values
-                                            for time_point in self._tp_slicer])
+            valid_indexes = np.concatenate([parent.index_at(time_point) for time_point in self._tp_slicer])
             index_at_tp_slicer = pd.Index(np.intersect1d(self.index, valid_indexes))
 
         else:
@@ -194,7 +193,8 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             assert self.columns.equals(values.columns)
             assert self.index.equals(values.index)
 
-            self._parent_data[self.time_points[0]].loc[self.index, self.columns] = values
+            self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0][:, None],
+                                                   np.where(self.bool_columns())[0]] = values
 
         elif isinstance(values, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
             # same tp
@@ -205,50 +205,63 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             assert self.index.equals(values.index)
 
             for tp in self.time_points:
-                self._parent_data[tp].loc[self.index_at(tp), self.columns] = values[tp].to_pandas()
+                self._parent_data[tp][np.where(self.bool_index_at(tp))[0][:, None],
+                                      np.where(self.bool_columns())[0]] = values[tp].to_pandas()
 
         elif isCollection(values):
             values = list(values)
             # only one row or only one column
             if self.n_columns == 1:
-                assert len(values) == self.n_index_total, "The length of the index in this view does not match the " \
-                                                          "length of the array of values."
+                assert len(values) == self.n_index_total, f"The length of the index in this view " \
+                                                          f"({self.n_index_total}) does not match the length of the " \
+                                                          f"array of values ({len(values)})."
 
                 idx_cnt = 0
 
                 for tp in self.time_points:
-                    self._parent_data[tp].loc[self.index_at(tp), self.columns] = \
+                    self._parent_data[tp][np.where(self.bool_index_at(tp))[0][:, None],
+                                          np.where(self.bool_columns())[0]] = \
                         values[idx_cnt:idx_cnt+self.n_index_at(tp)]
                     idx_cnt += self.n_index_at(tp)
 
             elif self.n_index_total == 1:
-                assert len(values) == self.n_columns, "The number of columns in this view does not match the length " \
-                                                      "of the array of values."
-                self._parent_data[self.time_points[0]].loc[self.index] = values
+                assert len(values) == self.n_columns, f"The number of columns in this view ({self.n_columnsl}) does " \
+                                                      f"not match the length of the array of values ({len(values)})."
+
+                self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0][:, None],
+                                                       np.where(self.bool_columns())[0]] = values
 
             else:
                 raise VValueError(f"Cannot set values in this view with shape {self.shape} from an array of values.")
 
         else:
-            self._parent_data.loc[self.index, self.columns] = values
+            bool_index = np.concatenate([self.bool_index_at(tp) for tp in self._parent.time_points])
+            self._parent_data.loc[np.where(bool_index)[0][:, None],
+                                  np.where(self.bool_columns())[0]] = values
 
-    def to_pandas(self, with_time_points: Optional[str] = None) -> Any:
+    def to_pandas(self, with_time_points: bool = False) -> Any:
         """
         Get the data in a pandas format.
         :param with_time_points: add a column with time points data ?
         :return: the data in a pandas format.
         """
-        data = pd.DataFrame(columns=self.columns)
+        if not self.empty:
+            data = pd.concat([
+                pd.DataFrame(self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0][:, None],
+                                                           np.where(self.bool_columns())[0]],
+                             index=self.index_at(time_point),
+                             columns=self.columns)
+                for time_point in self.time_points if self._parent_data[time_point].ndim == 2])
 
-        for time_point in self.time_points:
-            data = pd.concat((data, self._parent_data[time_point].loc[self.index_at(time_point), self.columns]))
+        else:
+            data = pd.DataFrame(index=self.index, columns=self.columns)
 
-        if with_time_points is not None:
-            if with_time_points not in self.columns:
-                data[with_time_points] = self._parent.time_points_column.values
+        if with_time_points:
+            if self.time_points_column_name is not None:
+                data.insert(0, self.time_points_column_name, self.time_points_column)
 
             else:
-                raise VValueError(f"Column '{with_time_points}' already exists.")
+                data.insert(0, 'Time_Point', self.time_points_column)
 
         return data
 
@@ -304,7 +317,15 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         if time_point not in self._tp_slicer:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
-        return self._parent_data[time_point].index.intersection(self.index, sort=False)
+        return self._parent.index_at(time_point).intersection(self.index, sort=False)
+
+    def bool_index_at(self, time_point: TimePoint) -> np.ndarray:
+        """
+        Get a boolean array of the same length as the parental index, where True means that the index at that
+        position is in this view.
+        :return: boolean array on parental index in this view.
+        """
+        return self._parent.index_at(time_point).isin(self.index_at(time_point))
 
     @property
     def columns(self) -> pd.Index:
@@ -313,6 +334,14 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :return: the column names of this view of a TemporalDataFrame.
         """
         return self._columns
+
+    def bool_columns(self) -> np.ndarray:
+        """
+        Get a boolean array of the same length as the parental columns index, where True means that the column at that
+        position is in this view.
+        :return: boolean array on parental columns index in this view.
+        """
+        return self._parent.columns.isin(self.columns)
 
     @property
     def name(self) -> str:
@@ -328,35 +357,13 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Return the dtypes in the DataFrame.
         :return: the dtypes in the DataFrame.
         """
-        return self._parent_data[self.columns].dtypes
+        return self._parent_data[self.columns].dtype
 
     def astype(self, dtype: Union[DType, Dict[str, DType]]) -> NoReturn:
         """
         Reference to TemporalDataFrame's astype method. This cannot be done in a view.
         """
         raise VAttributeError('Cannot set data type from a view of a TemporalDataFrame.')
-
-    def info(self, verbose: Optional[bool] = None, buf: Optional[IO[str]] = None, max_cols: Optional[int] = None,
-             memory_usage: Optional[Union[bool, str]] = None, null_counts: Optional[bool] = None) -> None:
-        """
-        This method prints information about a DataFrame including the index dtype and columns, non-null values and
-        memory usage.
-        :return: a concise summary of a DataFrame.
-        """
-        return self._parent.info(verbose=verbose, buf=buf, max_cols=max_cols, memory_usage=memory_usage,
-                                 null_counts=null_counts)
-
-    def memory_usage(self, index: bool = True, deep: bool = False):
-        """
-        Return the memory usage of each column in bytes.
-        The memory usage can optionally include the contribution of the index and elements of object dtype.
-        :return: the memory usage of each column in bytes.
-        """
-        selected_columns = list(self.columns)
-        if index:
-            selected_columns.insert(0, 'Index')
-
-        return self._parent.memory_usage(index=index, deep=deep)[selected_columns]
 
     @property
     def at(self) -> '_ViewVAtIndexer':
@@ -380,7 +387,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Access a group of rows and columns by label(s) or a boolean array.
         :return: a group of rows and columns
         """
-        return _VLocIndexer(self._parent, self._parent_data)
+        return _VLocIndexer(self, self._parent_data)
 
     @property
     def iloc(self) -> _ViLocIndexer:
@@ -388,7 +395,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
         :return: a group of rows and columns
         """
-        return _ViLocIndexer(self._parent, self._parent_data)
+        return _ViLocIndexer(self, self._parent_data)
 
     def insert(self, *args, **kwargs) -> NoReturn:
         """
@@ -471,7 +478,7 @@ class _ViewVAtIndexer(_VAtIndexer):
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -500,7 +507,7 @@ class _ViewViAtIndexer(_ViAtIndexer):
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, pd.DataFrame]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.

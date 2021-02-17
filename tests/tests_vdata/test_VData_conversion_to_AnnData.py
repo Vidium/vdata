@@ -25,7 +25,7 @@ def test_VData_conversion_to_AnnData():
                                                  "    layers: 'RNA', 'Protein']", repr(v.to_AnnData(into_one=False))
 
     assert repr(v.to_AnnData(into_one=True)) == "AnnData object with n_obs × n_vars = 20 × 4\n" \
-                                                "    obs: 'time_points'\n" \
+                                                "    obs: 'Time_Point'\n" \
                                                 "    layers: 'RNA', 'Protein'", repr(v.to_AnnData(into_one=True))
 
 
