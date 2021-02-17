@@ -20,7 +20,9 @@ def test_TDF_sub_setting():
                               "   col1\n" \
                               "a   1.0\n" \
                               "b   2.0\n" \
-                              "c   3.0\n\n", repr(TDF['0h'])
+                              "c   3.0\n" \
+                              "\n" \
+                              "[3 x 1]\n\n", repr(TDF['0h'])
 
     try:
         print(TDF['15h'])
@@ -43,7 +45,9 @@ def test_TDF_sub_setting():
                            "   col1\n" \
                            "a   1.0\n" \
                            "b   2.0\n" \
-                           "c   3.0\n\n", repr(TDF[0])
+                           "c   3.0\n" \
+                           "\n" \
+                           "[3 x 1]\n\n", repr(TDF[0])
 
 
 if __name__ == '__main__':

@@ -141,6 +141,9 @@ class _VLocIndexer:
         """
         generalLogger.debug(u'\u23BE .loc access : begin ------------------------------------------------------- ')
 
+        # print(self.__pandas_data)
+        # print(key)
+
         result = self.__pandas_data.loc[key]
         generalLogger.debug(f'.loc data is : \n{result}')
 

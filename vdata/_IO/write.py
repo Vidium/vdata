@@ -186,7 +186,7 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
 
     for time_point in data.time_points:
         generalLogger.info(f"{spacer(key_level+1)}Saving time point {time_point}")
-        data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True)
+        data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True, maxshape=(None, None))
 
 
 @write_data.register(pd.Series)

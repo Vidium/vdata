@@ -402,7 +402,7 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
             'uns': {}}
 
     # import data from file
-    importFile = H5GroupReader(h5py.File(file, "r"))
+    importFile = H5GroupReader(h5py.File(file, "r+"))
     for key in importFile.keys():
         generalLogger.info(f"Got key : '{key}'.")
 

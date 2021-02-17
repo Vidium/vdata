@@ -193,8 +193,11 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             assert self.columns.equals(values.columns)
             assert self.index.equals(values.index)
 
-            self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0][:, None],
-                                                   np.where(self.bool_columns())[0]] = values
+            col_indices = np.where(self.bool_columns())[0]
+
+            for col_index_in_values, col_index in enumerate(col_indices):
+                self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0],
+                                                       col_index] = values.iloc[:, col_index_in_values]
 
         elif isinstance(values, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
             # same tp
@@ -205,8 +208,13 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             assert self.index.equals(values.index)
 
             for tp in self.time_points:
-                self._parent_data[tp][np.where(self.bool_index_at(tp))[0][:, None],
-                                      np.where(self.bool_columns())[0]] = values[tp].to_pandas()
+                pandas_values = values[tp].to_pandas()
+
+                col_indices = np.where(self.bool_columns())[0]
+
+                for col_index_in_values, col_index in enumerate(col_indices):
+                    self._parent_data[tp][np.where(self.bool_index_at(tp))[0], col_index] = \
+                        pandas_values.iloc[:, col_index_in_values]
 
         elif isCollection(values):
             values = list(values)
@@ -218,26 +226,33 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
                 idx_cnt = 0
 
-                for tp in self.time_points:
-                    self._parent_data[tp][np.where(self.bool_index_at(tp))[0][:, None],
-                                          np.where(self.bool_columns())[0]] = \
-                        values[idx_cnt:idx_cnt+self.n_index_at(tp)]
-                    idx_cnt += self.n_index_at(tp)
+                for time_point in self.time_points:
+                    col_index = np.where(self.bool_columns())[0][0]
+
+                    self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0],
+                                                  col_index] = values[idx_cnt:idx_cnt+self.n_index_at(time_point)]
+                    idx_cnt += self.n_index_at(time_point)
 
             elif self.n_index_total == 1:
                 assert len(values) == self.n_columns, f"The number of columns in this view ({self.n_columnsl}) does " \
                                                       f"not match the length of the array of values ({len(values)})."
 
-                self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0][:, None],
-                                                       np.where(self.bool_columns())[0]] = values
+                col_indices = np.where(self.bool_columns())[0]
+                for col_index in col_indices:
+                    self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0],
+                                                           col_index] = values
 
             else:
                 raise VValueError(f"Cannot set values in this view with shape {self.shape} from an array of values.")
 
         else:
-            bool_index = np.concatenate([self.bool_index_at(tp) for tp in self._parent.time_points])
-            self._parent_data.loc[np.where(bool_index)[0][:, None],
-                                  np.where(self.bool_columns())[0]] = values
+            # single value for all data
+            for time_point in self.time_points:
+                col_indices = np.where(self.bool_columns())[0]
+
+                for col_index in col_indices:
+                    self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0], col_index] \
+                        = values
 
     def to_pandas(self, with_time_points: bool = False) -> Any:
         """
@@ -247,8 +262,8 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         if not self.empty:
             data = pd.concat([
-                pd.DataFrame(self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0][:, None],
-                                                           np.where(self.bool_columns())[0]],
+                pd.DataFrame(self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0]][:,
+                             np.where(self.bool_columns())[0]],
                              index=self.index_at(time_point),
                              columns=self.columns)
                 for time_point in self.time_points if self._parent_data[time_point].ndim == 2])
@@ -325,7 +340,11 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         position is in this view.
         :return: boolean array on parental index in this view.
         """
-        return self._parent.index_at(time_point).isin(self.index_at(time_point))
+        if time_point in self.time_points:
+            return self._parent.index_at(time_point).isin(self.index_at(time_point))
+
+        else:
+            return np.array([False for _ in range(self._parent.n_index_at(time_point))])
 
     @property
     def columns(self) -> pd.Index:
