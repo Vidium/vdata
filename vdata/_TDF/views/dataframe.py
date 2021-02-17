@@ -96,14 +96,21 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                             f"- - - - - - - - - - - - - -")
         generalLogger.debug(f'  Got index : {repr_index(index)}')
 
-        index = reformat_index(index, self.time_points, self.index, self.columns)
+        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
+                and not isinstance(index[2], slice) and index[2] is not ... \
+                and (index[0] is ... or index[0] == slice(None))\
+                and (index[1] is ... or index[1] == slice(None)):
+            return self.__getattr__(index[2])
 
-        generalLogger.debug(f'  Refactored index to : {repr_index(index)}')
+        else:
+            index = reformat_index(index, self.time_points, self.index, self.columns)
 
-        if not len(index[0]):
-            raise VValueError("Time point not found.")
+            generalLogger.debug(f'  Refactored index to : {repr_index(index)}')
 
-        return ViewTemporalDataFrame(self._parent, self._parent_data, index[0], index[1], index[2])
+            if not len(index[0]):
+                raise VValueError("Time point not found.")
+
+            return ViewTemporalDataFrame(self._parent, self._parent_data, index[0], index[1], index[2])
 
     def __getattribute__(self, attr: str) -> Any:
         """

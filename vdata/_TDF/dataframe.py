@@ -555,14 +555,21 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
         generalLogger.debug(f'  Got index \n{repr_index(index)}.')
 
-        index = reformat_index(index, self.time_points, self.index, self.columns)
+        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
+                and not isinstance(index[2], slice) and index[2] is not ... \
+                and (index[0] is ... or index[0] == slice(None))\
+                and (index[1] is ... or index[1] == slice(None)):
+            return self.__getattr__(index[2])
 
-        generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
+        else:
+            index = reformat_index(index, self.time_points, self.index, self.columns)
 
-        if not len(index[0]):
-            raise VValueError("Time points not found in this TemporalDataFrame.")
+            generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
 
-        return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2])
+            if not len(index[0]):
+                raise VValueError("Time points not found in this TemporalDataFrame.")
+
+            return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2])
 
     def __getattribute__(self, attr: str) -> Any:
         """

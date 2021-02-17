@@ -33,7 +33,6 @@ class VData:
     but also accounts for the time information. The 2D matrices in AnnData are replaced by 3D matrices here.
     """
 
-    # TODO : add support for backed data on .h5 file
     def __init__(self,
                  data: Optional[Union[AnnData, DataFrame, Dict[Any, DataFrame]]] = None,
                  obs: Optional[DataFrame] = None,
