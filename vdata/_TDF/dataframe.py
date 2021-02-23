@@ -214,7 +214,14 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 if _time_col_name in _data.columns:
                     generalLogger.info(f"\tUsing '{_time_col_name}' as time points data.")
 
-                    _time_list = to_tp_list(_data[_time_col_name])
+                    if _time_points is not None:
+                        ref = _time_points
+
+                    else:
+                        ref = to_tp_list(unique_in_list(_data[_time_col_name]) - {'*'})
+
+                    _time_list = to_tp_list(_data[_time_col_name], ref)
+
                     del _data[_time_col_name]
 
                     tp_col_name = _time_col_name
@@ -266,18 +273,20 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # data, time list and time points
                     generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
 
-                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    new_time_list, excluded_elements = trim_time_points(_time_list, _time_points)
                     if len(excluded_elements):
-                        generalLogger.warning(f"\tTime points {excluded_elements} were found in 'time_list'"
+                        generalLogger.warning(f"\tTime points {list(excluded_elements)} were found in 'time_list' "
                                               f"parameter but not in 'time_points'. They will be ignored.")
 
                         # remove undesired time points from the data
-                        _data = _data[match_time_points(_data[tp_col_name], _time_points)]
+                        _data = _data[match_time_points(_time_list, _time_points)]
 
                         generalLogger.debug(f"\tNew data has {len(_data)} rows.")
 
-                if data_len != len(_time_list):
-                    if data_len * len(_time_points) == len(_time_list):
+                    _time_list = new_time_list
+
+                if len(_data) != len(_time_list):
+                    if len(_data) * len(_time_points) == len(_time_list):
                         _index = {tp: _data.index for tp in _time_points}
                         _data = {tp: _data.values for tp in _time_points}
 

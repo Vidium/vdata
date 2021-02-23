@@ -470,6 +470,36 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
     """
     generalLogger.info(f"{spacer(level)}Reading TemporalDataFrame {group.name}.")
 
+    # get index
+    dataset_type = cast(H5GroupReader, group['index']).attrs("type")
+    index = func_[dataset_type](group['index'], level=level + 1)
+
+    # get time_col
+    dataset_type = cast(H5GroupReader, group['time_col_name']).attrs("type")
+    time_col_name = func_[dataset_type](group['time_col_name'], level=level + 1)
+
+    # get time_list
+    dataset_type = cast(H5GroupReader, group['time_list']).attrs("type")
+    time_list = func_[dataset_type](group['time_list'], level=level + 1)
+
+    data = {}
+    for col in group['data'].keys():
+        dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
+        data[col] = func_[dataset_type](group['data'][col], level=level + 1)
+
+    return vdata.TemporalDataFrame(data, time_col_name=time_col_name,
+                                   index=index, time_list=time_list, name=group.name.split("/")[-1])
+
+
+def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.TemporalDataFrame':
+    """
+    Function for reading a TemporalDataFrame from a .h5 file as DataSets.
+
+    :param group: a H5GroupReader from which to read a TemporalDataFrame.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    """
+    generalLogger.info(f"{spacer(level)}Reading chunked TemporalDataFrame {group.name}.")
+
     # get column order
     dataset_type = cast(H5GroupReader, group['columns']).attrs("type")
     columns = func_[dataset_type](group['columns'], level=level + 1)
@@ -568,6 +598,7 @@ func_: Dict[str, Callable] = {
     'dict': read_h5_dict,
     'DF': read_h5_DataFrame,
     'TDF': read_h5_TemporalDataFrame,
+    'CHUNKED_TDF': read_h5_chunked_TemporalDataFrame,
     'series': read_h5_series,
     'array': read_h5_array,
     'value': read_h5_value,

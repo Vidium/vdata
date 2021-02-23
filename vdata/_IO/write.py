@@ -173,20 +173,46 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
     generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
 
     df_group = group.create_group(str(key))
-    df_group.attrs['type'] = 'TDF'
 
-    # save column order
-    write_data(data.columns, df_group, 'columns', key_level=key_level + 1)
-
-    # save index and series
+    # save index
     write_data(data.index, df_group, 'index', key_level=key_level + 1)
+
+    # save time_col_name
     write_data(data.time_points_column_name, df_group, 'time_col_name', key_level=key_level + 1)
 
+    # create group for storing the data
     data_group = df_group.create_group('data', track_order=True)
 
-    for time_point in data.time_points:
-        generalLogger.info(f"{spacer(key_level+1)}Saving time point {time_point}")
-        data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True, maxshape=(None, None))
+    # -----------------------------------------------------
+    if data.dtype == object:
+        # regular TDF storage (per column)
+        df_group.attrs['type'] = 'TDF'
+
+        write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1)
+
+        # save data, per column, in arrays
+        for col in data.columns:
+            values = data[:, :, col].values.flatten()
+            try:
+                values = values.astype(float)
+
+            except ValueError:
+                values = values.astype(str)
+
+            write_data(values, data_group, col, key_level=key_level + 1)
+
+    # -----------------------------------------------------
+    else:
+        # chunked TDF storage
+        df_group.attrs['type'] = 'CHUNKED_TDF'
+
+        # save column order
+        write_data(data.columns, df_group, 'columns', key_level=key_level + 1)
+
+        # save data, per time point, in DataSets
+        for time_point in data.time_points:
+            generalLogger.info(f"{spacer(key_level + 1)}Saving time point {time_point}")
+            data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True, maxshape=(None, None))
 
 
 @write_data.register(pd.Series)
@@ -231,7 +257,6 @@ def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0) 
     if data.dtype.type == np.str_:
         group.create_dataset(str(key), data=data.astype('S'))
     else:
-        print(data, type(data))
         group[str(key)] = data
 
     group[str(key)].attrs['type'] = 'array'
