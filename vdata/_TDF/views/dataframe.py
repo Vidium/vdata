@@ -44,7 +44,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_parent_data', parent_data)
         object.__setattr__(self, '_index', pd.Index(index_slicer))
-        object.__setattr__(self, '_columns', pd.Index(np.intersect1d(column_slicer, parent.columns)))
+        object.__setattr__(self, '_columns', pd.Index([c for c in parent.columns if c in column_slicer]))
 
         # remove time points where the index does not match
         object.__setattr__(self, '_tp_slicer', sorted(np.array(tp_slicer)[
@@ -55,7 +55,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         # remove index elements where time points do not match
         if len(self._tp_slicer):
             valid_indexes = np.concatenate([parent.index_at(time_point) for time_point in self._tp_slicer])
-            index_at_tp_slicer = pd.Index(np.intersect1d(self.index, valid_indexes))
+            index_at_tp_slicer = pd.Index([i for i in valid_indexes if i in self.index])
 
         else:
             index_at_tp_slicer = pd.Index([], dtype=object)

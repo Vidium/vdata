@@ -887,6 +887,16 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param column: str, number, or hashable object. Label of the inserted column.
         :param values: int, Series, or array-like
         """
+        def _insert(arr, _values):
+            try:
+                arr = np.insert(arr, loc, _values, axis=1)
+
+            except ValueError:
+                arr = arr.astype(object)
+                arr = np.insert(arr, loc, _values, axis=1)
+
+            return arr
+
         if isCollection(values):
             if self.n_index_total != len(values):
                 raise VValueError("Length of values does not match length of index.")
@@ -896,17 +906,17 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 values_to_insert = values[cumul:cumul + self.n_index_at(time_point)]
 
                 # insert values into array
-                np.insert(self._df[time_point], loc, values_to_insert, axis=1)
+                self._df[time_point] = _insert(self._df[time_point], values_to_insert)
 
                 cumul += self.n_index_at(time_point)
 
         else:
             for time_point in self.time_points:
                 # insert values into array
-                np.insert(self._df[time_point], loc, values, axis=1)
+                self._df[time_point] = _insert(self._df[time_point], values)
 
         # insert column name into column index
-        self._columns.insert(loc, column)
+        self._columns = self._columns.insert(loc, column)
 
     def copy(self) -> 'TemporalDataFrame':
         """
