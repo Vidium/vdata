@@ -339,7 +339,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         if time_point not in self._tp_slicer:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
-        return self._parent.index_at(time_point).intersection(self.index, sort=False)
+        return pd.Index(np.unique(self._parent.index_at(time_point).intersection(self.index, sort=False)))
 
     def bool_index_at(self, time_point: TimePoint) -> np.ndarray:
         """
