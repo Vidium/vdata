@@ -450,6 +450,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         self._is_backed = False
 
         self._time_points = sorted(to_tp_list(unique_in_list(time_points), [])) if time_points is not None else None
+
         if self._time_points is not None:
             generalLogger.debug(f"User has defined time points : {repr_array(self._time_points)}.")
 
@@ -1031,6 +1032,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                                               how='outer').set_index('index')
             _data = _data.reset_index().merge(other[time_point].to_pandas().reset_index(),
                                               how='outer').set_index('index')
+
+        _data.columns = _data.columns.astype(self.columns.dtype)
 
         if self.time_points_column_name is None:
             _time_list = [time_point for time_point in self.time_points

@@ -564,7 +564,11 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
     if isinstance(arr, np.ndarray):
         # fix string arrays (object type to strings)
         if arr.dtype.type is np.object_:
-            return arr.astype(np.str_)
+            try:
+                return arr.astype(float)
+
+            except ValueError:
+                return arr.astype(np.str_)
 
         return arr
 
