@@ -440,11 +440,18 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._is_backed = False
 
-        self._time_points = sorted(to_tp_list(unique_in_list(time_points))) if time_points is not None else None
+        self._time_points = sorted(to_tp_list(unique_in_list(time_points), [])) if time_points is not None else None
         if self._time_points is not None:
             generalLogger.debug(f"User has defined time points : {repr_array(self._time_points)}.")
 
-        time_list = to_tp_list(time_list, self._time_points) if time_list is not None else None
+        if time_list is not None:
+            if self._time_points is not None:
+                ref = self._time_points
+
+            else:
+                ref = to_tp_list(unique_in_list(time_list) - {'*'})
+
+            time_list = to_tp_list(time_list, ref)
 
         # ---------------------------------------------------------------------
         # no data given, empty DataFrame is created

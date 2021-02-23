@@ -248,12 +248,24 @@ def to_tp_list(item: Any, reference_time_points: Optional[Collection[TimePoint]]
             new_tp_list.append(to_tp_list(v, reference_time_points))
 
         elif not isinstance(v, TimePoint) and v == '*':
-            new_tp_list.append(tuple(reference_time_points))
+            if len(reference_time_points):
+                if len(reference_time_points) == 1:
+                    new_tp_list.append(reference_time_points[0])
+
+                else:
+                    new_tp_list.append(reference_time_points)
 
         else:
             new_tp_list.append(TimePoint(v))
 
     return new_tp_list
+
+
+def sorted_tp_list(data: 'NameUtils.TimePointList') -> 'NameUtils.TimePointList':
+    """
+    Sort a TimePointList in ascending order.
+    """
+    return sorted(data, key=lambda x: sorted(x)[0] if isinstance(x, list) else x)
 
 
 def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, on_time_point: bool = False) -> \
