@@ -13,12 +13,13 @@ from pathlib import Path
 from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection, cast
 from typing_extensions import Literal
 
-import vdata
+from .NameUtils import H5Group
 from .utils import parse_path
-from .logger import generalLogger, getLoggingLevel
-from .errors import VValueError, VTypeError
-from .. import utils
+from .._IO import generalLogger, VValueError, VTypeError
+from .. import _core
+from .. import _TDF
 from .. import NameUtils
+from .. import utils
 
 
 def spacer(nb: int) -> str:
@@ -33,7 +34,7 @@ def read_from_csv(directory: Union[Path, str],
                   time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
                   time_col: Optional[str] = None,
                   time_points: Optional[Collection[str]] = None,
-                  name: Optional[Any] = None) -> 'vdata.VData':
+                  name: Optional[Any] = None) -> '_core.VData':
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -98,8 +99,8 @@ def read_from_csv(directory: Union[Path, str],
                     else:
                         this_time_col = time_col
 
-                    data[f[:-4]] = TemporalDataFrame_read_csv(directory / f, time_list=time_list,
-                                                              time_col=this_time_col, time_points=time_points)
+                    data[f[:-4]] = read_from_csv_TemporalDataFrame(directory / f, time_list=time_list,
+                                                                   time_col=this_time_col, time_points=time_points)
 
             else:
                 dataset_dict = {}
@@ -116,10 +117,10 @@ def read_from_csv(directory: Union[Path, str],
                         else:
                             this_time_col = time_col
 
-                        dataset_dict[dataset[:-4]] = TemporalDataFrame_read_csv(directory / f / dataset,
-                                                                                time_list=time_list,
-                                                                                time_col=this_time_col,
-                                                                                time_points=time_points)
+                        dataset_dict[dataset[:-4]] = read_from_csv_TemporalDataFrame(directory / f / dataset,
+                                                                                     time_list=time_list,
+                                                                                     time_col=this_time_col,
+                                                                                     time_points=time_points)
 
                     elif f in ('varm', 'varp'):
                         generalLogger.info(f"{spacer(2)} Reading pandas DataFrame {dataset}")
@@ -130,17 +131,17 @@ def read_from_csv(directory: Union[Path, str],
 
                 data[f] = dataset_dict
 
-    return vdata.VData(data['layers'],
+    return _core.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
                        data['time_points'], dtype=data['dtype'],
                        name=name)
 
 
-def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
-                               time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
-                               time_col: Optional[str] = None,
-                               time_points: Optional[Collection[str]] = None) -> 'vdata.TemporalDataFrame':
+def read_from_csv_TemporalDataFrame(file: Path, sep: str = ',',
+                                    time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
+                                    time_col: Optional[str] = None,
+                                    time_points: Optional[Collection[str]] = None) -> '_TDF.TemporalDataFrame':
     """
     Read a .csv file into a TemporalDataFrame.
 
@@ -151,26 +152,30 @@ def TemporalDataFrame_read_csv(file: Path, sep: str = ',',
         given. This column will be used as the time data.
     :param time_points: a list of time points that should exist. This is useful when using the '*' character to
         specify the list of time points that the TemporalDataFrame should cover.
+
     :return: a TemporalDataFrame built from the .csv file.
     """
     df = pd.read_csv(file, index_col=0, sep=sep)
 
+    if time_col is None:
+        time_col = 'Time_Point'
+
     if time_list is None and time_col == 'Time_Point':
-        time_list = df[time_col].values.tolist()
+        time_list = df['Time_Point'].values.tolist()
         del df[time_col]
         time_col = None
 
-    return vdata.TemporalDataFrame(df, time_list=time_list, time_col_name=time_col, time_points=time_points)
+    return _TDF.TemporalDataFrame(df, time_list=time_list, time_col_name=time_col, time_points=time_points)
 
 
 # GPU output --------------------------------------------------------------------------------------
 
 def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.ndarray, pd.DataFrame]]],
-                   obs: Optional[Union[pd.DataFrame, 'vdata.TemporalDataFrame']] = None,
+                   obs: Optional[Union[pd.DataFrame, '_TDF.TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
                    dtype: Optional['NameUtils.DType'] = None,
-                   name: Optional[Any] = None) -> 'vdata.VData':
+                   name: Optional[Any] = None) -> '_core.VData':
     """
     Load a simulation's recorded information into a VData object.
 
@@ -198,7 +203,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
     :return: a VData object containing the simulation's data
     """
     _data = {}
-    _time_points: List[vdata.TimePoint] = []
+    _time_points: List[utils.TimePoint] = []
     check_tp = False
 
     if not isinstance(data, dict):
@@ -212,7 +217,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
             generalLogger.debug(f"Loading layer '{data_type}'.")
 
             for matrix_index, matrix in TP_matrices.items():
-                matrix_TP = vdata.TimePoint(matrix_index)
+                matrix_TP = utils.TimePoint(matrix_index)
 
                 if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
                     raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
@@ -232,26 +237,25 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
             generalLogger.debug(f"Found index is : {utils.repr_array(index)}.")
             generalLogger.debug(f"Found columns is : {utils.repr_array(columns)}.")
 
-            loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())))
+            loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=columns)
 
             time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
                          for _ in range(len(matrix))]
             generalLogger.debug(f"Computed time list to be : {utils.repr_array(time_list)}.")
 
-            _data[data_type] = vdata.TemporalDataFrame(data=loaded_data,
-                                                       time_points=_time_points,
-                                                       time_list=time_list,
-                                                       index=index,
-                                                       columns=columns,
-                                                       dtype=dtype)
+            _data[data_type] = _TDF.TemporalDataFrame(data=loaded_data,
+                                                      time_points=_time_points,
+                                                      time_list=time_list,
+                                                      index=index,
+                                                      dtype=dtype)
 
             generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
 
-        # if time points not given, build a DataFrame from time points found in 'data'
+        # if time points is not given, build a DataFrame from time points found in 'data'
         if time_points is None:
             time_points = pd.DataFrame({"value": _time_points})
 
-        return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, name=name)
+        return _core.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, name=name)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -260,7 +264,7 @@ class H5GroupReader:
     Class for reading a h5py File, Group or Dataset
     """
 
-    def __init__(self, group: 'NameUtils.H5Group'):
+    def __init__(self, group: 'H5Group'):
         """
         :param group: a h5py File, Group or Dataset
         """
@@ -380,7 +384,7 @@ class H5GroupReader:
 
 
 def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
-         name: Optional[Any] = None) -> 'vdata.VData':
+         name: Optional[Any] = None) -> '_core.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
@@ -413,11 +417,44 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
         else:
             generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    return vdata.VData(data['layers'],
+    return _core.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
                        data['time_points'], data['uns'], dtype=dtype,
                        name=name, file=importFile)
+
+
+def read_TemporalDataFrame(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
+                           name: Optional[Any] = None) -> '_TDF.TemporalDataFrame':
+    """
+    Function for reading data from a .h5 file and building a TemporalDataFrame object from it.
+
+    :param file: path to a .h5 file.
+    :param dtype: data type to force on the newly built TemporalDataFrame object. If set to None, the dtype is inferred
+        from the .h5 file.
+    :param name: an optional name for the loaded TemporalDataFrame object.
+
+    :return: a loaded TemporalDataFrame.
+    """
+    file = parse_path(file)
+
+    # make sure the path exists
+    if not os.path.exists(file):
+        raise VValueError(f"The path {file} does not exist.")
+
+    # import data from file
+    import_file = H5GroupReader(h5py.File(file, "r+"))
+    import_data = import_file[list(import_file.keys())[0]]
+
+    dataset_type = import_data.attrs('type')
+    tdf = func_[dataset_type](import_data)
+
+    if name is not None:
+        tdf.name = name
+
+    tdf.astype(dtype)
+
+    return tdf
 
 
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
@@ -461,7 +498,7 @@ def read_h5_DataFrame(group: H5GroupReader, level: int = 1) -> pd.DataFrame:
     return pd.DataFrame(data, index=index)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.TemporalDataFrame':
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '_TDF.TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from a .h5 file.
 
@@ -487,11 +524,11 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.Te
         dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
         data[col] = func_[dataset_type](group['data'][col], level=level + 1)
 
-    return vdata.TemporalDataFrame(data, time_col_name=time_col_name,
-                                   index=index, time_list=time_list, name=group.name.split("/")[-1])
+    return _TDF.TemporalDataFrame(data, time_col_name=time_col_name,
+                                  index=index, time_list=time_list, name=group.name.split("/")[-1])
 
 
-def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'vdata.TemporalDataFrame':
+def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '_TDF.TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from a .h5 file as DataSets.
 
@@ -512,8 +549,8 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
     dataset_type = cast(H5GroupReader, group['time_col_name']).attrs("type")
     time_col_name = func_[dataset_type](group['time_col_name'], level=level + 1)
 
-    return vdata.TemporalDataFrame(group['data'].group, time_col_name=time_col_name,
-                                   index=index, columns=columns, name=group.name.split("/")[-1])
+    return _TDF.TemporalDataFrame(group['data'].group, time_col_name=time_col_name,
+                                  index=index, columns=columns, name=group.name.split("/")[-1])
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,

@@ -4,21 +4,22 @@
 
 # ====================================================
 # imports
+import h5py
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
 from typing_extensions import Literal
 
-import vdata
-from vdata.NameUtils import PreSlicer, DType
-from vdata.utils import repr_array, repr_index, reformat_index, TimePoint, isCollection
+
+from vdata import NameUtils
+from vdata import utils
 from ..NameUtils import ViewTemporalDataFrame_internal_attributes
 from .. import dataframe
 from .. import base
 from .. import copy
 from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
-from ..._IO import generalLogger
-from ..._IO.errors import VValueError, VAttributeError, VTypeError
+from ..._IO import generalLogger, VValueError, VAttributeError, VTypeError
 
 
 # ==========================================
@@ -28,8 +29,8 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    def __init__(self, parent: 'vdata.TemporalDataFrame', parent_data: Dict['vdata.TimePoint', np.ndarray],
-                 tp_slicer: Collection[TimePoint], index_slicer: Collection, column_slicer: Collection):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', parent_data: Dict['utils.TimePoint', np.ndarray],
+                 tp_slicer: Collection['utils.TimePoint'], index_slicer: Collection, column_slicer: Collection):
         """
         :param parent: a parent TemporalDataFrame to view.
         :param parent_data: the parent TemporalDataFrame's data.
@@ -50,7 +51,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         object.__setattr__(self, '_tp_slicer', sorted(np.array(tp_slicer)[
             [any(self.index.isin(parent.index_at(time_point))) for time_point in tp_slicer]]))
 
-        generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
+        generalLogger.debug(f"  1. Refactored time point slicer to : {utils.repr_array(self._tp_slicer)}")
 
         # remove index elements where time points do not match
         if len(self._tp_slicer):
@@ -62,7 +63,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         object.__setattr__(self, '_index', index_at_tp_slicer)
 
-        generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self.index)}")
+        generalLogger.debug(f"  2. Refactored index slicer to : {utils.repr_array(self.index)}")
 
         generalLogger.debug(f"\u23BF ViewTemporalDataFrame '{parent.name}':{id(self)} creation : end "
                             f"------------------------------------------ ")
@@ -82,10 +83,10 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer,
-                                       Tuple[PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
+    def __getitem__(self, index: Union['NameUtils.PreSlicer',
+                                       Tuple['NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer', 'NameUtils.PreSlicer']]) \
             -> 'ViewTemporalDataFrame':
         """
         Get a sub-view from this view using an index with the usual sub-setting mechanics.
@@ -94,18 +95,18 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         generalLogger.debug(f"ViewTemporalDataFrame '{self.name}':{id(self)} sub-setting "
                             f"- - - - - - - - - - - - - -")
-        generalLogger.debug(f'  Got index : {repr_index(index)}')
+        generalLogger.debug(f'  Got index : {utils.repr_index(index)}')
 
-        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
+        if isinstance(index, tuple) and len(index) == 3 and not utils.isCollection(index[2]) \
                 and not isinstance(index[2], slice) and index[2] is not ... \
                 and (index[0] is ... or index[0] == slice(None))\
                 and (index[1] is ... or index[1] == slice(None)):
             return self.__getattr__(index[2])
 
         else:
-            index = reformat_index(index, self.time_points, self.index, self.columns)
+            index = utils.reformat_index(index, self.time_points, self.index, self.columns)
 
-            generalLogger.debug(f'  Refactored index to : {repr_index(index)}')
+            generalLogger.debug(f'  Refactored index to : {utils.repr_index(index)}')
 
             if not len(index[0]):
                 raise VValueError("Time point not found.")
@@ -151,7 +152,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
 
-    def __add__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+    def __add__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
         :param value: an int or a float to add to values.
@@ -159,7 +160,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__add__', value)
 
-    def __sub__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+    def __sub__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
         :param value: an int or a float to subtract to values.
@@ -167,7 +168,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__sub__', value)
 
-    def __mul__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+    def __mul__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
         :param value: an int or a float to multiply all values by.
@@ -175,7 +176,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__mul__', value)
 
-    def __truediv__(self, value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+    def __truediv__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
         :param value: an int or a float to divide all values by.
@@ -206,7 +207,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 self._parent_data[self.time_points[0]][np.where(self.bool_index_at(self.time_points[0]))[0],
                                                        col_index] = values.iloc[:, col_index_in_values]
 
-        elif isinstance(values, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
+        elif isinstance(values, (dataframe.TemporalDataFrame, ViewTemporalDataFrame)):
             # same tp
             # same rows in all tp
             # same columns in all tp
@@ -223,7 +224,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                     self._parent_data[tp][np.where(self.bool_index_at(tp))[0], col_index] = \
                         pandas_values.iloc[:, col_index_in_values]
 
-        elif isCollection(values):
+        elif utils.isCollection(values):
             values = list(values)
             # only one row or only one column
             if self.n_columns == 1:
@@ -288,7 +289,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return data
 
     @property
-    def time_points(self) -> List[TimePoint]:
+    def time_points(self) -> List['utils.TimePoint']:
         """
         Get the list of time points in this view of a TemporalDataFrame.
         :return: the list of time points in this view of a TemporalDataFrame.
@@ -317,7 +318,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Set a new index for observations in this view.
         :param values: collection of new index values.
         """
-        if not isCollection(values):
+        if not utils.isCollection(values):
             raise VTypeError('New index should be an array of values.')
 
         len_index = self.n_index_total
@@ -330,23 +331,32 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             self._parent_data[tp].loc[self.index_at(tp)].index = values[cnt:cnt + self.n_index_at(tp)]
             cnt += self.n_index_at(tp)
 
-    def index_at(self, time_point: TimePoint) -> pd.Index:
+    def index_at(self, time_point: Union['utils.TimePoint', str]) -> pd.Index:
         """
         Get the index of this view of a TemporalDataFrame.
         :param time_point: a time point in this view of a TemporalDataFrame.
         :return: the index of this view of a TemporalDataFrame.
         """
+        if not isinstance(time_point, utils.TimePoint):
+            time_point = utils.TimePoint(time_point)
+
         if time_point not in self._tp_slicer:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
-        return pd.Index(np.unique(self._parent.index_at(time_point).intersection(self.index, sort=False)))
+        dup_index = self._parent.index_at(time_point).intersection(self.index, sort=False)
+        unique_idx = np.unique(dup_index, return_index=True)[1]
 
-    def bool_index_at(self, time_point: TimePoint) -> np.ndarray:
+        return pd.Index([dup_index[i] for i in sorted(unique_idx)])
+
+    def bool_index_at(self, time_point: Union['utils.TimePoint', str]) -> np.ndarray:
         """
         Get a boolean array of the same length as the parental index, where True means that the index at that
         position is in this view.
         :return: boolean array on parental index in this view.
         """
+        if not isinstance(time_point, utils.TimePoint):
+            time_point = utils.TimePoint(time_point)
+
         if time_point in self.time_points:
             return self._parent.index_at(time_point).isin(self.index_at(time_point))
 
@@ -385,7 +395,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._parent_data[self.columns].dtype
 
-    def astype(self, dtype: Union[DType, Dict[str, DType]]) -> NoReturn:
+    def astype(self, dtype: Union['NameUtils.DType', Dict[str, 'NameUtils.DType']]) -> NoReturn:
         """
         Reference to TemporalDataFrame's astype method. This cannot be done in a view.
         """
@@ -429,7 +439,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         raise VValueError("Cannot insert a column from a view.")
 
-    def copy(self) -> 'vdata.TemporalDataFrame':
+    def copy(self) -> 'dataframe.TemporalDataFrame':
         """
         Create a new copy of this view of a TemporalDataFrame.
         :return: a copy of this view of a TemporalDataFrame.
@@ -441,14 +451,14 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         Compute mean, min or max of the values over the requested axis.
         """
         if axis == 0:
-            _data = {'mean': [self._parent_data[tp].loc[self.index_at(tp), col].__getattr__(func)()
-                              for tp in self.time_points for col in self.columns]}
+            _data = {func: [self._parent_data[tp].loc[self.index_at(tp), col].__getattr__(func)()
+                            for tp in self.time_points for col in self.columns]}
             _time_list = np.repeat(self.time_points, self.n_columns)
             _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
 
         elif axis == 1:
-            _data = {'mean': [self._parent_data[tp].loc[row, self.columns].__getattr__(func)()
-                              for tp in self.time_points for row in self.index_at(tp)]}
+            _data = {func: [self._parent_data[tp].loc[row, self.columns].__getattr__(func)()
+                            for tp in self.time_points for row in self.index_at(tp)]}
             _time_list = self.time_points_column
             _index = self.index
 
@@ -457,7 +467,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         return _data, _time_list, _index
 
-    def mean(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+    def mean(self, axis: Literal[0, 1] = 0) -> 'dataframe.TemporalDataFrame':
         """
         Return the mean of the values over the requested axis.
 
@@ -467,9 +477,9 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
 
         _name = f"Mean of {self.name}'s view" if self.name != 'No_Name' else None
-        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+        return dataframe.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
-    def min(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+    def min(self, axis: Literal[0, 1] = 0) -> 'dataframe.TemporalDataFrame':
         """
         Return the minimum of the values over the requested axis.
 
@@ -479,9 +489,9 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         _data, _time_list, _index = self.__mean_min_max_func('min', axis)
 
         _name = f"Minimum of {self.name}'s view" if self.name != 'No_Name' else None
-        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+        return dataframe.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
-    def max(self, axis: Literal[0, 1] = 0) -> 'vdata.TemporalDataFrame':
+    def max(self, axis: Literal[0, 1] = 0) -> 'dataframe.TemporalDataFrame':
         """
         Return the maximum of the values over the requested axis.
 
@@ -491,7 +501,18 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         _data, _time_list, _index = self.__mean_min_max_func('max', axis)
 
         _name = f"Maximum of {self.name}'s view" if self.name != 'No_Name' else None
-        return vdata.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+        return dataframe.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
+
+    def write(self, file: Union[str, Path]) -> None:
+        """
+        Save this TemporalDataFrame in HDF5 file format.
+
+        :param file: path to save the TemporalDataFrame.
+        """
+        from ..._read_write import write_TemporalDataFrame
+
+        with h5py.File(file, 'w') as save_file:
+            write_TemporalDataFrame(self.copy(), save_file, self.name)
 
 
 class _ViewVAtIndexer(_VAtIndexer):
@@ -504,7 +525,7 @@ class _ViewVAtIndexer(_VAtIndexer):
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -533,7 +554,7 @@ class _ViewViAtIndexer(_ViAtIndexer):
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.

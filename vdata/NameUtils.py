@@ -4,13 +4,11 @@
 
 # ====================================================
 # imports
-import h5py
 import numpy as np
 import pandas as pd
 from typing import Union, Sequence, List
 from typing_extensions import Literal
 
-import vdata
 from . import utils
 
 # ====================================================
@@ -49,8 +47,6 @@ str_DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "fl
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-H5Group = Union[h5py.File, h5py.Group, h5py.Dataset]
 
 Slicer = Union[Sequence[Union[int, float, str, bool, utils.TimePoint]], range, slice]
 PreSlicer = Union[int, float, str, utils.TimePoint, Slicer, 'ellipsis']

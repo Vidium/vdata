@@ -11,15 +11,16 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from functools import singledispatch
-from typing import Dict, List, Union
+from typing import Dict, List, Union, TYPE_CHECKING
 from typing_extensions import Literal
 
-import vdata
+if TYPE_CHECKING:
+    from .._core import VData
+
+from .NameUtils import H5Group
 from .utils import parse_path
-from .logger import generalLogger
-from .errors import VPathError
-from ..NameUtils import H5Group
 from .. import _TDF
+from .._IO import generalLogger, VPathError
 
 
 # ====================================================
@@ -28,7 +29,7 @@ def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
-def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
+def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
     """
     Save this VData object in HDF5 file format.
 
@@ -59,7 +60,7 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
         write_data(obj.uns, save_file, 'uns')
 
 
-def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
+def write_vdata_to_csv(obj: 'VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                        index: bool = True, header: bool = True) -> None:
     """
     Save a VData object into csv files in a directory.

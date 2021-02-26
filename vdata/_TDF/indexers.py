@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from typing import Any, Dict, Tuple, Union
 
-from vdata.utils import TimePoint
 from . import dataframe
 from . import views
+from .. import utils
 from .._IO import generalLogger, VValueError
 
 
@@ -26,7 +26,7 @@ class _VAtIndexer:
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -61,7 +61,7 @@ class _ViAtIndexer:
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict[TimePoint, np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -69,7 +69,7 @@ class _ViAtIndexer:
         self.__parent = parent
         self.__data = data
 
-    def __get_target_tp(self, index_key: int) -> Tuple[TimePoint, int]:
+    def __get_target_tp(self, index_key: int) -> Tuple['utils.TimePoint', int]:
         """
         Get the time point where the data needs to be accessed.
         :return: the time point and the index offset.
@@ -124,7 +124,7 @@ class _VLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict[TimePoint, np.ndarray]):
+                 data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -198,7 +198,7 @@ class _ViLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict[TimePoint, np.ndarray]):
+                 data: Dict['utils.TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.

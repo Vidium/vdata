@@ -10,7 +10,7 @@ import pandas as pd
 from typing import Optional, Tuple, Union, Any, Collection, List, Set, Sequence, cast
 
 from . import NameUtils
-from ._IO.errors import VValueError, VTypeError, ShapeError
+from . import _IO
 
 
 # ====================================================
@@ -75,7 +75,7 @@ class Unit:
         :param value: a string representing the unit, in [None, 's', 'm', 'h', 'D', 'M', 'Y'].
         """
         if value not in _units:
-            raise VValueError(f"Invalid unit '{value}', should be in {_units}.")
+            raise _IO.VValueError(f"Invalid unit '{value}', should be in {_units}.")
 
         self.value = value
 
@@ -153,7 +153,7 @@ class TimePoint:
                 v, u = get_value(time_point[:-1]), time_point[-1]
 
                 if not isinstance(v, (int, float, np.int, np.float)):
-                    raise VValueError(f"Invalid time point value '{time_point}'")
+                    raise _IO.VValueError(f"Invalid time point value '{time_point}'")
 
                 else:
                     return float(v), Unit(u)
@@ -161,13 +161,13 @@ class TimePoint:
             else:
                 v = get_value(time_point)
                 if isinstance(v, str):
-                    raise VValueError(f"Invalid time point value '{time_point}'")
+                    raise _IO.VValueError(f"Invalid time point value '{time_point}'")
 
                 else:
                     return float(v), Unit(None)
 
         else:
-            raise VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")
+            raise _IO.VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")
 
     def __repr__(self) -> str:
         """
@@ -240,7 +240,7 @@ def to_tp_list(item: Any, reference_time_points: Optional[Collection[TimePoint]]
     """
     new_tp_list: 'NameUtils.TimePointList' = []
 
-    if reference_time_points is None:
+    if reference_time_points is None or not len(reference_time_points):
         reference_time_points = [TimePoint('0')]
 
     for v in to_list(item):
@@ -304,7 +304,7 @@ def slicer_to_array(slicer: 'NameUtils.PreSlicer', reference_index: Collection, 
         return np.array(slice_or_range_to_list(slicer, reference_index))
 
     else:
-        raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
+        raise _IO.VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
 
 def unique_in_list(c: Collection) -> Set:
@@ -372,7 +372,7 @@ def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> List[
     """
     c = np.array(_c)
     if c.ndim != 1:
-        raise ShapeError(f"The collection is {c.ndim}D, should be a 1D array.")
+        raise _IO.ShapeError(f"The collection is {c.ndim}D, should be a 1D array.")
 
     sliced_list = []
     found_start = False
@@ -388,10 +388,10 @@ def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> List[
     else:
         step = s.step
         if not isinstance(step, int):
-            raise VValueError(f"The 'step' value is {step}, should be an int.")
+            raise _IO.VValueError(f"The 'step' value is {step}, should be an int.")
 
         if step == 0:
-            raise VValueError("The 'step' value cannot be 0.")
+            raise _IO.VValueError("The 'step' value cannot be 0.")
 
     if step < 0:
         c = np.flip(c)
@@ -475,7 +475,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     :return: boolean array that is True where element is in target_collection.
     """
     if not isCollection(target_collection):
-        raise VTypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
+        raise _IO.VTypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
 
     target_collection = set(e for e in target_collection)
 

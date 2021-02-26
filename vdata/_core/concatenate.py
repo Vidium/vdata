@@ -7,15 +7,14 @@
 import pandas as pd
 from typing import Optional
 
-import vdata
 from .utils import compact_obsp
-from .._IO.errors import VValueError, VTypeError
-from .._IO.logger import generalLogger
+from .vdata import VData
+from .._IO import VValueError, VTypeError, generalLogger
 
 
 # ====================================================
 # code
-def concatenate(*args: 'vdata.VData', name: Optional[str] = None) -> 'vdata.VData':
+def concatenate(*args: 'VData', name: Optional[str] = None) -> 'VData':
     """
     Concatenate together multiple VData objects, which share the same layer keys, vars and time points.
     :param args: list of at least 2 VData objects to concatenate.
@@ -25,7 +24,7 @@ def concatenate(*args: 'vdata.VData', name: Optional[str] = None) -> 'vdata.VDat
     if len(args) < 2:
         raise VValueError("At least 2 VData objects must be provided.")
 
-    if not all(isinstance(arg, vdata.VData) for arg in args):
+    if not all(isinstance(arg, VData) for arg in args):
         raise VTypeError("Only Vdata objects are allowed.")
 
     # get initial data
@@ -134,7 +133,7 @@ def concatenate(*args: 'vdata.VData', name: Optional[str] = None) -> 'vdata.VDat
             elif _uns[key] != value:
                 generalLogger.warning(f"Found different values for key '{key}' in 'uns', keeping first found value.")
 
-    return vdata.VData(data=_data, obs=_obs, obsm=_obsm, obsp=_obsp,
-                       var=_var, varm=_varm, varp=_varp,
-                       time_points=_time_points, uns=_uns,
-                       name=name)
+    return VData(data=_data, obs=_obs, obsm=_obsm, obsp=_obsp,
+                 var=_var, varm=_varm, varp=_varp,
+                 time_points=_time_points, uns=_uns,
+                 name=name)

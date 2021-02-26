@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np
 from typing import Union, Collection, Dict, Optional
 
-import vdata
 from .arrays import VObspArrayContainer
-from . import views
+from .views import ViewVObspArrayContainer
+from .. import utils
 
 
 # ====================================================
@@ -30,8 +30,8 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
 
 
 def expand_obsp(data: Optional[Dict[str, pd.DataFrame]],
-                time_points: Dict['vdata.TimePoint', pd.Index]) \
-        -> Dict[str, Dict['vdata.TimePoint', pd.DataFrame]]:
+                time_points: Dict['utils.TimePoint', pd.Index]) \
+        -> Dict[str, Dict['utils.TimePoint', pd.DataFrame]]:
     """
     Transform square pandas DataFrames describing an obsp into multiple smaller square pandas DataFrames by cutting
     by TimePoint.
@@ -52,7 +52,7 @@ def expand_obsp(data: Optional[Dict[str, pd.DataFrame]],
     return _obsp
 
 
-def compact_obsp(obsp: Union[VObspArrayContainer, 'views.ViewVObspArrayContainer'], index: pd.Index) \
+def compact_obsp(obsp: Union[VObspArrayContainer, 'ViewVObspArrayContainer'], index: pd.Index) \
         -> Dict[str, pd.DataFrame]:
     """
     Transform back a collection of small square DataFrames into a single large square DataFrame where all TimePoints

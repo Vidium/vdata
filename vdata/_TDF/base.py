@@ -6,13 +6,17 @@
 # imports
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Optional, Dict
+from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Optional, Dict, TYPE_CHECKING
 from typing_extensions import Literal
 
-import vdata
-from vdata.NameUtils import PreSlicer
-from vdata.utils import TimePoint, repr_array
+from . import dataframe
+from .. import NameUtils
+from .. import utils
+
+if TYPE_CHECKING:
+    from .views import ViewTemporalDataFrame
 
 
 # ====================================================
@@ -30,11 +34,11 @@ class BaseTemporalDataFrame(ABC):
         return self.n_index_total
 
     @abstractmethod
-    def __getitem__(self, index: Union[PreSlicer,
-                                       Tuple[PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
-            -> 'views.ViewTemporalDataFrame':
+    def __getitem__(self, index: Union['NameUtils.PreSlicer',
+                                       Tuple['NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer', 'NameUtils.PreSlicer']]) \
+            -> 'ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
@@ -57,7 +61,9 @@ class BaseTemporalDataFrame(ABC):
         """
         pass
 
-    def __setitem__(self, index: Union[PreSlicer, Tuple[PreSlicer], Tuple[PreSlicer, Collection[bool]]],
+    def __setitem__(self, index: Union['NameUtils.PreSlicer',
+                                       Tuple['NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', Collection[bool]]],
                     values: Any) -> None:
         """
         Set values in the TemporalDataFrame.
@@ -77,7 +83,7 @@ class BaseTemporalDataFrame(ABC):
         pass
 
     @abstractmethod
-    def index_at(self, time_point: TimePoint) -> pd.Index:
+    def index_at(self, time_point: Union['utils.TimePoint', str]) -> pd.Index:
         """
         Get the index of this TemporalDataFrame.
         :param time_point: a time point in this TemporalDataFrame.
@@ -85,12 +91,15 @@ class BaseTemporalDataFrame(ABC):
         """
         pass
 
-    def n_index_at(self, time_point: TimePoint) -> int:
+    def n_index_at(self, time_point: Union['utils.TimePoint', str]) -> int:
         """
         Get the length of the index at a given time point.
         :param time_point: a time point in this TemporalDataFrame.
         :return: the length of the index at a given time point.
         """
+        if not isinstance(time_point, utils.TimePoint):
+            time_point = utils.TimePoint(time_point)
+
         return len(self.index_at(time_point))
 
     @property
@@ -103,7 +112,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def time_points(self) -> List[TimePoint]:
+    def time_points(self) -> List['utils.TimePoint']:
         """
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
@@ -138,7 +147,7 @@ class BaseTemporalDataFrame(ABC):
     @abstractmethod
     def time_points_column_name(self) -> Optional[str]:
         """
-        Get the name of the column with time points data. Returns None if '__TPID' is used.
+        Get the name of the column with time points data. Returns None if no column is used.
         :return: the name of the column with time points data.
         """
         pass
@@ -179,7 +188,7 @@ class BaseTemporalDataFrame(ABC):
         pass
 
     def _asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
-                   value: Union[int, float]) -> 'vdata.TemporalDataFrame':
+                   value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Common function for modifying all values in this TemporalDataFrame through the common operation (+, -, *, /).
         :param operation: the operation to apply on the TemporalDataFrame.
@@ -203,12 +212,12 @@ class BaseTemporalDataFrame(ABC):
         time_col_name = self.time_points_column_name
         time_list = self.time_points_column if time_col_name is None else None
 
-        return vdata.TemporalDataFrame(data=_data,
-                                       time_list=time_list,
-                                       time_col_name=time_col_name,
-                                       time_points=self.time_points,
-                                       index=self.index,
-                                       name=self.name)
+        return dataframe.TemporalDataFrame(data=_data,
+                                           time_list=time_list,
+                                           time_col_name=time_col_name,
+                                           time_points=self.time_points,
+                                           index=self.index,
+                                           name=self.name)
 
     @property
     def values(self) -> np.ndarray:
@@ -246,7 +255,7 @@ class BaseTemporalDataFrame(ABC):
     def shape(self) -> Tuple[int, List[int], int]:
         """
         Return a tuple representing the dimensionality of this TemporalDataFrame
-        (nb_time_points, [n_index_at(time point) for all time points], nb_col).
+            (nb_time_points, [n_index_at(time point) for all time points], nb_col).
         :return: a tuple representing the dimensionality of this TemporalDataFrame
         """
         return self.n_time_points, [self.n_index_at(TP) for TP in self.time_points], self.n_columns
@@ -262,7 +271,7 @@ class BaseTemporalDataFrame(ABC):
 
         return False
 
-    def _head_tail_func(self, n: int = 5, time_points: PreSlicer = slice(None, None, None),
+    def _head_tail_func(self, n: int = 5, time_points: 'NameUtils.PreSlicer' = slice(None, None, None),
                         func: Literal['head', 'tail'] = 'head') -> str:
         """
         This function returns the first (or last) n rows for the object based on position.
@@ -304,7 +313,7 @@ class BaseTemporalDataFrame(ABC):
                     suppl_TPs.append(TP)
 
             if len(suppl_TPs):
-                repr_str += f"\nSkipped time points {repr_array(suppl_TPs)} ...\n\n\n"
+                repr_str += f"\nSkipped time points {utils.repr_array(suppl_TPs)} ...\n\n\n"
 
         else:
             repr_str = f"Time points: []\n" \
@@ -313,7 +322,7 @@ class BaseTemporalDataFrame(ABC):
 
         return repr_str
 
-    def _head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+    def _head(self, n: int = 5, time_points: 'NameUtils.PreSlicer' = slice(None, None, None)) -> str:
         """
         This function returns the first n rows for the object based on position.
         For negative values of n, this function returns all rows except the last n rows.
@@ -322,16 +331,19 @@ class BaseTemporalDataFrame(ABC):
         """
         return self._head_tail_func(n, time_points)
 
-    def head(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> None:
+    def head(self, n: int = 5, time_points: 'NameUtils.PreSlicer' = slice(None, None, None)) -> None:
         """
         This function prints the first n rows for the object based on position.
         For negative values of n, this function returns all rows except the last n rows.
+
+        :param n: number of row to represent.
+        :param time_points: time points to be represented
 
         :return: the first n rows.
         """
         print(self._head(n, time_points))
 
-    def _tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> str:
+    def _tail(self, n: int = 5, time_points: 'NameUtils.PreSlicer' = slice(None, None, None)) -> str:
         """
         This function returns the last n rows for the object based on position.
         For negative values of n, this function returns all rows except the first n rows.
@@ -340,10 +352,13 @@ class BaseTemporalDataFrame(ABC):
         """
         return self._head_tail_func(n, time_points, 'tail')
 
-    def tail(self, n: int = 5, time_points: PreSlicer = slice(None, None, None)) -> None:
+    def tail(self, n: int = 5, time_points: 'NameUtils.PreSlicer' = slice(None, None, None)) -> None:
         """
         This function prints the last n rows for the object based on position.
         For negative values of n, this function returns all rows except the first n rows.
+
+        :param n: number of row to represent.
+        :param time_points: time points to be represented
 
         :return: the last n rows.
         """
@@ -366,18 +381,19 @@ class BaseTemporalDataFrame(ABC):
         for column in self.columns:
             yield column, _data[column]
 
-    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'vdata.TemporalDataFrame':
+    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'dataframe.TemporalDataFrame':
         """
         Whether each element in the TemporalDataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.
         """
-        _time_col = self.time_points_column_name
-        _time_list = self.time_points_column if _time_col is None else None
+        _time_col_name = self.time_points_column_name
+        _time_list = self.time_points_column if _time_col_name is None else None
 
-        return vdata.TemporalDataFrame(self.to_pandas().isin(values), time_list=_time_list, time_col=_time_col)
+        return dataframe.TemporalDataFrame(self.to_pandas().isin(values), time_list=_time_list,
+                                           time_col_name=_time_col_name)
 
     def eq(self, other: Any, axis: Literal[0, 1, 'index', 'column'] = 'columns',
-           level: Any = None) -> 'vdata.TemporalDataFrame':
+           level: Any = None) -> 'dataframe.TemporalDataFrame':
         """
         Get Equal to of TemporalDataFrame and other, element-wise (binary operator eq).
         Equivalent to '=='.
@@ -385,8 +401,17 @@ class BaseTemporalDataFrame(ABC):
         :param axis: {0 or ‘index’, 1 or ‘columns’}
         :param level: int or label
         """
-        _time_col = self.time_points_column_name
+        _time_col_name = self.time_points_column_name
         _time_list = self.time_points_column if self.time_points_column_name is None else None
 
-        return vdata.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
-                                       time_col=_time_col)
+        return dataframe.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
+                                           time_col_name=_time_col_name)
+
+    @abstractmethod
+    def write(self, file: Union[str, Path]) -> None:
+        """
+        Save this TemporalDataFrame in HDF5 file format.
+
+        :param file: path to save the TemporalDataFrame.
+        """
+        pass

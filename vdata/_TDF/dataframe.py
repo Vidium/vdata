@@ -12,16 +12,14 @@ from collections import Counter
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List
 from typing_extensions import Literal
 
-from vdata.NameUtils import DType, PreSlicer, TimePointList
-from vdata.utils import TimePoint, repr_array, repr_index, isCollection, to_tp_list, \
-    reformat_index, match_time_points, unique_in_list, trim_time_points
 from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .base import BaseTemporalDataFrame
 from .copy import copy_TemporalDataFrame
 from .indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
-from .views.dataframe import ViewTemporalDataFrame
-from .._IO import generalLogger
-from .._IO.errors import VValueError, VTypeError, ShapeError
+from .views import ViewTemporalDataFrame
+from .. import NameUtils
+from .. import utils
+from .._IO import generalLogger, VValueError, VTypeError, ShapeError
 
 # TODO : remove match_time_points
 
@@ -30,12 +28,13 @@ from .._IO.errors import VValueError, VTypeError, ShapeError
 # code
 def parse_index_and_time_points(_index: Optional[Collection],
                                 _data: Optional[Union[Dict, pd.DataFrame]],
-                                _time_list: TimePointList,
+                                _time_list: 'NameUtils.TimePointList',
                                 _time_col_name: Optional[str],
                                 _time_points: Optional[List],
                                 _columns: Collection[str]) \
         -> Tuple[
-            Dict[TimePoint, np.ndarray], List[TimePoint], Optional[str], Dict[TimePoint, pd.Index], pd.Index
+            Dict['utils.TimePoint', np.ndarray], List['utils.TimePoint'], Optional[str],
+            Dict['utils.TimePoint', pd.Index], pd.Index
         ]:
     """
     Given the index, data, time list, time points and columns parameters from a TemporalDataFrame, infer correct
@@ -77,7 +76,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
 
                 else:
                     # only list of time points was provided
-                    generalLogger.debug(f"\t\t\t\t'time points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time points' is : {utils.repr_array(_time_points)}.")
 
                 _index = {tp: pd.Index([]) for tp in _time_points}
                 _data = {tp: np.array([]) for tp in _time_points}
@@ -89,13 +88,13 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # only a time_list was provided
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    _time_points = sorted(list(unique_in_list(_time_list)))
+                    _time_points = sorted(list(utils.unique_in_list(_time_list)))
 
                 else:
                     # time_list and time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
-                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    _time_list, excluded_elements = utils.trim_time_points(_time_list, _time_points)
                     if len(excluded_elements):
                         generalLogger.warning(f"\tTime points {excluded_elements} were found in 'time_list'"
                                               f"parameter but not in 'time_points'. They will be ignored.")
@@ -104,7 +103,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 current_index = 0
 
                 for item in _time_list:
-                    if isCollection(item):
+                    if utils.isCollection(item):
                         for sub_item in item:
                             _index[sub_item].append(current_index)
 
@@ -117,7 +116,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 _data = {tp: np.array([]) for tp in _time_points}
 
         else:
-            generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
+            generalLogger.debug(f"\t\t'index' is : {utils.repr_array(_index)}.")
 
             if _time_list is None:
                 generalLogger.debug("\t\t\t'time_list' was not found.")
@@ -126,47 +125,47 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # only the index was provided
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
+                    generalLogger.info(f"\tSetting all time points to default value '{utils.TimePoint('0')}'.")
 
-                    _time_points = [TimePoint('0')]
+                    _time_points = [utils.TimePoint('0')]
 
                 else:
                     # index and time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
                 _index = {tp: pd.Index(_index) for tp in _time_points}
                 _data = {tp: np.array([]) for tp in _time_points}
 
             else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
+                generalLogger.debug(f"\t\t\t'time_list' is : {utils.repr_array(_time_list)}.")
 
                 if _time_points is None:
                     # index and _time_list were provided
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
                     if not len(_index) == len(_time_list):
-                        raise ShapeError(f"Lengths of 'index' ({repr_array(_index)}) and 'time_list' "
-                                         f"({repr_array(_time_list)}) parameters do not match.")
+                        raise ShapeError(f"Lengths of 'index' ({utils.repr_array(_index)}) and 'time_list' "
+                                         f"({utils.repr_array(_time_list)}) parameters do not match.")
 
-                    _time_points = list(unique_in_list(_time_list))
+                    _time_points = list(utils.unique_in_list(_time_list))
 
                 else:
                     # index, _time_list and _time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
-                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    _time_list, excluded_elements = utils.trim_time_points(_time_list, _time_points)
                     if len(excluded_elements):
-                        generalLogger.warning(f"\tTime points {repr_array(excluded_elements)} were found in 'time_list'"
-                                              f"parameter but not in 'time_points'. They will be ignored.")
+                        generalLogger.warning(f"\tTime points {utils.repr_array(excluded_elements)} were found in "
+                                              f"'time_list' parameter but not in 'time_points'. They will be ignored.")
 
                     if not len(_index) == len(_time_list):
                         raise ShapeError("Lengths of 'index' and 'time_list' parameters do not match.")
 
                 _time_list = np.array(_time_list)
 
-                _data = {tp: pd.DataFrame(index=np.array(_index)[match_time_points(_time_list, [tp])],
+                _data = {tp: pd.DataFrame(index=np.array(_index)[utils.match_time_points(_time_list, [tp])],
                                           columns=_columns) for tp in _time_points}
-                _index = {tp: pd.Index(_index)[match_time_points(_time_list, [tp])] for tp in _time_points}
+                _index = {tp: pd.Index(_index)[utils.match_time_points(_time_list, [tp])] for tp in _time_points}
 
         if _columns is not None:
             _columns = pd.Index(_columns)
@@ -183,7 +182,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
             # get number of rows in data
             data_len = 1
             for value in _data.values():
-                value_len = len(value) if isCollection(value) else 1
+                value_len = len(value) if utils.isCollection(value) else 1
 
                 if value_len != data_len and data_len != 1 and value_len != 1:
                     raise ShapeError("All items in 'data' must have the same length "
@@ -218,9 +217,9 @@ def parse_index_and_time_points(_index: Optional[Collection],
                         ref = _time_points
 
                     else:
-                        ref = to_tp_list(unique_in_list(_data[_time_col_name]) - {'*'})
+                        ref = utils.to_tp_list(utils.unique_in_list(_data[_time_col_name]) - {'*'})
 
-                    _time_list = to_tp_list(_data[_time_col_name], ref)
+                    _time_list = utils.to_tp_list(_data[_time_col_name], ref)
 
                     del _data[_time_col_name]
 
@@ -247,39 +246,39 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # only data provided
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
+                    generalLogger.info(f"\tSetting all time points to default value '{utils.TimePoint('0')}'.")
 
-                    _time_points = [TimePoint('0')]
-                    _index = {TimePoint('0'): _data.index}
-                    _data = {TimePoint('0'): _data.values}
+                    _time_points = [utils.TimePoint('0')]
+                    _index = {utils.TimePoint('0'): _data.index}
+                    _data = {utils.TimePoint('0'): _data.values}
 
                 else:
                     # data and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
                     _index = {tp: _data.index for tp in _time_points}
                     _data = {tp: _data.values for tp in _time_points}
 
             else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
+                generalLogger.debug(f"\t\t\t'time_list' is : {utils.repr_array(_time_list)}.")
 
                 if _time_points is None:
                     # data and time list
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    _time_points = list(unique_in_list(_time_list))
+                    _time_points = list(utils.unique_in_list(_time_list))
 
                 else:
                     # data, time list and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
-                    new_time_list, excluded_elements = trim_time_points(_time_list, _time_points)
+                    new_time_list, excluded_elements = utils.trim_time_points(_time_list, _time_points)
                     if len(excluded_elements):
                         generalLogger.warning(f"\tTime points {list(excluded_elements)} were found in 'time_list' "
                                               f"parameter but not in 'time_points'. They will be ignored.")
 
                         # remove undesired time points from the data
-                        _data = _data[match_time_points(_time_list, _time_points)]
+                        _data = _data[utils.match_time_points(_time_list, _time_points)]
 
                         generalLogger.debug(f"\tNew data has {len(_data)} rows.")
 
@@ -294,13 +293,13 @@ def parse_index_and_time_points(_index: Optional[Collection],
                         raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
 
                 else:
-                    _data = {tp: _data.loc[match_time_points(_time_list, [tp])] for tp in _time_points}
+                    _data = {tp: _data.loc[utils.match_time_points(_time_list, [tp])] for tp in _time_points}
 
                     _index = {tp: _data[tp].index for tp in _time_points}
                     _data = {k: v.values for k, v in _data.items()}
 
         else:
-            generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
+            generalLogger.debug(f"\t\t'index' is : {utils.repr_array(_index)}.")
 
             if _time_list is None:
                 generalLogger.debug("\t\t\t'time_list' was not found.")
@@ -309,13 +308,13 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # data and index
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
+                    generalLogger.info(f"\tSetting all time points to default value '{utils.TimePoint('0')}'.")
 
-                    _time_points = [TimePoint('0')]
+                    _time_points = [utils.TimePoint('0')]
 
                 else:
                     # data, index and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
                 len_index = len(_index)
 
@@ -338,7 +337,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     _index = {tp: pd.Index(_index) for tp in _time_points}
 
             else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
+                generalLogger.debug(f"\t\t\t'time_list' is : {utils.repr_array(_time_list)}.")
 
                 if data_len != len(_time_list):
                     raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
@@ -347,11 +346,11 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     # data, index and time list
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
 
-                    _time_points = list(unique_in_list(_time_list))
+                    _time_points = list(utils.unique_in_list(_time_list))
 
                 else:
                     # data, index, time list and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
+                    generalLogger.debug(f"\t\t\t\t'time_points' is : {utils.repr_array(_time_points)}.")
 
                 _time_points = sorted(_time_points)
 
@@ -366,7 +365,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 _expanded_time_list = []
 
                 for tp_i, tp in enumerate(_time_list):
-                    if isCollection(tp):
+                    if utils.isCollection(tp):
                         _data = pd.concat([_data.iloc[:tp_i]] +
                                           [pd.DataFrame(_data.iloc[tp_i]).T for _ in range(len(set(tp))-1)] +
                                           [_data.iloc[tp_i:]], sort=False)
@@ -397,9 +396,9 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 _index = {tp: _data[tp].index for tp in _time_points}
                 _data = {k: v.values for k, v in _data.items()}
 
-    generalLogger.debug(f"\tSet 'time_points' to : {repr_array(_time_points)}.")
+    generalLogger.debug(f"\tSet 'time_points' to : {utils.repr_array(_time_points)}.")
     generalLogger.debug(f"\tSet 'time_points_column' to : {tp_col_name}.")
-    generalLogger.debug(f"\tSet 'columns' to : {repr_array(_columns)}.")
+    generalLogger.debug(f"\tSet 'columns' to : {utils.repr_array(_columns)}.")
 
     generalLogger.debug("\t\u23BF Parse index and time points : end ------------------------------------------ ")
     return _data, _time_points, tp_col_name, _index, _columns
@@ -413,12 +412,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     """
 
     def __init__(self, data: Optional[Union[Dict, pd.DataFrame, h5py.Group]] = None,
-                 time_list: Optional[Union[Collection, DType, Literal['*'], TimePoint]] = None,
+                 time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*'], 'utils.TimePoint']] = None,
                  time_col_name: Optional[str] = None,
-                 time_points: Optional[Collection[Union[DType, TimePoint]]] = None,
+                 time_points: Optional[Collection[Union['NameUtils.DType', 'utils.TimePoint']]] = None,
                  index: Optional[Collection] = None,
                  columns: Optional[Collection] = None,
-                 dtype: Optional[DType] = None,
+                 dtype: Optional['NameUtils.DType'] = None,
                  name: Optional[Any] = None):
         """
         :param data: data to store as a dataframe.
@@ -449,19 +448,20 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._is_backed = False
 
-        self._time_points = sorted(to_tp_list(unique_in_list(time_points), [])) if time_points is not None else None
+        self._time_points = sorted(
+            utils.to_tp_list(utils.unique_in_list(utils.to_list(time_points)), [])) if time_points is not None else None
 
         if self._time_points is not None:
-            generalLogger.debug(f"User has defined time points : {repr_array(self._time_points)}.")
+            generalLogger.debug(f"User has defined time points : {utils.repr_array(self._time_points)}.")
 
         if time_list is not None:
             if self._time_points is not None:
                 ref = self._time_points
 
             else:
-                ref = to_tp_list(unique_in_list(time_list) - {'*'})
+                ref = utils.to_tp_list(utils.unique_in_list(utils.to_list(time_list)) - {'*'})
 
-            time_list = to_tp_list(time_list, ref)
+            time_list = utils.to_tp_list(time_list, ref)
 
         # ---------------------------------------------------------------------
         # no data given, empty DataFrame is created
@@ -498,7 +498,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             self._columns = pd.Index(columns)
             self._time_points_column_name = time_col_name
 
-            self._time_points = sorted([TimePoint(tp) for tp in data.keys()])
+            self._time_points = sorted([utils.TimePoint(tp) for tp in data.keys()])
             self._index = {}
             self._df = {}
 
@@ -522,7 +522,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         # get list of time points that can be found in the DataFrame
         self._time_points = sorted(self._time_points)
 
-        generalLogger.debug(f"Found time points {repr_array(self._time_points)} from stored DataFrame.")
+        generalLogger.debug(f"Found time points {utils.repr_array(self._time_points)} from stored DataFrame.")
 
         generalLogger.debug(f"Shape is : {self.shape}.")
 
@@ -544,10 +544,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer,
-                                       Tuple[PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer],
-                                       Tuple[PreSlicer, PreSlicer, PreSlicer]]) \
+    def __getitem__(self, index: Union['NameUtils.PreSlicer',
+                                       Tuple['NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer', 'NameUtils.PreSlicer']]) \
             -> 'ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
@@ -570,18 +570,18 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :return: a view on a sub-set of a TemporalDataFrame
         """
         generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
-        generalLogger.debug(f'  Got index \n{repr_index(index)}.')
+        generalLogger.debug(f'  Got index \n{utils.repr_index(index)}.')
 
-        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
+        if isinstance(index, tuple) and len(index) == 3 and not utils.isCollection(index[2]) \
                 and not isinstance(index[2], slice) and index[2] is not ... \
                 and (index[0] is ... or index[0] == slice(None))\
                 and (index[1] is ... or index[1] == slice(None)):
             return self.__getattr__(index[2])
 
         else:
-            index = reformat_index(index, self.time_points, self.index, self.columns)
+            index = utils.reformat_index(index, self.time_points, self.index, self.columns)
 
-            generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
+            generalLogger.debug(f'  Refactored index to \n{utils.repr_index(index)}.')
 
             if not len(index[0]):
                 raise VValueError("Time points not found in this TemporalDataFrame.")
@@ -626,6 +626,18 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         else:
             self.insert(self.n_columns, attr, value)
+
+    def __delattr__(self, col: str) -> None:
+        if col in self.columns:
+            col_index = np.where(self.columns == col)[0][0]
+
+            for time_point in self.time_points:
+                self._df[time_point] = np.delete(self._df[time_point], col_index, 1)
+
+            self._columns = self._columns.delete(col_index)
+
+        else:
+            raise VValueError(f"Column '{col}' not found in TemporalDataFrame '{self.name}'.")
 
     def __add__(self, value: Union[int, float]) -> 'TemporalDataFrame':
         """
@@ -695,7 +707,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return data
 
     @property
-    def time_points(self) -> List[TimePoint]:
+    def time_points(self) -> List['utils.TimePoint']:
         """
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
@@ -705,17 +717,20 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @property
     def time_points_column_name(self) -> Optional[str]:
         """
-        Get the name of the column with time points data. Returns None if '__TPID' is used.
+        Get the name of the column with time points data. Returns None if no column is used.
         :return: the name of the column with time points data.
         """
         return self._time_points_column_name
 
-    def index_at(self, time_point: TimePoint) -> pd.Index:
+    def index_at(self, time_point: Union['utils.TimePoint', str]) -> pd.Index:
         """
         Get the index of this TemporalDataFrame.
         :param time_point: a time point in this TemporalDataFrame.
         :return: the index of this TemporalDataFrame
         """
+        if not isinstance(time_point, utils.TimePoint):
+            time_point = utils.TimePoint(time_point)
+
         if time_point not in self.time_points:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this TemporalDataFrame.")
 
@@ -740,7 +755,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Set a new index for observations.
         :param values: collection of new index values.
         """
-        if not isCollection(values):
+        if not utils.isCollection(values):
             raise VTypeError('New index should be an array of values.')
 
         len_index = self.n_index_total
@@ -756,8 +771,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def reindex(self, index: Collection) -> None:
         """
         Conform the index of this TemporalDataFrame to the new index.
+        :param index: a new index with same elements as in the current index but the order can be different.
         """
-        if not isCollection(index):
+        if not utils.isCollection(index):
             raise VTypeError('New index should be an array of values.')
 
         index = pd.Index(index)
@@ -766,12 +782,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not len(index) == len_index:
             raise VValueError(f"Cannot reindex from an array of length {len(index)}, should be {len_index}.")
 
-        if not all(index.isin(self.index)):
-            raise VValueError(f"Some values in the new index are not present in the current index.")
-
         cnt = 0
         for tp in self.time_points:
-            index_for_tp = index[cnt:cnt+self.n_index_at(tp)]
+            index_for_tp = index[cnt:cnt + self.n_index_at(tp)]
+
+            if not all(self.index_at(tp).isin(index_for_tp)):
+                raise VValueError(f"Some values in the new index are not present in the current index at time point "
+                                  f"'{tp}'.")
+
             index_loc = [self.index_at(tp).get_loc(e) for e in index_for_tp]
 
             # change row order based on new index
@@ -820,8 +838,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @property
     def dtype(self) -> Optional[np.dtype]:
         """
-        Return the dtypes in this TemporalDataFrame.
-        :return: the dtypes in this TemporalDataFrame.
+        Return the dtype of this TemporalDataFrame.
+        :return: the dtype of this TemporalDataFrame.
         """
         if self.n_time_points:
             return self._df[self.time_points[0]].dtype
@@ -829,28 +847,34 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             return None
 
-    def astype(self, dtype: Optional[Union[DType, Dict[str, DType]]]) -> None:
+    def astype(self, dtype: Optional['NameUtils.DType']) -> None:
         """
         Cast this TemporalDataFrame to a specified data type.
         :param dtype: a data type.
         """
-        if dtype is not None:
-            for tp in self._time_points:
-                self._df[tp] = self._df[tp].astype(dtype)
+        if dtype is not None and dtype != self.dtype:
+            if self.is_backed:
+                generalLogger.warning("Cannot set data type for a backed TemporalDataFrame.\n"
+                                      "If you really want to modify the data type, create a copy of this "
+                                      "TemporalDataFrame before doing so.")
+
+            else:
+                for tp in self._time_points:
+                    self._df[tp] = self._df[tp].astype(dtype)
 
     @property
     def at(self) -> '_VAtIndexer':
         """
-        Access a single value for a row/column label pair.
-        :return: a single value for a row/column label pair.
+        Access a single value from a row/column label pair.
+        :return: a single value from a row/column label pair.
         """
         return _VAtIndexer(self, self._df)
 
     @property
     def iat(self) -> '_ViAtIndexer':
         """
-        Access a single value for a row/column pair by integer position.
-        :return: a single value for a row/column pair by integer position.
+        Access a single value from a row/column pair by integer position.
+        :return: a single value from a row/column pair by integer position.
         """
         return _ViAtIndexer(self, self._df)
 
@@ -890,7 +914,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return _ViLocIndexer(self, self._df)
 
-    def insert(self, loc, column, values) -> None:
+    def insert(self, loc: int, column: str, values: Any) -> None:
         """
         Insert column into TemporalDataFrame at specified location.
         :param loc: Insertion index. Must verify 0 <= loc <= len(columns).
@@ -907,7 +931,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             return arr
 
-        if isCollection(values):
+        if utils.isCollection(values):
             if self.n_index_total != len(values):
                 raise VValueError("Length of values does not match length of index.")
 
@@ -959,12 +983,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Compute mean, min or max of the values over the requested axis.
         """
         if axis == 0:
-            _data = {'mean': np.concatenate([getattr(self._df[tp], func)(axis=0) for tp in self.time_points])}
+            _data = {func: np.concatenate([getattr(self._df[tp], func)(axis=0) for tp in self.time_points])}
             _time_list = np.repeat(self.time_points, self.n_columns)
             _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
 
         elif axis == 1:
-            _data = {'mean': np.concatenate([getattr(self._df[tp], func)(axis=1) for tp in self.time_points])}
+            _data = {func: np.concatenate([getattr(self._df[tp], func)(axis=1) for tp in self.time_points])}
             _time_list = self.time_points_column
             _index = self.index
 
@@ -1044,3 +1068,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return TemporalDataFrame(data=_data, time_list=_time_list, time_col_name=self.time_points_column_name,
                                  name=name)
+
+    def write(self, file: Union[str, Path]) -> None:
+        """
+        Save this TemporalDataFrame in HDF5 file format.
+
+        :param file: path to save the TemporalDataFrame.
+        """
+        from .._read_write import write_TemporalDataFrame
+
+        with h5py.File(file, 'w') as save_file:
+            write_TemporalDataFrame(self, save_file, self.name)

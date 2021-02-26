@@ -8,14 +8,13 @@ import numpy as np
 import pandas as pd
 from typing import Union, Tuple, List, Dict, Any, NoReturn, Collection
 
-import vdata
-from vdata.NameUtils import PreSlicer
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
 from .. import utils
-from ...utils import repr_array, repr_index, reformat_index
-from ..._TDF.views.dataframe import ViewTemporalDataFrame
-from ..._IO import generalLogger
-from ..._IO.errors import VValueError, VTypeError, IncoherenceError, ShapeError
+from .. import vdata
+from ... import NameUtils
+from ... import utils
+from ..._TDF import TemporalDataFrame, ViewTemporalDataFrame
+from ..._IO import generalLogger, VValueError, VTypeError, IncoherenceError, ShapeError
 
 
 # ====================================================
@@ -55,13 +54,13 @@ class ViewVData:
         # recompute time points and obs slicers since there could be empty subsets
         self._time_points_slicer = np.array([e for e in self._time_points_slicer if e in self._obs.time_points])
 
-        generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._time_points_slicer)} "
+        generalLogger.debug(f"  1'. Recomputed time points slicer to : {utils.repr_array(self._time_points_slicer)} "
                             f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
                             f" selected)")
 
         self._obs_slicer = np.array(self._obs_slicer)[np.isin(self._obs_slicer, self._obs.index)]
 
-        generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer)} "
+        generalLogger.debug(f"  2'. Recomputed obs slicer to : {utils.repr_array(self._obs_slicer)} "
                             f"({len(self._obs_slicer)} value{'' if len(self._obs_slicer) == 1 else 's'}"
                             f" selected)")
 
@@ -90,11 +89,11 @@ class ViewVData:
         _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
 
         if self.is_empty:
-            repr_str = f"Empty view of a Vdata object ({_n_obs} obs x {self.n_var} vars over " \
+            repr_str = f"Empty view of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'})."
 
         else:
-            repr_str = f"View of a Vdata object with n_obs x n_var = {_n_obs} x {self.n_var} over " \
+            repr_str = f"View of VData '{self._parent.name}' with n_obs x n_var = {_n_obs} x {self.n_var} over " \
                        f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
 
         for attr_name in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
@@ -109,19 +108,21 @@ class ViewVData:
 
         return repr_str
 
-    def __getitem__(self, index: Union[PreSlicer, Tuple[PreSlicer, PreSlicer], Tuple[PreSlicer, PreSlicer, PreSlicer]])\
+    def __getitem__(self, index: Union['NameUtils.PreSlicer',
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
+                                       Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer', 'NameUtils.PreSlicer']])\
             -> 'ViewVData':
         """
         Get a subset of a view of a VData object.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
         """
         generalLogger.debug('ViewVData sub-setting - - - - - - - - - - - - - - ')
-        generalLogger.debug(f'  Got index \n{repr_index(index)}')
+        generalLogger.debug(f'  Got index \n{utils.repr_index(index)}')
 
         # convert to a 3-tuple
-        index = reformat_index(index, self._time_points_slicer, self._obs_slicer, self._var_slicer)
+        index = utils.reformat_index(index, self._time_points_slicer, self._obs_slicer, self._var_slicer)
 
-        generalLogger.debug(f"  1. Refactored index to \n{repr_index(index)}")
+        generalLogger.debug(f"  1. Refactored index to \n{utils.repr_index(index)}")
 
         return ViewVData(self._parent, index[0], index[1], index[2])
 
@@ -210,8 +211,8 @@ class ViewVData:
         return self._obs
 
     @obs.setter
-    def obs(self, df: Union['vdata.TemporalDataFrame', ViewTemporalDataFrame]) -> None:
-        if not isinstance(df, (vdata.TemporalDataFrame, ViewTemporalDataFrame)):
+    def obs(self, df: Union['TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
+        if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
             raise VTypeError("'obs' must be a TemporalDataFrame.")
 
         elif df.columns != self._parent.obs.columns:
@@ -341,7 +342,7 @@ class ViewVData:
         return self.obs
 
     @cells.setter
-    def cells(self, df: Union['vdata.TemporalDataFrame', ViewTemporalDataFrame]) -> None:
+    def cells(self, df: Union['TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         self.obs = df
 
     @property
