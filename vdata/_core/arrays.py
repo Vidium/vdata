@@ -668,7 +668,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
 
         if not all([isinstance(tp, utils.TimePoint) and tp in self._parent.time_points.value
                     for tp in value.keys()]):
-            raise VValueError(f"Time points do not match.")
+            raise VValueError("Time points do not match.")
 
         for tp, DF in value.items():
             if not isinstance(DF, pd.DataFrame):

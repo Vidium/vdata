@@ -9,6 +9,7 @@ import pandas as pd
 from typing import Union, Sequence, List
 from typing_extensions import Literal
 
+import vdata
 from . import utils
 
 # ====================================================

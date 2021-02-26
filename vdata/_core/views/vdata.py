@@ -9,7 +9,7 @@ import pandas as pd
 from typing import Union, Tuple, List, Dict, Any, NoReturn, Collection
 
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
-from .. import utils
+from .. import utils as core_utils
 from .. import vdata
 from ... import NameUtils
 from ... import utils
@@ -362,7 +362,7 @@ class ViewVData:
         """
         Build an actual VData object from this view.
         """
-        _obsp = utils.compact_obsp(self.obsp, self.obs.index)
+        _obsp = core_utils.compact_obsp(self.obsp, self.obs.index)
 
         return vdata.VData(data=self.layers.dict_copy(),
                            obs=self.obs.copy(),

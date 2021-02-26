@@ -21,7 +21,7 @@ from ..._IO import generalLogger, VTypeError, VValueError, ShapeError
 # ====================================================
 # code
 
-D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, Dict['vdata.TimePoint', pd.DataFrame])
+D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, Dict['utils.TimePoint', pd.DataFrame])
 D_VTDF = TypeVar('D_VTDF', bound=ViewTemporalDataFrame)
 D_VDF = TypeVar('D_VDF', bound=pd.DataFrame)
 
@@ -263,7 +263,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['vdata.TimePoint', D_VDF]]):
+class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['utils.TimePoint', D_VDF]]):
     """
     Class for views of obsp.
     """

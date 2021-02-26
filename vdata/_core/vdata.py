@@ -868,8 +868,8 @@ class VData:
                                 generalLogger.warning(f"'time_list' parameter cannot be used since 'obsm' '{key}' is "
                                                       "already a TemporalDataFrame.")
                             if time_col_name is not None:
-                                generalLogger.warning(f"'time_col_name' parameter cannot be used since 'obsm' '{key}' is "
-                                                      "already a TemporalDataFrame.")
+                                generalLogger.warning(f"'time_col_name' parameter cannot be used since 'obsm' '{key}' "
+                                                      f"is already a TemporalDataFrame.")
 
                         if all(valid_obsm[str(key)].index.isin(obs_index)):
                             valid_obsm[str(key)].reindex(obs_index)
