@@ -8,6 +8,7 @@ import builtins
 import numpy as np
 import pandas as pd
 from typing import Optional, Tuple, Union, Any, Collection, List, Set, Sequence, cast
+from typing_extensions import Literal
 
 from . import NameUtils
 from . import _IO
@@ -22,6 +23,14 @@ time_point_units = {None: '(no unit)',
                     'D': 'days',
                     'M': 'months',
                     'Y': 'years'}
+
+time_point_units_seconds = {None: 1,
+                            's': 1,
+                            'm': 60,
+                            'h': 3600,
+                            'D': 86400,
+                            'M': 2592000,
+                            'Y': 31104000}
 
 _units = (None, 's', 'm', 'h', 'D', 'M', 'Y')
 
@@ -183,17 +192,27 @@ class TimePoint:
         return f"{self.value}" \
                f"{self.unit.value if self.unit.value is not None else ''}"
 
+    def get_unit_value(self, unit: Literal['s', 'm', 'h', 'D', 'M', 'Y']) -> int:
+        """
+        Get this TimePoint has a number of <unit>.
+        """
+        return self.value * time_point_units_seconds[self.unit.value] / time_point_units_seconds[unit]
+
     def __gt__(self, other: 'TimePoint') -> bool:
         """
         Compare units with 'greater than'.
         """
-        return self.unit > other.unit or (self.unit == other.unit and self.value > other.value)
+        vs = self.get_unit_value('s')
+        vo = other.get_unit_value('s')
+        return vs > vo or (vs == vo and _units.index(self.unit.value) > _units.index(other.unit.value))
 
     def __lt__(self, other: 'TimePoint') -> bool:
         """
         Compare units with 'lesser than'.
         """
-        return self.unit < other.unit or (self.unit == other.unit and self.value < other.value)
+        vs = self.get_unit_value('s')
+        vo = other.get_unit_value('s')
+        return vs < vo or (vs == vo and _units.index(self.unit.value) < _units.index(other.unit.value))
 
     def __ge__(self, other: 'TimePoint') -> bool:
         """
@@ -211,7 +230,7 @@ class TimePoint:
         """
         Compare units with 'equal'.
         """
-        return self.unit == other.unit and self.value == other.value
+        return self.get_unit_value('s') == other.get_unit_value('s')
 
     def __hash__(self) -> int:
         return hash(repr(self))

@@ -1052,6 +1052,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         _data = pd.DataFrame(columns=self.columns)
 
         for time_point in self.time_points:
+            if any(other.index_at(time_point).isin(self.index_at(time_point))):
+                raise VValueError(f"TemporalDataFrames to merge have index values in common at time point "
+                                  f"'{time_point}'.")
+
             _data = _data.reset_index().merge(self[time_point].to_pandas().reset_index(),
                                               how='outer').set_index('index')
             _data = _data.reset_index().merge(other[time_point].to_pandas().reset_index(),

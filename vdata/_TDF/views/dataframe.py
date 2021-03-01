@@ -22,6 +22,9 @@ from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from ..._IO import generalLogger, VValueError, VAttributeError, VTypeError
 
 
+# TODO : view of view tdf[][:, :, 'col1'] --> selects all time points from parent
+
+
 # ==========================================
 # code
 class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
@@ -36,7 +39,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :param parent_data: the parent TemporalDataFrame's data.
         :param tp_slicer: a collection of time points to view.
         :param index_slicer: a pandas Index of rows to view.
-        :param column_slicer: a pandas Index of columns to view.
+     obs = pd.DataFrame({"cell_name": ["c1", "c2", "c3", "c4"], "batch": [1, 1, 2, 2]}, index=[1, 2, 3, 4])   :param column_slicer: a pandas Index of columns to view.
         """
         generalLogger.debug(f"\u23BE ViewTemporalDataFrame '{parent.name}':{id(self)} creation : begin "
                             f"---------------------------------------- ")
@@ -104,14 +107,14 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             return self.__getattr__(index[2])
 
         else:
-            index = utils.reformat_index(index, self.time_points, self.index, self.columns)
+            _index = utils.reformat_index(index, self.time_points, self.index, self.columns)
 
-            generalLogger.debug(f'  Refactored index to : {utils.repr_index(index)}')
+            generalLogger.debug(f'  Refactored index to : {utils.repr_index(_index)}')
 
-            if not len(index[0]):
+            if not len(_index[0]):
                 raise VValueError("Time point not found.")
 
-            return ViewTemporalDataFrame(self._parent, self._parent_data, index[0], index[1], index[2])
+            return ViewTemporalDataFrame(self._parent, self._parent_data, _index[0], _index[1], _index[2])
 
     def __getattribute__(self, attr: str) -> Any:
         """
