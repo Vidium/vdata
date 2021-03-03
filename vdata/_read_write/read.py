@@ -293,7 +293,7 @@ class H5GroupReader:
     def __exit__(self, *_):
         self.group.__exit__()
 
-    def close(self):
+    def close(self) -> None:
         self.group.file.close()
 
     @property

@@ -4,8 +4,6 @@
 
 # ====================================================
 # imports
-import h5py
-import hashlib
 import pandas as pd
 import numpy as np
 from anndata import AnnData
@@ -1293,27 +1291,3 @@ class VData:
                                 u'---------------------------------------------------------- ')
 
             return result
-
-    # checksum -----------------------------------------------------------
-    def get_checksum(self) -> str:
-        if self.is_backed:
-            self.write()
-
-            _file = self.file.filename
-
-            # close .h5 file while computing the checksum
-            self.file.close()
-
-            # get checksum
-            hash_md5 = hashlib.md5()
-            with open(_file, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-
-            # reopen .h5 file
-            self._file = H5GroupReader(h5py.File(_file, "r+"))
-
-            return hash_md5.hexdigest()
-
-        else:
-            raise VValueError('Cannot compute checksum of this VData object since it is not backed on a .h5 file.')

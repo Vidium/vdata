@@ -118,7 +118,7 @@ def update_vdata(obj: 'VData') -> None:
             if time_point not in obj.time_points_strings:
                 del obj.file.group['obs']['data'][time_point]
 
-        for time_point in obj.time_points:
+        for time_point in obj.time_points_values:
             if str(time_point) in obj.file.group['obs']['data'].keys():
                 obj.file.group['obs']['data'][str(time_point)][...] = obj.obs[time_point].values
 
