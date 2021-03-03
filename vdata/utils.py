@@ -119,10 +119,13 @@ class Unit:
         """
         return Unit._units_order[self.value] <= Unit._units_order[other.value]
 
-    def __eq__(self, other: 'Unit') -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Compare units with 'equal'.
         """
+        if not isinstance(other, Unit):
+            raise _IO.VValueError('Not a Unit.')
+
         return self.value == other.value
 
 
@@ -144,7 +147,7 @@ class TimePoint:
             self.value, self.unit = self.__parse(time_point)
 
     @staticmethod
-    def __parse(time_point: Union[str, 'NameUtils.DType']) -> Tuple['NameUtils.DType', Unit]:
+    def __parse(time_point: Union[str, 'NameUtils.DType']) -> Tuple[float, Unit]:
         """
         Get time point's value and unit.
 
@@ -157,6 +160,7 @@ class TimePoint:
             return float(time_point), Unit(None)
 
         elif _type_time_point in (str, np.str_):
+            time_point = cast(str, time_point)
             if time_point.endswith(_units[1:]) and len(time_point) > 1:
                 # try to get unit
                 v, u = get_value(time_point[:-1]), time_point[-1]
@@ -192,7 +196,7 @@ class TimePoint:
         return f"{self.value}" \
                f"{self.unit.value if self.unit.value is not None else ''}"
 
-    def get_unit_value(self, unit: Literal['s', 'm', 'h', 'D', 'M', 'Y']) -> int:
+    def get_unit_value(self, unit: Literal['s', 'm', 'h', 'D', 'M', 'Y']) -> float:
         """
         Get this TimePoint has a number of <unit>.
         """
