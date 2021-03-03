@@ -280,10 +280,6 @@ class ViewVData:
         """
         return self._layers
 
-    @layers.setter
-    def layers(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set layers in a view. Use the original VData object.")
-
     @property
     def obsm(self) -> ViewVTDFArrayContainer:
         """
@@ -291,10 +287,6 @@ class ViewVData:
         :return: a view on the obsm.
         """
         return self._obsm
-
-    @obsm.setter
-    def obsm(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set obsm in a view. Use the original VData object.")
 
     @property
     def obsp(self) -> ViewVObspArrayContainer:
@@ -304,10 +296,6 @@ class ViewVData:
         """
         return self._obsp
 
-    @obsp.setter
-    def obsp(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set obsp in a view. Use the original VData object.")
-
     @property
     def varm(self) -> ViewVVarmArrayContainer:
         """
@@ -316,10 +304,6 @@ class ViewVData:
         """
         return self._varm
 
-    @varm.setter
-    def varm(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set varm in a view. Use the original VData object.")
-
     @property
     def varp(self) -> ViewVVarpArrayContainer:
         """
@@ -327,10 +311,6 @@ class ViewVData:
         :return: a view on the varp.
         """
         return self._varp
-
-    @varp.setter
-    def varp(self, *_: Any) -> NoReturn:
-        raise VValueError("Cannot set varp in a view. Use the original VData object.")
 
     # Aliases ------------------------------------------------------------
     @property
