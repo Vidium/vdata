@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from .NameUtils import H5Group
 from .utils import parse_path
+from .read import H5GroupReader
 from .. import _TDF
 from .._IO import generalLogger, VPathError
 
@@ -36,28 +37,32 @@ def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
     :param obj: VData object to save into a .h5 file.
     :param file: path to save the VData.
     """
-    file = parse_path(file)
+    if obj.is_backed:
+        pass
 
-    # make sure the path exists
-    if not os.path.exists(os.path.dirname(file)):
-        os.makedirs(os.path.dirname(file))
+    else:
+        file = parse_path(file)
 
-    with h5py.File(file, 'w') as save_file:
-        # save layers
-        write_data(obj.layers.data, save_file, 'layers')
-        # save obs
-        write_data(obj.obs, save_file, 'obs')
-        write_data(obj.obsm.data, save_file, 'obsm')
-        write_data(obj.obsp.data, save_file, 'obsp')
-        # save var
-        write_data(obj.var, save_file, 'var')
-        write_data(obj.varm.data, save_file, 'varm')
-        write_data(obj.varp.data, save_file, 'varp')
-        # save time points
-        obj.time_points.value = [str(e) for e in obj.time_points.value]
-        write_data(obj.time_points, save_file, 'time_points')
-        # save uns
-        write_data(obj.uns, save_file, 'uns')
+        # make sure the path exists
+        if not os.path.exists(os.path.dirname(file)):
+            os.makedirs(os.path.dirname(file))
+
+        with h5py.File(file, 'w') as save_file:
+            # save layers
+            write_data(obj.layers.data, save_file, 'layers')
+            # save obs
+            write_data(obj.obs, save_file, 'obs')
+            write_data(obj.obsm.data, save_file, 'obsm')
+            write_data(obj.obsp.data, save_file, 'obsp')
+            # save var
+            write_data(obj.var, save_file, 'var')
+            write_data(obj.varm.data, save_file, 'varm')
+            write_data(obj.varp.data, save_file, 'varp')
+            # save time points
+            obj.time_points.value = [str(e) for e in obj.time_points.value]
+            write_data(obj.time_points, save_file, 'time_points')
+            # save uns
+            write_data(obj.uns, save_file, 'uns')
 
 
 def write_vdata_to_csv(obj: 'VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",

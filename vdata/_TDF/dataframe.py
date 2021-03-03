@@ -164,7 +164,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 _time_list = np.array(_time_list)
 
                 _data = {tp: pd.DataFrame(index=np.array(_index)[utils.match_time_points(_time_list, [tp])],
-                                          columns=_columns) for tp in _time_points}
+                                          columns=_columns).values for tp in _time_points}
                 _index = {tp: pd.Index(_index)[utils.match_time_points(_time_list, [tp])] for tp in _time_points}
 
         if _columns is not None:
@@ -574,7 +574,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         if isinstance(index, tuple) and len(index) == 3 and not utils.isCollection(index[2]) \
                 and not isinstance(index[2], slice) and index[2] is not ... \
-                and (index[0] is ... or index[0] == slice(None))\
+                and (index[0] is ... or (isinstance(index[0], slice) and index[0] == slice(None)))\
                 and (index[1] is ... or index[1] == slice(None)):
             return self.__getattr__(index[2])
 
