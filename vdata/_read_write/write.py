@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 from .NameUtils import H5Group
 from .utils import parse_path
-from .read import H5GroupReader
 from .. import _TDF
 from .._IO import generalLogger, VPathError
 
@@ -38,7 +37,7 @@ def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
     :param file: path to save the VData.
     """
     if obj.is_backed:
-        pass
+        update_vdata(obj)
 
     else:
         file = parse_path(file)
@@ -63,6 +62,140 @@ def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
             write_data(obj.time_points, save_file, 'time_points')
             # save uns
             write_data(obj.uns, save_file, 'uns')
+
+
+def update_vdata(obj: 'VData') -> None:
+    """
+    Update data from a backed VData object on the .h5 file.
+
+    :param obj: VData object to save into a .h5 file.
+    """
+    # save layers -------------------------------------------------------------
+    for layer_name in obj.layers.keys():
+        if layer_name in obj.file.group['layers'].keys():
+            # update data
+            for time_point in obj.file.group['layers'][layer_name]['data'].keys():
+                if time_point not in obj.time_points_strings:
+                    del obj.file.group['layers'][layer_name]['data'][time_point]
+
+            for time_point in obj.time_points_values:
+                if str(time_point) in obj.file.group['layers'][layer_name]['data'].keys():
+                    obj.file.group['layers'][layer_name]['data'][str(time_point)][...] = obj.layers[layer_name][
+                        time_point].values
+
+                else:
+                    obj.file.group['layers'][layer_name]['data'].create_dataset(
+                        str(time_point), data=obj.layers[layer_name][time_point].values,
+                        chunks=True, maxshape=(None, None))
+
+            # update index
+            del obj.file.group['layers'][layer_name]['index']
+            write_series(series=obj.layers[layer_name].index, group=obj.file.group['layers'][layer_name],
+                         key='index')
+
+            # update columns
+            del obj.file.group['layers'][layer_name]['columns']
+            write_series(series=obj.layers[layer_name].columns, group=obj.file.group['layers'][layer_name],
+                         key='columns')
+
+            # update time_col_name
+            del obj.file.group['layers'][layer_name]['time_col_name']
+            write_data(obj.layers[layer_name].time_points_column_name,
+                       obj.file.group['layers'][layer_name], 'time_col_name')
+
+        else:
+            write_TemporalDataFrame(data=obj.layers[layer_name], group=obj.file.group['layers'], key=layer_name)
+
+    # update obs --------------------------------------------------------------
+    if obj.obs.empty:
+        del obj.file.group['obs']
+
+        write_TemporalDataFrame(data=obj.obs, group=obj.file.group, key='obs')
+
+    else:
+        # update data
+        for time_point in obj.file.group['obs']['data'].keys():
+            if time_point not in obj.time_points_strings:
+                del obj.file.group['obs']['data'][time_point]
+
+        for time_point in obj.time_points:
+            if str(time_point) in obj.file.group['obs']['data'].keys():
+                obj.file.group['obs']['data'][str(time_point)][...] = obj.obs[time_point].values
+
+            else:
+                obj.file.group['obs']['data'].create_dataset(str(time_point), data=obj.obs[time_point].values,
+                                                             chunks=True, maxshape=(None, None))
+
+        # update index
+        del obj.file.group['obs']['index']
+        write_series(series=obj.obs.index, group=obj.file.group['obs'], key='index')
+
+        # update columns
+        del obj.file.group['obs']['columns']
+        write_series(series=obj.obs.columns, group=obj.file.group['obs'], key='columns')
+
+        # update time_col_name
+        del obj.file.group['obs']['time_col_name']
+        write_data(obj.obs.time_points_column_name, obj.file.group['obs'], 'time_col_name')
+
+    # update obsm -------------------------------------------------------------
+    for obsm_name in obj.obsm.keys():
+        if obsm_name in obj.file.group['obsm'].keys():
+            # update data
+            for time_point in obj.file.group['obsm'][obsm_name]['data'].keys():
+                if time_point not in obj.time_points_strings:
+                    del obj.file.group['obsm'][obsm_name]['data'][time_point]
+
+            for time_point in obj.time_points_values:
+                if str(time_point) in obj.file.group['obsm'][obsm_name]['data'].keys():
+                    obj.file.group['obsm'][obsm_name]['data'][str(time_point)][...] = obj.obsm[obsm_name][
+                        time_point].values
+
+                else:
+                    obj.file.group['obsm'][obsm_name]['data'].create_dataset(
+                        str(time_point), data=obj.obsm[obsm_name][time_point].values,
+                        chunks=True, maxshape=(None, None))
+
+            # update index
+            del obj.file.group['obsm'][obsm_name]['index']
+            write_series(series=obj.obsm[obsm_name].index, group=obj.file.group['obsm'][obsm_name],
+                         key='index')
+
+            # update columns
+            del obj.file.group['obsm'][obsm_name]['columns']
+            write_series(series=obj.obsm[obsm_name].columns, group=obj.file.group['obsm'][obsm_name],
+                         key='columns')
+
+            # update time_col_name
+            del obj.file.group['obsm'][obsm_name]['time_col_name']
+            write_data(obj.obsm[obsm_name].time_points_column_name,
+                       obj.file.group['obsm'][obsm_name], 'time_col_name')
+
+        else:
+            write_TemporalDataFrame(data=obj.obsm[obsm_name], group=obj.file.group['obsm'], key=obsm_name)
+
+    # update obsp -------------------------------------------------------------
+    del obj.file.group['obsp']
+    write_data(obj.obsp.data, obj.file.group, 'obsp')
+
+    # update var --------------------------------------------------------------
+    del obj.file.group['var']
+    write_data(obj.var, obj.file.group, 'var')
+
+    del obj.file.group['varm']
+    write_data(obj.varm.data, obj.file.group, 'varm')
+
+    del obj.file.group['varp']
+    write_data(obj.varp.data, obj.file.group, 'varp')
+
+    # update time points ------------------------------------------------------
+    del obj.file.group['time_points']
+    obj.time_points.value = [str(e) for e in obj.time_points.value]
+    write_data(obj.time_points, obj.file.group, 'time_points')
+
+    # update uns --------------------------------------------------------------
+    del obj.file.group['uns']
+    write_data(obj.uns, obj.file.group, 'uns')
 
 
 def write_vdata_to_csv(obj: 'VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
@@ -140,6 +273,10 @@ def write_Dict(data: Dict, group: H5Group, key: str, key_level: int = 0) -> None
     It creates a group for storing the keys and recursively calls write_data to store them.
     """
     generalLogger.info(f"{spacer(key_level)}Saving dict {key}")
+
+    if str(key) in group.keys():
+        del group[str(key)]
+
     grp = group.create_group(str(key))
     grp.attrs['type'] = 'dict'
 
@@ -223,7 +360,7 @@ def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key:
 
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
-def write_series(series: pd.Series, group: H5Group, key: str, key_level: int = 0,
+def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, key_level: int = 0,
                  log_func: Literal['debug', 'info'] = 'info') -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).

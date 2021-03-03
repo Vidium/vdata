@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from anndata import AnnData
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection
+from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator
 
 from .utils import array_isin, compact_obsp, expand_obsp
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
@@ -208,6 +208,13 @@ class VData:
         """
         return self._file is not None
 
+    @property
+    def file(self) -> H5GroupReader:
+        """
+        Get this VData's .h5 file.
+        """
+        return self._file
+
     # Shapes -------------------------------------------------------------
     @property
     def empty(self) -> bool:
@@ -306,6 +313,15 @@ class VData:
         :return: the list of time points values (with the unit if possible).
         """
         return self.time_points.value.values
+
+    @property
+    def time_points_strings(self) -> Iterator[str]:
+        """
+        Get the list of time points as strings.
+
+        :return: the list of time points as strings.
+        """
+        return map(str, self.time_points.value.values)
 
     @property
     def obs(self) -> TemporalDataFrame:
@@ -1156,12 +1172,18 @@ class VData:
                                        f"{dataset.shape[1]})")
 
     # writing ------------------------------------------------------------
-    def write(self, file: Union[str, Path]) -> None:
+    def write(self, file: Optional[Union[str, Path]] = None) -> None:
         """
         Save this VData object in HDF5 file format.
 
         :param file: path to save the VData
         """
+        if self.is_backed and file is not None:
+            generalLogger.warning("Cannot set the 'file' when writing a backed VData.")
+
+        if not self.is_backed and file is None:
+            raise VValueError("No file path was provided for writing this VData.")
+
         write_vdata(self, file)
 
     def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
