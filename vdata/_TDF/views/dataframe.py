@@ -134,8 +134,8 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :param attr: an attribute's name
         :return: a column with name <attr> from the DataFrame
         """
-        if any(np.isin([attr], self.columns)):
-            return self._parent.loc[self.index, attr]
+        if attr in self.columns:
+            return self.loc[self.index, attr]
 
         else:
             return object.__getattribute__(self, attr)
