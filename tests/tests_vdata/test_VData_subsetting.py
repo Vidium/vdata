@@ -18,7 +18,7 @@ def test_VData_sub_setting():
 
     adata = sc.read(source_vdata_path)
 
-    v = vdata.VData(adata, time_col='Time_hour')
+    v = vdata.VData(adata, time_col_name='Time_hour')
 
     mask_obs = ['plate1_A01_A01_B01', 'plate1_A01_A01_E01', 'plate1_A01_A01_H01', 'plate1_A03_A03_A11',
                 'plate1_A04_A04_H01', 'plate1_A02_A02_B11', 'plate1_A03_A03_B02', 'plate1_B06_B06_D02',
@@ -28,7 +28,7 @@ def test_VData_sub_setting():
 
     sub_vdata = v[:, mask_obs, mask_var]
 
-    assert repr(sub_vdata) == "View of a Vdata object with n_obs x n_var = [5, 5] x 4 over 2 time points\n\t" \
+    assert repr(sub_vdata) == "View of VData 'No_Name' with n_obs x n_var = [5, 5] x 4 over 2 time points\n\t" \
                               "layers: 'data'\n\t" \
                               "obs: 'Cell_Type', 'Day'\n\t" \
                               "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \

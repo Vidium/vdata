@@ -29,13 +29,13 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=None, obs=None, var=None, time_points=None, name=1)
-    assert repr(v) == "Empty Vdata object (0 obs x 0 vars over 0 time points).", repr(v)
+    assert repr(v) == "Empty VData '1' (0 obs x 0 vars over 0 time points).", repr(v)
 
     #           time_points is a pd.DataFrame
     time_points = pd.DataFrame(time_points_data)
 
     v = vdata.VData(data=None, obs=None, var=None, time_points=time_points, name=2)
-    assert repr(v) == "Empty Vdata object ([0, 0] obs x 0 vars over 2 time points).\n\ttime_points: 'value'", \
+    assert repr(v) == "Empty VData '2' ([0, 0] obs x 0 vars over 2 time points).\n\ttime_points: 'value'", \
         repr(v)
 
     time_points = pd.DataFrame(time_points_data_incorrect_format)
@@ -60,13 +60,13 @@ def test_VData_creation():
 
     #           time_points is None
     v = vdata.VData(data=None, obs=None, var=var, time_points=None, name=5)
-    assert repr(v) == "Empty Vdata object (0 obs x 3 vars over 0 time points).\n\tvar: 'gene_name'", repr(v)
+    assert repr(v) == "Empty VData '5' (0 obs x 3 vars over 0 time points).\n\tvar: 'gene_name'", repr(v)
 
     #           time_points is a pd.DataFrame
     time_points = pd.DataFrame(time_points_data)
 
     v = vdata.VData(data=None, obs=None, var=var, time_points=time_points, name=6)
-    assert repr(v) == "Empty Vdata object ([0, 0] obs x 3 vars over 2 time points).\n\t" \
+    assert repr(v) == "Empty VData '6' ([0, 0] obs x 3 vars over 2 time points).\n\t" \
                       "var: 'gene_name'\n\t" \
                       "time_points: 'value'", repr(v)
 
@@ -85,14 +85,14 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=None, obs=obs, var=None, time_points=None, name=8)
-    assert repr(v) == "Empty Vdata object (6 obs x 0 vars over 1 time point).\n\t" \
+    assert repr(v) == "Empty VData '8' (6 obs x 0 vars over 1 time point).\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=None, obs=obs, var=None, time_points=time_points,
                     time_list=["0h", "0h", "0h", "0h", "5h", "5h"], name=9)
-    assert repr(v) == "Empty Vdata object ([4, 2] obs x 0 vars over 2 time points).\n\t" \
+    assert repr(v) == "Empty VData '9' ([4, 2] obs x 0 vars over 2 time points).\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
@@ -101,7 +101,7 @@ def test_VData_creation():
 
     #           time_points is None
     v = vdata.VData(data=None, obs=obs, var=var, time_points=None, name=10)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '10' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -110,7 +110,7 @@ def test_VData_creation():
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=None, obs=obs, var=var, time_points=time_points,
                     time_list=["0h", "0h", "0h", "0h", "5h", "5h"], name=11)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '11' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -122,13 +122,13 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=None, obs=obs, var=None, time_points=None, name=12)
-    assert repr(v) == "Empty Vdata object ([4, 2] obs x 0 vars over 2 time points).\n\t" \
+    assert repr(v) == "Empty VData '12' ([4, 2] obs x 0 vars over 2 time points).\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=None, obs=obs, var=None, time_points=time_points, name=13)
-    assert repr(v) == "Empty Vdata object ([4, 2] obs x 0 vars over 2 time points).\n\t" \
+    assert repr(v) == "Empty VData '13' ([4, 2] obs x 0 vars over 2 time points).\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
@@ -137,7 +137,7 @@ def test_VData_creation():
 
     #           time_points is None
     v = vdata.VData(data=None, obs=obs, var=var, time_points=None, name=14)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '14' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -145,7 +145,7 @@ def test_VData_creation():
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=None, obs=obs, var=var, time_points=time_points, name=15)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '15' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -167,7 +167,7 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=data, obs=None, var=None, time_points=None, name=17)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '17' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "time_points: 'value'", repr(v)
 
@@ -175,21 +175,21 @@ def test_VData_creation():
     time_points = pd.DataFrame(time_points_data_simple)
 
     v = vdata.VData(data=data, obs=None, var=None, time_points=time_points, name=18)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '18' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #       var is a pd.DataFrame
     #           time_points is None
     v = vdata.VData(data=data, obs=None, var=var, time_points=None, name=19)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '19' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "var: 'gene_name'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=None, var=var, time_points=time_points, name=20)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '20' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "var: 'gene_name'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -200,14 +200,14 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=None, time_points=None, name=21)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '21' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=None, time_points=time_points, name=22)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '22' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -215,7 +215,7 @@ def test_VData_creation():
     #       var is a pd.DataFrame
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=var, time_points=None, name=23)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '23' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -223,7 +223,7 @@ def test_VData_creation():
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=var, time_points=time_points, name=24)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '24' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -235,14 +235,14 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=None, time_points=None, name=25)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '25' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=None, time_points=time_points, name=26)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '26' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -250,7 +250,7 @@ def test_VData_creation():
     #       var is a pd.DataFrame
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=var, time_points=None, name=27)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '27' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -258,7 +258,7 @@ def test_VData_creation():
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=var, time_points=time_points, name=28)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '28' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -271,7 +271,7 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=data, obs=None, var=None, time_points=None, name=29)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '29' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "time_points: 'value'", repr(v)
 
@@ -279,21 +279,21 @@ def test_VData_creation():
     time_points = pd.DataFrame(time_points_data)
 
     v = vdata.VData(data=data, obs=None, var=None, time_points=time_points, name=30)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '30' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #       var is a pd.DataFrame
     #           time_points is None
     v = vdata.VData(data=data, obs=None, var=var, time_points=None, name=31)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '31' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "var: 'gene_name'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=None, var=var, time_points=time_points, name=32)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '32' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "var: 'gene_name'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -305,7 +305,7 @@ def test_VData_creation():
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=None, time_points=None, time_list=["0h", "0h", "0h", "0h", "5h", "5h"],
                     name=33)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '33' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -313,7 +313,7 @@ def test_VData_creation():
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=None, time_points=time_points,
                     time_list=["0h", "0h", "0h", "0h", "5h", "5h"], name=34)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '34' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -322,7 +322,7 @@ def test_VData_creation():
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=var, time_points=None, time_list=["0h", "0h", "0h", "0h", "5h", "5h"],
                     name=35)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '35' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -331,7 +331,7 @@ def test_VData_creation():
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=var, time_points=time_points,
                     time_list=["0h", "0h", "0h", "0h", "5h", "5h"], name=36)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '36' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -344,14 +344,14 @@ def test_VData_creation():
     #       var is None
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=None, time_points=None, name=37)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '37' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=None, time_points=time_points, name=38)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '38' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "time_points: 'value'", repr(v)
@@ -359,7 +359,7 @@ def test_VData_creation():
     #       var is a pd.DataFrame
     #           time_points is None
     v = vdata.VData(data=data, obs=obs, var=var, time_points=None, name=39)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '39' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -367,7 +367,7 @@ def test_VData_creation():
 
     #           time_points is a pd.DataFrame
     v = vdata.VData(data=data, obs=obs, var=var, time_points=time_points, name=40)
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '40' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -439,7 +439,7 @@ def test_VData_creation_with_uns():
     data = pd.DataFrame(expr_data_simple)
 
     v = vdata.VData(data, time_points=time_points, obs=obs, var=var, uns=uns, name=46)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '46' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -470,9 +470,9 @@ def test_VData_creation_full():
 
     v = vdata.VData(expr_data_complex, time_points=time_points, obs=obs, var=var, uns=uns,
                     obsm=obsm, obsp=obsp, varm=varm, varp=varp,
-                    name=1)
+                    name=47)
 
-    assert repr(v) == "Vdata object with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
+    assert repr(v) == "VData '47' with n_obs x n_var = [4, 2] x 3 over 2 time points.\n\t" \
                       "layers: 'spliced', 'unspliced'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \

@@ -7,9 +7,8 @@
 import pandas as pd
 from typing import Optional
 
-from .utils import compact_obsp
 from .vdata import VData
-from .._IO import VValueError, VTypeError, generalLogger
+from ..._IO import VValueError, VTypeError, generalLogger
 
 
 # ====================================================
@@ -38,7 +37,7 @@ def concatenate(*args: 'VData', name: Optional[str] = None) -> 'VData':
     _time_points = first_VData.time_points
     _uns = first_VData.uns
 
-    _obsp = compact_obsp(first_VData.obsp, first_VData.obs.index)
+    _obsp = first_VData.obsp.compact()
 
     # concatenate with data in other VData objects
     for next_VData in args[1:]:
@@ -90,7 +89,7 @@ def concatenate(*args: 'VData', name: Optional[str] = None) -> 'VData':
                 del _obsm[key]
 
         # obsp ----------------------------------------------------------------
-        next_obsp = compact_obsp(next_VData.obsp, next_VData.obs.index)
+        next_obsp = next_VData.obsp.compact()
         for key in _obsp.keys():
             if key in next_obsp.keys():
                 _index = _obsp[key].index.union(next_VData.obs.index, sort=False)

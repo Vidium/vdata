@@ -14,7 +14,7 @@ from types import TracebackType
 from typing import Optional, Type
 
 from . import errors
-from .. import NameUtils
+from ..NameUtils import LoggingLevel, LoggingLevels
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -44,7 +44,7 @@ class _VLogger:
     The default minimal level for logging is <INFO>.
     """
 
-    def __init__(self, logger_level: 'NameUtils.LoggingLevel' = "WARNING"):
+    def __init__(self, logger_level: 'LoggingLevel' = "WARNING"):
         """
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
@@ -68,13 +68,13 @@ class _VLogger:
                 50: 'CRITICAL'}[self.logger.level]
 
     @level.setter
-    def level(self, logger_level: 'NameUtils.LoggingLevel') -> None:
+    def level(self, logger_level: 'LoggingLevel') -> None:
         """
         Re-init the logger, for setting new minimal logging level
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
-        if logger_level not in NameUtils.LoggingLevels:
-            raise errors.VTypeError(f"Incorrect logging level '{logger_level}', should be in {NameUtils.LoggingLevels}")
+        if logger_level not in LoggingLevels:
+            raise errors.VTypeError(f"Incorrect logging level '{logger_level}', should be in {LoggingLevels}")
 
         self.logger.setLevel(logger_level)
         for handler in self.logger.handlers:
@@ -178,7 +178,7 @@ class _VLogger:
 generalLogger = _VLogger()
 
 
-def setLoggingLevel(log_level: 'NameUtils.LoggingLevel') -> None:
+def setLoggingLevel(log_level: 'LoggingLevel') -> None:
     """
     Set the logging level for package vdata.
     :param log_level: a logging level to set, in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']

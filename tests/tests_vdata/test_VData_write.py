@@ -21,7 +21,7 @@ def test_VData_write():
 
     adata = sc.read(source_vdata_path)
 
-    v = vdata.VData(adata, time_col='Time_hour')
+    v = vdata.VData(adata, time_col_name='Time_hour')
 
     uns = {"colors": ['blue', 'red', 'yellow'],
            "date": '25/01/2021'}

@@ -5,17 +5,11 @@
 # ====================================================
 # imports
 import numpy as np
-import pandas as pd
-from typing import Union, Sequence, List
+from typing import Union
 from typing_extensions import Literal
-
-import vdata
-from . import utils
 
 # ====================================================
 # types
-DataFrame = Union[pd.DataFrame, 'vdata.TemporalDataFrame']
-
 DTypes = {int: int,
           "int": np.int32,
           "int8": np.int8,
@@ -48,8 +42,3 @@ str_DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "fl
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-Slicer = Union[Sequence[Union[int, float, str, bool, utils.TimePoint]], range, slice]
-PreSlicer = Union[int, float, str, utils.TimePoint, Slicer, 'ellipsis']
-
-TimePointList = List[Union['utils.TimePoint', 'TimePointList']]

@@ -39,7 +39,7 @@ def test_VData_concatenate():
 
     v_merged = vdata.concatenate(v1, v2)
 
-    assert repr(v_merged) == "Vdata object with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
+    assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
                              "layers: 'spliced', 'unspliced'\n\t" \
                              "obs: 'data', 'data_bis'\n\t" \
                              "var: 'gene_name'\n\t" \

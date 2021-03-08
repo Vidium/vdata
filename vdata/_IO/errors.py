@@ -62,3 +62,10 @@ class VAttributeError(VBaseError):
     Custom error for attribute errors.
     """
     pass
+
+
+class VLockError(VBaseError):
+    """
+    Custom error for TDF lock errors.
+    """
+    pass

@@ -13,13 +13,15 @@ from pathlib import Path
 from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection, cast
 from typing_extensions import Literal
 
+import vdata
 from .NameUtils import H5Group
 from .utils import parse_path
+from ..NameUtils import DType
+from ..utils import get_value, repr_array
+from ..VDataFrame import VDataFrame
+from ..TimePoint import TimePoint
 from .._IO import generalLogger, VValueError, VTypeError
-from .. import _core
-from .. import _TDF
-from .. import NameUtils
-from .. import utils
+from .._core import TemporalDataFrame
 
 
 def spacer(nb: int) -> str:
@@ -30,11 +32,11 @@ def spacer(nb: int) -> str:
 # code
 # CSV file format ---------------------------------------------------------------------------------
 def read_from_csv(directory: Union[Path, str],
-                  dtype: 'NameUtils.DType' = np.float32,
-                  time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
+                  dtype: 'DType' = np.float32,
+                  time_list: Optional[Union[Collection, 'DType', Literal['*']]] = None,
                   time_col: Optional[str] = None,
                   time_points: Optional[Collection[str]] = None,
-                  name: Optional[Any] = None) -> '_core.VData':
+                  name: Optional[Any] = None) -> 'vdata.VData':
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -131,7 +133,7 @@ def read_from_csv(directory: Union[Path, str],
 
                 data[f] = dataset_dict
 
-    return _core.VData(data['layers'],
+    return vdata.VData(data['layers'],
                        data['obs'], data['obsm'], data['obsp'],
                        data['var'], data['varm'], data['varp'],
                        data['time_points'], dtype=data['dtype'],
@@ -139,9 +141,9 @@ def read_from_csv(directory: Union[Path, str],
 
 
 def read_from_csv_TemporalDataFrame(file: Path, sep: str = ',',
-                                    time_list: Optional[Union[Collection, 'NameUtils.DType', Literal['*']]] = None,
+                                    time_list: Optional[Union[Collection, 'DType', Literal['*']]] = None,
                                     time_col: Optional[str] = None,
-                                    time_points: Optional[Collection[str]] = None) -> '_TDF.TemporalDataFrame':
+                                    time_points: Optional[Collection[str]] = None) -> 'TemporalDataFrame':
     """
     Read a .csv file into a TemporalDataFrame.
 
@@ -165,17 +167,17 @@ def read_from_csv_TemporalDataFrame(file: Path, sep: str = ',',
         del df[time_col]
         time_col = None
 
-    return _TDF.TemporalDataFrame(df, time_list=time_list, time_col_name=time_col, time_points=time_points)
+    return TemporalDataFrame(df, time_list=time_list, time_col_name=time_col, time_points=time_points)
 
 
 # GPU output --------------------------------------------------------------------------------------
 
-def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.ndarray, pd.DataFrame]]],
-                   obs: Optional[Union[pd.DataFrame, '_TDF.TemporalDataFrame']] = None,
+def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, pd.DataFrame]]],
+                   obs: Optional[Union[pd.DataFrame, 'TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
-                   dtype: Optional['NameUtils.DType'] = None,
-                   name: Optional[Any] = None) -> '_core.VData':
+                   dtype: Optional['DType'] = None,
+                   name: Optional[Any] = None) -> 'vdata.VData':
     """
     Load a simulation's recorded information into a VData object.
 
@@ -203,7 +205,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
     :return: a VData object containing the simulation's data
     """
     _data = {}
-    _time_points: List[utils.TimePoint] = []
+    _time_points: List[TimePoint] = []
     check_tp = False
 
     if not isinstance(data, dict):
@@ -217,7 +219,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
             generalLogger.debug(f"Loading layer '{data_type}'.")
 
             for matrix_index, matrix in TP_matrices.items():
-                matrix_TP = utils.TimePoint(matrix_index)
+                matrix_TP = TimePoint(matrix_index)
 
                 if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
                     raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
@@ -234,20 +236,20 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
             index = obs.index if obs is not None else None
             columns = var.index if var is not None else None
 
-            generalLogger.debug(f"Found index is : {utils.repr_array(index)}.")
-            generalLogger.debug(f"Found columns is : {utils.repr_array(columns)}.")
+            generalLogger.debug(f"Found index is : {repr_array(index)}.")
+            generalLogger.debug(f"Found columns is : {repr_array(columns)}.")
 
             loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=columns)
 
             time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
                          for _ in range(len(matrix))]
-            generalLogger.debug(f"Computed time list to be : {utils.repr_array(time_list)}.")
+            generalLogger.debug(f"Computed time list to be : {repr_array(time_list)}.")
 
-            _data[data_type] = _TDF.TemporalDataFrame(data=loaded_data,
-                                                      time_points=_time_points,
-                                                      time_list=time_list,
-                                                      index=index,
-                                                      dtype=dtype)
+            _data[data_type] = TemporalDataFrame(data=loaded_data,
+                                                 time_points=_time_points,
+                                                 time_list=time_list,
+                                                 index=index,
+                                                 dtype=dtype)
 
             generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
 
@@ -255,7 +257,7 @@ def read_from_dict(data: Dict[str, Dict[Union['NameUtils.DType', str], Union[np.
         if time_points is None:
             time_points = pd.DataFrame({"value": _time_points})
 
-        return _core.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, name=name)
+        return vdata.VData(_data, obs=obs, var=var, time_points=time_points, dtype=dtype, name=name)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
@@ -383,12 +385,14 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
-         name: Optional[Any] = None) -> '_core.VData':
+def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
+         dtype: Optional['DType'] = None,
+         name: Optional[Any] = None) -> 'vdata.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
     :param file: path to a .h5 file.
+    :param mode: reading mode : 'r' (read only) or 'r+' (read and write).
     :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
         the .h5 file.
     :param name: an optional name for the loaded VData object.
@@ -406,7 +410,7 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
             'uns': {}}
 
     # import data from file
-    importFile = H5GroupReader(h5py.File(file, "r+"))
+    importFile = H5GroupReader(h5py.File(file, mode))
     for key in importFile.keys():
         generalLogger.info(f"Got key : '{key}'.")
 
@@ -417,19 +421,26 @@ def read(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
         else:
             generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    return _core.VData(data['layers'],
-                       data['obs'], data['obsm'], data['obsp'],
-                       data['var'], data['varm'], data['varp'],
-                       data['time_points'], data['uns'], dtype=dtype,
-                       name=name, file=importFile)
+    new_VData = vdata.VData(data['layers'],
+                            data['obs'], data['obsm'], None,
+                            data['var'], data['varm'], data['varp'],
+                            data['time_points'], data['uns'], dtype=dtype,
+                            name=name, file=importFile)
+
+    for key, arr in data['obsp'].items():
+        new_VData.obsp[key] = arr
+
+    return new_VData
 
 
-def read_TemporalDataFrame(file: Union[Path, str], dtype: Optional['NameUtils.DType'] = None,
-                           name: Optional[Any] = None) -> '_TDF.TemporalDataFrame':
+def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
+                           dtype: Optional['DType'] = None,
+                           name: Optional[Any] = None) -> 'TemporalDataFrame':
     """
     Function for reading data from a .h5 file and building a TemporalDataFrame object from it.
 
     :param file: path to a .h5 file.
+    :param mode: reading mode : 'r' (read only) or 'r+' (read and write).
     :param dtype: data type to force on the newly built TemporalDataFrame object. If set to None, the dtype is inferred
         from the .h5 file.
     :param name: an optional name for the loaded TemporalDataFrame object.
@@ -443,7 +454,7 @@ def read_TemporalDataFrame(file: Union[Path, str], dtype: Optional['NameUtils.DT
         raise VValueError(f"The path {file} does not exist.")
 
     # import data from file
-    import_file = H5GroupReader(h5py.File(file, "r+"))
+    import_file = H5GroupReader(h5py.File(file, mode))
     import_data = import_file[list(import_file.keys())[0]]
 
     dataset_type = import_data.attrs('type')
@@ -471,19 +482,19 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
     for dataset_key in group.keys():
         dataset_type = cast(H5GroupReader, group[dataset_key]).attrs("type")
 
-        data[utils.get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
+        data[get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
 
     return data
 
 
-def read_h5_DataFrame(group: H5GroupReader, level: int = 1) -> pd.DataFrame:
+def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     """
     Function for reading a pandas DataFrame from a .h5 file.
 
     :param group: a H5GroupReader from which to read a DataFrame.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    generalLogger.info(f"{spacer(level)}Reading DataFrame {group.name}.")
+    generalLogger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
 
     # get column order
     col_order = group.attrs('column_order')
@@ -493,12 +504,12 @@ def read_h5_DataFrame(group: H5GroupReader, level: int = 1) -> pd.DataFrame:
     # get columns in right order
     data = {}
     for col in col_order:
-        data[utils.get_value(col)] = read_h5_series(group[col], index, level=level+1)
+        data[get_value(col)] = read_h5_series(group[col], index, level=level+1)
 
-    return pd.DataFrame(data, index=index)
+    return VDataFrame(data, file=group.group)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '_TDF.TemporalDataFrame':
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from a .h5 file.
 
@@ -524,11 +535,11 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '_TDF.Tem
         dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
         data[col] = func_[dataset_type](group['data'][col], level=level + 1)
 
-    return _TDF.TemporalDataFrame(data, time_col_name=time_col_name,
-                                  index=index, time_list=time_list, name=group.name.split("/")[-1])
+    return TemporalDataFrame(data, time_col_name=time_col_name,
+                             index=index, time_list=time_list, name=group.name.split("/")[-1])
 
 
-def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '_TDF.TemporalDataFrame':
+def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from a .h5 file as DataSets.
 
@@ -549,8 +560,8 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
     dataset_type = cast(H5GroupReader, group['time_col_name']).attrs("type")
     time_col_name = func_[dataset_type](group['time_col_name'], level=level + 1)
 
-    return _TDF.TemporalDataFrame(group['data'].group, time_col_name=time_col_name,
-                                  index=index, columns=columns, name=group.name.split("/")[-1])
+    return TemporalDataFrame(group.group, time_col_name=time_col_name,
+                             index=index, columns=columns, name=group.name.split("/")[-1])
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
@@ -574,7 +585,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
     elif group.isinstance(h5py.Group):
         # get data
         categories = group.attrs('categories')
-        ordered = utils.get_value(group.attrs('ordered'))
+        ordered = get_value(group.attrs('ordered'))
         values = read_h5_array(cast(H5GroupReader, group['values']), level=level+1, log_func=log_func)
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
@@ -621,7 +632,7 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
-    return utils.get_value(group[()])
+    return get_value(group[()])
 
 
 def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
@@ -637,7 +648,7 @@ def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
 
 func_: Dict[str, Callable] = {
     'dict': read_h5_dict,
-    'DF': read_h5_DataFrame,
+    'VDF': read_h5_VDataFrame,
     'TDF': read_h5_TemporalDataFrame,
     'CHUNKED_TDF': read_h5_chunked_TemporalDataFrame,
     'series': read_h5_series,

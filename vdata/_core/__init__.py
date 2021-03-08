@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-from .vdata import VData
-from .concatenate import concatenate
+from .TDF import TemporalDataFrame
+from .VData import VData, concatenate
 
-__all__ = ['VData', 'concatenate']
+__all__ = ['VData', 'concatenate', 'TemporalDataFrame']

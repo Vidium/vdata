@@ -20,10 +20,13 @@ def copy_TemporalDataFrame(TDF: Union['dataframe.TemporalDataFrame', 'views.View
     """
     _time_list = TDF.time_points_column if TDF.time_points_column_name is None else None
 
-    return dataframe.TemporalDataFrame(data=TDF.to_pandas(),
-                                       time_list=_time_list,
-                                       time_col_name=TDF.time_points_column_name,
-                                       time_points=TDF.time_points,
-                                       index=TDF.index.copy(),
-                                       columns=TDF.columns.copy(),
-                                       name=TDF.name)
+    new_TDF = dataframe.TemporalDataFrame(data=TDF.to_pandas(),
+                                          time_list=_time_list,
+                                          time_col_name=TDF.time_points_column_name,
+                                          time_points=TDF.time_points,
+                                          index=TDF.index.copy(),
+                                          columns=TDF.columns.copy(),
+                                          name=TDF.name)
+    new_TDF.lock(TDF.is_locked)
+
+    return new_TDF

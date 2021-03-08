@@ -13,15 +13,15 @@ from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, It
     Any
 
 from ..arrays import VBaseArrayContainer
-from ... import utils
-from ..._TDF import TemporalDataFrame, ViewTemporalDataFrame
-from ..._IO import generalLogger, VTypeError, VValueError, ShapeError
+from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
+from vdata.TimePoint import TimePoint
+from ...._IO import generalLogger, VTypeError, VValueError, ShapeError
 
 
 # ====================================================
 # code
 
-D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, Dict['utils.TimePoint', pd.DataFrame])
+D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, Dict['TimePoint', pd.DataFrame])
 D_VTDF = TypeVar('D_VTDF', bound=ViewTemporalDataFrame)
 D_VDF = TypeVar('D_VDF', bound=pd.DataFrame)
 
@@ -263,7 +263,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['utils.TimePoint', D_VDF]]):
+class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['TimePoint', D_VDF]]):
     """
     Class for views of obsp.
     """
@@ -280,7 +280,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
         self._time_points_slicer = time_points_slicer
         self._obs_slicer = obs_slicer
 
-    def __getitem__(self, item: str) -> Mapping['utils.TimePoint', D_VDF]:
+    def __getitem__(self, item: str) -> Mapping['TimePoint', D_VDF]:
         """
         Get a specific data item stored in this view.
         :param item: key in _data linked to a data item.
@@ -289,7 +289,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
         return {tp: DF.loc[self._obs_slicer, self._obs_slicer]
                 for tp, DF in self._array_container[item] if tp in self._time_points_slicer}
 
-    def __setitem__(self, key: str, value: Mapping['utils.TimePoint', pd.DataFrame]) -> None:
+    def __setitem__(self, key: str, value: Mapping['TimePoint', pd.DataFrame]) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
         :param key: key for storing a data item in this view.
@@ -298,7 +298,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
         if not isinstance(value, dict):
             raise VTypeError(f"Cannot set obsp view '{key}' from non dict object.")
 
-        if not all([isinstance(tp, utils.TimePoint) and tp in self._time_points_slicer
+        if not all([isinstance(tp, TimePoint) and tp in self._time_points_slicer
                     for tp in value.keys()]):
             raise VValueError("Time points do not match.")
 
@@ -338,7 +338,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
         :return: the shape of this view.
         """
         if len(self):
-            _first_set: Dict['utils.TimePoint', pd.DataFrame] = list(self.values())[0]
+            _first_set: Dict['TimePoint', pd.DataFrame] = list(self.values())[0]
             len_index = [len(DF.loc[self._obs_slicer, self._obs_slicer].index) for DF in _first_set.values()]
             return len(self), len(self._time_points_slicer), len_index, len_index
 
@@ -346,7 +346,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
             return 0, 0, [], []
 
     @property
-    def data(self) -> Dict[str, Mapping['utils.TimePoint', D_VDF]]:
+    def data(self) -> Dict[str, Mapping['TimePoint', D_VDF]]:
         """
         Data of this view.
         :return: the data of this view.
@@ -355,12 +355,30 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
                       for tp, DF in _set if tp in self._time_points_slicer}
                 for key, _set in self.items()}
 
-    def dict_copy(self) -> Dict[str, Mapping['utils.TimePoint', pd.DataFrame]]:
+    def dict_copy(self) -> Dict[str, Mapping['TimePoint', pd.DataFrame]]:
         """
         Dictionary of keys and data items in this view.
         :return: Dictionary of this view.
         """
-        return {key: {utils.TimePoint(tp): DF.copy() for tp, DF in _set.items()} for key, _set in self.items()}
+        return {key: {TimePoint(tp): DF.copy() for tp, DF in _set.items()} for key, _set in self.items()}
+
+    def compact(self) -> Dict[str, pd.DataFrame]:
+        """
+        Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
+
+        :return: a dictionary of str:large concatenated square DataFrame.
+        """
+        _compact_obsp = {key: pd.DataFrame(index=self._obs_slicer,
+                                           columns=self._obs_slicer) for key in self.keys()}
+
+        for key in self.keys():
+            index_cumul = 0
+
+            for arr in self[key]:
+                _compact_obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
+                index_cumul += len(arr)
+
+        return _compact_obsp
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "", index: bool = True, header: bool = True,
                spacer: str = '') -> None:
@@ -396,8 +414,10 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['uti
             index_cumul = 0
             for arr in self[set_name].values():
 
+                arr.lock = (False, False)
                 arr.index = values[index_cumul:index_cumul + len(arr)]
                 arr.columns = values[index_cumul:index_cumul + len(arr)]
+                arr.lock = (True, True)
 
                 index_cumul += len(arr)
 

@@ -30,7 +30,7 @@ def test_VData_copy():
     v2 = v.copy()
 
     assert id(v) != id(v2)
-    assert repr(v) == "Vdata object with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(v) == "VData '1' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
@@ -43,7 +43,7 @@ def test_VData_copy_subset():
     v2 = v_subset.copy()
 
     assert id(v_subset) != id(v2)
-    assert repr(v2) == "Vdata object with n_obs x n_var = 4 x 2 over 1 time point.\n\t" \
+    assert repr(v2) == "VData '1_view_copy' with n_obs x n_var = 4 x 2 over 1 time point.\n\t" \
                        "layers: 'data'\n\t" \
                        "obs: 'data', 'data_bis'\n\t" \
                        "var: 'gene_name'\n\t" \

@@ -6,31 +6,34 @@
 # imports
 import os
 import abc
+import h5py
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, Mapping, Iterator, TypeVar, \
-    List, Collection
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, MutableMapping, Iterator, \
+    TypeVar, List, Collection
 from typing_extensions import Literal
 
-from . import vdata
-from .. import NameUtils
-from .. import utils
-from .._TDF import TemporalDataFrame
-from .._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
+import vdata
+from .NameUtils import DataFrame
+from ..TDF import TemporalDataFrame
+from vdata.VDataFrame import VDataFrame
+from vdata.NameUtils import DType
+from vdata.TimePoint import TimePoint
+from ..._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
 
 
 # ====================================================
 # code
 
 # Containers ------------------------------------------------------------------
-class TimePointDict(Mapping['utils.TimePoint', pd.DataFrame]):
+class TimePointDict(MutableMapping['TimePoint', VDataFrame]):
     """
     Simple Wrapper around a dictionary of TimePoints:pd.DataFrame for easier access using string representations of
     TimePoints instead of actual TimePoints.
     """
 
-    def __init__(self, _dict: Dict['utils.TimePoint', pd.DataFrame]):
+    def __init__(self, _dict: Dict['TimePoint', VDataFrame]):
         """
         :param _dict: a dictionary of TimePoints:pd.DataFrame
         """
@@ -53,27 +56,33 @@ class TimePointDict(Mapping['utils.TimePoint', pd.DataFrame]):
 
         return repr_str
 
-    def __getitem__(self, key: Union[str, 'utils.TimePoint']) -> pd.DataFrame:
+    def __getitem__(self, key: Union[str, 'TimePoint']) -> VDataFrame:
         """
         Get a specific DataFrame in this TimePointDict.
         :param key: the key linked to the desired DataFrame.
         :return: a specific DataFrame.
         """
         if isinstance(key, str):
-            key = utils.TimePoint(key)
+            key = TimePoint(key)
 
         return self.__dict[key]
 
-    def __setitem__(self, key: Union[str, 'utils.TimePoint'], value: pd.DataFrame) -> None:
+    def __setitem__(self, key: Union[str, 'TimePoint'], value: VDataFrame) -> None:
         """
         Set a DataFrame in this TimePointDict.
         :param key: the key linked to the DataFrame to set.
         :param value: a DataFrame to set.
         """
         if isinstance(key, str):
-            key = utils.TimePoint(key)
+            key = TimePoint(key)
 
         self.__dict[key] = value
+
+    def __delitem__(self, key: Union[str, 'TimePoint']) -> None:
+        """
+        Delete a DataFrame in this TimePointDict.
+        """
+        del self.__dict[key]
 
     def __len__(self) -> int:
         """
@@ -82,28 +91,28 @@ class TimePointDict(Mapping['utils.TimePoint', pd.DataFrame]):
         """
         return len(self.__dict)
 
-    def __iter__(self) -> Iterator['utils.TimePoint']:
+    def __iter__(self) -> Iterator['TimePoint']:
         """
         Iterate over this TimePointDict's keys.
         :return: an iterator over this TimePointDict's keys.
         """
         return iter(self.__dict.keys())
 
-    def keys(self) -> KeysView['utils.TimePoint']:
+    def keys(self) -> KeysView['TimePoint']:
         """
         Get the keys in this TimePointDict.
         :return: the keys in this TimePointDict.
         """
         return self.__dict.keys()
 
-    def values(self) -> ValuesView[pd.DataFrame]:
+    def values(self) -> ValuesView[VDataFrame]:
         """
         Get the values in this TimePointDict.
         :return: the values in this TimePointDict.
         """
         return self.__dict.values()
 
-    def items(self) -> ItemsView['utils.TimePoint', pd.DataFrame]:
+    def items(self) -> ItemsView['TimePoint', VDataFrame]:
         """
         Get the pairs of key,value in this TimePointDict.
         :return: the pairs of key,value in this TimePointDict.
@@ -111,13 +120,13 @@ class TimePointDict(Mapping['utils.TimePoint', pd.DataFrame]):
         return self.__dict.items()
 
 
-D = TypeVar('D', NameUtils.DataFrame, TimePointDict)
-D_DF = TypeVar('D_DF', bound=pd.DataFrame)
+D = TypeVar('D', DataFrame, TimePointDict)
+D_VDF = TypeVar('D_VDF', bound=VDataFrame)
 D_TDF = TypeVar('D_TDF', bound=TemporalDataFrame)
 
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class VBaseArrayContainer(ABC, Mapping[str, D]):
+class VBaseArrayContainer(ABC, MutableMapping[str, D]):
     """
     Base abstract class for ArrayContainers linked to a VData object (obsm, obsp, varm, varp, layers).
     All Arrays have a '_parent' attribute for linking them to a VData and a '_data' dictionary
@@ -176,6 +185,12 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         """
         pass
 
+    def __delitem__(self, key: str) -> None:
+        """
+        Delete a specific data item stored in this ArrayContainer.
+        """
+        del self._data[key]
+
     def __len__(self) -> int:
         """
         Length of this ArrayContainer : the number of data items in _data.
@@ -200,7 +215,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
         pass
 
     @abc.abstractmethod
-    def update_dtype(self, type_: 'NameUtils.DType') -> None:
+    def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of Arrays stored in this ArrayContainer.
         :param type_: the new data type.
@@ -284,7 +299,7 @@ class VBaseArrayContainer(ABC, Mapping[str, D]):
 
 
 # 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
+class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]):
     """
     Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers).
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
@@ -330,7 +345,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_TDF]):
         """
         return all([TDF.empty for TDF in self.values()])
 
-    def update_dtype(self, type_: 'NameUtils.DType') -> None:
+    def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
         :param type_: the new data type.
@@ -463,10 +478,20 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                                            f"time_point's index. ({_time_points})")
 
                 # checks passed, store the TemporalDataFrame
+                TDF.lock((True, True))
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")
             return _data
+
+    def __setitem__(self, key: str, value: D_TDF) -> None:
+        """
+        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
+        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+        :param value: a TemporalDataFrame to store.
+        """
+        value.lock((True, True))
+        super().__setitem__(key, value)
 
     @property
     def name(self) -> Literal['layers']:
@@ -552,10 +577,20 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                                            f"do not match time_point's index. ({_time_points})")
 
                 # checks passed, store the TemporalDataFrame
+                TDF.lock((True, False))
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")
             return _data
+
+    def __setitem__(self, key: str, value: D_TDF) -> None:
+        """
+        Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
+        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+        :param value: a TemporalDataFrame to store.
+        """
+        value.lock((True, False))
+        super().__setitem__(key, value)
 
     @property
     def name(self) -> Literal['obsm']:
@@ -567,7 +602,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
+class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict]):
     """
     Class for obsp.
     This object contains sets of <nb time points> 2D square DataFrames of shapes (<n_obs>, <n_obs>) for each time point.
@@ -575,14 +610,17 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         VData.obsp[<array_name>][<time point>]
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, Dict['utils.TimePoint', D_DF]]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, Dict['TimePoint', pd.DataFrame]]],
+                 file: Optional[h5py.Group] = None):
         """
         :param parent: the parent VData object this VObspArrayContainer is linked to.
         :param data: a dictionary of array-like objects to store in this VObspArrayContainer.
         """
+        self._file = file
+
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[Dict[str, Dict['utils.TimePoint', D_DF]]]) \
+    def _check_init_data(self, data: Optional[Dict[str, Dict['TimePoint', pd.DataFrame]]]) \
             -> Dict[str, TimePointDict]:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
@@ -644,12 +682,13 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
                                                f"do not match obs' index. ({_index})")
 
                     # checks passed, store the TemporalDataFrame
-                    _data[DF_dict_index][time_point] = DF
+                    _data[DF_dict_index][time_point] = VDataFrame(DF, file=self._file[DF_dict_index][
+                        str(time_point)] if self._file is not None else None)
 
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __getitem__(self, item: str) -> Mapping['utils.TimePoint', D_DF]:
+    def __getitem__(self, item: str) -> MutableMapping['TimePoint', D_VDF]:
         """
         Get a specific set of DataFrames stored in this VObspArrayContainer.
         :param item: key in _data linked to a set of DataFrames.
@@ -657,7 +696,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         """
         return super().__getitem__(item)
 
-    def __setitem__(self, key: str, value: Dict['utils.TimePoint', D_DF]) -> None:
+    def __setitem__(self, key: str, value: Dict['TimePoint', Union[D_VDF, pd.DataFrame]]) -> None:
         """
         Set a specific set of DataFrames in _data. The given set of DataFrames must have the correct shape.
         :param key: key for storing a set of DataFrames in this VObspArrayContainer.
@@ -666,13 +705,17 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         if not isinstance(value, dict):
             raise VTypeError(f"Cannot set obsp '{key}' from non dict object.")
 
-        if not all([isinstance(tp, utils.TimePoint) and tp in self._parent.time_points.value
-                    for tp in value.keys()]):
+        formatted_values = {TimePoint(k): v for k, v in value.items()}
+
+        if not all([tp in self._parent.time_points_values for tp in formatted_values.keys()]):
             raise VValueError("Time points do not match.")
 
-        for tp, DF in value.items():
-            if not isinstance(DF, pd.DataFrame):
+        for tp, DF in formatted_values.items():
+            if not isinstance(DF, (pd.DataFrame, VDataFrame)):
                 raise VTypeError(f"Value at time point '{tp}' should be a pandas DataFrame.")
+
+            if isinstance(DF, pd.DataFrame):
+                DF = VDataFrame(DF)
 
             _index = self._parent.obs.index_at(tp)
 
@@ -685,7 +728,15 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
             if not DF.columns.equals(_index):
                 raise VValueError(f"Column names of DataFrame at time point '{tp}' do not match.")
 
-        self._data[key] = TimePointDict(value)
+        self._data[key] = TimePointDict(formatted_values)
+
+    @property
+    def data(self) -> Dict[str, D_VDF]:
+        """
+        Data of this VObspArrayContainer.
+        :return: the data of this VObspArrayContainer.
+        """
+        return {key: {tp: arr for tp, arr in TPDict.items()} for key, TPDict in self._data.items()}
 
     @property
     def empty(self) -> bool:
@@ -698,7 +749,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
             return True
         return False
 
-    def update_dtype(self, type_: 'NameUtils.DType') -> None:
+    def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of Arrays stored in this VObspArrayContainer.
         :param type_: the new data type.
@@ -723,7 +774,7 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         :return: shape of this VObspArrayContainer.
         """
         if len(self):
-            _first_dict: Dict['utils.TimePoint', pd.DataFrame] = list(self.values())[0]
+            _first_dict: Dict['TimePoint', pd.DataFrame] = list(self.values())[0]
             nb_time_points = len(_first_dict)
             len_index = [len(df.index) for df in _first_dict.values()]
             return len(self), nb_time_points, len_index, len_index
@@ -731,12 +782,30 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
         else:
             return 0, 0, [], []
 
-    def dict_copy(self) -> Dict[str, Dict['utils.TimePoint', D_DF]]:
+    def dict_copy(self) -> Dict[str, Dict['TimePoint', D_VDF]]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
         """
-        return {k: {utils.TimePoint(tp): v.copy() for tp, v in d.items()} for k, d in self.items()}
+        return {k: {TimePoint(tp): v.copy() for tp, v in d.items()} for k, d in self.items()}
+
+    def compact(self) -> Dict[str, D_VDF]:
+        """
+        Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
+
+        :return: a dictionary of str:large concatenated square DataFrame.
+        """
+        _compact_obsp = {key: VDataFrame(index=self._parent.obs.index,
+                                         columns=self._parent.obs.index) for key in self.keys()}
+
+        for key in self.keys():
+            index_cumul = 0
+
+            for arr in self[key].values():
+                _compact_obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
+                index_cumul += len(arr)
+
+        return _compact_obsp
 
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
@@ -765,12 +834,14 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
     def set_index(self, values: Collection) -> None:
         """
         Set a new index for rows and columns.
+
         :param values: collection of new index values.
         """
         for set_name in self.keys():
 
             index_cumul = 0
-            for arr in self[set_name].values():
+            for arr_name, arr in self[set_name].items():
+
                 arr.index = values[index_cumul:index_cumul + len(arr)]
                 arr.columns = values[index_cumul:index_cumul + len(arr)]
 
@@ -778,17 +849,19 @@ class VObspArrayContainer(VBaseArrayContainer, Mapping[str, TimePointDict]):
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
+class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]):
     """
     Base abstract class for ArrayContainers linked to a VData object that contain DataFrames (varm and varp)
     It is based on VBaseArrayContainer and defines some functions shared by varm and varp.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, pd.DataFrame]],
+                 file: Optional[h5py.Group] = None):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this ArrayContainer.
         """
+        self._file = file
 
         super().__init__(parent, data)
 
@@ -800,7 +873,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
         """
         return all([DF.empty for DF in self.values()])
 
-    def update_dtype(self, type_: 'NameUtils.DType') -> None:
+    def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
         :param type_: the new data type.
@@ -808,7 +881,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, Mapping[str, D_DF]):
         for arr_name, arr in self.items():
             self[arr_name] = arr.astype(type_)
 
-    def dict_copy(self) -> Dict[str, D_DF]:
+    def dict_copy(self) -> Dict[str, D_VDF]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
@@ -844,14 +917,15 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         VData.varm[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_VDF]] = None,
+                 file: Optional[h5py.Group] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.
         """
-        super().__init__(parent, data)
+        super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[Dict[str, D_DF]]) -> Dict[str, D_DF]:
+    def _check_init_data(self, data: Optional[Dict[str, pd.DataFrame]]) -> Dict[str, D_VDF]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -865,16 +939,19 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         else:
             generalLogger.debug("  Data was found.")
             _index = self._parent.var.index
+            _data = {}
 
             for DF_index, DF in data.items():
                 # check that indexes match
                 if not _index.equals(DF.index):
                     raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
 
-            generalLogger.debug("  Data was OK.")
-            return data
+                _data[DF_index] = VDataFrame(DF, file=self._file[DF_index] if self._file is not None else None)
 
-    def __getitem__(self, item: str) -> D_DF:
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __getitem__(self, item: str) -> D_VDF:
         """
         Get a specific DataFrame stored in this VVarmArrayContainer.
         :param item: key in _data linked to a DataFrame.
@@ -882,14 +959,17 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         """
         return super().__getitem__(item)
 
-    def __setitem__(self, key: str, value: D_DF) -> None:
+    def __setitem__(self, key: str, value: Union[D_VDF, pd.DataFrame]) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
         :param key: key for storing a DataFrame in this VVarmArrayContainer.
         :param value: a DataFrame to store.
         """
-        if not isinstance(value, pd.DataFrame):
+        if not isinstance(value, (pd.DataFrame, VDataFrame)):
             raise VTypeError(f"Cannot set varm '{key}' from non pandas DataFrame object.")
+
+        if isinstance(value, pd.DataFrame):
+            value = VDataFrame(value)
 
         if not self.shape[1] == value.shape[0]:
             raise ShapeError(f"Cannot set varm '{key}' because of shape mismatch.")
@@ -930,14 +1010,15 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         VData.varp[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_DF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[str, D_VDF]] = None,
+                 file: Optional[h5py.Group] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.
         """
-        super().__init__(parent, data)
+        super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[Dict[str, D_DF]]) -> Dict[str, D_DF]:
+    def _check_init_data(self, data: Optional[Dict[str, pd.DataFrame]]) -> Dict[str, D_VDF]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -952,6 +1033,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         else:
             generalLogger.debug("  Data was found.")
             _index = self._parent.var.index
+            _data = {}
 
             for DF_index, DF in data.items():
                 # check that indexes match
@@ -963,10 +1045,12 @@ class VVarpArrayContainer(VBase2DArrayContainer):
                     raise IncoherenceError(
                         f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
 
-            generalLogger.debug("  Data was OK.")
-            return data
+                _data[DF_index] = VDataFrame(DF, file=self._file[DF_index] if self._file is not None else None)
 
-    def __getitem__(self, item: str) -> D_DF:
+            generalLogger.debug("  Data was OK.")
+            return _data
+
+    def __getitem__(self, item: str) -> D_VDF:
         """
         Get a specific DataFrame stored in this VVarpArrayContainer.
         :param item: key in _data linked to a DataFrame.
@@ -974,14 +1058,17 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         """
         return super().__getitem__(item)
 
-    def __setitem__(self, key: str, value: D_DF) -> None:
+    def __setitem__(self, key: str, value: Union[D_VDF, pd.DataFrame]) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
         :param key: key for storing a DataFrame in this VVarpArrayContainer.
         :param value: a DataFrame to store.
         """
-        if not isinstance(value, pd.DataFrame):
+        if not isinstance(value, (pd.DataFrame, VDataFrame)):
             raise VTypeError(f"Cannot set varp '{key}' from non pandas DataFrame object.")
+
+        if isinstance(value, pd.DataFrame):
+            value = VDataFrame(value)
 
         if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set varp '{key}' because of shape mismatch.")
@@ -1015,3 +1102,13 @@ class VVarpArrayContainer(VBase2DArrayContainer):
 
         else:
             return 0, 0, 0
+
+    def set_index(self, values: Collection) -> None:
+        """
+        Set a new index for rows and columns.
+        :param values: collection of new index values.
+        """
+        for arr in self.values():
+
+            arr.index = values
+            arr.columns = values

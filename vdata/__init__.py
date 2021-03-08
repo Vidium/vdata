@@ -6,11 +6,12 @@
 
 # ====================================================
 # imports
-from ._core import VData, concatenate
-from ._TDF import TemporalDataFrame
-from ._IO import setLoggingLevel, getLoggingLevel
+from ._core import VData, concatenate, TemporalDataFrame
+from ._IO import setLoggingLevel, getLoggingLevel, VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, \
+    VAttributeError, VLockError
 from ._read_write import read, read_from_dict, read_from_csv, read_TemporalDataFrame, read_from_csv_TemporalDataFrame
-from .utils import TimePoint
+from .TimePoint import TimePoint
 
 __all__ = ["VData", "TemporalDataFrame", "read", "read_from_dict", "read_from_csv", "read_TemporalDataFrame",
-           "read_from_csv_TemporalDataFrame", "setLoggingLevel", "getLoggingLevel", 'TimePoint', 'concatenate']
+           "read_from_csv_TemporalDataFrame", "setLoggingLevel", "getLoggingLevel", "TimePoint", "concatenate",
+           "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError", "VAttributeError", "VLockError"]

@@ -11,16 +11,15 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from functools import singledispatch
-from typing import Dict, List, Union, TYPE_CHECKING
+from typing import Dict, List, Union
 from typing_extensions import Literal
 
-if TYPE_CHECKING:
-    from .._core import VData
-
+import vdata
 from .NameUtils import H5Group
 from .utils import parse_path
-from .. import _TDF
+from ..VDataFrame import VDataFrame
 from .._IO import generalLogger, VPathError
+from .._core import TemporalDataFrame
 
 
 # ====================================================
@@ -29,7 +28,7 @@ def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
-def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
+def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
     """
     Save this VData object in HDF5 file format.
 
@@ -64,7 +63,8 @@ def write_vdata(obj: 'VData', file: Union[str, Path]) -> None:
             write_data(obj.uns, save_file, 'uns')
 
 
-def update_vdata(obj: 'VData') -> None:
+# TODO : what is still needed here ?
+def update_vdata(obj: 'vdata.VData') -> None:
     """
     Update data from a backed VData object on the .h5 file.
 
@@ -198,7 +198,7 @@ def update_vdata(obj: 'VData') -> None:
     write_data(obj.uns, obj.file.group, 'uns')
 
 
-def write_vdata_to_csv(obj: 'VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
+def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
                        index: bool = True, header: bool = True) -> None:
     """
     Save a VData object into csv files in a directory.
@@ -284,17 +284,17 @@ def write_Dict(data: Dict, group: H5Group, key: str, key_level: int = 0) -> None
         write_data(value, grp, dict_key, key_level=key_level+1)
 
 
-@write_data.register
-def write_DataFrame(data: pd.DataFrame, group: H5Group, key: str, key_level: int = 0) -> None:
+@write_data.register(VDataFrame)
+def write_VDataFrame(data: VDataFrame, group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing pd.DataFrames to the h5 file. Each DataFrame is stored in a group, containing the index and the
     columns as Series.
     Used for obs, var, time_points.
     """
-    generalLogger.info(f"{spacer(key_level)}Saving DataFrame {key}")
+    generalLogger.info(f"{spacer(key_level)}Saving VDataFrame {key}")
 
     df_group = group.create_group(str(key))
-    df_group.attrs['type'] = 'DF'
+    df_group.attrs['type'] = 'VDF'
 
     # save column order
     df_group.attrs["column_order"] = list(data.columns)
@@ -307,7 +307,7 @@ def write_DataFrame(data: pd.DataFrame, group: H5Group, key: str, key_level: int
 
 
 @write_data.register
-def write_TemporalDataFrame(data: '_TDF.TemporalDataFrame', group: H5Group, key: str, key_level: int = 0) -> None:
+def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing TemporalDataFrames to the h5 file. Each TemporalDataFrame is stored in a group, containing the
     index and the columns as Series.

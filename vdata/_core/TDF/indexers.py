@@ -10,8 +10,8 @@ from typing import Any, Dict, Tuple, Union
 
 from . import dataframe
 from . import views
-from .. import utils
-from .._IO import generalLogger, VValueError
+from vdata.TimePoint import TimePoint
+from ..._IO import generalLogger, VValueError
 
 
 # ====================================================
@@ -26,7 +26,7 @@ class _VAtIndexer:
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -61,7 +61,7 @@ class _ViAtIndexer:
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['utils.TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -69,7 +69,7 @@ class _ViAtIndexer:
         self.__parent = parent
         self.__data = data
 
-    def __get_target_tp(self, index_key: int) -> Tuple['utils.TimePoint', int]:
+    def __get_target_tp(self, index_key: int) -> Tuple['TimePoint', int]:
         """
         Get the time point where the data needs to be accessed.
         :return: the time point and the index offset.
@@ -124,7 +124,7 @@ class _VLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict['utils.TimePoint', np.ndarray]):
+                 data: Dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -147,7 +147,8 @@ class _VLocIndexer:
         if isinstance(result, pd.DataFrame):
             generalLogger.debug('.loc data is a DataFrame.')
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, result.index, result.columns)
+                                                       self.__parent.time_points, result.index, result.columns,
+                                                       self.__parent.is_locked[0])
 
         elif isinstance(result, pd.Series):
             generalLogger.debug('.loc data is a Series.')
@@ -159,14 +160,16 @@ class _VLocIndexer:
                 result = result.to_frame().T
 
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, result.index, result.columns)
+                                                       self.__parent.time_points, result.index, result.columns,
+                                                       self.__parent.is_locked[0])
 
         else:
             generalLogger.debug('.loc data is a single value.')
             # in this case, the key has to be a tuple of 2 single values
 
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, [key[0]], [key[1]])
+                                                       self.__parent.time_points, [key[0]], [key[1]],
+                                                       self.__parent.is_locked[0])
 
         generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
         return final_result
@@ -195,7 +198,7 @@ class _ViLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict['utils.TimePoint', np.ndarray]):
+                 data: Dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -218,7 +221,8 @@ class _ViLocIndexer:
         if isinstance(result, pd.DataFrame):
             generalLogger.debug('.iloc data is a DataFrame.')
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, result.index, result.columns)
+                                                       self.__parent.time_points, result.index, result.columns,
+                                                       self.__parent.is_locked[0])
 
         elif isinstance(result, pd.Series):
             generalLogger.debug('.iloc data is a Series.')
@@ -230,14 +234,16 @@ class _ViLocIndexer:
                 result = result.to_frame().T
 
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, result.index, result.columns)
+                                                       self.__parent.time_points, result.index, result.columns,
+                                                       self.__parent.is_locked[0])
 
         else:
             generalLogger.debug('.iloc data is a single value.')
             # in this case, the key has to be a tuple of 2 single values
 
             final_result = views.ViewTemporalDataFrame(self.__parent, self.__data,
-                                                       self.__parent.time_points, [key[0]], [key[1]])
+                                                       self.__parent.time_points, [key[0]], [key[1]],
+                                                       self.__parent.is_locked[0])
 
         generalLogger.debug(u'\u23BF .iloc access : end --------------------------------------------------------- ')
         return final_result
