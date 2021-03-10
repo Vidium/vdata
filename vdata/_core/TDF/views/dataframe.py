@@ -17,9 +17,9 @@ from .. import base
 from .. import copy
 from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from ...NameUtils import PreSlicer
-from ...utils import reformat_index
+from ...utils import reformat_index, repr_index
 from vdata.NameUtils import DType
-from vdata.utils import repr_array, repr_index, isCollection
+from vdata.utils import repr_array, isCollection
 from vdata.TimePoint import TimePoint
 from ...._IO import generalLogger, VValueError, VAttributeError, VTypeError, VLockError
 

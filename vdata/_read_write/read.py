@@ -7,15 +7,15 @@
 import os
 import h5py
 import json
+import shutil
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, AbstractSet, ValuesView, Any, Callable, Tuple, Collection, cast
+from typing import Union, Optional, Dict, List, Any, Callable, Collection, cast
 from typing_extensions import Literal
 
 import vdata
-from .NameUtils import H5Group
-from .utils import parse_path
+from .utils import parse_path, H5GroupReader
 from ..NameUtils import DType
 from ..utils import get_value, repr_array
 from ..VDataFrame import VDataFrame
@@ -261,133 +261,10 @@ def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, p
 
 
 # HDF5 file format --------------------------------------------------------------------------------
-class H5GroupReader:
-    """
-    Class for reading a h5py File, Group or Dataset
-    """
-
-    def __init__(self, group: 'H5Group'):
-        """
-        :param group: a h5py File, Group or Dataset
-        """
-        self.group = group
-
-    def __getitem__(self, key: Union[str, slice, 'ellipsis', Tuple[()]]) \
-            -> Union['H5GroupReader', np.ndarray, str, int, float, bool, type]:
-        """
-        Get a sub-group from the group, identified by a key
-
-        :param key: the name of the sub-group
-        """
-        if isinstance(key, slice):
-            return self._check_type(self.group[:])
-        elif key is ...:
-            return self._check_type(self.group[...])
-        elif key == ():
-            return self._check_type(self.group[()])
-        else:
-            return H5GroupReader(self.group[key])
-
-    def __enter__(self):
-        self.group.__enter__()
-        return self
-
-    def __exit__(self, *_):
-        self.group.__exit__()
-
-    def close(self) -> None:
-        self.group.file.close()
-
-    @property
-    def name(self) -> str:
-        """
-        Get the name of the group.
-        :return: the group's name.
-        """
-        return self.group.name
-
-    @property
-    def filename(self) -> str:
-        """
-        Get the filename of the group.
-        :return: the group's filename.
-        """
-        return self.group.file.filename
-
-    @property
-    def parent(self) -> 'H5GroupReader':
-        """
-        Get the parent H5GroupReader.
-        :return: the parent H5GroupReader.
-        """
-        return H5GroupReader(self.group.parent)
-
-    def keys(self) -> AbstractSet:
-        """
-        Get keys of the group.
-        :return: the keys of the group.
-        """
-        return self.group.keys()
-
-    def values(self) -> ValuesView:
-        """
-        Get values of the group.
-        :return: the values of the group.
-        """
-        return self.group.values()
-
-    def items(self) -> AbstractSet:
-        """
-        Get (key, value) tuples of the group.
-        :return: the items of the group.
-        """
-        return self.group.items()
-
-    def attrs(self, key: str) -> Any:
-        """
-        Get an attribute, identified by a key, from the group.
-
-        :param key: the name of the attribute.
-        :return: the attribute identified by the key, from the group.
-        """
-        # get attribute from group
-        attribute = self.group.attrs[key]
-
-        return self._check_type(attribute)
-
-    @staticmethod
-    def _check_type(data: Any) -> Any:
-        """
-        Convert data into the expected types.
-
-        :param data: any object which type should be checked.
-        """
-        # if attribute is an array of bytes, convert bytes to strings
-        if isinstance(data, (np.ndarray, np.generic)) and data.dtype.type is np.bytes_:
-            return data.astype(np.str_)
-
-        elif isinstance(data, np.ndarray) and data.ndim == 0:
-            if data.dtype.type is np.int_:
-                return int(data)
-
-            elif data.dtype.type is np.float_:
-                return float(data)
-
-            elif data.dtype.type is np.str_ or data.dtype.type is np.object_:
-                return str(data)
-
-            elif data.dtype.type is np.bool_:
-                return bool(data)
-
-        return data
-
-    def isinstance(self, _type: type) -> bool:
-        return isinstance(self.group, _type)
-
-
-def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
+def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
          dtype: Optional['DType'] = None,
-         name: Optional[Any] = None) -> 'vdata.VData':
+         name: Optional[Any] = None,
+         backup: bool = False) -> 'vdata.VData':
     """
     Function for reading data from a .h5 file and building a VData object from it.
 
@@ -396,12 +273,19 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
     :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
         the .h5 file.
     :param name: an optional name for the loaded VData object.
+    :param backup: create a backup copy of the read .h5 file in case something goes wrong ?
     """
     file = parse_path(file)
 
     # make sure the path exists
     if not os.path.exists(file):
         raise VValueError(f"The path {file} does not exist.")
+
+    if backup:
+        if os.path.exists(str(file) + '.backup'):
+            os.remove(str(file) + '.backup')
+
+        shutil.copy(file, str(file) + '.backup')
 
     data = {'obs': None, 'var': None, 'time_points': None,
             'layers': None,
@@ -433,7 +317,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
     return new_VData
 
 
-def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r+',
+def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
                            dtype: Optional['DType'] = None,
                            name: Optional[Any] = None) -> 'TemporalDataFrame':
     """
@@ -504,7 +388,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     # get columns in right order
     data = {}
     for col in col_order:
-        data[get_value(col)] = read_h5_series(group[col], index, level=level+1)
+        data[get_value(col)] = read_h5_series(group[str(col)], index, level=level+1)
 
     return VDataFrame(data, file=group.group)
 

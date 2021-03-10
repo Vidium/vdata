@@ -7,8 +7,9 @@
 import os
 import h5py
 import json
-import pandas as pd
+import shutil
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from functools import singledispatch
 from typing import Dict, List, Union
@@ -16,9 +17,9 @@ from typing_extensions import Literal
 
 import vdata
 from .NameUtils import H5Group
-from .utils import parse_path
+from .utils import parse_path, H5GroupReader
 from ..VDataFrame import VDataFrame
-from .._IO import generalLogger, VPathError
+from .._IO import generalLogger, VPathError, VValueError
 from .._core import TemporalDataFrame
 
 
@@ -36,7 +37,14 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
     :param file: path to save the VData.
     """
     if obj.is_backed:
-        update_vdata(obj)
+        if obj.file.mode == 'r+':
+            update_vdata(obj)
+
+            if file is not None:
+                shutil.copy(obj.file.filename, file)
+
+        else:
+            raise VValueError("Cannot save backed VData in 'r' mode !")
 
     else:
         file = parse_path(file)
@@ -62,8 +70,9 @@ def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
             # save uns
             write_data(obj.uns, save_file, 'uns')
 
+        obj.file = H5GroupReader(h5py.File(file, 'r+'))
 
-# TODO : what is still needed here ?
+
 def update_vdata(obj: 'vdata.VData') -> None:
     """
     Update data from a backed VData object on the .h5 file.
@@ -71,107 +80,39 @@ def update_vdata(obj: 'vdata.VData') -> None:
     :param obj: VData object to save into a .h5 file.
     """
     # save layers -------------------------------------------------------------
+    generalLogger.info('Saving Layers')
+    # remove deleted layers from the h5 file
+    for layer_name in obj.file.group['layers'].keys():
+        if layer_name not in obj.layers.keys():
+            generalLogger.info(f"{spacer(1)}Removing layer {layer_name}")
+            del obj.file.group['layers'][layer_name]
+
+    # write new layers
     for layer_name in obj.layers.keys():
-        if layer_name in obj.file.group['layers'].keys():
-            # update data
-            for time_point in obj.file.group['layers'][layer_name]['data'].keys():
-                if time_point not in obj.time_points_strings:
-                    del obj.file.group['layers'][layer_name]['data'][time_point]
-
-            for time_point in obj.time_points_values:
-                if str(time_point) in obj.file.group['layers'][layer_name]['data'].keys():
-                    obj.file.group['layers'][layer_name]['data'][str(time_point)][...] = obj.layers[layer_name][
-                        time_point].values
-
-                else:
-                    obj.file.group['layers'][layer_name]['data'].create_dataset(
-                        str(time_point), data=obj.layers[layer_name][time_point].values,
-                        chunks=True, maxshape=(None, None))
-
-            # update index
-            del obj.file.group['layers'][layer_name]['index']
-            write_series(series=obj.layers[layer_name].index, group=obj.file.group['layers'][layer_name],
-                         key='index')
-
-            # update columns
-            del obj.file.group['layers'][layer_name]['columns']
-            write_series(series=obj.layers[layer_name].columns, group=obj.file.group['layers'][layer_name],
-                         key='columns')
-
-            # update time_col_name
-            del obj.file.group['layers'][layer_name]['time_col_name']
-            write_data(obj.layers[layer_name].time_points_column_name,
-                       obj.file.group['layers'][layer_name], 'time_col_name')
-
-        else:
+        if layer_name not in obj.file.group['layers'].keys():
+            generalLogger.info(f"{spacer(1)}Saving layer {layer_name}")
             write_TemporalDataFrame(data=obj.layers[layer_name], group=obj.file.group['layers'], key=layer_name)
 
     # update obs --------------------------------------------------------------
+    generalLogger.info('Saving obs')
     if obj.obs.empty:
+        generalLogger.info(f"{spacer(1)}Removing obs")
         del obj.file.group['obs']
 
         write_TemporalDataFrame(data=obj.obs, group=obj.file.group, key='obs')
 
-    else:
-        # update data
-        for time_point in obj.file.group['obs']['data'].keys():
-            if time_point not in obj.time_points_strings:
-                del obj.file.group['obs']['data'][time_point]
-
-        for time_point in obj.time_points_values:
-            if str(time_point) in obj.file.group['obs']['data'].keys():
-                obj.file.group['obs']['data'][str(time_point)][...] = obj.obs[time_point].values
-
-            else:
-                obj.file.group['obs']['data'].create_dataset(str(time_point), data=obj.obs[time_point].values,
-                                                             chunks=True, maxshape=(None, None))
-
-        # update index
-        del obj.file.group['obs']['index']
-        write_series(series=obj.obs.index, group=obj.file.group['obs'], key='index')
-
-        # update columns
-        del obj.file.group['obs']['columns']
-        write_series(series=obj.obs.columns, group=obj.file.group['obs'], key='columns')
-
-        # update time_col_name
-        del obj.file.group['obs']['time_col_name']
-        write_data(obj.obs.time_points_column_name, obj.file.group['obs'], 'time_col_name')
-
     # update obsm -------------------------------------------------------------
+    generalLogger.info('Saving obsm')
+    # remove deleted obsm datasets from the h5 file
+    for obsm_name in obj.file.group['obsm'].keys():
+        if obsm_name not in obj.obsm.keys():
+            generalLogger.info(f"{spacer(1)}Removing obsm {obsm_name}")
+            del obj.file.group['obsm'][obsm_name]
+
+    # write new obsm datasets
     for obsm_name in obj.obsm.keys():
-        if obsm_name in obj.file.group['obsm'].keys():
-            # update data
-            for time_point in obj.file.group['obsm'][obsm_name]['data'].keys():
-                if time_point not in obj.time_points_strings:
-                    del obj.file.group['obsm'][obsm_name]['data'][time_point]
-
-            for time_point in obj.time_points_values:
-                if str(time_point) in obj.file.group['obsm'][obsm_name]['data'].keys():
-                    obj.file.group['obsm'][obsm_name]['data'][str(time_point)][...] = obj.obsm[obsm_name][
-                        time_point].values
-
-                else:
-                    obj.file.group['obsm'][obsm_name]['data'].create_dataset(
-                        str(time_point), data=obj.obsm[obsm_name][time_point].values,
-                        chunks=True, maxshape=(None, None))
-
-            # update index
-            del obj.file.group['obsm'][obsm_name]['index']
-            write_series(series=obj.obsm[obsm_name].index, group=obj.file.group['obsm'][obsm_name],
-                         key='index')
-
-            # update columns
-            del obj.file.group['obsm'][obsm_name]['columns']
-            write_series(series=obj.obsm[obsm_name].columns, group=obj.file.group['obsm'][obsm_name],
-                         key='columns')
-
-            # update time_col_name
-            del obj.file.group['obsm'][obsm_name]['time_col_name']
-            write_data(obj.obsm[obsm_name].time_points_column_name,
-                       obj.file.group['obsm'][obsm_name], 'time_col_name')
-
-        else:
+        if obsm_name not in obj.file.group['obsm'].keys():
+            generalLogger.info(f"{spacer(1)}Saving obsm {obsm_name}")
             write_TemporalDataFrame(data=obj.obsm[obsm_name], group=obj.file.group['obsm'], key=obsm_name)
 
     # update obsp -------------------------------------------------------------

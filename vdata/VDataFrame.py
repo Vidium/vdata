@@ -7,12 +7,13 @@
 import h5py
 import pandas as pd
 from pandas._typing import Axes, Dtype
-from typing import Optional, Collection
+from typing import Optional, Collection, Sequence
+
+from ._IO import VTypeError
 
 
 # ====================================================
 # code
-
 class VDataFrame(pd.DataFrame):
     """
     Simple wrapper around pandas DataFrames for managing index and columns modification when the DataFrame is read
@@ -44,6 +45,25 @@ class VDataFrame(pd.DataFrame):
         return self._file is not None
 
     @property
+    def file(self) -> h5py.Group:
+        """
+        Get the .h5 file this VDataFrame is backed on.
+        :return: the .h5 file this VDataFrame is backed on.
+        """
+        return self._file
+
+    @file.setter
+    def file(self, new_file: h5py.Group) -> None:
+        """
+        Set the .h5 file to back this VDataFrame on.
+        :param new_file: a .h5 file to back this VDataFrame on.
+        """
+        if not isinstance(new_file, h5py.Group):
+            raise VTypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
+
+        self._file = new_file
+
+    @property
     def index(self) -> pd.Index:
         """
         Get the index.
@@ -58,8 +78,9 @@ class VDataFrame(pd.DataFrame):
         """
         self._set_axis(1, pd.Index(values))
 
-        if self.is_backed:
-            self._file.attrs["index"] = list(self.index)
+        if self.is_backed and self._file.file.mode == 'r+':
+            self._file.attrs["index"] = list(values)
+            self._file.file.flush()
 
     @property
     def columns(self) -> pd.Index:
@@ -69,12 +90,17 @@ class VDataFrame(pd.DataFrame):
         return super().columns
 
     @columns.setter
-    def columns(self, values: Collection) -> None:
+    def columns(self, values: Sequence) -> None:
         """
         Set the columns (and write modifications to .h5 file if backed).
         :param values: new column names to set.
         """
-        self._set_axis(0, pd.Index(values))
+        if self.is_backed and self._file.file.mode == 'r+':
+            self._file.attrs["column_order"] = list(values)
 
-        if self.is_backed:
-            self._file.attrs["column_order"] = list(self.index)
+            for col_index, col in enumerate(values):
+                self._file.move(self.axes[1][col_index], str(col))
+
+            self._file.file.flush()
+
+        self._set_axis(0, pd.Index(values))

@@ -10,10 +10,10 @@ from typing import Union, Tuple, List, Dict
 
 import vdata
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
-from ...utils import reformat_index
+from ...utils import reformat_index, repr_index
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
 from ...NameUtils import PreSlicer
-from vdata.utils import repr_array, repr_index
+from vdata.utils import repr_array
 from ...._IO import generalLogger, VTypeError, IncoherenceError, ShapeError
 
 

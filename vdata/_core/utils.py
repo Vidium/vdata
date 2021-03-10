@@ -8,7 +8,7 @@ import numpy as np
 from typing import Any, List, Optional, Collection, Union, Sequence, cast, Set, Tuple
 
 from .NameUtils import TimePointList, PreSlicer
-from vdata.utils import isCollection
+from vdata.utils import isCollection, repr_array
 from vdata.TimePoint import TimePoint
 from .._IO import VTypeError, ShapeError, VValueError
 
@@ -267,3 +267,28 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
                     mask[tp_i] = True
 
     return mask
+
+
+# Representation ---------------------------------------------------------
+def repr_index(index: Union['PreSlicer', Tuple['PreSlicer'],
+                            Tuple['PreSlicer', 'PreSlicer'],
+                            Tuple['PreSlicer', 'PreSlicer', 'PreSlicer'],
+                            Tuple[np.ndarray, np.ndarray, np.ndarray]]) \
+        -> str:
+    """
+    Get a short string representation of a sub-setting index.
+    :param index: a sub-setting index to represent.
+    :return: a short string representation of the sub-setting index.
+    """
+    if isinstance(index, tuple):
+        repr_string = f"Index of {len(index)} element{'' if len(index) == 1 else 's'} : "
+
+        for element in index:
+            repr_string += f"\n  \u2022 {repr_array(element) if isCollection(element) else element}"
+
+        return repr_string
+
+    else:
+        return f"Index of 1 element : \n" \
+               f"  \u2022 {repr_array(index) if isCollection(index) else index}"
+

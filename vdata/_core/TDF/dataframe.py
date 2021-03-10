@@ -19,9 +19,9 @@ from .copy import copy_TemporalDataFrame
 from .indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from .views import ViewTemporalDataFrame
 from ..NameUtils import TimePointList, PreSlicer
-from ..utils import match_time_points, to_tp_list, to_list, reformat_index
+from ..utils import match_time_points, to_tp_list, to_list, reformat_index, repr_index
 from vdata.NameUtils import DType
-from vdata.utils import repr_array, repr_index, isCollection
+from vdata.utils import repr_array, isCollection
 from vdata.TimePoint import TimePoint
 from ..._IO import generalLogger, VValueError, VTypeError, ShapeError, VLockError
 
@@ -645,10 +645,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 self._columns = self._columns.delete(col_index)
 
-                if self.is_backed:
-                    from ..._read_write import write_series
-
-                    write_series(self._columns, self._file, 'columns')
+                if self.is_backed and self._file.file.mode == 'r+':
+                    self._file['columns'] = self._columns
+                    self._file.file.flush()
 
             else:
                 raise VValueError(f"Column '{col}' not found in TemporalDataFrame '{self.name}'.")
@@ -692,6 +691,25 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :return: Is this TemporalDataFrame backed on a .h5 file ?
         """
         return self._file is not None
+
+    @property
+    def file(self) -> h5py.Group:
+        """
+        Get the .h5 file this TemporalDataFrame is backed on.
+        :return: the .h5 file this TemporalDataFrame is backed on.
+        """
+        return self._file
+
+    @file.setter
+    def file(self, new_file: h5py.Group):
+        """
+        Set the .h5 file this TemporalDataFrame is backed on.
+        :param new_file: a .h5 file to back this TemporalDataFrame.
+        """
+        if not isinstance(new_file, h5py.Group):
+            raise VTypeError(f"Cannot back TemporalDataFrame '{self.name}' with an object of type '{type(new_file)}'.")
+
+        self._file = new_file
 
     @property
     def is_locked(self) -> Tuple[bool, bool]:
@@ -809,10 +827,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 self._index[tp] = pd.Index(values[cnt:cnt+self.n_index_at(tp)])
                 cnt += self.n_index_at(tp)
 
-            if self.is_backed:
-                from ..._read_write import write_series
-
-                write_series(self.index, self._file, 'index')
+            if self.is_backed and self._file.file.mode == 'r+':
+                self._file['index'][()] = self.index
+                self._file.file.flush()
 
     def reindex(self, index: Collection) -> None:
         """
@@ -850,6 +867,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 cnt += self.n_index_at(tp)
 
+            if self.is_backed and self._file.file.mode == 'r+':
+                self._file['index'][()] = self.index
+                self._file.file.flush()
+
     @property
     def columns(self) -> pd.Index:
         """
@@ -873,10 +894,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             self._columns = values
 
-            if self.is_backed:
-                from ..._read_write import write_series
-
-                write_series(self._columns, self._file, 'columns')
+            if self.is_backed and self._file.file.mode == 'r+':
+                self._file['columns'][()] = self._columns
+                self._file.file.flush()
 
     @property
     def name(self) -> str:
@@ -1015,10 +1035,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             # insert column name into column index
             self._columns = self._columns.insert(loc, column)
 
-            if self.is_backed:
-                from ..._read_write import write_series
-
-                write_series(self._columns, self._file, 'columns')
+            if self.is_backed and self._file.file.mode == 'r+':
+                self._file['columns'] = self._columns
+                self._file.file.flush()
 
     def copy(self) -> 'TemporalDataFrame':
         """

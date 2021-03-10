@@ -4,8 +4,8 @@
 
 # ====================================================
 # imports
-import pandas as pd
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator
@@ -16,10 +16,10 @@ from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContain
     VVarpArrayContainer
 from .views import ViewVData
 from ..NameUtils import PreSlicer
-from ..utils import reformat_index, to_tp_list, match_time_points
+from ..utils import reformat_index, to_tp_list, match_time_points, repr_index
 from ..TDF import TemporalDataFrame
 from vdata.NameUtils import DType, str_DType, DTypes
-from vdata.utils import repr_index, repr_array
+from vdata.utils import repr_array
 from vdata.TimePoint import TimePoint
 from ..._IO import generalLogger, VTypeError, IncoherenceError, VValueError, \
     ShapeError
@@ -173,6 +173,13 @@ class VData:
 
         return repr_str
 
+    def __del__(self):
+        """
+        TODO
+        """
+        if self.is_backed:
+            self.file.close()
+
     def __getitem__(self, index: Union['PreSlicer',
                                        Tuple['PreSlicer', 'PreSlicer'],
                                        Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
@@ -222,8 +229,29 @@ class VData:
     def file(self) -> H5GroupReader:
         """
         Get this VData's .h5 file.
+        :return: this VData's .h5 file.
         """
         return self._file
+
+    @file.setter
+    def file(self, file_reader: H5GroupReader) -> None:
+        """
+        Set this VData's .h5 file.
+        :param file_reader: a .h5 file reader for this VData.
+        """
+        if not isinstance(file_reader, H5GroupReader):
+            raise VTypeError(f"Cannot read .h5 file from an object of type '{type(file_reader)}'.")
+
+        self._file = file_reader
+
+        self.layers.set_file(file_reader.group['layers'])
+        self.obs.file = file_reader.group['obs']
+        self.obsm.set_file(file_reader.group['obsm'])
+        self.obsp.set_file(file_reader.group['obsp'])
+        self.var.file = file_reader.group['var']
+        self.varm.set_file(file_reader.group['varm'])
+        self.varp.set_file(file_reader.group['varp'])
+        self.time_points.file = file_reader.group['time_points']
 
     # Shapes -------------------------------------------------------------
     @property
@@ -1227,9 +1255,6 @@ class VData:
 
         :param file: path to save the VData
         """
-        if self.is_backed and file is not None:
-            raise VValueError("Cannot set the 'file' when writing a backed VData.")
-
         if not self.is_backed and file is None:
             raise VValueError("No file path was provided for writing this VData.")
 

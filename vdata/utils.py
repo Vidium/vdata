@@ -32,7 +32,15 @@ def get_value(v: Any) -> Union[str, int, float]:
         return v
 
     try:
-        return eval(v)
+        v = eval(v)
+        if isinstance(v, np.int_):
+            return int(v)
+
+        elif isinstance(v, np.float_):
+            return float(v)
+
+        else:
+            return v
 
     except (NameError, SyntaxError):
         return v
@@ -67,26 +75,3 @@ def repr_array(arr: Union['NameUtils.DType', Sequence, range, slice, 'ellipsis']
 
         else:
             return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"
-
-
-def repr_index(index: Union['NameUtils.PreSlicer', Tuple['NameUtils.PreSlicer'],
-                            Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
-                            Tuple['NameUtils.PreSlicer', 'NameUtils.PreSlicer', 'NameUtils.PreSlicer'],
-                            Tuple[np.ndarray, np.ndarray, np.ndarray]]) \
-        -> str:
-    """
-    Get a short string representation of a sub-setting index.
-    :param index: a sub-setting index to represent.
-    :return: a short string representation of the sub-setting index.
-    """
-    if isinstance(index, tuple):
-        repr_string = f"Index of {len(index)} element{'' if len(index) == 1 else 's'} : "
-
-        for element in index:
-            repr_string += f"\n  \u2022 {repr_array(element) if isCollection(element) else element}"
-
-        return repr_string
-
-    else:
-        return f"Index of 1 element : \n" \
-               f"  \u2022 {repr_array(index) if isCollection(index) else index}"

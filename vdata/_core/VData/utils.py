@@ -9,7 +9,6 @@ from typing import Union, Collection, Dict, Optional
 
 from vdata.TimePoint import TimePoint
 
-
 # ====================================================
 # code
 # Identification ---------------------------------------------------------

@@ -297,6 +297,14 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D]):
         """
         pass
 
+    @abc.abstractmethod
+    def set_file(self, file: h5py.Group) -> None:
+        """
+        Set the file to back the Arrays in this ArrayContainer.
+        :param file: a .h5 file to back the Arrays on.
+        """
+        pass
+
 
 # 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]):
@@ -394,6 +402,18 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
 
             # save array
             arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+    def set_file(self, file: h5py.Group) -> None:
+        """
+        Set the file to back the TemporalDataFrames in this VBase3DArrayContainer.
+        :param file: a .h5 file to back the TemporalDataFrames on.
+        """
+        if not isinstance(file, h5py.Group):
+            raise VTypeError(f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
+                             f"{type(file)}'.")
+
+        for arr_name, arr in self.items():
+            arr.file = file[arr_name]
 
 
 class VLayerArrayContainer(VBase3DArrayContainer):
@@ -847,6 +867,19 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
 
                 index_cumul += len(arr)
 
+    def set_file(self, file: h5py.Group) -> None:
+        """
+        Set the file to back the VDataFrames in this VObspArrayContainer.
+        :param file: a .h5 file to back the VDataFrames on.
+        """
+        if not isinstance(file, h5py.Group):
+            raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
+                             f"{type(file)}'.")
+
+        for arr_name, VDF_dict in self.items():
+            for tp, arr in VDF_dict.items():
+                arr.file = file[arr_name][str(tp)]
+
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]):
@@ -907,6 +940,18 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
 
             # save array
             arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+
+    def set_file(self, file: h5py.Group) -> None:
+        """
+        Set the file to back the VDataFrames in this VBase2DArrayContainer.
+        :param file: a .h5 file to back the VDataFrames on.
+        """
+        if not isinstance(file, h5py.Group):
+            raise VTypeError(f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"
+                             f"{type(file)}'.")
+
+        for arr_name, arr in self.items():
+            arr.file = file[arr_name]
 
 
 class VVarmArrayContainer(VBase2DArrayContainer):
