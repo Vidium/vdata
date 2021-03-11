@@ -21,8 +21,7 @@ from ..TDF import TemporalDataFrame
 from vdata.NameUtils import DType, str_DType, DTypes
 from vdata.utils import repr_array
 from vdata.TimePoint import TimePoint
-from ..._IO import generalLogger, VTypeError, IncoherenceError, VValueError, \
-    ShapeError
+from ..._IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
 from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
 from ...VDataFrame import VDataFrame
 
@@ -152,26 +151,30 @@ class VData:
         Description for this Vdata object to print.
         :return: a description of this Vdata object
         """
-        _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0] if len(self.n_obs) else 0
+        if self.is_read_writable:
+            _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0] if len(self.n_obs) else 0
 
-        if self.empty:
-            repr_str = f"Empty {'backed ' if self.is_backed else ''}VData '{self.name}' ({_n_obs} obs x" \
-                       f" {self.n_var} vars over {self.n_time_points} time point" \
-                       f"{'' if self.n_time_points == 1 else 's'})."
+            if self.empty:
+                repr_str = f"Empty {'backed ' if self.is_backed else ''}VData '{self.name}' ({_n_obs} obs x" \
+                           f" {self.n_var} vars over {self.n_time_points} time point" \
+                           f"{'' if self.n_time_points == 1 else 's'})."
+
+            else:
+                repr_str = f"{'Backed ' if self.is_backed else ''}VData '{self.name}' with n_obs x n_var = {_n_obs} x "\
+                           f"{self.n_var} over {self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}."
+
+            for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
+                obj = getattr(self, attr)
+                if not obj.empty:
+                    repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
+
+            if len(self.uns):
+                repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
+
+            return repr_str
 
         else:
-            repr_str = f"{'Backed ' if self.is_backed else ''}VData '{self.name}' with n_obs x n_var = {_n_obs} x"\
-                       f" {self.n_var} over {self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}."
-
-        for attr in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
-            obj = getattr(self, attr)
-            if not obj.empty:
-                repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
-
-        if len(self.uns):
-            repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
-
-        return repr_str
+            return "Backed VData with closed file."
 
     def __del__(self) -> None:
         """
@@ -205,6 +208,9 @@ class VData:
                                                                         with variables 0 to 9 on time point 0
         :return: a view on this VData
         """
+        if not self.is_read_writable:
+            raise VClosedFileError()
+
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
@@ -232,6 +238,14 @@ class VData:
         :return: Is this VData object backed on a .h5 file and writable ?
         """
         return self._file is not None and self._file.mode == 'r+'
+
+    @property
+    def is_read_writable(self) -> bool:
+        """
+        Is this VData readable and writable ?
+        :return Is this VData readable and writable ?
+        """
+        return not self.is_backed or (self.is_backed_w and self._file.group.file.id.valid)
 
     @property
     def file(self) -> H5GroupReader:

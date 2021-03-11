@@ -50,3 +50,9 @@ v.set_obs_index([9, 8, 7, 6, 5, 4])
 vdata.read('/home/matteo/Desktop/v.h5', 'r')
 vdata.setLoggingLevel('INFO')
 v.write()
+
+
+
+
+
+

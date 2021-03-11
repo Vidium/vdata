@@ -5,7 +5,8 @@
 # ====================================================
 # imports
 from .logger import generalLogger, setLoggingLevel, getLoggingLevel
-from .errors import VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, VAttributeError, VLockError
+from .errors import VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, VAttributeError, VLockError, \
+    VClosedFileError
 
 __all__ = ['generalLogger', 'setLoggingLevel', 'getLoggingLevel', 'VTypeError', 'VValueError', 'ShapeError',
-           'IncoherenceError', 'VPathError', 'VAttributeError', 'VLockError']
+           'IncoherenceError', 'VPathError', 'VAttributeError', 'VLockError', 'VClosedFileError']
