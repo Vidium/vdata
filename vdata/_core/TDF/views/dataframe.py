@@ -353,6 +353,10 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 self._parent_data[tp].loc[self.index_at(tp)].index = values[cnt:cnt + self.n_index_at(tp)]
                 cnt += self.n_index_at(tp)
 
+            if self._parent.is_backed and self._parent.file.file.mode == 'r+':
+                self._parent.file['index'][()] = self._parent.index
+                self._parent.file.file.flush()
+
     def index_at(self, time_point: Union['TimePoint', str]) -> pd.Index:
         """
         Get the index of this view of a TemporalDataFrame.

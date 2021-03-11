@@ -422,7 +422,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                  index: Optional[Collection] = None,
                  columns: Optional[Collection] = None,
                  dtype: Optional['DType'] = None,
-                 name: Optional[Any] = None):
+                 name: Optional[Any] = None,
+                 file: Optional[h5py.Group] = None):
         """
         :param data: data to store as a dataframe.
         :param time_list: time points for the dataframe's rows. The value indicates at which time point a given row
@@ -444,6 +445,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param columns: column labels.
         :param dtype: data type to force.
         :param name: optional TemporalDataFrame's name.
+        :param file: optional TemporalDataFrame's .h5 file for backing.
         """
         self._name = str(name) if name is not None else 'No_Name'
 
@@ -451,6 +453,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                             f"---------------------------------------- ")
 
         self._file = None
+        self._backed_state = 0
         self._is_locked = (False, False)
 
         self._time_points = sorted(
@@ -493,6 +496,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             generalLogger.debug("Storing data in TemporalDataFrame.")
             self._df = data
 
+            if file is not None:
+                self._file = file
+                self._backed_state = 1
+
         # ---------------------------------------------------------------------
         # data from hdf5 file
         elif isinstance(data, h5py.Group):
@@ -514,6 +521,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 index = index[len(self._df[time_point]):]
 
             self._file = data
+            self._backed_state = 2
 
         # ---------------------------------------------------------------------
         # invalid data
@@ -645,7 +653,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 self._columns = self._columns.delete(col_index)
 
-                if self.is_backed and self._file.file.mode == 'r+':
+                if self._backed_state == 2 and self._file.file.mode == 'r+':
                     self._file['columns'] = self._columns
                     self._file.file.flush()
 
@@ -908,7 +916,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             self._columns = values
 
-            if self.is_backed and self._file.file.mode == 'r+':
+            if self._backed_state == 2 and self._file.file.mode == 'r+':
                 self._file['columns'][()] = self._columns
                 self._file.file.flush()
 
@@ -1049,7 +1057,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             # insert column name into column index
             self._columns = self._columns.insert(loc, column)
 
-            if self.is_backed and self._file.file.mode == 'r+':
+            if self._backed_state == 2 and self._file.file.mode == 'r+':
                 self._file['columns'] = self._columns
                 self._file.file.flush()
 

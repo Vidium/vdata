@@ -86,6 +86,7 @@ def update_vdata(obj: 'vdata.VData') -> None:
         if layer_name not in obj.layers.keys():
             generalLogger.info(f"{spacer(1)}Removing layer {layer_name}")
             del obj.file.group['layers'][layer_name]
+            obj.file.group.flush()
 
     # write new layers
     for layer_name in obj.layers.keys():
@@ -95,9 +96,10 @@ def update_vdata(obj: 'vdata.VData') -> None:
 
     # update obs --------------------------------------------------------------
     generalLogger.info('Saving obs')
-    if obj.obs.empty:
+    if obj.obs.empty or not obj.obs.is_backed:
         generalLogger.info(f"{spacer(1)}Removing obs")
         del obj.file.group['obs']
+        obj.file.group.flush()
 
         write_TemporalDataFrame(data=obj.obs, group=obj.file.group, key='obs')
 
@@ -108,6 +110,7 @@ def update_vdata(obj: 'vdata.VData') -> None:
         if obsm_name not in obj.obsm.keys():
             generalLogger.info(f"{spacer(1)}Removing obsm {obsm_name}")
             del obj.file.group['obsm'][obsm_name]
+            obj.file.group.flush()
 
     # write new obsm datasets
     for obsm_name in obj.obsm.keys():
@@ -117,26 +120,34 @@ def update_vdata(obj: 'vdata.VData') -> None:
 
     # update obsp -------------------------------------------------------------
     del obj.file.group['obsp']
+    obj.file.group.flush()
     write_data(obj.obsp.data, obj.file.group, 'obsp')
 
     # update var --------------------------------------------------------------
     del obj.file.group['var']
+    obj.file.group.flush()
     write_data(obj.var, obj.file.group, 'var')
 
     del obj.file.group['varm']
+    obj.file.group.flush()
     write_data(obj.varm.data, obj.file.group, 'varm')
 
     del obj.file.group['varp']
+    obj.file.group.flush()
     write_data(obj.varp.data, obj.file.group, 'varp')
 
     # update time points ------------------------------------------------------
     del obj.file.group['time_points']
+    obj.file.group.flush()
     obj.time_points.value = [str(e) for e in obj.time_points.value]
     write_data(obj.time_points, obj.file.group, 'time_points')
 
     # update uns --------------------------------------------------------------
     del obj.file.group['uns']
+    obj.file.group.flush()
     write_data(obj.uns, obj.file.group, 'uns')
+
+    obj.file.group.flush()
 
 
 def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",

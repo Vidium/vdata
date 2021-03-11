@@ -275,6 +275,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
     :param name: an optional name for the loaded VData object.
     :param backup: create a backup copy of the read .h5 file in case something goes wrong ?
     """
+    generalLogger.debug(f"\u23BE read VData : begin -------------------------------------------------------- ")
     file = parse_path(file)
 
     # make sure the path exists
@@ -290,6 +291,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
             backup_file_suffix = f"({backup_nb}).backup"
 
         shutil.copy(file, str(file) + backup_file_suffix)
+        generalLogger.info(f"Backup file '{str(file) + backup_file_suffix}' was created.")
 
     data = {'obs': None, 'var': None, 'time_points': None,
             'layers': None,
@@ -317,6 +319,8 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
 
     for key, arr in data['obsp'].items():
         new_VData.obsp[key] = arr
+
+    generalLogger.debug(f"\u23BF read VData : end -------------------------------------------------------- ")
 
     return new_VData
 
