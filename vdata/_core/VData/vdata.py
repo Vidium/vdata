@@ -151,7 +151,7 @@ class VData:
         Description for this Vdata object to print.
         :return: a description of this Vdata object
         """
-        if self.is_read_writable:
+        if not self.is_closed:
             _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0] if len(self.n_obs) else 0
 
             if self.empty:
@@ -208,7 +208,8 @@ class VData:
                                                                         with variables 0 to 9 on time point 0
         :return: a view on this VData
         """
-        if not self.is_read_writable:
+        if not self.is_closed:
+            # TODO partout
             raise VClosedFileError()
 
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
@@ -240,12 +241,12 @@ class VData:
         return self._file is not None and self._file.mode == 'r+'
 
     @property
-    def is_read_writable(self) -> bool:
+    def is_closed(self) -> bool:
         """
-        Is this VData readable and writable ?
-        :return Is this VData readable and writable ?
+        Is this VData's file closed ?
+        :return Is this VData's file closed ?
         """
-        return not self.is_backed or (self.is_backed_w and self._file.group.file.id.valid)
+        return self.is_backed and not self._file.group.file.id.valid
 
     @property
     def file(self) -> H5GroupReader:
