@@ -777,6 +777,20 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._time_points_column_name
 
+    @time_points_column_name.setter
+    def time_points_column_name(self, value: str) -> None:
+        """
+        Set the name of the column with time points data.
+        :param value: a new name for the column with time points data.
+        """
+        value = str(value)
+
+        self._time_points_column_name = value
+
+        if self.is_backed and self.file.file.mode == 'r+':
+            self.file['time_col_name'][()] = value
+            self.file.file.flush()
+
     def index_at(self, time_point: Union['TimePoint', str]) -> pd.Index:
         """
         Get the index of this TemporalDataFrame.

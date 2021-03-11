@@ -282,10 +282,14 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
         raise VValueError(f"The path {file} does not exist.")
 
     if backup:
-        if os.path.exists(str(file) + '.backup'):
-            os.remove(str(file) + '.backup')
+        backup_file_suffix = '.backup'
+        backup_nb = 0
 
-        shutil.copy(file, str(file) + '.backup')
+        while os.path.exists(str(file) + backup_file_suffix):
+            backup_nb += 1
+            backup_file_suffix = f"({backup_nb}).backup"
+
+        shutil.copy(file, str(file) + backup_file_suffix)
 
     data = {'obs': None, 'var': None, 'time_points': None,
             'layers': None,

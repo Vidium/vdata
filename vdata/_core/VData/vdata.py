@@ -173,9 +173,9 @@ class VData:
 
         return repr_str
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
-        TODO
+        Close file on object delete.
         """
         if self.is_backed:
             self.file.close()
@@ -224,6 +224,14 @@ class VData:
         :return: Is this VData object backed on a .h5 file ?
         """
         return self._file is not None
+
+    @property
+    def is_backed_w(self) -> bool:
+        """
+        Is this VData object backed on a .h5 file and writable ?
+        :return: Is this VData object backed on a .h5 file and writable ?
+        """
+        return self._file is not None and self._file.mode == 'r+'
 
     @property
     def file(self) -> H5GroupReader:

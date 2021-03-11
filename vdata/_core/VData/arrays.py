@@ -343,7 +343,25 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         if not _first_TDF.columns.equals(value.columns):
             raise VValueError("Column names do not match.")
 
-        self._data[key] = value
+        if key in self.keys():
+            if value.is_backed and self._parent.is_backed_w:
+                # move h5 group to _parent's group
+                raise NotImplementedError
+
+            else:
+                self._data[key] = value
+
+        else:
+            if value.is_backed and self._parent.is_backed_w:
+                # replace h5 group in _parent's group
+                raise NotImplementedError
+
+            elif self._parent.is_backed_w:
+                # delete h5 group in _parent's group
+                raise NotImplementedError
+
+            else:
+                self._data[key] = value
 
     @property
     def empty(self) -> bool:
