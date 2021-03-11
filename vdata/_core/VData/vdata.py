@@ -701,7 +701,19 @@ class VData:
         obs_index, var_index = None, None
         layers = None
 
-        verified_time_list = to_tp_list(time_list) if time_list is not None else None
+        if time_list is not None:
+            verified_time_list = to_tp_list(time_list)
+
+        elif isinstance(obs, (pd.DataFrame, TemporalDataFrame)) and time_col_name is not None:
+            if time_col_name in obs.columns:
+                verified_time_list = to_tp_list(obs[time_col_name])
+                time_col_name = None
+
+            else:
+                raise VValueError(f"Could not find column '{time_col_name}' in obs.")
+
+        else:
+            verified_time_list = None
 
         # time_points
         if time_points is not None:
