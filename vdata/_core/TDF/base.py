@@ -194,7 +194,11 @@ class BaseTemporalDataFrame(ABC):
         :param with_time_points: add a column with time points data ?
         :return: the data in a dictionary.
         """
-        return self.to_pandas(with_time_points).to_dict()
+        if self.n_columns == 1 and not with_time_points:
+            return self.to_pandas(with_time_points).to_dict()[self.columns[0]]
+
+        else:
+            return self.to_pandas(with_time_points).to_dict()
 
     def _asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
                    value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
