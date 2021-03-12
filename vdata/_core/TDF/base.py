@@ -188,6 +188,14 @@ class BaseTemporalDataFrame(ABC):
         """
         pass
 
+    def to_dict(self, with_time_points: bool = False) -> Dict:
+        """
+        Get the data in a dictionary.
+        :param with_time_points: add a column with time points data ?
+        :return: the data in a dictionary.
+        """
+        return self.to_pandas(with_time_points).to_dict()
+
     def _asmd_func(self, operation: Literal['__add__', '__sub__', '__mul__', '__truediv__'],
                    value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
