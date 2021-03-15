@@ -208,7 +208,7 @@ class VData:
                                                                         with variables 0 to 9 on time point 0
         :return: a view on this VData
         """
-        if not self.is_closed:
+        if self.is_closed:
             # TODO partout
             raise VClosedFileError()
 

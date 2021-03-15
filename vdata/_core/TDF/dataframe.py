@@ -911,7 +911,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             raise VLockError("Cannot use 'columns.setter' functionality on a locked TemporalDataFrame.")
 
         else:
-            if isinstance(values, pd.Index) and not len(values) == len(self._columns):
+            values = pd.Index(values)
+            if not len(values) == len(self._columns):
                 raise VValueError(f"Expected an Index of len {len(self._columns)} for 'values' parameter.")
 
             self._columns = values
