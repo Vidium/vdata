@@ -9,6 +9,7 @@ import pandas as pd
 from anndata import AnnData
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator
+from typing_extensions import Literal
 
 from .NameUtils import DataFrame
 from .utils import array_isin, expand_obsp
@@ -48,7 +49,7 @@ class VData:
                  time_points: Optional[Union[pd.DataFrame, VDataFrame]] = None,
                  uns: Optional[Dict] = None,
                  time_col_name: Optional[str] = None,
-                 time_list: Optional[List[str]] = None,
+                 time_list: Optional[List[Union[str, TimePoint]]] = None,
                  dtype: Optional[Union['DType', 'str_DType']] = None,
                  name: Optional[Any] = None,
                  file: Optional[H5GroupReader] = None):
@@ -846,6 +847,8 @@ class VData:
                                              f"it is a {type(value)}.")
 
                         elif isinstance(value, (pd.DataFrame, VDataFrame)):
+                            generalLogger.debug(f"        \u2713 '{key}' is DataFrame.")
+
                             if obs_index is None:
                                 obs_index = value.index
                                 var_index = value.columns
@@ -859,6 +862,8 @@ class VData:
                                 verified_time_list = layers[str(key)].time_points_column
 
                         else:
+                            generalLogger.debug(f"        \u2713 '{key}' is TemporalDataFrame.")
+
                             value.lock((False, False))
                             value = value.copy() if not value.is_backed else value
 
@@ -908,7 +913,7 @@ class VData:
                     _time_points = time_points.value.values if time_points is not None else None
                     obs = TemporalDataFrame(obs, time_list=verified_time_list, time_col_name=time_col_name,
                                             time_points=_time_points, dtype=self._dtype,
-                                            name='obs')
+                                            name='obs', index=obs.index, )
 
                 else:
                     obs.lock((False, False))
@@ -1282,6 +1287,63 @@ class VData:
             if not dataset.empty and self.n_var != dataset.shape[1]:
                 raise IncoherenceError(f"'var' and 'varm' have different lengths ({self.n_var} vs "
                                        f"{dataset.shape[1]})")
+
+    # functions ----------------------------------------------------------
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
+            -> Tuple[Dict[str, TemporalDataFrame], List[TimePoint], pd.Index]:
+        """
+        Compute mean, min or max of the values over the requested axis.
+        """
+        _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
+
+        if axis == 0:
+            _time_list = np.repeat(self.time_points_values, self.n_var)
+            _index = pd.Index(np.concatenate([self.var.index for _ in range(self.n_time_points)]))
+
+        elif axis == 1:
+            _time_list = self.time_points_values
+            _index = self.obs.index
+
+        else:
+            raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")
+
+        return _data, _time_list, _index
+
+    def mean(self, axis: Literal[0, 1] = 0) -> 'VData':
+        """
+        Return the mean of the values over the requested axis.
+
+        :param axis: compute mean over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with mean values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
+
+        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
+        return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+
+    def min(self, axis: Literal[0, 1] = 0) -> 'VData':
+        """
+        Return the minimum of the values over the requested axis.
+
+        :param axis: compute minimum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with minimum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('min', axis)
+
+        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
+        return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+
+    def max(self, axis: Literal[0, 1] = 0) -> 'VData':
+        """
+        Return the maximum of the values over the requested axis.
+
+        :param axis: compute maximum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with maximum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('max', axis)
+
+        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
+        return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     # writing ------------------------------------------------------------
     def write(self, file: Optional[Union[str, Path]] = None) -> None:

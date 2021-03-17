@@ -86,7 +86,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
                 _data = {tp: np.array([]) for tp in _time_points}
 
             else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {_time_list}.")
+                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
 
                 if _time_points is None:
                     # only a time_list was provided
@@ -476,6 +476,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if data is None or (isinstance(data, dict) and not len(data.keys())) or (isinstance(data, pd.DataFrame) and
                                                                                  not len(data.columns)):
             generalLogger.debug('Setting empty TemporalDataFrame.')
+
+            index = index if index is not None else data.index if len(data.index) else None
+            columns = columns if columns is not None else data.columns if len(data.columns) else None
 
             data, self._time_points, self._time_points_column_name, self._index, self._columns = \
                 parse_index_and_time_points(index, None, time_list, time_col_name, self._time_points, columns)

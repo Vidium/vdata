@@ -6,7 +6,8 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List, Dict, Iterator
+from typing_extensions import Literal
 
 import vdata
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
@@ -14,7 +15,8 @@ from ...utils import reformat_index, repr_index
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
 from ...NameUtils import PreSlicer
 from vdata.utils import repr_array
-from ...._IO import generalLogger, VTypeError, IncoherenceError, ShapeError
+from ....TimePoint import TimePoint
+from ...._IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
 
 
 # ====================================================
@@ -186,6 +188,24 @@ class ViewVData:
         """
         return self._time_points
 
+    @property
+    def time_points_values(self) -> List['TimePoint']:
+        """
+        Get the list of time points values (with the unit if possible).
+
+        :return: the list of time points values (with the unit if possible).
+        """
+        return self.time_points.value.values
+
+    @property
+    def time_points_strings(self) -> Iterator[str]:
+        """
+        Get the list of time points as strings.
+
+        :return: the list of time points as strings.
+        """
+        return map(str, self.time_points.value.values)
+
     # @time_points.setter
     # def time_points(self, df: pd.DataFrame) -> None:
     #     if not isinstance(df, pd.DataFrame):
@@ -321,6 +341,63 @@ class ViewVData:
     @genes.setter
     def genes(self, df: pd.DataFrame) -> None:
         self.var = df
+
+    # functions ----------------------------------------------------------
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
+            -> Tuple[Dict[str, TemporalDataFrame], List[TimePoint], pd.Index]:
+        """
+        Compute mean, min or max of the values over the requested axis.
+        """
+        _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
+
+        if axis == 0:
+            _time_list = np.repeat(self.time_points_values, self.n_var)
+            _index = pd.Index(np.concatenate([self.var.index for _ in range(self.n_time_points)]))
+
+        elif axis == 1:
+            _time_list = self.time_points_values
+            _index = self.obs.index
+
+        else:
+            raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")
+
+        return _data, _time_list, _index
+
+    def mean(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
+        """
+        Return the mean of the values over the requested axis.
+
+        :param axis: compute mean over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with mean values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
+
+        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+
+    def min(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
+        """
+        Return the minimum of the values over the requested axis.
+
+        :param axis: compute minimum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with minimum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('min', axis)
+
+        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+
+    def max(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
+        """
+        Return the maximum of the values over the requested axis.
+
+        :param axis: compute maximum over columns (0: default) or over rows (1).
+        :return: a TemporalDataFrame with maximum values.
+        """
+        _data, _time_list, _index = self.__mean_min_max_func('max', axis)
+
+        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     # copy ---------------------------------------------------------------
     def copy(self) -> 'vdata.VData':
