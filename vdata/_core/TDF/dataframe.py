@@ -1093,12 +1093,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Compute mean, min or max of the values over the requested axis.
         """
         if axis == 0:
-            _data = {func: np.concatenate([getattr(self._df[tp], func)(axis=0) for tp in self.time_points])}
+            _data = {func: np.concatenate([getattr(np.array(self._df[tp]), func)(axis=0) for tp in self.time_points])}
             _time_list = np.repeat(self.time_points, self.n_columns)
             _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
 
         elif axis == 1:
-            _data = {func: np.concatenate([getattr(self._df[tp], func)(axis=1) for tp in self.time_points])}
+            _data = {func: np.concatenate([getattr(np.array(self._df[tp]), func)(axis=1) for tp in self.time_points])}
             _time_list = self.time_points_column
             _index = self.index
 
