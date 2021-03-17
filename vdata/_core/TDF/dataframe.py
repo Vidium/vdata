@@ -202,7 +202,7 @@ def parse_index_and_time_points(_index: Optional[Collection],
         else:
             data_len = len(_data)
 
-            generalLogger.debug(f"\tFound data in a DataFrame with {data_len} rows.")
+            generalLogger.debug(f"\tFound data in a DataFrame with {data_len} rows and {len(_data.columns)} columns.")
 
         _data = pd.DataFrame(_data, columns=_columns)
 
@@ -477,8 +477,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                                                                                  not len(data.columns)):
             generalLogger.debug('Setting empty TemporalDataFrame.')
 
-            index = index if index is not None else data.index if len(data.index) else None
-            columns = columns if columns is not None else data.columns if len(data.columns) else None
+            index = index if index is not None else data.index if data is not None and len(data.index) else None
+            columns = columns if columns is not None else data.columns if data is not None and len(
+                data.columns) else None
 
             data, self._time_points, self._time_points_column_name, self._index, self._columns = \
                 parse_index_and_time_points(index, None, time_list, time_col_name, self._time_points, columns)

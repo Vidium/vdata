@@ -15,6 +15,7 @@ from . import dataframe
 from ..NameUtils import PreSlicer
 from vdata.utils import repr_array
 from vdata.TimePoint import TimePoint
+from ..._IO import VValueError
 
 if TYPE_CHECKING:
     from .views import ViewTemporalDataFrame
@@ -419,6 +420,35 @@ class BaseTemporalDataFrame(ABC):
 
         return dataframe.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
                                            time_col_name=_time_col_name)
+
+    def transpose(self) -> 'dataframe.TemporalDataFrame':
+        """
+        Create a transposed TemporalDataFrame from this TemporalDataFrame.
+        :return: a transposed TemporalDataFrame.
+        """
+        name = f"Transposed {self.name}" if self.name != 'No_Name' else None
+
+        if self.n_time_points == 0:
+            return dataframe.TemporalDataFrame(index=self.columns, columns=self.index, name=name)
+
+        if self.n_time_points == 1 or all([self.index_at(self.time_points[0]).equals(self.index_at(tp))
+                                           for tp in self.time_points[1:]]):
+            _data = pd.concat([self[tp].to_pandas().T for tp in self.time_points])
+
+            return dataframe.TemporalDataFrame(data=_data,
+                                               index=self.columns, columns=self.index_at(self.time_points[0]),
+                                               time_list=[tp for tp in self.time_points for _ in range(self.n_columns)],
+                                               name=name)
+
+        else:
+            raise VValueError('Cannot transpose TemporalDataFrame with index not identical at all time points.')
+
+    @property
+    def T(self):
+        """
+        Alias for TemporalDataFrame.transpose()
+        """
+        return self.transpose()
 
     @abstractmethod
     def write(self, file: Union[str, Path]) -> None:

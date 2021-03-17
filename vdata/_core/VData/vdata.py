@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator
+from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator, Sequence
 from typing_extensions import Literal
 
 from .NameUtils import DataFrame
@@ -49,7 +49,7 @@ class VData:
                  time_points: Optional[Union[pd.DataFrame, VDataFrame]] = None,
                  uns: Optional[Dict] = None,
                  time_col_name: Optional[str] = None,
-                 time_list: Optional[List[Union[str, TimePoint]]] = None,
+                 time_list: Optional[Sequence[Union[str, TimePoint]]] = None,
                  dtype: Optional[Union['DType', 'str_DType']] = None,
                  name: Optional[Any] = None,
                  file: Optional[H5GroupReader] = None):
@@ -1290,18 +1290,18 @@ class VData:
 
     # functions ----------------------------------------------------------
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
-            -> Tuple[Dict[str, TemporalDataFrame], List[TimePoint], pd.Index]:
+            -> Tuple[Dict[str, TemporalDataFrame], Sequence[TimePoint], pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
-        _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
+        _data = {layer: getattr(self.layers[layer], func)(axis=axis).T for layer in self.layers}
 
         if axis == 0:
-            _time_list = np.repeat(self.time_points_values, self.n_var)
-            _index = pd.Index(np.concatenate([self.var.index for _ in range(self.n_time_points)]))
+            _time_list = self.time_points_values
+            _index = pd.Index(['mean' for _ in range(self.n_time_points)])
 
         elif axis == 1:
-            _time_list = self.time_points_values
+            _time_list = self.obs.time_points_column
             _index = self.obs.index
 
         else:
