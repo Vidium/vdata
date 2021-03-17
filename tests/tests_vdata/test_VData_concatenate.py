@@ -37,7 +37,7 @@ def test_VData_concatenate():
 
     v2.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
-    v_merged = vdata.concatenate(v1, v2)
+    v_merged = vdata.concatenate((v1, v2))
 
     assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
                              "layers: 'spliced', 'unspliced'\n\t" \
@@ -54,7 +54,20 @@ def test_VData_concatenate():
         v_merged.layers['spliced'].index
 
 
+def test_VData_concatenate_mean():
+    v1 = vdata.read("~/vdata.h5", name=1)
+    v2 = v1.copy()
+
+    vm1 = v1.mean()
+    vm2 = v2.mean()
+
+    vm2.set_obs_index(vm1.obs.index + '_2')
+
+    v_merged = vdata.concatenate((vm1, vm2))
+
+
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')
 
     test_VData_concatenate()
+    test_VData_concatenate_mean()

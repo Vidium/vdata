@@ -5,7 +5,7 @@
 # ====================================================
 # imports
 import pandas as pd
-from typing import Optional
+from typing import Optional, Sequence
 
 from .vdata import VData
 from ..._IO import VValueError, VTypeError, generalLogger
@@ -13,24 +13,24 @@ from ..._IO import VValueError, VTypeError, generalLogger
 
 # ====================================================
 # code
-def concatenate(*args: 'VData', name: Optional[str] = None) -> 'VData':
+def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
     """
     Concatenate together multiple VData objects, which share the same layer keys, vars and time points.
-    :param args: list of at least 2 VData objects to concatenate.
+    :param arr: sequence of at least 2 VData objects to concatenate.
     :param name: a name for the concatenated VData object.
     :return: a concatenated VData object.
     """
-    if len(args) < 2:
+    if len(arr) < 2:
         raise VValueError("At least 2 VData objects must be provided.")
 
-    if not all(isinstance(arg, VData) for arg in args):
+    if not all(isinstance(arg, VData) for arg in arr):
         raise VTypeError("Only Vdata objects are allowed.")
 
     generalLogger.debug(f"\u23BE Concatenation of VDatas : start "
                         f"---------------------------------------------------------- ")
 
     # get initial data
-    first_VData = args[0]
+    first_VData = arr[0]
 
     generalLogger.info(f"Using VData '{first_VData.name}' as first object.")
 
@@ -46,8 +46,8 @@ def concatenate(*args: 'VData', name: Optional[str] = None) -> 'VData':
     _obsp = first_VData.obsp.compact()
 
     # concatenate with data in other VData objects
-    for next_VData_index, next_VData in enumerate(args[1:]):
-        generalLogger.info(f"Working on VData '{next_VData.name}' ({next_VData_index + 1}/{len(args) - 1}).")
+    for next_VData_index, next_VData in enumerate(arr[1:]):
+        generalLogger.info(f"Working on VData '{next_VData.name}' ({next_VData_index + 1}/{len(arr) - 1}).")
 
         # check var -----------------------------------------------------------
         generalLogger.info(f"  '\u21B3' merging 'var' DataFrame.")

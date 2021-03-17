@@ -117,7 +117,14 @@ def parse_index_and_time_points(_index: Optional[Collection],
                     current_index += 1
 
                 _index = {tp: pd.Index(_index[tp]) for tp in _index}
-                _data = {tp: np.array([]) for tp in _time_points}
+
+                if _columns is not None:
+                    _data = {tp: np.empty((len(_index[tp]), len(pd.Index(_columns)))) for tp in _time_points}
+                    for tp in _time_points:
+                        _data[tp][:] = np.nan
+
+                else:
+                    _data = {tp: np.array([]) for tp in _time_points}
 
         else:
             generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
@@ -1174,19 +1181,26 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not self.time_points_column_name == other.time_points_column_name:
             raise VValueError("Cannot merge TemporalDataFrames with different 'time_col' parameter values.")
 
-        _data = pd.DataFrame(columns=self.columns)
+        if self.empty:
+            combined_index = np.array([])
+            for tp in self.time_points:
+                combined_index = np.concatenate((combined_index,
+                                                 self.index_at(tp).values,
+                                                 other.index_at(tp).values))
 
-        for time_point in self.time_points:
-            if any(other.index_at(time_point).isin(self.index_at(time_point))):
-                raise VValueError(f"TemporalDataFrames to merge have index values in common at time point "
-                                  f"'{time_point}'.")
+            _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
-            _data = _data.reset_index().merge(self[time_point].to_pandas().reset_index(),
-                                              how='outer').set_index('index')
-            _data = _data.reset_index().merge(other[time_point].to_pandas().reset_index(),
-                                              how='outer').set_index('index')
+        else:
+            _data = pd.DataFrame(columns=self.columns)
 
-        _data.columns = _data.columns.astype(self.columns.dtype)
+            for time_point in self.time_points:
+                if any(other.index_at(time_point).isin(self.index_at(time_point))):
+                    raise VValueError(f"TemporalDataFrames to merge have index values in common at time point "
+                                      f"'{time_point}'.")
+
+                _data = pd.concat((_data, self[time_point].to_pandas(), other[time_point].to_pandas()))
+
+            _data.columns = _data.columns.astype(self.columns.dtype)
 
         if self.time_points_column_name is None:
             _time_list = [time_point for time_point in self.time_points
