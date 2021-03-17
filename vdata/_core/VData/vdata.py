@@ -1294,13 +1294,13 @@ class VData:
         """
         Compute mean, min or max of the values over the requested axis.
         """
-        _data = {layer: getattr(self.layers[layer], func)(axis=axis).T for layer in self.layers}
-
         if axis == 0:
+            _data = {layer: getattr(self.layers[layer], func)(axis=axis).T for layer in self.layers}
             _time_list = self.time_points_values
             _index = pd.Index(['mean' for _ in range(self.n_time_points)])
 
         elif axis == 1:
+            _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
             _time_list = self.obs.time_points_column
             _index = self.obs.index
 
