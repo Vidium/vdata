@@ -695,6 +695,17 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._asmd_func('__truediv__', value)
 
+    def __eq__(self, other):
+        if isinstance(other, (TemporalDataFrame, ViewTemporalDataFrame)):
+            return self.time_points == other.time_points and self.index == other.index and self.columns == \
+                   other.columns and all([self._df[tp] == other._df[tp] for tp in self.time_points])
+
+        elif self.n_columns == 1:
+            return self.eq(other).values.flatten()
+
+        else:
+            return self.eq(other)
+
     @property
     def is_backed(self) -> bool:
         """
