@@ -350,9 +350,6 @@ def parse_index_and_time_points(_index: Optional[Collection],
             else:
                 generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
 
-                if data_len != len(_time_list):
-                    raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
-
                 if _time_points is None:
                     # data, index and time list
                     generalLogger.debug("\t\t\t\t'time_points' was not found.")
@@ -365,9 +362,18 @@ def parse_index_and_time_points(_index: Optional[Collection],
 
                 _time_points = sorted(_time_points)
 
-                if len(_index) != data_len:
-                    if len(_index) * len(_time_points) == data_len:
+                if data_len != len(_time_list):
+                    if data_len * len(_time_points) == len(_time_list):
+                        _data = pd.concat([_data for _ in range(len(_time_points))])
+                        generalLogger.debug(f"Refactored data by concatenating {len(_time_points)} times.")
+
+                    else:
+                        raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
+
+                if len(_index) != len(_data):
+                    if len(_index) * len(_time_points) == len(_data):
                         _index = pd.Index(np.concatenate([_index for _ in _time_points]))
+                        generalLogger.debug(f"Refactored index by concatenating {len(_time_points)} times.")
 
                     else:
                         raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 import vdata
-from . import obs_index_data, expr_data_simple, expr_data_medium, expr_data_complex
+from . import obs_index_data, expr_data_simple, expr_data_medium, expr_data_complex, data
 
 
 # ====================================================
@@ -497,6 +497,29 @@ def test_VData_creation_full():
                                    "C_11     2     2\n\n", repr(v.obsp['pair'])
 
 
+def test_VData_creation_from_dict():
+    v = vdata.read_from_dict(data, name='1')
+
+    assert repr(v) == "VData '1' with n_obs x n_var = [7, 3, 10] x 4 over 3 time points.\n\t" \
+                      "layers: 'RNA', 'Protein'\n\t" \
+                      "time_points: 'value'", repr(v)
+
+    time_points = pd.DataFrame({"value": ['0h', '5h', '10h']})
+    var = pd.DataFrame({"gene_name": ["g1", "g2", "g3", "g4"]}, index=["g1", "g2", "g3", "g4"])
+    obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 20),
+                                   'data_bis': np.random.randint(0, 20, 20)},
+                                  time_list=["0h" for _ in range(7)] + ["5h" for _ in range(3)] + ["10h" for _ in
+                                                                                                   range(10)],
+                                  index=[f"C_{i}" for i in range(20)], name='obs')
+
+    v = vdata.read_from_dict(data, obs=obs, var=var, time_points=time_points, name='2')
+    assert repr(v) == "VData '2' with n_obs x n_var = [7, 3, 10] x 4 over 3 time points.\n\t" \
+                      "layers: 'RNA', 'Protein'\n\t" \
+                      "obs: 'data', 'data_bis'\n\t" \
+                      "var: 'gene_name'\n\t" \
+                      "time_points: 'value'"
+
+
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')
 
@@ -504,3 +527,4 @@ if __name__ == '__main__':
     test_VData_creation_on_dtype()
     test_VData_creation_with_uns()
     test_VData_creation_full()
+    test_VData_creation_from_dict()

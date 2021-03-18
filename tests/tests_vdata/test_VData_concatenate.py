@@ -65,6 +65,11 @@ def test_VData_concatenate_mean():
 
     v_merged = vdata.concatenate((vm1, vm2))
 
+    assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] x 1000 " \
+                             "over 10 time points.\n\t" \
+                             "layers: 'data'\n\t" \
+                             "time_points: 'value'", repr(v_merged)
+
 
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')

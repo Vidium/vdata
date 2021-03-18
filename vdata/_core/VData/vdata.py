@@ -913,7 +913,7 @@ class VData:
                     _time_points = time_points.value.values if time_points is not None else None
                     obs = TemporalDataFrame(obs, time_list=verified_time_list, time_col_name=time_col_name,
                                             time_points=_time_points, dtype=self._dtype,
-                                            name='obs', index=obs.index, )
+                                            name='obs', index=obs.index)
 
                 else:
                     obs.lock((False, False))

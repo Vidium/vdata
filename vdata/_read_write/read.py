@@ -20,7 +20,7 @@ from ..NameUtils import DType
 from ..utils import get_value, repr_array
 from ..VDataFrame import VDataFrame
 from ..TimePoint import TimePoint
-from .._IO import generalLogger, VValueError, VTypeError
+from .._IO import generalLogger, VValueError, VTypeError, ShapeError
 from .._core import TemporalDataFrame
 
 
@@ -208,6 +208,12 @@ def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, p
     _time_points: List[TimePoint] = []
     check_tp = False
 
+    _index = obs.index if isinstance(obs, (pd.DataFrame, TemporalDataFrame)) else None
+    generalLogger.debug(f"Found index is : {repr_array(_index)}.")
+
+    _columns = var.index if isinstance(var, pd.DataFrame) else None
+    generalLogger.debug(f"Found columns is : {repr_array(_columns)}.")
+
     if not isinstance(data, dict):
         raise VTypeError("Data should be a dictionary with format : {data type: {time point: matrix}}")
 
@@ -216,6 +222,7 @@ def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, p
             if not isinstance(TP_matrices, dict):
                 raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
+            # ---------------------------------------------------------------------------
             generalLogger.debug(f"Loading layer '{data_type}'.")
 
             for matrix_index, matrix in TP_matrices.items():
@@ -233,22 +240,22 @@ def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, p
 
             check_tp = True
 
-            index = obs.index if obs is not None else None
-            columns = var.index if var is not None else None
+            _layer_data = np.vstack(list(TP_matrices.values()))
+            # check data matches columns shape
+            if _columns is not None and _layer_data.shape[1] != len(_columns):
+                raise ShapeError(f"Layer '{data_type}' has {_layer_data.shape[1]} columns , should have "
+                                 f"{len(_columns)}.")
 
-            generalLogger.debug(f"Found index is : {repr_array(index)}.")
-            generalLogger.debug(f"Found columns is : {repr_array(columns)}.")
+            _loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=_columns)
 
-            loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=columns)
+            _time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
+                          for _ in range(len(matrix))]
+            generalLogger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
 
-            time_list = [_time_points[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
-                         for _ in range(len(matrix))]
-            generalLogger.debug(f"Computed time list to be : {repr_array(time_list)}.")
-
-            _data[data_type] = TemporalDataFrame(data=loaded_data,
+            _data[data_type] = TemporalDataFrame(data=_loaded_data,
                                                  time_points=_time_points,
-                                                 time_list=time_list,
-                                                 index=index,
+                                                 time_list=_time_list,
+                                                 index=_index,
                                                  dtype=dtype)
 
             generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")

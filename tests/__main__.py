@@ -10,13 +10,13 @@ from tests.tests_TDF.test_TDF_creation import test_TDF_creation
 from tests.tests_TDF.test_TDF_subsetting import test_TDF_sub_setting
 
 from tests.tests_vdata.test_VData_creation import test_VData_creation, test_VData_creation_on_dtype, \
-    test_VData_creation_with_uns, test_VData_creation_full
+    test_VData_creation_with_uns, test_VData_creation_full, test_VData_creation_from_dict
 from tests.tests_vdata.test_VData_creation_from_AnnData import test_VData_creation_from_AnnData
 from tests.tests_vdata.test_VData_subsetting import test_VData_sub_setting
 from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conversion_to_AnnData
 from tests.tests_vdata.test_VData_read import test_VData_read
 from tests.tests_vdata.test_VData_copy import test_VData_copy, test_VData_copy_subset
-from tests.tests_vdata.test_VData_concatenate import test_VData_concatenate
+from tests.tests_vdata.test_VData_concatenate import test_VData_concatenate, test_VData_concatenate_mean
 
 
 # ====================================================
@@ -37,6 +37,8 @@ test_VData_creation()
 test_VData_creation_on_dtype()
 test_VData_creation_with_uns()
 test_VData_creation_full()
+# vdata.setLoggingLevel('DEBUG')
+test_VData_creation_from_dict()
 
 print('\n >>> VData creation from AnnData <<< \n')
 test_VData_creation_from_AnnData()
@@ -61,3 +63,4 @@ test_VData_copy_subset()
 # VData concatenate
 print('\n >>> VData concatenate <<< \n')
 test_VData_concatenate()
+test_VData_concatenate_mean()
