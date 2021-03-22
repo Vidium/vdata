@@ -386,6 +386,15 @@ class VData:
         return map(str, self.time_points.value.values)
 
     @property
+    def time_points_numerical(self) -> List[float]:
+        """
+        Get the list of bare values from the time points.
+
+        :return: the list of bare values from the time points.
+        """
+        return [tp.value for tp in self.time_points.value]
+
+    @property
     def obs(self) -> TemporalDataFrame:
         """
         Get the obs data.
