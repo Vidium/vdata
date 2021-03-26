@@ -135,7 +135,7 @@ class BaseTemporalDataFrame(ABC):
         Get the time points data for all rows in this TemporalDataFrame.
         :return: the time points data.
         """
-        _data = pd.Series([])
+        _data = pd.Series([], dtype=object)
 
         for time_point in self.time_points:
             # noinspection PyTypeChecker
