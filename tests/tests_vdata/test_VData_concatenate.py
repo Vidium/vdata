@@ -4,11 +4,14 @@
 
 # ====================================================
 # imports
+import os
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 import vdata
 from . import expr_data_complex, obs_index_data
+from .test_VData_write import out_test_VData_write
 
 
 # ====================================================
@@ -55,7 +58,13 @@ def test_VData_concatenate():
 
 
 def test_VData_concatenate_mean():
-    v1 = vdata.read("~/vdata.h5", name=1)
+    output_dir = Path(__file__).parent.parent / 'ref'
+
+    if not os.path.exists(output_dir / 'vdata.h5'):
+        # first write data
+        out_test_VData_write()
+
+    v1 = vdata.read(output_dir / 'vdata.h5', name=1)
     v2 = v1.copy()
 
     vm1 = v1.mean()

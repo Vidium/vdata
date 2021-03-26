@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import os
+import shutil
 import scanpy as sc
 from pathlib import Path
 
@@ -20,7 +21,7 @@ def out_test_VData_write():
     output_dir = Path(__file__).parent.parent / 'ref'
 
     if os.path.exists(output_dir / 'vdata'):
-        os.rmdir(output_dir / 'vdata')
+        shutil.rmtree(output_dir / 'vdata')
 
     # create vdata
     source_vdata_path = output_dir / 'sel_JB_scRNAseq'

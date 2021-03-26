@@ -5,16 +5,17 @@
 # ====================================================
 # imports
 import scanpy as sc
+from pathlib import Path
+
 import vdata
 
 
 # ====================================================
 # code
 def test_VData_creation_from_AnnData():
-    source_vdata_path = \
-        "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
+    output_dir = Path(__file__).parent.parent / 'ref'
 
-    adata = sc.read(source_vdata_path)
+    adata = sc.read(output_dir / 'sel_JB_scRNAseq.h5ad')
 
     v = vdata.VData(adata, time_col_name='Time_hour')
 
