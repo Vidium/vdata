@@ -775,12 +775,13 @@ class VData:
             reordering_index = obs.index
 
             # find time points list
-            _time_points, nb_time_points = check_time_match(_time_points_VDF, verified_time_list, time_col_name, obs)
+            _time_points_VDF, nb_time_points = check_time_match(_time_points_VDF, verified_time_list,
+                                                                time_col_name, obs)
 
             generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
                                 f"found after data extraction from the AnnData.")
             generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-                                f"{[0] if nb_time_points == 1 else _time_points.value.values}")
+                                f"{[0] if nb_time_points == 1 else _time_points_VDF.value.values}")
 
             if array_isin(data.X, data.layers.values()):
                 layers = dict((key, TemporalDataFrame(

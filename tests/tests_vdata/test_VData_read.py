@@ -5,21 +5,24 @@
 # ====================================================
 # imports
 import pandas as pd
+from pathlib import Path
 
 import vdata
 from . import data
-from .test_VData_write import test_VData_write
+from .test_VData_write import out_test_VData_write
 
 
 # ====================================================
 # code
 def test_VData_read():
     # first write data
-    test_VData_write()
+    out_test_VData_write()
+
+    output_dir = Path(__file__).parent.parent / 'ref'
 
     # then load data
     # load from .h5 file
-    v = vdata.read("~/vdata.h5", name=1)
+    v = vdata.read(output_dir / "vdata.h5", name=1)
     assert repr(v) == "Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
                       "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
@@ -29,7 +32,7 @@ def test_VData_read():
                       "uns: 'colors', 'date'", repr(v)
 
     # load from csv files
-    v = vdata.read_from_csv("~/vdata", name=2)
+    v = vdata.read_from_csv(output_dir / "vdata", name=2)
     assert repr(v) == "VData '2' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \

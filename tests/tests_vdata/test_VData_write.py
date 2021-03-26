@@ -6,18 +6,24 @@
 # imports
 import os
 import scanpy as sc
+from pathlib import Path
 
 import vdata
 
 
 # ====================================================
 # code
-def test_VData_write():
-    os.system('rm -rf ~/vdata')
+def out_test_VData_write():
+    """
+    This test is has the 'out_' prefix to exclude it from pytest since it is called by test_VData_read.
+    """
+    output_dir = Path(__file__).parent.parent / 'ref'
+
+    if os.path.exists(output_dir / 'vdata'):
+        os.rmdir(output_dir / 'vdata')
 
     # create vdata
-    source_vdata_path = \
-        "/home/matteo/Desktop/JN/Project/DMD/2-Genetic_Dynamic_Characterization/1-Dynamic_analysis/sel_JB_scRNAseq.h5ad"
+    source_vdata_path = output_dir / 'sel_JB_scRNAseq'
 
     adata = sc.read(source_vdata_path)
 
@@ -28,18 +34,14 @@ def test_VData_write():
 
     v.uns = uns
 
-    # print(v)
-
     # write vdata in h5 file format
-    v.write("~/vdata.h5")
-
-    print("------------------------------------------")
+    v.write(output_dir / "vdata.h5")
 
     # write vdata in csv files
-    v.write_to_csv("~/vdata")
+    v.write_to_csv(output_dir / "vdata")
 
 
 if __name__ == "__main__":
     vdata.setLoggingLevel('DEBUG')
 
-    test_VData_write()
+    out_test_VData_write()
