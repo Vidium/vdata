@@ -20,7 +20,7 @@ steps:
   pull: never
   failure: ignore
   commands:
-  - flake8 ./tests
+  - flake8 --config .tox.ini ./vdata
 
 - name: pylint
   image: real_env
@@ -34,4 +34,4 @@ steps:
   pull: never
   failure: ignore
   commands:
-  - mypy ./tests
+  - mypy --config-file .mypy.ini ./vdata

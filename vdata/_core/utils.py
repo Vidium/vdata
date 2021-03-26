@@ -291,4 +291,3 @@ def repr_index(index: Union['PreSlicer', Tuple['PreSlicer'],
     else:
         return f"Index of 1 element : \n" \
                f"  \u2022 {repr_array(index) if isCollection(index) else index}"
-

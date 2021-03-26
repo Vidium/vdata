@@ -10,8 +10,8 @@ import h5py
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, Any, MutableMapping, Iterator, \
-    TypeVar, List, Collection, Generic
+from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, \
+    List, Collection, Generic
 from typing_extensions import Literal
 
 import vdata

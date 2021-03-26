@@ -7,7 +7,7 @@
 import builtins
 import numpy as np
 import pandas as pd
-from typing import Tuple, Union, Any, Sequence, cast
+from typing import Union, Any, Sequence, cast
 
 from . import NameUtils
 

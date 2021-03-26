@@ -768,7 +768,8 @@ class VData:
 
             # import and cast obs to a TemporalDataFrame
             obs = TemporalDataFrame(data.obs, time_list=verified_time_list,
-                                    time_points=_time_points_VDF["value"].values if _time_points_VDF is not None else None,
+                                    time_points=_time_points_VDF["value"].values if _time_points_VDF is not None else
+                                    None,
                                     time_col_name=time_col_name, name='obs', dtype=self.dtype)
             obs.lock((True, False))
             reordering_index = obs.index
