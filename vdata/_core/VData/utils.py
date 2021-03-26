@@ -40,11 +40,4 @@ def expand_obsp(data: Optional[Dict[str, pd.DataFrame]],
     if data is None:
         return {}
 
-    _obsp = {}
-    for key, DF in data.items():
-        _obsp[key] = {}
-
-        for tp, index in time_points.items():
-            _obsp[key][tp] = data[key].loc[index, index]
-
-    return _obsp
+    return {key: {tp: data[key].loc[index, index] for tp, index in time_points.items()} for key, DF in data.items()}

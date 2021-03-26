@@ -29,7 +29,7 @@ def to_list(value: Any) -> List[Any]:
         return [value]
 
 
-def to_tp_list(item: Any, reference_time_points: Optional[Collection[TimePoint]] = None) -> 'TimePointList':
+def to_tp_list(item: Any, reference_time_points: Optional[Sequence[TimePoint]] = None) -> 'TimePointList':
     """
     Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
     :param item: an object to convert to tuple of TimePoints.

@@ -198,10 +198,12 @@ class TimePoint:
         """
         return self < other or self == other
 
-    def __eq__(self, other: 'TimePoint') -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Compare units with 'equal'.
         """
+        if not isinstance(other, TimePoint):
+            return False
         return self.get_unit_value('s') == other.get_unit_value('s')
 
     def __hash__(self) -> int:

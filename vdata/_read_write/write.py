@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from functools import singledispatch
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 from typing_extensions import Literal
 
 import vdata
@@ -29,7 +29,7 @@ def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
-def write_vdata(obj: 'vdata.VData', file: Union[str, Path]) -> None:
+def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
     """
     Save this VData object in HDF5 file format.
 

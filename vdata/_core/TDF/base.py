@@ -12,7 +12,7 @@ from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Opt
 from typing_extensions import Literal
 
 from . import dataframe
-from ..NameUtils import PreSlicer
+from ..NameUtils import PreSlicer, Slicer
 from vdata.utils import repr_array
 from vdata.TimePoint import TimePoint
 from ..._IO import VValueError
@@ -285,7 +285,7 @@ class BaseTemporalDataFrame(ABC):
 
         return False
 
-    def _head_tail_func(self, n: int = 5, time_points: 'PreSlicer' = slice(None, None, None),
+    def _head_tail_func(self, n: int = 5, time_points: 'Slicer' = slice(None, None, None),
                         func: Literal['head', 'tail'] = 'head') -> str:
         """
         This function returns the first (or last) n rows for the object based on position.

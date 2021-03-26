@@ -78,7 +78,7 @@ class VDataFrame(pd.DataFrame):
         """
         self._set_axis(1, pd.Index(values))
 
-        if self.is_backed and self._file.file.mode == 'r+':
+        if self._file is not None and self._file.file.mode == 'r+':
             self._file.attrs["index"] = list(values)
             self._file.file.flush()
 
@@ -95,7 +95,7 @@ class VDataFrame(pd.DataFrame):
         Set the columns (and write modifications to .h5 file if backed).
         :param values: new column names to set.
         """
-        if self.is_backed and self._file.file.mode == 'r+':
+        if self._file is not None and self._file.file.mode == 'r+':
             self._file.attrs["column_order"] = list(values)
 
             for col_index, col in enumerate(values):

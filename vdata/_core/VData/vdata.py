@@ -92,15 +92,15 @@ class VData:
 
         self._obs = None
         self._var = None
-        self._time_points = None
         self._uns: Dict[str, Any] = {}
 
         # check formats of arguments
-        _layers, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(data,
-                                                                                        obs, obsm, obsp,
-                                                                                        var, varm, varp,
-                                                                                        time_points, uns,
-                                                                                        time_col_name, time_list)
+        _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(data,
+                                                                                                      obs, obsm, obsp,
+                                                                                                      var, varm, varp,
+                                                                                                      time_points, uns,
+                                                                                                      time_col_name,
+                                                                                                      time_list)
 
         ref_TDF = list(_layers.values())[0] if _layers is not None else None
 
@@ -123,10 +123,12 @@ class VData:
                                    var_index is None else var_index,
                                    file=self._file.group['var'] if self.is_backed else None)
 
-        if self._time_points is None:
+        if _time_points is None:
             generalLogger.debug("Default empty DataFrame for time points.")
             self._time_points = VDataFrame({"value": self.obs.time_points},
                                            file=self._file.group['time_points'] if self.is_backed else None)
+        else:
+            self._time_points = _time_points
 
         # create arrays linked to VData
         self._layers = VLayerArrayContainer(self, data=_layers)
@@ -637,6 +639,7 @@ class VData:
                        time_col_name: Optional[str] = None,
                        time_list: Optional[List[str]] = None) -> Tuple[
         Optional[Dict[str, TemporalDataFrame]],
+        Optional[VDataFrame],
         Optional[Dict[str, TemporalDataFrame]], Optional[Dict[str, VDataFrame]],
         Optional[Dict[str, VDataFrame]], Optional[Dict[str, VDataFrame]],
         Optional[pd.Index], Optional[pd.Index]
@@ -655,7 +658,7 @@ class VData:
         :param var: a pandas DataFrame describing the variables/genes
         :param varm: a dictionary of array-like objects describing measurements on the variables/genes
         :param varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes
-        :param time_points: a pandas DataFrame describing the times points
+        :param time_points: a DataFrame describing the times points
         :param uns: a dictionary of unstructured data
         :param time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name
             in obs that contains time information.
@@ -665,7 +668,7 @@ class VData:
         :return: Arrays in correct format (layers, obsm, obsp, varm, varp, obs index, var index).
         """
         def check_time_match(_time_points: Optional[Union[pd.DataFrame, VDataFrame]],
-                             _time_list: Optional[List['TimePoint']],
+                             _time_list: Optional[List[TimePoint]],
                              _time_col_name: Optional[str],
                              _obs: TemporalDataFrame) -> Tuple[Optional[VDataFrame], int]:
             """
@@ -709,8 +712,10 @@ class VData:
 
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
-        obs_index, var_index = None, None
-        layers = None
+        _time_points_VDF: Optional[VDataFrame] = None
+        obs_index: Optional[pd.Index] = None
+        var_index: Optional[pd.Index] = None
+        layers: Optional[Dict[str, TemporalDataFrame]] = None
 
         if time_list is not None:
             verified_time_list = to_tp_list(time_list)
@@ -741,13 +746,15 @@ class VData:
                 if len(time_points.columns) > 1:
                     time_points[time_points.columns[1:]] = self._check_df_types(time_points[time_points.columns[1:]])
 
+                _time_points_VDF = VDataFrame(time_points)
+
         else:
             generalLogger.debug("  'time points' DataFrame was not found.")
 
-        nb_time_points = 1 if time_points is None else len(time_points)
+        nb_time_points = 1 if _time_points_VDF is None else len(_time_points_VDF)
         generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} found so far.")
         generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-                            f"{[0] if nb_time_points == 1 else repr_array(time_points.value.values)}")
+                            f"{[0] if nb_time_points == 1 else repr_array(_time_points_VDF.value.values)}")
 
         # =========================================================================================
         if isinstance(data, AnnData):
@@ -761,18 +768,18 @@ class VData:
 
             # import and cast obs to a TemporalDataFrame
             obs = TemporalDataFrame(data.obs, time_list=verified_time_list,
-                                    time_points=time_points["value"].values if time_points is not None else None,
+                                    time_points=_time_points_VDF["value"].values if _time_points_VDF is not None else None,
                                     time_col_name=time_col_name, name='obs', dtype=self.dtype)
             obs.lock((True, False))
             reordering_index = obs.index
 
             # find time points list
-            time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col_name, obs)
+            _time_points, nb_time_points = check_time_match(_time_points_VDF, verified_time_list, time_col_name, obs)
 
             generalLogger.debug(f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
                                 f"found after data extraction from the AnnData.")
             generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-                                f"{[0] if nb_time_points == 1 else time_points.value.values}")
+                                f"{[0] if nb_time_points == 1 else _time_points.value.values}")
 
             if array_isin(data.X, data.layers.values()):
                 layers = dict((key, TemporalDataFrame(
@@ -807,7 +814,6 @@ class VData:
             # layers
             if data is not None:
                 layers = {}
-                _time_points = time_points.value.values if time_points is not None else None
 
                 # data is a unique pandas DataFrame or a TemporalDataFrame
                 if isinstance(data, (pd.DataFrame, VDataFrame)):
@@ -819,8 +825,10 @@ class VData:
                     obs_index = data.index
                     var_index = data.columns
 
-                    layers = {'data': TemporalDataFrame(data, time_list=verified_time_list, time_points=_time_points,
-                                                        dtype=self._dtype, name='data')}
+                    layers = {'data': TemporalDataFrame(
+                        data, time_list=verified_time_list,
+                        time_points=_time_points_VDF.value.values if _time_points_VDF is not None else None,
+                        dtype=self._dtype, name='data')}
 
                     if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
                         verified_time_list = layers['data'].time_points_column
@@ -830,13 +838,13 @@ class VData:
 
                     data.lock((False, False))
 
-                    if time_points is not None:
-                        if not time_points.value.equals(pd.Series(data.time_points)):
+                    if _time_points_VDF is not None:
+                        if not _time_points_VDF.value.equals(pd.Series(data.time_points)):
                             raise VValueError("'time points' found in DataFrame do not match 'layers' time points.")
 
                     else:
-                        time_points = VDataFrame({'value': data.time_points},
-                                                 file=self._file.group['time_points'] if self.is_backed else None)
+                        _time_points_VDF = VDataFrame({'value': data.time_points},
+                                                      file=self._file.group['time_points'] if self.is_backed else None)
                         nb_time_points = data.n_time_points
 
                     obs_index = data.index
@@ -862,9 +870,10 @@ class VData:
                                 obs_index = value.index
                                 var_index = value.columns
 
-                            layers[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
-                                                                 time_points=_time_points,
-                                                                 dtype=self._dtype, name=str(key))
+                            layers[str(key)] = TemporalDataFrame(
+                                value, time_list=verified_time_list,
+                                time_points=_time_points_VDF.value.values if _time_points_VDF is not None else None,
+                                dtype=self._dtype, name=str(key))
 
                             if obs is not None and not isinstance(obs, TemporalDataFrame) \
                                     and verified_time_list is None:
@@ -880,17 +889,17 @@ class VData:
                                 obs_index = value.index
                                 var_index = value.columns
 
-                                if time_points is not None:
-                                    if not time_points.value.equals(pd.Series(value.time_points)):
+                                if _time_points_VDF is not None:
+                                    if not _time_points_VDF.value.equals(pd.Series(value.time_points)):
                                         raise VValueError(
-                                            f"'time points' found in DataFrame ({repr_array(time_points.value)}) "
+                                            f"'time points' found in DataFrame ({repr_array(_time_points_VDF.value)}) "
                                             f"do not match 'layers' time points ("
-                                            f"{repr_array(value.time_points)}).")
+                                            f"{repr_array(value._time_points_VDF)}).")
 
                                 else:
-                                    time_points = VDataFrame({'value': value.time_points},
-                                                             file=self._file.group['time_points'] if self.is_backed
-                                                             else None)
+                                    _time_points_VDF = VDataFrame({'value': value.time_points},
+                                                                  file=self._file.group['time_points'] if self.is_backed
+                                                                  else None)
                                     nb_time_points = value.n_time_points
 
                             if obs is not None and not isinstance(obs, TemporalDataFrame) \
@@ -919,10 +928,10 @@ class VData:
                     raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
                 elif isinstance(obs, (pd.DataFrame, VDataFrame)):
-                    _time_points = time_points.value.values if time_points is not None else None
-                    obs = TemporalDataFrame(obs, time_list=verified_time_list, time_col_name=time_col_name,
-                                            time_points=_time_points, dtype=self._dtype,
-                                            name='obs', index=obs.index)
+                    obs = TemporalDataFrame(
+                        obs, time_list=verified_time_list, time_col_name=time_col_name,
+                        time_points=_time_points_VDF.value.values if _time_points_VDF is not None else None,
+                        dtype=self._dtype, name='obs', index=obs.index)
 
                 else:
                     obs.lock((False, False))
@@ -947,13 +956,14 @@ class VData:
                     obs_index = obs.index
 
                 # find time points list
-                time_points, nb_time_points = check_time_match(time_points, verified_time_list, time_col_name, obs)
+                _time_points_VDF, nb_time_points = check_time_match(_time_points_VDF, verified_time_list,
+                                                                    time_col_name, obs)
 
                 generalLogger.debug(
                     f"  {nb_time_points} time point{' was' if nb_time_points == 1 else 's were'} "
                     f"found from the provided data.")
                 generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-                                    f"{[0] if nb_time_points == 1 else repr_array(time_points.value.values)}")
+                                    f"{[0] if nb_time_points == 1 else repr_array(_time_points_VDF.value.values)}")
 
                 obs.lock((True, False))
 
@@ -973,7 +983,6 @@ class VData:
                     raise VValueError("'obsm' parameter cannot be set unless either 'data' or 'obs' are set.")
 
                 valid_obsm = {}
-                _time_points = time_points.value.values if time_points is not None else None
 
                 if not isinstance(obsm, dict):
                     raise VTypeError("'obsm' must be a dictionary of DataFrames.")
@@ -990,9 +999,10 @@ class VData:
                                 else:
                                     verified_time_list = list(layers.values())[0].time_points_column
 
-                            valid_obsm[str(key)] = TemporalDataFrame(value, time_list=verified_time_list,
-                                                                     time_points=_time_points,
-                                                                     dtype=self._dtype, name=str(key))
+                            valid_obsm[str(key)] = TemporalDataFrame(
+                                value, time_list=verified_time_list,
+                                time_points=_time_points_VDF.value.values if _time_points_VDF is not None else None,
+                                dtype=self._dtype, name=str(key))
 
                         else:
                             value.lock((False, False))
@@ -1161,36 +1171,35 @@ class VData:
                 generalLogger.debug("    8. \u2717 'uns' was not found.")
 
         # if time points are not given, assign default values 0, 1, 2, ...
-        if time_points is None:
+        if _time_points_VDF is None:
             if layers is not None:
-                time_points = VDataFrame({'value': to_tp_list(range(list(layers.values())[0].shape[0]))},
-                                         file=self._file.group['time_points'] if self.is_backed else None)
+                _time_points_VDF = VDataFrame({'value': to_tp_list(range(list(layers.values())[0].shape[0]))},
+                                              file=self._file.group['time_points'] if self.is_backed else None)
             elif obsm is not None:
-                time_points = VDataFrame({'value': to_tp_list(range(list(obsm.values())[0].shape[0]))},
-                                         file=self._file.group['time_points'] if self.is_backed else None)
+                _time_points_VDF = VDataFrame({'value': to_tp_list(range(list(obsm.values())[0].shape[0]))},
+                                              file=self._file.group['time_points'] if self.is_backed else None)
             elif varm is not None:
-                time_points = VDataFrame({'value': to_tp_list(range(list(varm.values())[0].shape[0]))},
-                                         file=self._file.group['time_points'] if self.is_backed else None)
+                _time_points_VDF = VDataFrame({'value': to_tp_list(range(list(varm.values())[0].shape[0]))},
+                                              file=self._file.group['time_points'] if self.is_backed else None)
 
-        if time_points is not None:
-            generalLogger.debug(f"  {len(time_points)} time point{' was' if len(time_points) == 1 else 's were'} "
-                                f"found finally.")
+        if _time_points_VDF is not None:
+            generalLogger.debug(f"  {len(_time_points_VDF)} time point"
+                                f"{' was' if len(_time_points_VDF) == 1 else 's were'} found finally.")
             generalLogger.debug(f"    \u21B3 Time point{' is' if nb_time_points == 1 else 's are'} : "
-                                f"{repr_array(time_points.value.values)}")
+                                f"{repr_array(_time_points_VDF.value.values)}")
 
         else:
             generalLogger.debug("  Could not find time points.")
 
         self._obs = obs
         self._var = var
-        self._time_points = time_points
 
         if uns is not None:
             self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
 
         generalLogger.debug(u"  \u23BF Arrays' formats are OK.  -- -- -- -- -- -- -- -- -- ")
 
-        return layers, obsm, obsp, varm, varp, obs_index, var_index
+        return layers, _time_points_VDF, obsm, obsp, varm, varp, obs_index, var_index
 
     def _check_df_types(self, df: 'DataFrame') -> 'DataFrame':
         """
