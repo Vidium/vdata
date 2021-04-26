@@ -6,7 +6,7 @@
 # imports
 from typing import Union, Sequence, List
 
-from ..TimePoint import TimePoint
+from ..time_point import TimePoint
 
 # ====================================================
 # code

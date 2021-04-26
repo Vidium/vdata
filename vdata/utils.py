@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from typing import Union, Any, Sequence, cast
 
-from . import NameUtils
+from . import name_utils
 
 
 # ====================================================
@@ -56,7 +56,7 @@ def isCollection(obj: Any) -> bool:
 
 
 # Representation ---------------------------------------------------------
-def repr_array(arr: Union['NameUtils.DType', Sequence, range, slice, 'ellipsis']) -> str:
+def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis']) -> str:
     """
     Get a short string representation of an array.
     :param: an array to represent.

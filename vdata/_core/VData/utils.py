@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from typing import Union, Collection, Dict, Optional
 
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 
 
 # ====================================================

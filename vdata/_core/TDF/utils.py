@@ -8,7 +8,7 @@ from typing import Collection, Set, List, Tuple, Sequence, cast
 
 from ..utils import unique_in_list, to_tp_list
 from vdata.utils import isCollection
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 
 
 # ====================================================

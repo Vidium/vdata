@@ -2,12 +2,17 @@
 # Created on 04/03/2021 15:14
 # Author : matteo
 
+"""
+VDataFrame wrapper around pandas DataFrames.
+"""
+
 # ====================================================
 # imports
+from typing import Optional, Collection, Sequence
+
 import h5py
 import pandas as pd
 from pandas._typing import Axes, Dtype
-from typing import Optional, Collection, Sequence
 
 from ._IO import VTypeError
 

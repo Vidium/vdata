@@ -12,9 +12,9 @@ from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Opt
 from typing_extensions import Literal
 
 from . import dataframe
-from ..NameUtils import PreSlicer, Slicer
+from ..name_utils import PreSlicer, Slicer
 from vdata.utils import repr_array
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from ..._IO import VValueError
 
 if TYPE_CHECKING:

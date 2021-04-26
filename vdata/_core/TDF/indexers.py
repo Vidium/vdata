@@ -10,7 +10,7 @@ from typing import Any, Dict, Tuple, Union
 
 from . import dataframe
 from . import views
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from ..._IO import generalLogger, VValueError
 
 

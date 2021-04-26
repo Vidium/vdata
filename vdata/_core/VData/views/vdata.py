@@ -13,9 +13,9 @@ import vdata
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
 from ...utils import reformat_index, repr_index
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
-from ...NameUtils import PreSlicer
+from ...name_utils import PreSlicer
 from vdata.utils import repr_array
-from ....TimePoint import TimePoint
+from ....time_point import TimePoint
 from ...._IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
 
 

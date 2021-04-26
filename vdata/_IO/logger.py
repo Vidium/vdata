@@ -14,7 +14,7 @@ from types import TracebackType
 from typing import Optional, Type
 
 from . import errors
-from ..NameUtils import LoggingLevel, LoggingLevels
+from ..name_utils import LoggingLevel, LoggingLevels
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)

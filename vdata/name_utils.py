@@ -2,11 +2,16 @@
 # Created on 11/4/20 2:45 PM
 # Author : matteo
 
+"""
+Global types for typing in the vdata module.
+"""
+
 # ====================================================
 # imports
-import numpy as np
 from typing import Union
 from typing_extensions import Literal
+
+import numpy as np
 
 # ====================================================
 # types
@@ -37,8 +42,8 @@ DTypes = {int: int,
           np.object: np.object}
 
 DType = Union[int, float, np.int_, np.float_, np.object]
-str_DType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
-                          "float128"]]
+StrDType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
+                         "float128"]]
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

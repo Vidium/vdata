@@ -16,9 +16,9 @@ from typing import Dict, List, Union, Optional
 from typing_extensions import Literal
 
 import vdata
-from .NameUtils import H5Group
+from .name_utils import H5Group
 from .utils import parse_path, H5GroupReader
-from ..VDataFrame import VDataFrame
+from ..vdataframe import VDataFrame
 from .._IO import generalLogger, VPathError, VValueError
 from .._core import TemporalDataFrame
 

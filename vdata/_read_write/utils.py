@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 from typing import Union, Tuple, AbstractSet, ValuesView, Any
 
-from .NameUtils import H5Group
+from .name_utils import H5Group
 
 
 # ====================================================

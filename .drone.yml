@@ -6,6 +6,8 @@ clone:
   depth: 50
   tags: true
   skip_verify: true
+  commands:
+    - echo
 
 steps:
 - name: pytest
@@ -13,25 +15,25 @@ steps:
   pull: never
   failure: ignore
   commands:
-  - pytest ./tests
+    - pytest ./tests
 
 - name: flake8
   image: real_env
   pull: never
   failure: ignore
   commands:
-  - flake8 --config .tox.ini ./vdata
+    - flake8 --config .tox.ini ./vdata
 
 - name: pylint
   image: real_env
   pull: never
   failure: ignore
   commands:
-  - pylint ./tests
+    - pylint ./tests
 
 - name: mypy
   image: real_env
   pull: never
   failure: ignore
   commands:
-  - mypy --config-file .mypy.ini ./vdata
+    - mypy --config-file .mypy.ini ./vdata

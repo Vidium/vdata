@@ -16,10 +16,10 @@ from typing_extensions import Literal
 
 import vdata
 from .utils import parse_path, H5GroupReader
-from ..NameUtils import DType
+from ..name_utils import DType
 from ..utils import get_value, repr_array
-from ..VDataFrame import VDataFrame
-from ..TimePoint import TimePoint
+from ..vdataframe import VDataFrame
+from ..time_point import TimePoint
 from .._IO import generalLogger, VValueError, VTypeError, ShapeError
 from .._core import TemporalDataFrame
 

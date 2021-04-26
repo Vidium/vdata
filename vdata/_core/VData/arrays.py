@@ -15,11 +15,11 @@ from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView
 from typing_extensions import Literal
 
 import vdata
-from .NameUtils import DataFrame
+from .name_utils import DataFrame
 from ..TDF import TemporalDataFrame
-from vdata.VDataFrame import VDataFrame
-from vdata.NameUtils import DType
-from vdata.TimePoint import TimePoint
+from vdata.vdataframe import VDataFrame
+from vdata.name_utils import DType
+from vdata.time_point import TimePoint
 from ..._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
 
 
@@ -1164,7 +1164,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
             return len(self), _first_DF.shape[0], _first_DF.shape[1]
 
         else:
-            return 0, 0, 0
+            return 0, self._parent.n_var, self._parent.n_var
 
     def set_index(self, values: Collection) -> None:
         """

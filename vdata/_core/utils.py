@@ -7,9 +7,9 @@
 import numpy as np
 from typing import Any, List, Optional, Collection, Union, Sequence, cast, Set, Tuple
 
-from .NameUtils import TimePointList, PreSlicer
+from .name_utils import TimePointList, PreSlicer
 from vdata.utils import isCollection, repr_array
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from .._IO import VTypeError, ShapeError, VValueError
 
 

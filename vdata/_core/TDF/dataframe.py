@@ -12,17 +12,17 @@ from collections import Counter
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List
 from typing_extensions import Literal
 
-from .NameUtils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
+from .name_utils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .utils import unique_in_list, trim_time_points
 from .base import BaseTemporalDataFrame
 from .copy import copy_TemporalDataFrame
 from .indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
 from .views import ViewTemporalDataFrame
-from ..NameUtils import TimePointList, PreSlicer
+from ..name_utils import TimePointList, PreSlicer
 from ..utils import match_time_points, to_tp_list, to_list, reformat_index, repr_index
-from vdata.NameUtils import DType
+from vdata.name_utils import DType
 from vdata.utils import repr_array, isCollection
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from ..._IO import generalLogger, VValueError, VTypeError, ShapeError, VLockError
 
 # TODO : remove match_time_points

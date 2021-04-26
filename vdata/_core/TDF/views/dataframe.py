@@ -11,16 +11,16 @@ from pathlib import Path
 from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
 from typing_extensions import Literal
 
-from ..NameUtils import ViewTemporalDataFrame_internal_attributes
+from ..name_utils import ViewTemporalDataFrame_internal_attributes
 from .. import dataframe
 from .. import base
 from .. import copy
 from ..indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
-from ...NameUtils import PreSlicer
+from ...name_utils import PreSlicer
 from ...utils import reformat_index, repr_index
-from vdata.NameUtils import DType
+from vdata.name_utils import DType
 from vdata.utils import repr_array, isCollection
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from ...._IO import generalLogger, VValueError, VAttributeError, VTypeError, VLockError
 
 

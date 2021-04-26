@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Union
 
 from ..TDF import TemporalDataFrame
-from vdata.VDataFrame import VDataFrame
+from vdata.vdataframe import VDataFrame
 
 # ====================================================
 # code

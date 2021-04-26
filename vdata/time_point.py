@@ -2,17 +2,22 @@
 # Created on 05/03/2021 16:10
 # Author : matteo
 
+"""
+TimePoint class for storing a time point's value and unit.
+"""
+
 # ====================================================
 # imports
-import numpy as np
 from typing import Optional, Union, cast, Tuple, TYPE_CHECKING
 from typing_extensions import Literal
 
-if TYPE_CHECKING:
-    from .NameUtils import DType
+import numpy as np
 
 from .utils import get_value
 from ._IO import VValueError, VTypeError
+
+if TYPE_CHECKING:
+    from .name_utils import DType
 
 # ====================================================
 # code
@@ -131,21 +136,21 @@ class TimePoint:
             time_point = cast(str, time_point)
             if time_point.endswith(_units[1:]) and len(time_point) > 1:
                 # try to get unit
-                v, u = get_value(time_point[:-1]), time_point[-1]
+                value_, unit_ = get_value(time_point[:-1]), time_point[-1]
 
-                if not isinstance(v, (int, float, np.int, np.float)):
+                if not isinstance(value_, (int, float, np.int, np.float)):
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
                 else:
-                    return float(v), Unit(u)
+                    return float(value_), Unit(unit_)
 
             else:
-                v = get_value(time_point)
-                if isinstance(v, str):
+                value_ = get_value(time_point)
+                if isinstance(value_, str):
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
                 else:
-                    return float(v), Unit(None)
+                    return float(value_), Unit(None)
 
         else:
             raise VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")
@@ -174,17 +179,19 @@ class TimePoint:
         """
         Compare units with 'greater than'.
         """
-        vs = self.get_unit_value('s')
-        vo = other.get_unit_value('s')
-        return vs > vo or (vs == vo and _units.index(self.unit.value) > _units.index(other.unit.value))
+        value_self = self.get_unit_value('s')
+        value_other = other.get_unit_value('s')
+        return value_self > value_other or (value_self == value_other and _units.index(self.unit.value) >
+                                            _units.index(other.unit.value))
 
     def __lt__(self, other: 'TimePoint') -> bool:
         """
         Compare units with 'lesser than'.
         """
-        vs = self.get_unit_value('s')
-        vo = other.get_unit_value('s')
-        return vs < vo or (vs == vo and _units.index(self.unit.value) < _units.index(other.unit.value))
+        value_self = self.get_unit_value('s')
+        value_other = other.get_unit_value('s')
+        return value_self < value_other or (value_self == value_other and _units.index(self.unit.value) <
+                                            _units.index(other.unit.value))
 
     def __ge__(self, other: 'TimePoint') -> bool:
         """

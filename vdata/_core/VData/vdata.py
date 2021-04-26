@@ -11,20 +11,20 @@ from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator, Sequence
 from typing_extensions import Literal
 
-from .NameUtils import DataFrame
+from .name_utils import DataFrame
 from .utils import array_isin, expand_obsp
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from .views import ViewVData
-from ..NameUtils import PreSlicer
+from ..name_utils import PreSlicer
 from ..utils import reformat_index, to_tp_list, match_time_points, repr_index
 from ..TDF import TemporalDataFrame
-from vdata.NameUtils import DType, str_DType, DTypes
+from vdata.name_utils import DType, StrDType, DTypes
 from vdata.utils import repr_array
-from vdata.TimePoint import TimePoint
+from vdata.time_point import TimePoint
 from ..._IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
 from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
-from ...VDataFrame import VDataFrame
+from ...vdataframe import VDataFrame
 
 DF = TypeVar('DF', bound=DataFrame)
 Array2D = Union[pd.DataFrame, np.ndarray, VDataFrame]
@@ -50,7 +50,7 @@ class VData:
                  uns: Optional[Dict] = None,
                  time_col_name: Optional[str] = None,
                  time_list: Optional[Sequence[Union[str, TimePoint]]] = None,
-                 dtype: Optional[Union['DType', 'str_DType']] = None,
+                 dtype: Optional[Union['DType', 'StrDType']] = None,
                  name: Optional[Any] = None,
                  file: Optional[H5GroupReader] = None):
         """
@@ -572,7 +572,7 @@ class VData:
         return self._dtype
 
     @dtype.setter
-    def dtype(self, type_: Union['DType', 'str_DType']) -> None:
+    def dtype(self, type_: Union['DType', 'StrDType']) -> None:
         """
         Set the data type of this VData object.
         :param type_: a data type.
