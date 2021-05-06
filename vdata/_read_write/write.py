@@ -248,14 +248,14 @@ def write_VDataFrame(data: VDataFrame, group: H5Group, key: str, key_level: int 
     df_group = group.create_group(str(key))
     df_group.attrs['type'] = 'VDF'
 
-    # save column order
-    df_group.attrs["column_order"] = list(data.columns)
+    # save index
+    write_data(data.index, df_group, 'index', key_level=key_level + 1)
 
-    # save index and series
-    df_group.attrs["index"] = list(data.index)
+    # create group for storing the data
+    data_group = df_group.create_group('data', track_order=True)
 
     for col_name, series in data.items():
-        write_data(series, df_group, str(col_name), key_level=key_level+1)
+        write_data(series, data_group, str(col_name), key_level=key_level + 1)
 
 
 @write_data.register
@@ -328,10 +328,11 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
         series_group = group.create_group(str(key))
         # save values
         values = pd.Series(np.array(series.values))
-        write_data(values, series_group, "values", key_level=key_level+1, log_func=log_func)
+        write_data(values, series_group, "values", key_level=key_level + 1, log_func=log_func)
         # save categories
         # noinspection PyUnresolvedReferences
-        series_group.attrs["categories"] = np.array(series.values.categories, dtype='S')
+        categories = np.array(series.values.categories, dtype='S')
+        write_data(categories, series_group, "categories", key_level=key_level + 1, log_func=log_func)
         # save ordered
         # noinspection PyUnresolvedReferences
         series_group.attrs["ordered"] = series.values.ordered
@@ -344,11 +345,13 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
 
 
 @write_data.register
-def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0) -> None:
+def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0,
+                log_func: Literal['debug', 'info'] = 'info') -> None:
     """
     Function for writing np.arrays to the h5 file.
     """
-    generalLogger.info(f"{spacer(key_level)}Saving array {key}")
+    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving array {key}")
+
     if data.dtype.type == np.str_:
         group.create_dataset(str(key), data=data.astype('S'))
     else:

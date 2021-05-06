@@ -395,17 +395,17 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     """
     generalLogger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
 
-    # get column order
-    col_order = group.attrs('column_order')
     # get index
-    index = group.attrs('index')
+    dataset_type = cast(H5GroupReader, group['index']).attrs("type")
+    index = func_[dataset_type](group['index'], level=level + 1)
 
     # get columns in right order
     data = {}
-    for col in col_order:
-        data[get_value(col)] = read_h5_series(group[str(col)], index, level=level+1)
+    for col in group['data'].keys():
+        dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
+        data[get_value(col)] = func_[dataset_type](group['data'][col], level=level + 1)
 
-    return VDataFrame(data, file=group.group)
+    return VDataFrame(data, file=group.group, index=index)
 
 
 def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
@@ -483,7 +483,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
     # categorical Series
     elif group.isinstance(h5py.Group):
         # get data
-        categories = group.attrs('categories')
+        categories = read_h5_array(cast(H5GroupReader, group['categories']), level=level+1, log_func=log_func)
         ordered = get_value(group.attrs('ordered'))
         values = read_h5_array(cast(H5GroupReader, group['values']), level=level+1, log_func=log_func)
 
