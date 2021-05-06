@@ -6,8 +6,9 @@
 # imports
 import numpy as np
 import pandas as pd
-from anndata import AnnData
 from pathlib import Path
+from anndata import AnnData
+from scipy.sparse import spmatrix
 from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator, Sequence
 from typing_extensions import Literal
 
@@ -759,6 +760,15 @@ class VData:
         # =========================================================================================
         if isinstance(data, AnnData):
             generalLogger.debug('  VData creation from an AnnData.')
+
+            # TODO : better handling ?
+            # convert sparse matrices to regular numpy matrices for conversion to VData
+            if isinstance(data.X, spmatrix):
+                data.X = data.X.toarray()
+
+            for layer_name in data.layers:
+                if isinstance(data.layers[layer_name], spmatrix):
+                    data.layers[layer_name] = data.layers[layer_name].toarray()
 
             # if an AnnData is being imported, obs, obsm, obsp, var, varm, varp and uns should be None because
             # they will be set from the AnnData
