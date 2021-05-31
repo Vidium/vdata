@@ -421,6 +421,18 @@ class BaseTemporalDataFrame(ABC):
         return dataframe.TemporalDataFrame(self.to_pandas().eq(other, axis, level), time_list=_time_list,
                                            time_col_name=_time_col_name)
 
+    def isna(self) -> 'dataframe.TemporalDataFrame':
+        """
+        Whether each element in the TemporalDataFrame is <nan>.
+
+        :return: whether each element in the DataFrame is <nan>.
+        """
+        _time_col_name = self.time_points_column_name
+        _time_list = self.time_points_column if _time_col_name is None else None
+
+        return dataframe.TemporalDataFrame(self.to_pandas().isna(), time_list=_time_list,
+                                           time_col_name=_time_col_name)
+
     def transpose(self) -> 'dataframe.TemporalDataFrame':
         """
         Create a transposed TemporalDataFrame from this TemporalDataFrame.
