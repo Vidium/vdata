@@ -433,6 +433,17 @@ class BaseTemporalDataFrame(ABC):
         return dataframe.TemporalDataFrame(self.to_pandas().isna(), time_list=_time_list,
                                            time_col_name=_time_col_name)
 
+    def dropna(self, axis=0, how='any', thresh=None, subset=None) -> 'dataframe.TemporalDataFrame':
+        """
+
+        """
+        _time_col_name = self.time_points_column_name
+
+        data = self.to_pandas(with_time_points=True).dropna(axis, how, thresh, subset)
+        _time_list = data['Time_Point']
+
+        return dataframe.TemporalDataFrame(data.iloc[:, 1:], time_list=_time_list, time_col_name=_time_col_name)
+
     def transpose(self) -> 'dataframe.TemporalDataFrame':
         """
         Create a transposed TemporalDataFrame from this TemporalDataFrame.
