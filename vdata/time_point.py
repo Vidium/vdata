@@ -169,6 +169,12 @@ class TimePoint:
         return f"{self.value}" \
                f"{self.unit.value if self.unit.value is not None else ''}"
 
+    def round(self, decimals=0):
+        """
+        Round this time point's value to a given number of decimals.
+        """
+        self.value = np.round(self.value, decimals=decimals)
+
     def get_unit_value(self, unit: Literal['s', 'm', 'h', 'D', 'M', 'Y']) -> float:
         """
         Get this TimePoint has a number of <unit>.

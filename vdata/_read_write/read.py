@@ -405,10 +405,14 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
         dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
         data[get_value(col)] = func_[dataset_type](group['data'][col], level=level + 1)
 
-    vdf = VDataFrame(data, file=group.group)
-    vdf.index = index
+    if data == {}:
+        return VDataFrame(index=index, file=group.group)
 
-    return vdf
+    else:
+        vdf = VDataFrame(data, file=group.group)
+        vdf.index = index
+    
+        return vdf
 
 
 def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
