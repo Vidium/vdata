@@ -1062,7 +1062,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
             return len(self), _first_DF.shape[0], [DF.shape[1] for DF in self.values()]
 
         else:
-            return 0, 0, []
+            return 0, self._parent.n_var, []
 
 
 class VVarpArrayContainer(VBase2DArrayContainer):
