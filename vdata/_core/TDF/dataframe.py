@@ -1087,7 +1087,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             self._columns = self._columns.insert(loc, column)
 
             if self._backed_state == 2 and self._file.file.mode == 'r+':
-                self._file['columns'] = self._columns
+                self._file['columns'].resize((len(self._columns),))
+                self._file['columns'][()] = self._columns
                 self._file.file.flush()
 
     def copy(self) -> 'TemporalDataFrame':
