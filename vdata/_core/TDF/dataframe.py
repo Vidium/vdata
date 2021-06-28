@@ -466,7 +466,6 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                             f"---------------------------------------- ")
 
         self._file = None
-        self._backed_state = 0
         self._is_locked = (False, False)
 
         self._time_points = sorted(
@@ -515,7 +514,6 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             if file is not None:
                 self._file = file
-                self._backed_state = 1
 
         # ---------------------------------------------------------------------
         # data from hdf5 file
@@ -538,7 +536,6 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 index = index[len(self._df[time_point]):]
 
             self._file = data
-            self._backed_state = 2
 
         # ---------------------------------------------------------------------
         # invalid data
@@ -670,9 +667,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 self._columns = self._columns.delete(col_index)
 
-                if self._backed_state == 2 and self._file.file.mode == 'r+':
-                    self._file['columns'] = self._columns
-                    self._file.file.flush()
+                if self.is_backed and self._file.file.mode == 'r+':
+                    self.write()
 
             else:
                 raise VValueError(f"Column '{col}' not found in TemporalDataFrame '{self.name}'.")
@@ -945,9 +941,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             self._columns = values
 
-            if self._backed_state == 2 and self._file.file.mode == 'r+':
-                self._file['columns'][()] = self._columns
-                self._file.file.flush()
+            if self.is_backed and self._file.file.mode == 'r+':
+                self.write()
 
     @property
     def name(self) -> str:
@@ -1086,10 +1081,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             # insert column name into column index
             self._columns = self._columns.insert(loc, column)
 
-            if self._backed_state == 2 and self._file.file.mode == 'r+':
-                self._file['columns'].resize((len(self._columns),))
-                self._file['columns'][()] = self._columns
-                self._file.file.flush()
+            if self.is_backed and self._file.file.mode == 'r+':
+                self.write()
 
     def copy(self) -> 'TemporalDataFrame':
         """
@@ -1219,7 +1212,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return TemporalDataFrame(data=_data, time_list=_time_list, time_col_name=self.time_points_column_name,
                                  name=name)
 
-    def write(self, file: Union[str, Path]) -> None:
+    def write(self, file: Optional[Union[str, Path, h5py.Group]] = None) -> None:
         """
         Save this TemporalDataFrame in HDF5 file format.
 
@@ -1227,5 +1220,13 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         from ..._read_write import write_TemporalDataFrame
 
-        with h5py.File(file, 'w') as save_file:
-            write_TemporalDataFrame(self, save_file, self.name)
+        if file is None:
+            write_TemporalDataFrame(self, self._file.parent, self.name)
+            self._file.file.flush()
+
+        elif isinstance(file, h5py.Group):
+            write_TemporalDataFrame(self, file, self.name)
+
+        else:
+            with h5py.File(file, 'w') as save_file:
+                write_TemporalDataFrame(self, save_file, self.name)

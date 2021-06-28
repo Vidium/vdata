@@ -267,7 +267,14 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
     """
     generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
 
-    df_group = group.create_group(str(key))
+    if str(key) in group:
+        for _key in group[key].keys():
+            del group[key][_key]
+
+        df_group = group[key]
+
+    else:
+        df_group = group.create_group(str(key))
 
     # save index
     write_data(data.index, df_group, 'index', key_level=key_level + 1)
@@ -280,6 +287,7 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 
     # -----------------------------------------------------
     if data.dtype == object:
+        print('regular')
         # regular TDF storage (per column)
         df_group.attrs['type'] = 'TDF'
 
@@ -298,6 +306,7 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 
     # -----------------------------------------------------
     else:
+        print('chunck')
         # chunked TDF storage
         df_group.attrs['type'] = 'CHUNKED_TDF'
 

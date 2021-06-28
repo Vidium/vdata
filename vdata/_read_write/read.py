@@ -442,7 +442,8 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
         data[col] = func_[dataset_type](group['data'][col], level=level + 1)
 
     return TemporalDataFrame(data, time_col_name=time_col_name,
-                             index=index, time_list=time_list, name=group.name.split("/")[-1])
+                             index=index, time_list=time_list, name=group.name.split("/")[-1],
+                             file=group.group)
 
 
 def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
