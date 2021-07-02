@@ -287,7 +287,6 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 
     # -----------------------------------------------------
     if data.dtype == object:
-        print('regular')
         # regular TDF storage (per column)
         df_group.attrs['type'] = 'TDF'
 
@@ -306,7 +305,6 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 
     # -----------------------------------------------------
     else:
-        print('chunck')
         # chunked TDF storage
         df_group.attrs['type'] = 'CHUNKED_TDF'
 

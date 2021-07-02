@@ -129,7 +129,7 @@ class TimePoint:
         """
         _type_time_point = type(time_point)
 
-        if _type_time_point in (int, float, np.int_, np.float_):
+        if len(set(_type_time_point.__mro__).intersection((int, float, np.integer, np.floating))):
             return float(time_point), Unit(None)
 
         elif _type_time_point in (str, np.str_):

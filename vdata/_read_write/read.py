@@ -171,7 +171,6 @@ def read_from_csv_TemporalDataFrame(file: Path, sep: str = ',',
 
 
 # GPU output --------------------------------------------------------------------------------------
-
 def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, pd.DataFrame]]],
                    obs: Optional[Union[pd.DataFrame, 'TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
@@ -324,8 +323,9 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
                             data['time_points'], data['uns'], dtype=dtype,
                             name=name, file=importFile)
 
-    for key, arr in data['obsp'].items():
-        new_VData.obsp[key] = arr
+    if data['obsp'] is not None:
+        for key, arr in data['obsp'].items():
+            new_VData.obsp[key] = arr
 
     generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
 
@@ -528,7 +528,9 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         return arr
 
     else:
-        raise VTypeError("Group is not an array.")
+        print(group.name)
+        print(arr)
+        raise VTypeError(f"Group is not an array (type is '{type(arr)}').")
 
 
 def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float, bool, type]:
