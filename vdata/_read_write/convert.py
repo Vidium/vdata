@@ -189,12 +189,38 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     # 4.3 convert obsp
     generalLogger.info(f"Converting 'obsp'.")
 
-    if 'obsp' in file.keys():
+    if 'obsp' in file.keys() and False:    # TODO : not implemented yet
         file.move('obsp', 'obsp_data')
         file.create_group('obsp')
 
         # set group type
-        file['obsp'].attrs['type'] = 'None'
+        file['obsp'].attrs['type'] = 'dict'
+
+        for df_name in file['obsp_data'].keys():
+            generalLogger.info(f"\tConverting dataframe '{df_name}'.")
+            file['obsp'].create_group(df_name)
+
+            # set group type
+            file['obsp'][df_name].attrs['type'] = 'dict'
+
+            for tp in time_points_masks.keys():
+                generalLogger.info(f"\t\tConverting for time point '{tp}'.")
+                file['obsp'][df_name].create_group(str(TimePoint(tp)))
+
+                # save index
+                write_data(file['obs']['index'][time_points_masks[tp]], file['obsp'][df_name][str(TimePoint(tp))],
+                           'index', key_level=2)
+
+                # create group for storing the data
+                data_group = file['obsp'][df_name][str(TimePoint(tp))].create_group('data', track_order=True)
+
+                # set group type
+                file['obsp'][df_name][str(TimePoint(tp))].attrs['type'] = 'VDF'
+
+                # save data, per column, in arrays
+                for col in range(file[f'obsp_data'][df_name].shape[1]):
+                    pass
+                    # TODO : here save the data (/!\ we need to handle sparse matrices)
 
         # remove old data
         del file['obsp_data']
