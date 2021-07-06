@@ -148,7 +148,33 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         file.create_group('obsm')
 
         # set group type
-        file['obsm'].attrs['type'] = 'None'
+        file['obsm'].attrs['type'] = 'dict'
+
+        for df_name in file['obsm_data'].keys():
+            generalLogger.info(f"\tConverting dataframe '{df_name}'.")
+            file['obsm'].create_group(df_name)
+
+            # save index
+            file['obs'].copy('index', f'/obsm/{df_name}/index')
+            file['obsm'][df_name]['index'].attrs['type'] = 'array'
+
+            # save time_col_name
+            write_data(time_column_name, file['obsm'][df_name], 'time_col_name', key_level=1)
+
+            # create group for storing the data
+            data_group = file['obsm'][df_name].create_group('data', track_order=True)
+
+            # set group type
+            file['obsm'][df_name].attrs['type'] = 'CHUNKED_TDF'
+
+            # save columns
+            write_data(np.arange(file['obsm_data'][df_name].shape[1]), file['obsm'][df_name], 'columns', key_level=1)
+
+            # save data, per time point, in DataSets
+            for time_point in time_points_masks.keys():
+                data_group.create_dataset(str(TimePoint(time_point)),
+                                          data=file['obsm_data'][df_name][time_points_masks[time_point][:, None], :],
+                                          chunks=True, maxshape=(None, None))
 
         # remove old data
         del file['obsm_data']
@@ -272,7 +298,7 @@ def convert_VDFs(file: h5py.Group, key: str) -> None:
             for col in range(file[f'{key}_data'][df_name].shape[1]):
                 values = file[f'{key}_data'][df_name][:, col]
 
-                write_data(values, data_group, col, key_level=2)
+                write_data(values, data_group, str(col), key_level=2)
 
         # remove old data
         del file[f'{key}_data']
