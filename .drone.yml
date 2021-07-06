@@ -13,16 +13,20 @@ steps:
 - name: pytest
   image: real_env
   pull: never
-  failure: ignore
   commands:
     - pytest ./tests
 
 - name: flake8
   image: real_env
   pull: never
-  failure: ignore
   commands:
     - flake8 --config .tox.ini ./vdata
+
+- name: mypy
+  image: real_env
+  pull: never
+  commands:
+    - mypy --config-file .mypy.ini ./vdata
 
 - name: pylint
   image: real_env
@@ -30,10 +34,3 @@ steps:
   failure: ignore
   commands:
     - pylint ./tests
-
-- name: mypy
-  image: real_env
-  pull: never
-  failure: ignore
-  commands:
-    - mypy --config-file .mypy.ini ./vdata

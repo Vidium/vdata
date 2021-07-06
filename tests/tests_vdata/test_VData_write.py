@@ -16,7 +16,7 @@ import vdata
 # code
 def out_test_VData_write():
     """
-    This test is has the 'out_' prefix to exclude it from pytest since it is called by test_VData_read.
+    This test has the 'out_' prefix to exclude it from pytest since it is called by test_VData_read.
     """
     output_dir = Path(__file__).parent.parent / 'ref'
 
