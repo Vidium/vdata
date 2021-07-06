@@ -104,13 +104,13 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 4.1 convert obs
-    generalLogger.info(f"Converting 'obs'.")
+    generalLogger.info("Converting 'obs'.")
 
     file.move('obs', 'obs_data')
     file.create_group('obs')
 
     # save index
-    file['obs_data'].copy('_index', f'/obs/index')
+    file['obs_data'].copy('_index', '/obs/index')
     file['obs']['index'].attrs['type'] = 'array'
 
     # save time_col_name
@@ -141,7 +141,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 4.2 convert obsm
-    generalLogger.info(f"Converting 'obsm'.")
+    generalLogger.info("Converting 'obsm'.")
 
     if 'obsm' in file.keys():
         file.move('obsm', 'obsm_data')
@@ -187,7 +187,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 4.3 convert obsp
-    generalLogger.info(f"Converting 'obsp'.")
+    generalLogger.info("Converting 'obsp'.")
 
     if 'obsp' in file.keys():
         file.move('obsp', 'obsp_data')
@@ -221,7 +221,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         #         # save data, per column, in arrays
         #         for col in range(file[f'obsp_data'][df_name].shape[1]):
         #             pass
-                    # TODO : here save the data (/!\ we need to handle sparse matrices)
+        # TODO : here save the data (/!\ we need to handle sparse matrices)
 
         # remove old data
         del file['obsp_data']
@@ -234,7 +234,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 5.1 convert var
-    generalLogger.info(f"Converting 'var'.")
+    generalLogger.info("Converting 'var'.")
 
     file.move('var', 'var_data')
     file.create_group('var')
@@ -271,13 +271,13 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 6. copy uns
-    generalLogger.info(f"Converting 'uns'.")
+    generalLogger.info("Converting 'uns'.")
 
     set_type_to_dict(file['uns'])
 
     # -------------------------------------------------------------------------
     # 7. create time_points
-    generalLogger.info(f"Creating 'time_points'.")
+    generalLogger.info("Creating 'time_points'.")
 
     file.create_group('time_points')
 

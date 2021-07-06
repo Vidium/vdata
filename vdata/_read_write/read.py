@@ -411,7 +411,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     else:
         vdf = VDataFrame(data, file=group.group)
         vdf.index = index
-    
+
         return vdf
 
 

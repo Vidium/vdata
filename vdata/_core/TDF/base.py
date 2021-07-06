@@ -316,7 +316,9 @@ class BaseTemporalDataFrame(ABC):
                         with_tp_col = True if self.time_points_column_name is not None and len(self.columns) else False
 
                         sub_TDF_tp = sub_TDF[TP]
-                        repr_str += f"{getattr(sub_TDF_tp[:, sub_TDF_tp.index[:n], :].to_pandas(with_time_points=with_tp_col), func)(n)}\n\n"
+                        pandas_repr = getattr(sub_TDF_tp[:, sub_TDF_tp.index[:n], :].to_pandas(
+                            with_time_points=with_tp_col), func)(n)
+                        repr_str += f"{pandas_repr}\n\n"
 
                         repr_str += f"[{self.n_index_at(TP)} x {self.n_columns}]\n\n"
                         TP_cnt += 1

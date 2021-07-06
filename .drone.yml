@@ -25,6 +25,7 @@ steps:
 - name: mypy
   image: real_env
   pull: never
+  failure: ignore
   commands:
     - mypy --config-file .mypy.ini ./vdata
 
