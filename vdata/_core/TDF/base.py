@@ -314,7 +314,10 @@ class BaseTemporalDataFrame(ABC):
 
                     if TP in sub_TDF.time_points:
                         with_tp_col = True if self.time_points_column_name is not None and len(self.columns) else False
-                        repr_str += f"{getattr(sub_TDF[TP].to_pandas(with_time_points=with_tp_col), func)(n)}\n\n"
+
+                        sub_TDF_tp = sub_TDF[TP]
+                        repr_str += f"{getattr(sub_TDF_tp[:, sub_TDF_tp.index[:n], :].to_pandas(with_time_points=with_tp_col), func)(n)}\n\n"
+
                         repr_str += f"[{self.n_index_at(TP)} x {self.n_columns}]\n\n"
                         TP_cnt += 1
 

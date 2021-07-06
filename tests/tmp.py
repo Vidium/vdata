@@ -9,4 +9,4 @@ import vdata
 # ====================================================
 # code
 v = vdata.read('/home/matteo/v_vdata.h5')
-
+print(v.layers['Ms'][0])
