@@ -187,7 +187,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     file.create_group('var')
 
     # save index
-    file['var_data'].copy('_index', f'/var/index')
+    file['var_data'].copy('_index', '/var/index')
     file['var']['index'].attrs['type'] = 'array'
 
     # create group for storing the data
@@ -210,64 +210,15 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     # 5.2 convert varm
-    generalLogger.info(f"Converting 'varm'.")
-
-    if 'varm' in file.keys():
-        file.move('varm', 'varm_data')
-        file.create_group('varm')
-
-        # set group type
-        file['varm'].attrs['type'] = 'None'
-
-        # remove old data
-        del file['varm_data']
-
-    else:
-        file.create_group('varm')
-
-        # set group type
-        file['varm'].attrs['type'] = 'None'
+    convert_VDFs(file, 'varm')
 
     # -------------------------------------------------------------------------
     # 5.3 convert varp
-    generalLogger.info(f"Converting 'varp'.")
-
-    if 'varp' in file.keys():
-        file.move('varp', 'varp_data')
-        file.create_group('varp')
-
-        # set group type
-        file['varp'].attrs['type'] = 'None'
-
-        # remove old data
-        del file['varp_data']
-
-    else:
-        file.create_group('varp')
-
-        # set group type
-        file['varp'].attrs['type'] = 'None'
+    convert_VDFs(file, 'varp')
 
     # -------------------------------------------------------------------------
     # 6. copy uns
     generalLogger.info(f"Converting 'uns'.")
-
-    def set_type_to_dict(group: h5py.Group):
-        group.attrs['type'] = 'dict'
-
-        for child in group.keys():
-            if isinstance(group[child], h5py.Group):
-                set_type_to_dict(group[child])
-
-            elif isinstance(group[child], h5py.Dataset):
-                if group[child].shape == ():
-                    group[child].attrs['type'] = 'value'
-
-                else:
-                    group[child].attrs['type'] = 'array'
-
-            else:
-                del group[child]
 
     set_type_to_dict(file['uns'])
 
@@ -292,3 +243,60 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
     # -------------------------------------------------------------------------
     file.close()
+
+
+def convert_VDFs(file: h5py.Group, key: str) -> None:
+    generalLogger.info(f"Converting '{key}'.")
+    if key in file.keys():
+        file.move(key, f'{key}_data')
+        file.create_group(key)
+
+        # set group type
+        file[key].attrs['type'] = 'dict'
+
+        for df_name in file[f'{key}_data'].keys():
+            generalLogger.info(f"\tConverting dataframe '{df_name}'.")
+            file[key].create_group(df_name)
+
+            # save index
+            file['var'].copy('index', f'/{key}/{df_name}/index')
+            file[key][df_name]['index'].attrs['type'] = 'array'
+
+            # create group for storing the data
+            data_group = file[key][df_name].create_group('data', track_order=True)
+
+            # set group type
+            file[key][df_name].attrs['type'] = 'VDF'
+
+            # save data, per column, in arrays
+            for col in range(file[f'{key}_data'][df_name].shape[1]):
+                values = file[f'{key}_data'][df_name][:, col]
+
+                write_data(values, data_group, col, key_level=2)
+
+        # remove old data
+        del file[f'{key}_data']
+
+    else:
+        file.create_group(key)
+
+        # set group type
+        file[key].attrs['type'] = 'None'
+
+
+def set_type_to_dict(group: h5py.Group):
+    group.attrs['type'] = 'dict'
+
+    for child in group.keys():
+        if isinstance(group[child], h5py.Group):
+            set_type_to_dict(group[child])
+
+        elif isinstance(group[child], h5py.Dataset):
+            if group[child].shape == ():
+                group[child].attrs['type'] = 'value'
+
+            else:
+                group[child].attrs['type'] = 'array'
+
+        else:
+            del group[child]
