@@ -84,7 +84,7 @@ class VDataFrame(pd.DataFrame):
         self._set_axis(1, pd.Index(values))
 
         if self._file is not None and self._file.file.mode == 'r+':
-            self._file.attrs["index"] = list(values)
+            self._file["index"][()] = list(values)
             self._file.file.flush()
 
     @property
