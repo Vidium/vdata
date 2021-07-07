@@ -34,4 +34,4 @@ steps:
   pull: never
   failure: ignore
   commands:
-    - pylint ./tests
+    - pylint ./vdata

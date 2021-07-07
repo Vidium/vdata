@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Union, Optional, Dict, List, Any, Callable, Collection, cast
 from typing_extensions import Literal
 
+from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
+
 import vdata
 from .utils import parse_path, H5GroupReader
 from ..name_utils import DType
@@ -579,9 +581,6 @@ def get_dtype_from_string(dtype_str: str) -> type:
 
     :return: a parsed data type.
     """
-    from numpy import int8, int16, int32, int64, float16, float32, float64, float128
-
-    print(dtype_str)
     if dtype_str.startswith("<class '"):
         return eval(dtype_str[8:-2])
 
