@@ -201,7 +201,8 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
 
 @singledispatch
 def write_data(data, group: H5Group, key: str, key_level: int = 0,
-               log_func: Literal['debug', 'info'] = 'info') -> None:
+               log_func: Literal['debug', 'info'] = 'info',
+               **kwargs) -> None:
     """
     This is the default function called for writing data to an h5 file.
     Using singledispatch, the correct write_<type> function is called depending on the type of the 'data' parameter.
@@ -290,7 +291,7 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
         # regular TDF storage (per column)
         df_group.attrs['type'] = 'TDF'
 
-        write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1)
+        write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1, data_type=vdata.TimePoint)
 
         # save data, per column, in arrays
         for col in data.columns:
@@ -320,7 +321,7 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
 def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, key_level: int = 0,
-                 log_func: Literal['debug', 'info'] = 'info') -> None:
+                 log_func: Literal['debug', 'info'] = 'info', **kwargs) -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).
     """
@@ -328,7 +329,7 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
 
     # Series of strings
     if series.dtype == object:
-        group.create_dataset(str(key), data=series.values, dtype=h5py.string_dtype(encoding='utf-8'),
+        group.create_dataset(str(key), data=list(map(str, series.values)), dtype=h5py.string_dtype(encoding='utf-8'),
                              chunks=True, maxshape=(None,))
 
     # Series of categorical data
@@ -339,7 +340,7 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
         write_data(values, series_group, "values", key_level=key_level + 1, log_func=log_func)
         # save categories
         # noinspection PyUnresolvedReferences
-        categories = np.array(series.values.categories, dtype='S')
+        categories = np.array(series.values.categories, dtype='U')
         write_data(categories, series_group, "categories", key_level=key_level + 1, log_func=log_func)
         # save ordered
         # noinspection PyUnresolvedReferences
@@ -350,6 +351,12 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
         group[str(key)] = series.values
 
     group[str(key)].attrs['type'] = 'series'
+
+    if 'data_type' in kwargs:
+        group[str(key)].attrs['dtype'] = str(kwargs['data_type'])
+
+    else:
+        group[str(key)].attrs['dtype'] = str(series.dtype)
 
 
 @write_data.register

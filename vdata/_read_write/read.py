@@ -485,15 +485,18 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
 
     # simple Series
     if group.isinstance(h5py.Dataset):
-        values = read_h5_array(group, level=level+1, log_func=log_func)
+        data_type = get_dtype_from_string(group.attrs('dtype'))
+        values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
         return pd.Series(values, index=index)
 
     # categorical Series
     elif group.isinstance(h5py.Group):
         # get data
+        data_type = get_dtype_from_string(group.attrs('dtype'))
         categories = read_h5_array(cast(H5GroupReader, group['categories']), level=level+1, log_func=log_func)
         ordered = get_value(group.attrs('ordered'))
-        values = read_h5_array(cast(H5GroupReader, group['values']), level=level+1, log_func=log_func)
+        values = list(map(data_type, read_h5_array(cast(H5GroupReader, group['values']), level=level+1,
+                                                   log_func=log_func)))
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
 
@@ -566,3 +569,24 @@ func_: Dict[str, Callable] = {
     'type': read_h5_value,
     'None': read_h5_None
 }
+
+
+def get_dtype_from_string(dtype_str: str) -> type:
+    """
+    Parse the given string into a data type.
+
+    :param dtype_str: string to parse.
+
+    :return: a parsed data type.
+    """
+    from numpy import int8, int16, int32, int64, float16, float32, float64, float128
+
+    print(dtype_str)
+    if dtype_str.startswith("<class '"):
+        return eval(dtype_str[8:-2])
+
+    elif dtype_str in ('object', 'category'):
+        return str
+
+    else:
+        return eval(dtype_str)
