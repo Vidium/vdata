@@ -33,9 +33,12 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
     """
     Save this VData object in HDF5 file format.
 
-    :param obj: VData object to save into a .h5 file.
+    :param obj: VData object to save into an h5 file.
     :param file: path to save the VData.
     """
+    file = parse_path(file)
+    file = file.with_suffix('.vd')
+
     if obj.is_backed:
         if obj.file.mode == 'r+':
             update_vdata(obj)
@@ -47,8 +50,6 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             raise VValueError("Cannot save backed VData in 'r' mode !")
 
     else:
-        file = parse_path(file)
-
         # make sure the path exists
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
@@ -75,9 +76,9 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
 
 def update_vdata(obj: 'vdata.VData') -> None:
     """
-    Update data from a backed VData object on the .h5 file.
+    Update data from a backed VData object on the h5 file.
 
-    :param obj: VData object to save into a .h5 file.
+    :param obj: VData object to save into an h5 file.
     """
     # save layers -------------------------------------------------------------
     generalLogger.info('Saving Layers')

@@ -7,7 +7,7 @@
 import os
 import numpy as np
 from pathlib import Path
-from typing import Union, Tuple, AbstractSet, ValuesView, Any
+from typing import Union, Tuple, AbstractSet, ValuesView, Any, Optional
 
 from .name_utils import H5Group
 
@@ -146,13 +146,16 @@ class H5GroupReader:
         return isinstance(self.group, _type)
 
 
-def parse_path(path: Union[str, Path]) -> Path:
+def parse_path(path: Optional[Union[str, Path]]) -> Optional[Path]:
     """
     Convert a given path to a valid path. The '~' character is replaced by the $HOME variable.
 
     :param path: a path to parse.
     :return: a valid path.
     """
+    if path is None:
+        return None
+
     # make sure directory is a path
     if not isinstance(path, Path):
         path = Path(path)
