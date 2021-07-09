@@ -60,11 +60,11 @@ def test_VData_concatenate():
 def test_VData_concatenate_mean():
     output_dir = Path(__file__).parent.parent / 'ref'
 
-    if not os.path.exists(output_dir / 'vdata.h5'):
+    if not os.path.exists(output_dir / 'vdata.vd'):
         # first write data
         out_test_VData_write()
 
-    v1 = vdata.read(output_dir / 'vdata.h5', name=1)
+    v1 = vdata.read(output_dir / 'vdata.vd', name=1)
     v2 = v1.copy()
 
     vm1 = v1.mean()

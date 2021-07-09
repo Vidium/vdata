@@ -22,7 +22,7 @@ from ._IO import VTypeError
 class VDataFrame(pd.DataFrame):
     """
     Simple wrapper around pandas DataFrames for managing index and columns modification when the DataFrame is read
-    from a .h5 file.
+    from an h5 file.
     """
 
     _internal_names_set = {"_file"} | pd.DataFrame._internal_names_set
@@ -44,24 +44,24 @@ class VDataFrame(pd.DataFrame):
     @property
     def is_backed(self) -> bool:
         """
-        Is this VDataFrame backed on a .h5 file ?
-        :return: is this VDataFrame backed on a .h5 file ?
+        Is this VDataFrame backed on an h5 file ?
+        :return: is this VDataFrame backed on an h5 file ?
         """
         return self._file is not None
 
     @property
     def file(self) -> h5py.Group:
         """
-        Get the .h5 file this VDataFrame is backed on.
-        :return: the .h5 file this VDataFrame is backed on.
+        Get the h5 file this VDataFrame is backed on.
+        :return: the h5 file this VDataFrame is backed on.
         """
         return self._file
 
     @file.setter
     def file(self, new_file: h5py.Group) -> None:
         """
-        Set the .h5 file to back this VDataFrame on.
-        :param new_file: a .h5 file to back this VDataFrame on.
+        Set the h5 file to back this VDataFrame on.
+        :param new_file: an h5 file to back this VDataFrame on.
         """
         if not isinstance(new_file, h5py.Group):
             raise VTypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
@@ -78,7 +78,7 @@ class VDataFrame(pd.DataFrame):
     @index.setter
     def index(self, values: Collection) -> None:
         """
-        Set the index (and write modifications to .h5 file if backed).
+        Set the index (and write modifications to h5 file if backed).
         :param values: new index to set.
         """
         self._set_axis(1, pd.Index(values))
@@ -97,7 +97,7 @@ class VDataFrame(pd.DataFrame):
     @columns.setter
     def columns(self, values: Sequence) -> None:
         """
-        Set the columns (and write modifications to .h5 file if backed).
+        Set the columns (and write modifications to h5 file if backed).
         :param values: new column names to set.
         """
         if self._file is not None and self._file.file.mode == 'r+':

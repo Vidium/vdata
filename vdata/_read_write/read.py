@@ -274,14 +274,14 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
          name: Optional[Any] = None,
          backup: bool = False) -> 'vdata.VData':
     """
-    Function for reading data from a .h5 file and building a VData object from it.
+    Function for reading data from an h5 file and building a VData object from it.
 
-    :param file: path to a .h5 file.
+    :param file: path to an h5 file.
     :param mode: reading mode : 'r' (read only) or 'r+' (read and write).
     :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
-        the .h5 file.
+        the h5 file.
     :param name: an optional name for the loaded VData object.
-    :param backup: create a backup copy of the read .h5 file in case something goes wrong ?
+    :param backup: create a backup copy of the read h5 file in case something goes wrong ?
     """
     generalLogger.debug("\u23BE read VData : begin -------------------------------------------------------- ")
     file = parse_path(file)
@@ -338,12 +338,12 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
                            dtype: Optional['DType'] = None,
                            name: Optional[Any] = None) -> 'TemporalDataFrame':
     """
-    Function for reading data from a .h5 file and building a TemporalDataFrame object from it.
+    Function for reading data from an h5 file and building a TemporalDataFrame object from it.
 
-    :param file: path to a .h5 file.
+    :param file: path to an h5 file.
     :param mode: reading mode : 'r' (read only) or 'r+' (read and write).
     :param dtype: data type to force on the newly built TemporalDataFrame object. If set to None, the dtype is inferred
-        from the .h5 file.
+        from the h5 file.
     :param name: an optional name for the loaded TemporalDataFrame object.
 
     :return: a loaded TemporalDataFrame.
@@ -371,7 +371,7 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
 
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
     """
-    Function for reading a dictionary from a .h5 file.
+    Function for reading a dictionary from an h5 file.
 
     :param group: a H5GroupReader from which to read a dictionary.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
@@ -390,7 +390,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
 
 def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     """
-    Function for reading a pandas DataFrame from a .h5 file.
+    Function for reading a pandas DataFrame from an h5 file.
 
     :param group: a H5GroupReader from which to read a DataFrame.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
@@ -419,7 +419,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
 
 def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
     """
-    Function for reading a TemporalDataFrame from a .h5 file.
+    Function for reading a TemporalDataFrame from an h5 file.
 
     :param group: a H5GroupReader from which to read a TemporalDataFrame.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
@@ -450,7 +450,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
 
 def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
     """
-    Function for reading a TemporalDataFrame from a .h5 file as DataSets.
+    Function for reading a TemporalDataFrame from an h5 file as DataSets.
 
     :param group: a H5GroupReader from which to read a TemporalDataFrame.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
@@ -476,7 +476,7 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
 def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
                    log_func: Literal['debug', 'info'] = 'info') -> pd.Series:
     """
-    Function for reading a pandas Series from a .h5 file.
+    Function for reading a pandas Series from an h5 file.
 
     :param group: an H5GroupReader from which to read a Series.
     :param index: an optional list representing the indexes for the Series.
@@ -504,13 +504,13 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
 
     # unexpected type
     else:
-        raise VTypeError(f"Unexpected type {type(group)} while reading .h5 file.")
+        raise VTypeError(f"Unexpected type {type(group)} while reading h5 file.")
 
 
 def read_h5_array(group: H5GroupReader, level: int = 1,
                   log_func: Literal['debug', 'info'] = 'info') -> np.ndarray:
     """
-    Function for reading a numpy array from a .h5 file.
+    Function for reading a numpy array from an h5 file.
     If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
 
     :param group: a H5GroupReader from which to read an array.
@@ -540,7 +540,7 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
 
 def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float, bool, type]:
     """
-    Function for reading a value from a .h5 file.
+    Function for reading a value from an h5 file.
 
     :param group: a H5GroupReader from which to read a value.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
@@ -551,7 +551,7 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
 
 def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
     """
-    Function for reading 'None' from a .h5 file.
+    Function for reading 'None' from an h5 file.
 
     :param _: a H5GroupReader from which to read a value.
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.

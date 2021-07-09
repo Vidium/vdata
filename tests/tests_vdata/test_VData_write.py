@@ -36,7 +36,7 @@ def out_test_VData_write():
     v.uns = uns
 
     # write vdata in h5 file format
-    v.write(output_dir / "vdata.h5")
+    v.write(output_dir / "vdata.vd")
 
     # write vdata in csv files
     v.write_to_csv(output_dir / "vdata")

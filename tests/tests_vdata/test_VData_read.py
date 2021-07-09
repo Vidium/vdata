@@ -21,8 +21,8 @@ def test_VData_read():
     output_dir = Path(__file__).parent.parent / 'ref'
 
     # then load data
-    # load from .h5 file
-    v = vdata.read(output_dir / "vdata.h5", name=1)
+    # load from .vd file
+    v = vdata.read(output_dir / "vdata.vd", name=1)
     assert repr(v) == "Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
                       "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \

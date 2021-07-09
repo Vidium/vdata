@@ -303,7 +303,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def set_file(self, file: h5py.Group) -> None:
         """
         Set the file to back the Arrays in this ArrayContainer.
-        :param file: a .h5 file to back the Arrays on.
+        :param file: an h5 file to back the Arrays on.
         """
         pass
 
@@ -426,7 +426,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
     def set_file(self, file: h5py.Group) -> None:
         """
         Set the file to back the TemporalDataFrames in this VBase3DArrayContainer.
-        :param file: a .h5 file to back the TemporalDataFrames on.
+        :param file: an h5 file to back the TemporalDataFrames on.
         """
         if not isinstance(file, h5py.Group):
             raise VTypeError(f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
@@ -888,7 +888,7 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
     def set_file(self, file: h5py.Group) -> None:
         """
         Set the file to back the VDataFrames in this VObspArrayContainer.
-        :param file: a .h5 file to back the VDataFrames on.
+        :param file: an h5 file to back the VDataFrames on.
         """
         if not isinstance(file, h5py.Group):
             raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
@@ -962,7 +962,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     def set_file(self, file: h5py.Group) -> None:
         """
         Set the file to back the VDataFrames in this VBase2DArrayContainer.
-        :param file: a .h5 file to back the VDataFrames on.
+        :param file: an h5 file to back the VDataFrames on.
         """
         if not isinstance(file, h5py.Group):
             raise VTypeError(f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"

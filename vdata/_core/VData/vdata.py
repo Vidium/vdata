@@ -231,16 +231,16 @@ class VData:
     @property
     def is_backed(self) -> bool:
         """
-        Is this VData object backed on a .h5 file ?
-        :return: Is this VData object backed on a .h5 file ?
+        Is this VData object backed on an h5 file ?
+        :return: Is this VData object backed on an h5 file ?
         """
         return self._file is not None
 
     @property
     def is_backed_w(self) -> bool:
         """
-        Is this VData object backed on a .h5 file and writable ?
-        :return: Is this VData object backed on a .h5 file and writable ?
+        Is this VData object backed on an h5 file and writable ?
+        :return: Is this VData object backed on an h5 file and writable ?
         """
         return self._file is not None and self._file.mode == 'r+'
 
@@ -255,19 +255,19 @@ class VData:
     @property
     def file(self) -> H5GroupReader:
         """
-        Get this VData's .h5 file.
-        :return: this VData's .h5 file.
+        Get this VData's h5 file.
+        :return: this VData's h5 file.
         """
         return self._file
 
     @file.setter
     def file(self, file_reader: H5GroupReader) -> None:
         """
-        Set this VData's .h5 file.
-        :param file_reader: a .h5 file reader for this VData.
+        Set this VData's h5 file.
+        :param file_reader: a h5 file reader for this VData.
         """
         if not isinstance(file_reader, H5GroupReader):
-            raise VTypeError(f"Cannot read .h5 file from an object of type '{type(file_reader)}'.")
+            raise VTypeError(f"Cannot read h5 file from an object of type '{type(file_reader)}'.")
 
         self._file = file_reader
 

@@ -458,7 +458,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param columns: column labels.
         :param dtype: data type to force.
         :param name: optional TemporalDataFrame's name.
-        :param file: optional TemporalDataFrame's .h5 file for backing.
+        :param file: optional TemporalDataFrame's h5 file for backing.
         """
         self._name = str(name) if name is not None else 'No_Name'
 
@@ -519,8 +519,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         # data from hdf5 file
         elif isinstance(data, h5py.Group):
 
-            assert index is not None, "'index' parameter must be set when reading a .h5 file."
-            assert columns is not None, "'columns' parameter must be set when reading a .h5 file."
+            assert index is not None, "'index' parameter must be set when reading an h5 file."
+            assert columns is not None, "'columns' parameter must be set when reading an h5 file."
 
             self._columns = pd.Index(columns)
             self._time_points_column_name = time_col_name
@@ -719,24 +719,24 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @property
     def is_backed(self) -> bool:
         """
-        Is this TemporalDataFrame backed on a .h5 file ?
-        :return: Is this TemporalDataFrame backed on a .h5 file ?
+        Is this TemporalDataFrame backed on an h5 file ?
+        :return: Is this TemporalDataFrame backed on an h5 file ?
         """
         return self._file is not None
 
     @property
     def file(self) -> h5py.Group:
         """
-        Get the .h5 file this TemporalDataFrame is backed on.
-        :return: the .h5 file this TemporalDataFrame is backed on.
+        Get the h5 file this TemporalDataFrame is backed on.
+        :return: the h5 file this TemporalDataFrame is backed on.
         """
         return self._file
 
     @file.setter
     def file(self, new_file: h5py.Group):
         """
-        Set the .h5 file this TemporalDataFrame is backed on.
-        :param new_file: a .h5 file to back this TemporalDataFrame.
+        Set the h5 file this TemporalDataFrame is backed on.
+        :param new_file: an h5 file to back this TemporalDataFrame.
         """
         if not isinstance(new_file, h5py.Group):
             raise VTypeError(f"Cannot back TemporalDataFrame '{self.name}' with an object of type '{type(new_file)}'.")
