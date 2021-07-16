@@ -330,8 +330,11 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
 
     # Series of strings
     if series.dtype == object:
-        group.create_dataset(str(key), data=list(map(str, series.values)), dtype=h5py.string_dtype(encoding='utf-8'),
-                             chunks=True, maxshape=(None,))
+        group.create_dataset(str(key),
+                             data=np.array(list(map(str, series.values)), dtype='object'),
+                             dtype=h5py.string_dtype(encoding='utf-8'),
+                             chunks=True,
+                             maxshape=(None,))
 
     # Series of categorical data
     elif pd.api.types.is_categorical_dtype(series):
