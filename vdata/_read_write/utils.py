@@ -8,6 +8,7 @@ import os
 import numpy as np
 from pathlib import Path
 from typing import Union, Tuple, AbstractSet, ValuesView, Any, Optional
+from typing_extensions import Literal
 
 from .name_utils import H5Group
 
@@ -144,6 +145,15 @@ class H5GroupReader:
 
     def isinstance(self, _type: type) -> bool:
         return isinstance(self.group, _type)
+
+    def isstring(self) -> bool:
+        return self.group.dtype == 'object'
+
+    def asstring(self, encoding: Literal['UTF-8', 'ASCII'] = 'UTF-8') -> bool:
+        if not self.isstring():
+            raise TypeError('Cannot convert non-string H5GroupReader to a string.')
+
+        return self.group.asstr(encoding=encoding)[()]
 
 
 def parse_path(path: Optional[Union[str, Path]]) -> Optional[Path]:

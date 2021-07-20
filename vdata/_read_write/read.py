@@ -286,6 +286,9 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
     generalLogger.debug("\u23BE read VData : begin -------------------------------------------------------- ")
     file = parse_path(file)
 
+    if file.suffix != '.vd':
+        raise VValueError("Cannot read file with suffix != '.vd'.")
+
     # make sure the path exists
     if not os.path.exists(file):
         raise VValueError(f"The path {file} does not exist.")
@@ -546,6 +549,10 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
+
+    if group.isstring():
+        return group.asstring()
+
     return get_value(group[()])
 
 

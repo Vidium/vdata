@@ -37,7 +37,9 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
     :param file: path to save the VData.
     """
     file = parse_path(file)
-    file = file.with_suffix('.vd')
+    if file is not None and file.suffix != '.vd':
+        generalLogger.warning("File suffix must be '.vd', it has been changed.")
+        file = file.with_suffix('.vd')
 
     if obj.is_backed:
         if obj.file.mode == 'r+':
