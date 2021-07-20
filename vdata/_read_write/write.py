@@ -419,6 +419,17 @@ def write_Type(data: type, group: H5Group, key: str, key_level: int = 0) -> None
 
 
 @write_data.register
+def write_Path(data: Path, group: H5Group, key: str, key_level: int = 0) -> None:
+    """
+    Function for writing a Path to the h5 file.
+    """
+    generalLogger.info(f"{spacer(key_level)}Saving Path {key}")
+    group[str(key)] = str(data)
+    group[str(key)].attrs['type'] = 'path'
+
+
+
+@write_data.register
 def write_None(_: None, group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing None to the h5 file.

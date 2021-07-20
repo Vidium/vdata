@@ -556,6 +556,18 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     return get_value(group[()])
 
 
+def read_h5_path(group: H5GroupReader, level: int = 1) -> Path:
+    """
+    Function for reading a Path from an h5 file.
+
+    :param group: a H5GroupReader from which to read a Path.
+    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    """
+    generalLogger.info(f"{spacer(level)}Reading Path {group.name}.")
+
+    return Path(group.asstring())
+
+
 def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
     """
     Function for reading 'None' from an h5 file.
@@ -576,6 +588,7 @@ func_: Dict[str, Callable] = {
     'array': read_h5_array,
     'value': read_h5_value,
     'type': read_h5_value,
+    'path': read_h5_path,
     'None': read_h5_None
 }
 

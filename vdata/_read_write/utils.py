@@ -149,7 +149,7 @@ class H5GroupReader:
     def isstring(self) -> bool:
         return self.group.dtype == 'object'
 
-    def asstring(self, encoding: Literal['UTF-8', 'ASCII'] = 'UTF-8') -> bool:
+    def asstring(self, encoding: Literal['UTF-8', 'ASCII'] = 'UTF-8') -> str:
         if not self.isstring():
             raise TypeError('Cannot convert non-string H5GroupReader to a string.')
 
