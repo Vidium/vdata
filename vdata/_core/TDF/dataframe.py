@@ -651,6 +651,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         elif attr in self.columns:
             self.loc[:, attr] = value
 
+            if self.is_backed and self._file.file.mode == 'r+':
+                self.write()
+
         else:
             self.insert(self.n_columns, attr, value)
 
