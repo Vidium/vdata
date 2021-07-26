@@ -157,6 +157,9 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         elif attr in self.columns:
             self._parent_data.loc[self.index, attr] = value
 
+            if self._parent.is_backed and self._parent.file.file.mode == 'r+':
+                self._parent.write()
+
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
 
@@ -280,6 +283,9 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 for col_index in col_indices:
                     self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0], col_index] \
                         = values
+
+        if self._parent.is_backed and self._parent.file.file.mode == 'r+':
+            self._parent.write()
 
     @property
     def is_locked(self) -> Tuple[bool, bool]:
