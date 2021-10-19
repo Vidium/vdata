@@ -761,8 +761,8 @@ class VData:
 
         if _time_points_VDF is None:
             nb_time_points = 1
-            generalLogger.debug(f"  1 time point was found so far.")
-            generalLogger.debug(f"    \u21B3 Time point is : [0]")
+            generalLogger.debug("  1 time point was found so far.")
+            generalLogger.debug("    \u21B3 Time point is : [0]")
 
         else:
             nb_time_points = len(_time_points_VDF)

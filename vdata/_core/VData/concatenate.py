@@ -129,8 +129,8 @@ def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
             if key in next_VData.varm.keys():
                 generalLogger.info(f"    '\u21B3' merging varm '{key}' DataFrame.")
 
-                _varm[key] = VDataFrame(_varm[key].reset_index().merge(next_VData.varm[key].reset_index(),  # type: ignore
-                                                                       how='outer').set_index('index'))
+                _varm[key] = VDataFrame(_varm[key].reset_index().merge(
+                    next_VData.varm[key].reset_index(), how='outer').set_index('index'))  # type: ignore
 
             else:
                 generalLogger.warning(f"Dropping 'varm' '{key}' because it was not found in all VData objects.")
@@ -142,8 +142,8 @@ def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
             if key in next_VData.varp.keys():
                 generalLogger.info(f"    '\u21B3' merging varp '{key}' DataFrame.")
 
-                _varp[key] = VDataFrame(_varp[key].reset_index().merge(next_VData.varp[key].reset_index(),  # type: ignore
-                                                                       how='outer').set_index('index'))
+                _varp[key] = VDataFrame(_varp[key].reset_index().merge(
+                    next_VData.varp[key].reset_index(), how='outer').set_index('index'))  # type: ignore
 
             else:
                 generalLogger.warning(f"Dropping 'varp' '{key}' because it was not found in all VData objects.")
