@@ -18,6 +18,7 @@ from tests.tests_vdata.test_VData_conversion_to_AnnData import test_VData_conver
 from tests.tests_vdata.test_VData_read import test_VData_read
 from tests.tests_vdata.test_VData_copy import test_VData_copy, test_VData_copy_subset
 from tests.tests_vdata.test_VData_concatenate import test_VData_concatenate, test_VData_concatenate_mean
+from tests.tests_vdata.test_VData_pickle import test_VData_pickle_dump, test_VData_pickle_load
 
 
 # ====================================================
@@ -43,7 +44,6 @@ test_VData_creation()
 test_VData_creation_on_dtype()
 test_VData_creation_with_uns()
 test_VData_creation_full()
-# vdata.setLoggingLevel('DEBUG')
 test_VData_creation_from_dict()
 
 print('\n >>> VData creation from AnnData <<< \n')
@@ -70,3 +70,9 @@ test_VData_copy_subset()
 print('\n >>> VData concatenate <<< \n')
 test_VData_concatenate()
 test_VData_concatenate_mean()
+
+# VData pickling
+print('\n >>> VData pickling <<< \n')
+# test_VData_pickle_dump()
+# print('pickle 2')
+# test_VData_pickle_load()

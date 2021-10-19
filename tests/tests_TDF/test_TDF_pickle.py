@@ -5,12 +5,16 @@
 # ====================================================
 # imports
 import pickle
+from pathlib import Path
 
 import vdata
 
 
 # ====================================================
 # code
+REF_DIR = Path(__file__).parent.parent / 'ref'
+
+
 def test_TDF_pickle_dump():
     _TDF = vdata.TemporalDataFrame({'col1': [1, 2, 3, 4, 5, 6],
                                     'col2': [7, 8, 9, 10, 11, 12]},
@@ -21,11 +25,11 @@ def test_TDF_pickle_dump():
     _TDF.write('pickled_TDF.h5')
     _TDF = vdata.read_TemporalDataFrame('pickled_TDF.h5')
 
-    pickle.dump(_TDF, open('pickled_TDF.pkl', 'wb'))
+    pickle.dump(_TDF, open(REF_DIR / 'pickled_TDF.pkl', 'wb'))
 
 
 def test_TDF_pickle_load():
-    _TDF = pickle.load(open('pickled_TDF.pkl', 'rb'))
+    _TDF = pickle.load(open(REF_DIR / 'pickled_TDF.pkl', 'rb'))
 
     assert repr(_TDF) == "Backed TemporalDataFrame 'pickleable TDF'\n" \
                          "\033[4mTime point : 0.0 hours\033[0m\n" \
@@ -43,6 +47,8 @@ def test_TDF_pickle_load():
                          "C_5     6    12\n" \
                          "\n" \
                          "[2 x 2]\n\n", repr(_TDF)
+
+    _TDF.file.file.close()
 
 
 if __name__ == "__main__":

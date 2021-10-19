@@ -31,6 +31,8 @@ def test_VData_read():
                       "time_points: 'value'\n\t" \
                       "uns: 'colors', 'date'", repr(v)
 
+    v.file.close()
+
     # load from csv files
     v = vdata.read_from_csv(output_dir / "vdata", name=2)
     assert repr(v) == "VData '2' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \

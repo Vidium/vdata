@@ -1103,8 +1103,6 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :return: a copy of this TemporalDataFrame.
         """
         if self.is_backed:
-            generalLogger.warning('Cannot copy a backed TemporalDataFrame, returning self.')
-            # return self
             return copy_TemporalDataFrame(self)
 
         else:

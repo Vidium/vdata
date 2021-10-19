@@ -41,6 +41,8 @@ def out_test_VData_write():
     # write vdata in csv files
     v.write_to_csv(output_dir / "vdata")
 
+    v.file.close()
+
 
 if __name__ == "__main__":
     vdata.setLoggingLevel('DEBUG')

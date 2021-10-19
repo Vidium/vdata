@@ -189,6 +189,13 @@ class VData:
         """
         Close file on object delete.
         """
+        print(f'\n\n'
+              f'========================================================\n'
+              f'DELETE {id(self)} !!!!!!\n'
+              f'{self.name}\n'
+              f'========================================================\n'
+              f'\n\n')
+
         if self._file is not None:
             self._file.close()
 
