@@ -5,7 +5,7 @@
 # ====================================================
 # imports
 import os
-import h5py
+import h5pickle as h5py
 import shutil
 import numpy as np
 from pathlib import Path

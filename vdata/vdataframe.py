@@ -10,8 +10,8 @@ VDataFrame wrapper around pandas DataFrames.
 # imports
 from typing import Optional, Collection, Sequence
 
-import h5py
 import pandas as pd
+import h5pickle as h5py
 from pandas._typing import Axes, Dtype
 
 from ._IO import VTypeError

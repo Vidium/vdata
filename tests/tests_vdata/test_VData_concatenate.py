@@ -81,7 +81,7 @@ def test_VData_concatenate_mean():
 
 
 if __name__ == '__main__':
-    vdata.setLoggingLevel('DEBUG')
+    # vdata.setLoggingLevel('DEBUG')
 
     test_VData_concatenate()
     test_VData_concatenate_mean()

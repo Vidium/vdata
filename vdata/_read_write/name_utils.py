@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-import h5py
+import h5pickle as h5py
 from typing import Union
 
 # ====================================================

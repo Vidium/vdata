@@ -29,11 +29,24 @@ def to_list(value: Any) -> List[Any]:
         return [value]
 
 
+def list_to_tp_list_strict(item: Sequence[Any]) -> List[TimePoint]:
+    """
+    Convert a list of elements into a list of TimePoints.
+
+    :param item: a list of elements to convert into TimePoints.
+
+    :return: a list of TimePoints.
+    """
+    return [TimePoint(e) for e in item]
+
+
 def to_tp_list(item: Any, reference_time_points: Optional[Sequence[TimePoint]] = None) -> 'TimePointList':
     """
     Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
+
     :param item: an object to convert to tuple of TimePoints.
     :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
+
     :return: a (nested) tuple of TimePoints.
     """
     new_tp_list: 'TimePointList' = []
@@ -43,7 +56,7 @@ def to_tp_list(item: Any, reference_time_points: Optional[Sequence[TimePoint]] =
 
     for v in to_list(item):
         if isCollection(v):
-            new_tp_list.append(to_tp_list(v, reference_time_points))
+            new_tp_list.append(list_to_tp_list_strict(v))
 
         elif not isinstance(v, TimePoint) and v == '*':
             if len(reference_time_points):

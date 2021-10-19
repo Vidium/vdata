@@ -4,9 +4,9 @@
 
 # ====================================================
 # imports
-import h5py
 import pandas as pd
 import numpy as np
+import h5pickle as h5py
 from pathlib import Path
 from collections import Counter
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List
@@ -633,11 +633,15 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param attr: an attribute's name
         :return: a column with name <attr> from the DataFrame
         """
-        if attr in self.columns:
-            return self.loc[:, attr]
+        if attr == '__setstate__':
+            return object.__getattribute__(self, '__setstate__')
 
         else:
-            return object.__getattribute__(self, attr)
+            if attr in self.columns:
+                return self.loc[:, attr]
+
+            else:
+                return object.__getattribute__(self, attr)
 
     def __setattr__(self, attr: str, value: Any) -> None:
         """
@@ -718,6 +722,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         else:
             return self.eq(other)
+
+    def __setstate__(self, d: Dict) -> None:
+        """
+        Called on un-pickling.
+        """
+        self.__dict__ = d
 
     @property
     def is_backed(self) -> bool:
@@ -1094,7 +1104,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         if self.is_backed:
             generalLogger.warning('Cannot copy a backed TemporalDataFrame, returning self.')
-            return self
+            # return self
+            return copy_TemporalDataFrame(self)
 
         else:
             return copy_TemporalDataFrame(self)
@@ -1113,7 +1124,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         # save DataFrame to csv
         self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
-    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> Tuple[Dict, np.ndarray, pd.Index]:
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'],
+                            axis: Literal[0, 1]) -> Tuple[Dict, np.ndarray, pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """

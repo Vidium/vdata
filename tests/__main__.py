@@ -8,6 +8,7 @@ import vdata
 
 from tests.tests_TDF.test_TDF_creation import test_TDF_creation
 from tests.tests_TDF.test_TDF_subsetting import test_TDF_sub_setting
+from tests.tests_TDF.test_TDF_pickle import test_TDF_pickle_dump, test_TDF_pickle_load
 
 from tests.tests_vdata.test_VData_creation import test_VData_creation, test_VData_creation_on_dtype, \
     test_VData_creation_with_uns, test_VData_creation_full, test_VData_creation_from_dict
@@ -30,6 +31,11 @@ test_TDF_creation()
 # TDF seb-setting
 print('\n >>> TemporalDataFrame sub-setting <<< \n')
 test_TDF_sub_setting()
+
+# TDF pickling
+print('\n >>> TemporalDataFrame pickling <<< \n')
+test_TDF_pickle_dump()
+test_TDF_pickle_load()
 
 # VData creation
 print('\n >>> VData creation <<< \n')

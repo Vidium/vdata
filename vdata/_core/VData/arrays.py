@@ -6,8 +6,8 @@
 # imports
 import os
 import abc
-import h5py
 import pandas as pd
+import h5pickle as h5py
 from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, \

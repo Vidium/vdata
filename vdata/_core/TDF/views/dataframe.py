@@ -4,9 +4,9 @@
 
 # ====================================================
 # imports
-import h5py
 import numpy as np
 import pandas as pd
+import h5pickle as h5py
 from pathlib import Path
 from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
 from typing_extensions import Literal

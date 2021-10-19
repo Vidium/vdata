@@ -10,15 +10,10 @@ clone:
     - echo
 
 steps:
-- name: pytest
-  image: real_env
-  pull: never
-  commands:
-    - pytest ./tests
-
 - name: flake8
   image: real_env
   pull: never
+  failure: ignore
   commands:
     - flake8 --config .tox.ini ./vdata
 
@@ -35,3 +30,9 @@ steps:
   failure: ignore
   commands:
     - pylint ./vdata
+
+- name: pytest
+  image: real_env
+  pull: never
+  commands:
+    - pytest ./tests

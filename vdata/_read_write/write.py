@@ -5,12 +5,13 @@
 # ====================================================
 # imports
 import os
-import h5py
 import json
 import shutil
 import numpy as np
 import pandas as pd
+import h5pickle as h5py
 from pathlib import Path
+from h5py import string_dtype
 from functools import singledispatch
 from typing import Dict, List, Union, Optional
 from typing_extensions import Literal
@@ -334,7 +335,7 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
     if series.dtype == object:
         group.create_dataset(str(key),
                              data=np.array(list(map(str, series.values)), dtype='object'),
-                             dtype=h5py.string_dtype(encoding='utf-8'),
+                             dtype=string_dtype(encoding='utf-8'),
                              chunks=True,
                              maxshape=(None,))
 
@@ -426,7 +427,6 @@ def write_Path(data: Path, group: H5Group, key: str, key_level: int = 0) -> None
     generalLogger.info(f"{spacer(key_level)}Saving Path {key}")
     group[str(key)] = str(data)
     group[str(key)].attrs['type'] = 'path'
-
 
 
 @write_data.register

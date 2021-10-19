@@ -5,11 +5,11 @@
 # ====================================================
 # imports
 import os
-import h5py
 import json
 import shutil
 import pandas as pd
 import numpy as np
+import h5pickle as h5py
 from pathlib import Path
 from typing import Union, Optional, Dict, List, Any, Callable, Collection, cast
 from typing_extensions import Literal
