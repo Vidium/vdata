@@ -138,7 +138,7 @@ class TimePoint:
                 # try to get unit
                 value_, unit_ = get_value(time_point[:-1]), time_point[-1]
 
-                if not isinstance(value_, (int, float, np.int, np.float)):
+                if not isinstance(value_, (int, float, np.integer, np.floating)):
                     raise VValueError(f"Invalid time point value '{time_point}'")
 
                 else:

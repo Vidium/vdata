@@ -27,21 +27,19 @@ DTypes = {int: int,
           "float32": np.float32,
           "float64": np.float64,
           "float128": np.float128,
-          np.int: np.int64,
           np.int_: np.int64,
           np.int8: np.int8,
           np.int16: np.int16,
           np.int32: np.int32,
           np.int64: np.int64,
-          np.float: np.float64,
           np.float_: np.float64,
           np.float16: np.float16,
           np.float32: np.float32,
           np.float64: np.float64,
           np.float128: np.float128,
-          np.object: np.object}
+          object: object}
 
-DType = Union[int, float, np.int_, np.float_, np.object]
+DType = Union[int, float, np.int_, np.float_, object]
 StrDType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "float16", "float32", "float64",
                          "float128"]]
 

@@ -196,7 +196,7 @@ class VData:
         #       f'========================================================\n'
         #       f'\n\n')
 
-        if self._file is not None:
+        if self._file is not None and not self.is_closed:
             self._file.close()
 
     def __getitem__(self, index: Union['PreSlicer',
@@ -262,7 +262,7 @@ class VData:
         Is this VData's file closed ?
         :return Is this VData's file closed ?
         """
-        return self._file is not None and not self._file.group.file.id.valid
+        return self._file is not None and not self._file.group.id.valid
 
     @property
     def file(self) -> Optional[H5GroupReader]:

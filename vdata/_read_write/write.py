@@ -57,7 +57,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
 
-        with h5py.File(file, 'w') as save_file:
+        with h5py.File(str(file), 'w') as save_file:
             # save layers
             write_data(obj.layers.data, save_file, 'layers')
             # save obs
@@ -74,7 +74,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             # save uns
             write_data(obj.uns, save_file, 'uns')
 
-        obj.file = H5GroupReader(h5py.File(file, 'r+'))
+        obj.file = H5GroupReader(h5py.File(str(file), 'r+'))
 
 
 def update_vdata(obj: 'vdata.VData') -> None:

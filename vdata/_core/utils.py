@@ -136,7 +136,7 @@ def slicer_to_array(slicer: 'PreSlicer', reference_index: Collection, on_time_po
     :return: an array of allowed values in the slicer.
     """
     if not isinstance(slicer, (slice, type(Ellipsis))):
-        if isinstance(slicer, np.ndarray) and slicer.dtype == np.bool:
+        if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
             # boolean array : extract values from reference_index
             return np.array(reference_index)[np.where(slicer)]
 
