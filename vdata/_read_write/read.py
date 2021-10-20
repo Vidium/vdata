@@ -311,7 +311,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
             'uns': {}}
 
     # import data from file
-    importFile = H5GroupReader(h5py.File(file, mode))
+    importFile = H5GroupReader(h5py.File(str(file), mode))
     for key in importFile.keys():
         generalLogger.info(f"Got key : '{key}'.")
 
@@ -358,7 +358,7 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
         raise VValueError(f"The path {file} does not exist.")
 
     # import data from file
-    import_file = H5GroupReader(h5py.File(file, mode))
+    import_file = H5GroupReader(h5py.File(str(file), mode))
     import_data = import_file[list(import_file.keys())[0]]
 
     dataset_type = import_data.attrs('type')
