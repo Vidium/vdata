@@ -7,7 +7,6 @@
 import os
 import sys
 import logging.config
-import inspect
 import traceback
 from pathlib import Path
 from types import TracebackType
