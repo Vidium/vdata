@@ -96,9 +96,11 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
         # save data, per time point, in DataSets
         for time_point in time_points_masks.keys():
-            data_group.create_dataset(str(TimePoint(time_point)),
-                                      data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
-                                      chunks=True, maxshape=(None, None))
+            data_group.create_dataset(
+                str(TimePoint(time_point)),
+                data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
+                chunks=True, maxshape=(None, None)
+            )
 
         # remove old data
         del h5_file['layers'][f"{layer}_data"]
@@ -169,7 +171,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
             h5_file['obsm'][df_name].attrs['type'] = 'CHUNKED_TDF'
 
             # save columns
-            write_data(np.arange(h5_file['obsm_data'][df_name].shape[1]), h5_file['obsm'][df_name], 'columns', key_level=1)
+            write_data(np.arange(h5_file['obsm_data'][df_name].shape[1]), h5_file['obsm'][df_name], 'columns',
+                       key_level=1)
 
             # save data, per time point, in DataSets
             for time_point in time_points_masks.keys():
@@ -210,8 +213,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         #         h5_file['obsp'][df_name].create_group(str(TimePoint(tp)))
         #
         #         # save index
-        #         write_data(h5_file['obs']['index'][time_points_masks[tp]], h5_file['obsp'][df_name][str(TimePoint(tp))],
-        #                    'index', key_level=2)
+        #         write_data(h5_file['obs']['index'][time_points_masks[tp]],
+        #                    h5_file['obsp'][df_name][str(TimePoint(tp))], 'index', key_level=2)
         #
         #         # create group for storing the data
         #         data_group = h5_file['obsp'][df_name][str(TimePoint(tp))].create_group('data', track_order=True)
