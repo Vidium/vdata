@@ -14,7 +14,7 @@ from typing_extensions import Literal
 import numpy as np
 
 from .utils import get_value
-from ._IO import VValueError, VTypeError
+from .IO import VValueError, VTypeError
 
 if TYPE_CHECKING:
     from .name_utils import DType

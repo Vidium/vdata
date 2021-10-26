@@ -22,14 +22,18 @@ def test_TDF_pickle_dump():
                                    index=[f"C_{i}" for i in range(6)],
                                    time_list=['0h', '0h', '0h', '0h', '1h', '1h'])
 
-    _TDF.write('pickled_TDF.h5')
-    _TDF = vdata.read_TemporalDataFrame('pickled_TDF.h5')
+    _TDF.write(REF_DIR / 'pickled_TDF.h5')
+    _TDF = vdata.read_TemporalDataFrame(REF_DIR / 'pickled_TDF.h5')
 
-    pickle.dump(_TDF, open(REF_DIR / 'pickled_TDF.pkl', 'wb'))
+    p = str(REF_DIR / 'pickled_TDF.pkl')
+
+    pickle.dump(_TDF, open(p, 'wb'))
 
 
 def test_TDF_pickle_load():
-    _TDF = pickle.load(open(REF_DIR / 'pickled_TDF.pkl', 'rb'))
+    p = str(REF_DIR / 'pickled_TDF.pkl')
+
+    _TDF = pickle.load(open(p, 'rb'))
 
     assert repr(_TDF) == "Backed TemporalDataFrame 'pickleable TDF'\n" \
                          "\033[4mTime point : 0.0 hours\033[0m\n" \

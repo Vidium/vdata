@@ -90,31 +90,33 @@ class _VLogger:
         """
 
         # Get the name of the file that called the logger for displaying where the message came from
-        if Tb.trace is None:
-            frames = inspect.stack(0)
+        # if Tb.trace is None:
+        #     frames = inspect.stack(0)
+        #
+        #     caller_filename = frames[0].filename
+        #     index = 0
+        #
+        #     while index < len(frames) - 1 and (caller_filename.endswith("logger.py")
+        #                                        or caller_filename.endswith("errors.py")):
+        #         index += 1
+        #         caller_filename = frames[index].filename
+        #
+        #     caller = os.path.splitext(os.path.basename(caller_filename))[0]
+        #
+        #     # return base message
+        #     return f"[{caller}.py] {msg}"
+        #
+        # else:
+        #     traceback.print_tb(Tb.trace)
+        #     caller = ""
+        #
+        #     while Tb.trace is not None:
+        #         caller = Tb.trace.tb_frame.f_code.co_filename
+        #         Tb.trace = Tb.trace.tb_next
+        #
+        #     return f"[{os.path.basename(caller)} : {Tb.exception.__name__}] {msg}"
 
-            caller_filename = frames[0].filename
-            index = 0
-
-            while index < len(frames) - 1 and (caller_filename.endswith("logger.py")
-                                               or caller_filename.endswith("errors.py")):
-                index += 1
-                caller_filename = frames[index].filename
-
-            caller = os.path.splitext(os.path.basename(caller_filename))[0]
-
-            # return base message
-            return f"[{caller}.py] {msg}"
-
-        else:
-            traceback.print_tb(Tb.trace)
-            caller = ""
-
-            while Tb.trace is not None:
-                caller = Tb.trace.tb_frame.f_code.co_filename
-                Tb.trace = Tb.trace.tb_next
-
-            return f"[{os.path.basename(caller)} : {Tb.exception.__name__}] {msg}"
+        return msg
 
     def debug(self, msg: str) -> None:
         """

@@ -16,7 +16,7 @@ from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
 from ...name_utils import PreSlicer
 from vdata.utils import repr_array
 from ....time_point import TimePoint
-from ...._IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
+from ....IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
 
 
 # ====================================================

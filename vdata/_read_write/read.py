@@ -9,7 +9,6 @@ import json
 import shutil
 import pandas as pd
 import numpy as np
-import h5pickle as h5py
 from pathlib import Path
 from typing import Union, Optional, Dict, List, Any, Callable, Collection, cast
 from typing_extensions import Literal
@@ -22,8 +21,9 @@ from ..name_utils import DType
 from ..utils import get_value, repr_array
 from ..vdataframe import VDataFrame
 from ..time_point import TimePoint
-from .._IO import generalLogger, VValueError, VTypeError, ShapeError
+from ..IO import generalLogger, VValueError, VTypeError, ShapeError
 from .._core import TemporalDataFrame
+from ..h5pickle import File, Dataset, Group
 
 
 def spacer(nb: int) -> str:
@@ -311,7 +311,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
             'uns': {}}
 
     # import data from file
-    importFile = H5GroupReader(h5py.File(str(file), mode))
+    importFile = H5GroupReader(File(str(file), mode))
     for key in importFile.keys():
         generalLogger.info(f"Got key : '{key}'.")
 
@@ -358,7 +358,7 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
         raise VValueError(f"The path {file} does not exist.")
 
     # import data from file
-    import_file = H5GroupReader(h5py.File(str(file), mode))
+    import_file = H5GroupReader(File(str(file), mode))
     import_data = import_file[list(import_file.keys())[0]]
 
     dataset_type = import_data.attrs('type')
@@ -489,13 +489,13 @@ def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: in
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
     # simple Series
-    if group.isinstance(h5py.Dataset):
+    if group.isinstance(Dataset):
         data_type = get_dtype_from_string(group.attrs('dtype'))
         values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
         return pd.Series(values, index=index)
 
     # categorical Series
-    elif group.isinstance(h5py.Group):
+    elif group.isinstance(Group):
         # get data
         data_type = get_dtype_from_string(group.attrs('dtype'))
         categories = read_h5_array(cast(H5GroupReader, group['categories']), level=level+1, log_func=log_func)

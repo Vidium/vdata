@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Union, Tuple, AbstractSet, ValuesView, Any, Optional
 from typing_extensions import Literal
 
-from .name_utils import H5Group
+from vdata.h5pickle import H5Group
 
 
 # ====================================================

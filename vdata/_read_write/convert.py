@@ -5,7 +5,6 @@
 # ====================================================
 # imports
 import os
-import h5pickle as h5py
 import shutil
 import numpy as np
 from pathlib import Path
@@ -14,7 +13,8 @@ from typing import Union, Optional
 
 from .write import write_data
 from ..time_point import TimePoint
-from .._IO import generalLogger
+from ..IO import generalLogger
+from ..h5pickle import File, Group, Dataset
 
 
 # ====================================================
@@ -45,261 +45,261 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         os.rename(file, working_on_file)
 
     # reformat copied file
-    file = h5py.File(working_on_file, mode='a')
+    h5_file = File(working_on_file, mode='a')
 
     # -------------------------------------------------------------------------
     # 1. remove X
     generalLogger.info("Removing 'X' layer.")
-    del file['X']
+    del h5_file['X']
 
     # -------------------------------------------------------------------------
     # 2. get time information
-    valid_columns = list(set(file['obs'].keys()) - {'__categories', '_index'})
+    valid_columns = list(set(h5_file['obs'].keys()) - {'__categories', '_index'})
 
     if time_column_name is not None:
         if time_column_name not in valid_columns:
             raise ValueError(f"Could not find column '{time_column_name}' in obs ({valid_columns}).")
 
-        time_points_in_data = set(file['obs'][time_column_name][()])
-        time_points_masks = {tp: np.where(file['obs'][time_column_name][()] == tp)[0] for tp in time_points_in_data}
+        time_points_in_data = set(h5_file['obs'][time_column_name][()])
+        time_points_masks = {tp: np.where(h5_file['obs'][time_column_name][()] == tp)[0] for tp in time_points_in_data}
 
     else:
-        time_points_masks = {time_point: np.arange(file['obs'][valid_columns[0]].shape[0])}
+        time_points_masks = {time_point: np.arange(h5_file['obs'][valid_columns[0]].shape[0])}
 
     # -------------------------------------------------------------------------
     # 3. convert layers to chunked TDFs
     # set group type
-    file['layers'].attrs['type'] = 'dict'
+    h5_file['layers'].attrs['type'] = 'dict'
 
-    for layer in file['layers'].keys():
+    for layer in h5_file['layers'].keys():
         generalLogger.info(f"Converting layer '{layer}'.")
 
-        file['layers'].move(layer, f"{layer}_data")
-        file['layers'].create_group(layer)
+        h5_file['layers'].move(layer, f"{layer}_data")
+        h5_file['layers'].create_group(layer)
 
         # save index
-        file['obs'].copy('_index', f'/layers/{layer}/index')
-        file['layers'][layer]['index'].attrs['type'] = 'array'
+        h5_file['obs'].copy('_index', f'/layers/{layer}/index')
+        h5_file['layers'][layer]['index'].attrs['type'] = 'array'
 
         # save time_col_name
-        write_data(time_column_name, file['layers'][layer], 'time_col_name', key_level=1)
+        write_data(time_column_name, h5_file['layers'][layer], 'time_col_name', key_level=1)
 
         # create group for storing the data
-        data_group = file['layers'][layer].create_group('data', track_order=True)
+        data_group = h5_file['layers'][layer].create_group('data', track_order=True)
 
         # set group type
-        file['layers'][layer].attrs['type'] = 'CHUNKED_TDF'
+        h5_file['layers'][layer].attrs['type'] = 'CHUNKED_TDF'
 
         # save columns
-        file['var'].copy('_index', f'/layers/{layer}/columns')
-        file['layers'][layer]['columns'].attrs['type'] = 'array'
+        h5_file['var'].copy('_index', f'/layers/{layer}/columns')
+        h5_file['layers'][layer]['columns'].attrs['type'] = 'array'
 
         # save data, per time point, in DataSets
         for time_point in time_points_masks.keys():
             data_group.create_dataset(str(TimePoint(time_point)),
-                                      data=file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
+                                      data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
                                       chunks=True, maxshape=(None, None))
 
         # remove old data
-        del file['layers'][f"{layer}_data"]
+        del h5_file['layers'][f"{layer}_data"]
 
     # -------------------------------------------------------------------------
     # 4.1 convert obs
     generalLogger.info("Converting 'obs'.")
 
-    file.move('obs', 'obs_data')
-    file.create_group('obs')
+    h5_file.move('obs', 'obs_data')
+    h5_file.create_group('obs')
 
     # save index
-    file['obs_data'].copy('_index', '/obs/index')
-    file['obs']['index'].attrs['type'] = 'array'
+    h5_file['obs_data'].copy('_index', '/obs/index')
+    h5_file['obs']['index'].attrs['type'] = 'array'
 
     # save time_col_name
-    write_data(time_column_name, file['obs'], 'time_col_name', key_level=1)
+    write_data(time_column_name, h5_file['obs'], 'time_col_name', key_level=1)
 
     # save time_list
     write_data(np.repeat([str(TimePoint(tp)) for tp in time_points_masks.keys()],
                          [len(i) for i in time_points_masks.values()]),
-               file['obs'], 'time_list', key_level=1)
+               h5_file['obs'], 'time_list', key_level=1)
 
     # create group for storing the data
-    data_group = file['obs'].create_group('data', track_order=True)
+    data_group = h5_file['obs'].create_group('data', track_order=True)
 
     # set group type
-    file['obs'].attrs['type'] = 'TDF'
+    h5_file['obs'].attrs['type'] = 'TDF'
 
     # save data, per column, in arrays
-    for col in file['obs_data'].keys():
+    for col in h5_file['obs_data'].keys():
         if col in ('_index', '__categories'):
             continue
 
-        values = file['obs_data'][col][()]
+        values = h5_file['obs_data'][col][()]
 
         write_data(values, data_group, col, key_level=1)
 
     # remove old data
-    del file['obs_data']
+    del h5_file['obs_data']
 
     # -------------------------------------------------------------------------
     # 4.2 convert obsm
     generalLogger.info("Converting 'obsm'.")
 
-    if 'obsm' in file.keys():
-        file.move('obsm', 'obsm_data')
-        file.create_group('obsm')
+    if 'obsm' in h5_file.keys():
+        h5_file.move('obsm', 'obsm_data')
+        h5_file.create_group('obsm')
 
         # set group type
-        file['obsm'].attrs['type'] = 'dict'
+        h5_file['obsm'].attrs['type'] = 'dict'
 
-        for df_name in file['obsm_data'].keys():
+        for df_name in h5_file['obsm_data'].keys():
             generalLogger.info(f"\tConverting dataframe '{df_name}'.")
-            file['obsm'].create_group(df_name)
+            h5_file['obsm'].create_group(df_name)
 
             # save index
-            file['obs'].copy('index', f'/obsm/{df_name}/index')
-            file['obsm'][df_name]['index'].attrs['type'] = 'array'
+            h5_file['obs'].copy('index', f'/obsm/{df_name}/index')
+            h5_file['obsm'][df_name]['index'].attrs['type'] = 'array'
 
             # save time_col_name
-            write_data(time_column_name, file['obsm'][df_name], 'time_col_name', key_level=1)
+            write_data(time_column_name, h5_file['obsm'][df_name], 'time_col_name', key_level=1)
 
             # create group for storing the data
-            data_group = file['obsm'][df_name].create_group('data', track_order=True)
+            data_group = h5_file['obsm'][df_name].create_group('data', track_order=True)
 
             # set group type
-            file['obsm'][df_name].attrs['type'] = 'CHUNKED_TDF'
+            h5_file['obsm'][df_name].attrs['type'] = 'CHUNKED_TDF'
 
             # save columns
-            write_data(np.arange(file['obsm_data'][df_name].shape[1]), file['obsm'][df_name], 'columns', key_level=1)
+            write_data(np.arange(h5_file['obsm_data'][df_name].shape[1]), h5_file['obsm'][df_name], 'columns', key_level=1)
 
             # save data, per time point, in DataSets
             for time_point in time_points_masks.keys():
                 data_group.create_dataset(str(TimePoint(time_point)),
-                                          data=file['obsm_data'][df_name][time_points_masks[time_point][:, None], :],
+                                          data=h5_file['obsm_data'][df_name][time_points_masks[time_point][:, None], :],
                                           chunks=True, maxshape=(None, None))
 
         # remove old data
-        del file['obsm_data']
+        del h5_file['obsm_data']
 
     else:
-        file.create_group('obsm')
+        h5_file.create_group('obsm')
 
         # set group type
-        file['obsm'].attrs['type'] = 'None'
+        h5_file['obsm'].attrs['type'] = 'None'
 
     # -------------------------------------------------------------------------
     # 4.3 convert obsp
     generalLogger.info("Converting 'obsp'.")
 
-    if 'obsp' in file.keys():
-        file.move('obsp', 'obsp_data')
-        file.create_group('obsp')
+    if 'obsp' in h5_file.keys():
+        h5_file.move('obsp', 'obsp_data')
+        h5_file.create_group('obsp')
 
         # set group type
-        file['obsp'].attrs['type'] = 'None'
-        # file['obsp'].attrs['type'] = 'dict'
+        h5_file['obsp'].attrs['type'] = 'None'
+        # h5_file['obsp'].attrs['type'] = 'dict'
         #
-        # for df_name in file['obsp_data'].keys():
+        # for df_name in h5_file['obsp_data'].keys():
         #     generalLogger.info(f"\tConverting dataframe '{df_name}'.")
-        #     file['obsp'].create_group(df_name)
+        #     h5_file['obsp'].create_group(df_name)
         #
         #     # set group type
-        #     file['obsp'][df_name].attrs['type'] = 'dict'
+        #     h5_file['obsp'][df_name].attrs['type'] = 'dict'
         #
         #     for tp in time_points_masks.keys():
         #         generalLogger.info(f"\t\tConverting for time point '{tp}'.")
-        #         file['obsp'][df_name].create_group(str(TimePoint(tp)))
+        #         h5_file['obsp'][df_name].create_group(str(TimePoint(tp)))
         #
         #         # save index
-        #         write_data(file['obs']['index'][time_points_masks[tp]], file['obsp'][df_name][str(TimePoint(tp))],
+        #         write_data(h5_file['obs']['index'][time_points_masks[tp]], h5_file['obsp'][df_name][str(TimePoint(tp))],
         #                    'index', key_level=2)
         #
         #         # create group for storing the data
-        #         data_group = file['obsp'][df_name][str(TimePoint(tp))].create_group('data', track_order=True)
+        #         data_group = h5_file['obsp'][df_name][str(TimePoint(tp))].create_group('data', track_order=True)
         #
         #         # set group type
-        #         file['obsp'][df_name][str(TimePoint(tp))].attrs['type'] = 'VDF'
+        #         h5_file['obsp'][df_name][str(TimePoint(tp))].attrs['type'] = 'VDF'
         #
         #         # save data, per column, in arrays
-        #         for col in range(file[f'obsp_data'][df_name].shape[1]):
+        #         for col in range(h5_file[f'obsp_data'][df_name].shape[1]):
         #             pass
         # TODO : here save the data (/!\ we need to handle sparse matrices)
 
         # remove old data
-        del file['obsp_data']
+        del h5_file['obsp_data']
 
     else:
-        file.create_group('obsp')
+        h5_file.create_group('obsp')
 
         # set group type
-        file['obsp'].attrs['type'] = 'None'
+        h5_file['obsp'].attrs['type'] = 'None'
 
     # -------------------------------------------------------------------------
     # 5.1 convert var
     generalLogger.info("Converting 'var'.")
 
-    file.move('var', 'var_data')
-    file.create_group('var')
+    h5_file.move('var', 'var_data')
+    h5_file.create_group('var')
 
     # save index
-    file['var_data'].copy('_index', '/var/index')
-    file['var']['index'].attrs['type'] = 'array'
+    h5_file['var_data'].copy('_index', '/var/index')
+    h5_file['var']['index'].attrs['type'] = 'array'
 
     # create group for storing the data
-    data_group = file['var'].create_group('data', track_order=True)
+    data_group = h5_file['var'].create_group('data', track_order=True)
 
     # set group type
-    file['var'].attrs['type'] = 'VDF'
+    h5_file['var'].attrs['type'] = 'VDF'
 
     # save data, per column, in arrays
-    for col in file['var_data'].keys():
+    for col in h5_file['var_data'].keys():
         if col in ('_index', '__categories'):
             continue
 
-        values = file['var_data'][col][()]
+        values = h5_file['var_data'][col][()]
 
         write_data(values, data_group, col, key_level=1)
 
     # remove old data
-    del file['var_data']
+    del h5_file['var_data']
 
     # -------------------------------------------------------------------------
     # 5.2 convert varm
-    convert_VDFs(file, 'varm')
+    convert_VDFs(h5_file, 'varm')
 
     # -------------------------------------------------------------------------
     # 5.3 convert varp
-    convert_VDFs(file, 'varp')
+    convert_VDFs(h5_file, 'varp')
 
     # -------------------------------------------------------------------------
     # 6. copy uns
     generalLogger.info("Converting 'uns'.")
 
-    set_type_to_dict(file['uns'])
+    set_type_to_dict(h5_file['uns'])
 
     # -------------------------------------------------------------------------
     # 7. create time_points
     generalLogger.info("Creating 'time_points'.")
 
-    file.create_group('time_points')
+    h5_file.create_group('time_points')
 
     # set group type
-    file['time_points'].attrs['type'] = 'VDF'
+    h5_file['time_points'].attrs['type'] = 'VDF'
 
     # create index
-    write_data(np.arange(len(time_points_masks)), file['time_points'], 'index', key_level=1)
+    write_data(np.arange(len(time_points_masks)), h5_file['time_points'], 'index', key_level=1)
 
     # create data
-    file['time_points'].create_group('data')
+    h5_file['time_points'].create_group('data')
 
     values = [str(TimePoint(tp)) for tp in time_points_masks.keys()]
 
-    write_data(values, file['time_points']['data'], 'value', key_level=1)
+    write_data(values, h5_file['time_points']['data'], 'value', key_level=1)
 
     # -------------------------------------------------------------------------
-    file.close()
+    h5_file.close()
 
 
-def convert_VDFs(file: h5py.Group, key: str) -> None:
+def convert_VDFs(file: File, key: str) -> None:
     generalLogger.info(f"Converting '{key}'.")
     if key in file.keys():
         file.move(key, f'{key}_data')
@@ -338,14 +338,14 @@ def convert_VDFs(file: h5py.Group, key: str) -> None:
         file[key].attrs['type'] = 'None'
 
 
-def set_type_to_dict(group: h5py.Group):
+def set_type_to_dict(group: Group):
     group.attrs['type'] = 'dict'
 
     for child in group.keys():
-        if isinstance(group[child], h5py.Group):
+        if isinstance(group[child], Group):
             set_type_to_dict(group[child])
 
-        elif isinstance(group[child], h5py.Dataset):
+        elif isinstance(group[child], Dataset):
             if group[child].shape == ():
                 group[child].attrs['type'] = 'value'
 

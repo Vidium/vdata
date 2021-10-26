@@ -6,7 +6,6 @@
 # imports
 import numpy as np
 import pandas as pd
-import h5pickle as h5py
 from pathlib import Path
 from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
 from typing_extensions import Literal
@@ -21,7 +20,8 @@ from ...utils import reformat_index, repr_index
 from vdata.name_utils import DType
 from vdata.utils import repr_array, isCollection
 from vdata.time_point import TimePoint
-from ...._IO import generalLogger, VValueError, VAttributeError, VTypeError, VLockError
+from vdata.h5pickle import File
+from vdata.IO import generalLogger, VValueError, VAttributeError, VTypeError, VLockError
 
 
 # ==========================================
@@ -558,7 +558,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         from ...._read_write import write_TemporalDataFrame
 
-        with h5py.File(file, 'w') as save_file:
+        with File(file, 'w') as save_file:
             write_TemporalDataFrame(self.copy(), save_file, self.name)
 
 

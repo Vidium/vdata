@@ -15,7 +15,7 @@ from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, It
 from ..arrays import VBaseArrayContainer
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
 from vdata.time_point import TimePoint
-from ...._IO import generalLogger, VTypeError, VValueError, ShapeError
+from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 
 
 # ====================================================

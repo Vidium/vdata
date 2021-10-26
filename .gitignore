@@ -1,6 +1,7 @@
 .mypy_cache
 .idea
 .pytest_cache
-.svg
-.h5
-.vd
+*.svg
+*.h5
+*.vd
+*.pkl

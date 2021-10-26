@@ -27,7 +27,6 @@ def test_VData_concatenate():
            "date": '25/01/2021'}
 
     v1 = vdata.VData(expr_data_complex, time_points=time_points, obs=obs, var=var, uns=uns, name=1)
-    print(v1, id(v1))
 
     expr_data_complex_modif = {key: TDF * -1 for key, TDF in expr_data_complex.items()}
     obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
@@ -38,12 +37,10 @@ def test_VData_concatenate():
            "date": '24/01/2021'}
 
     v2 = vdata.VData(expr_data_complex_modif, time_points=time_points, obs=obs, var=var, uns=uns, name=2)
-    print(v2, id(v2))
 
     v2.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
     v_merged = vdata.concatenate((v1, v2))
-    print(v_merged, id(v_merged))
 
     assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
                              "layers: 'spliced', 'unspliced'\n\t" \
@@ -68,21 +65,16 @@ def test_VData_concatenate_mean():
         out_test_VData_write()
 
     v3 = vdata.read(output_dir / 'vdata.vd', name=3)
-    print('v3', id(v3))
 
     v4 = v3.copy()
-    print('v4', id(v4))
 
     vm3 = v3.mean()
-    print('vm3', id(vm3))
 
     vm4 = v4.mean()
-    print('vm4', id(vm4))
 
     vm4.set_obs_index(vm3.obs.index + '_2')
 
     v_merged = vdata.concatenate((vm3, vm4))
-    print('v_merged', id(v_merged))
 
     assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] x 1000 " \
                              "over 10 time points.\n\t" \
@@ -93,7 +85,7 @@ def test_VData_concatenate_mean():
 
 
 if __name__ == '__main__':
-    # vdata.setLoggingLevel('DEBUG')
+    vdata.setLoggingLevel('DEBUG')
 
     test_VData_concatenate()
     test_VData_concatenate_mean()

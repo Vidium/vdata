@@ -9,7 +9,6 @@ import json
 import shutil
 import numpy as np
 import pandas as pd
-import h5pickle as h5py
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
@@ -17,11 +16,11 @@ from typing import Dict, List, Union, Optional
 from typing_extensions import Literal
 
 import vdata
-from .name_utils import H5Group
 from .utils import parse_path, H5GroupReader
 from ..vdataframe import VDataFrame
-from .._IO import generalLogger, VPathError, VValueError
+from ..IO import generalLogger, VPathError, VValueError
 from .._core import TemporalDataFrame
+from ..h5pickle import H5Group, File
 
 
 # ====================================================
@@ -57,7 +56,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
 
-        with h5py.File(str(file), 'w') as save_file:
+        with File(str(file), 'w') as save_file:
             # save layers
             write_data(obj.layers.data, save_file, 'layers')
             # save obs
@@ -74,7 +73,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             # save uns
             write_data(obj.uns, save_file, 'uns')
 
-        obj.file = H5GroupReader(h5py.File(str(file), 'r+'))
+        obj.file = H5GroupReader(File(str(file), 'r+'))
 
 
 def update_vdata(obj: 'vdata.VData') -> None:

@@ -6,7 +6,6 @@
 # imports
 import pandas as pd
 import numpy as np
-import h5pickle as h5py
 from pathlib import Path
 from collections import Counter
 from typing import Dict, Union, Optional, Collection, Tuple, Any, List
@@ -23,7 +22,8 @@ from ..utils import match_time_points, to_tp_list, to_list, reformat_index, repr
 from vdata.name_utils import DType
 from vdata.utils import repr_array, isCollection
 from vdata.time_point import TimePoint
-from ..._IO import generalLogger, VValueError, VTypeError, ShapeError, VLockError
+from ...IO import generalLogger, VValueError, VTypeError, ShapeError, VLockError
+from ...h5pickle import Group, File
 
 # TODO : remove match_time_points
 
@@ -427,8 +427,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     This class implements a modified sub-setting mechanism to subset on time points and on the regular conditional
     selection.
     """
-
-    def __init__(self, data: Optional[Union[Dict, pd.DataFrame, h5py.Group]] = None,
+    def __init__(self, data: Optional[Union[Dict, pd.DataFrame, Group, File]] = None,
                  time_list: Optional[Union[Collection, 'DType', Literal['*'], 'TimePoint']] = None,
                  time_col_name: Optional[str] = None,
                  time_points: Optional[Collection[Union['DType', 'TimePoint']]] = None,
@@ -436,7 +435,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                  columns: Optional[Collection] = None,
                  dtype: Optional['DType'] = None,
                  name: Optional[Any] = None,
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[File] = None):
         """
         :param data: data to store as a dataframe.
         :param time_list: time points for the dataframe's rows. The value indicates at which time point a given row
@@ -517,7 +516,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         # ---------------------------------------------------------------------
         # data from hdf5 file
-        elif isinstance(data, h5py.Group):
+        elif isinstance(data, (Group, File)):
 
             assert index is not None, "'index' parameter must be set when reading an h5 file."
             assert columns is not None, "'columns' parameter must be set when reading an h5 file."
@@ -615,33 +614,21 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2], self._is_locked[0])
 
-    def __getattribute__(self, attr: str) -> Any:
-        """
-        Get attribute from this TemporalDataFrame in obj.attr fashion.
-        This is called before __getattr__.
-        :param attr: an attribute's name to get.
-        :return: self.attr
-        """
-        if attr not in TemporalDataFrame_internal_attributes:
-            raise AttributeError
-
-        return object.__getattribute__(self, attr)
-
     def __getattr__(self, attr: str) -> Any:
         """
         Get columns in the DataFrame (this is done for maintaining the pandas DataFrame behavior).
         :param attr: an attribute's name
         :return: a column with name <attr> from the DataFrame
         """
-        if attr == '__setstate__':
-            return object.__getattribute__(self, '__setstate__')
+        try:
+            return object.__getattribute__(self, attr)
 
-        else:
-            if attr in self.columns:
-                return self.loc[:, attr]
+        except AttributeError:
+            try:
+                return object.__getattribute__(self, 'loc')[:, attr]
 
-            else:
-                return object.__getattribute__(self, attr)
+            except KeyError:
+                raise AttributeError(f"'TemporalDataFrame' object has no attribute '{attr}'")
 
     def __setattr__(self, attr: str, value: Any) -> None:
         """
@@ -723,11 +710,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             return self.eq(other)
 
-    def __setstate__(self, d: Dict) -> None:
-        """
-        Called on un-pickling.
-        """
-        self.__dict__ = d
+    def __getstate__(self) -> Dict:
+        return self.__dict__
+
+    def __setstate__(self, state) -> None:
+        self.__dict__ = state
 
     @property
     def is_backed(self) -> bool:
@@ -735,23 +722,23 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Is this TemporalDataFrame backed on an h5 file ?
         :return: Is this TemporalDataFrame backed on an h5 file ?
         """
-        return self._file is not None
+        return object.__getattribute__(self, '_file') is not None
 
     @property
-    def file(self) -> h5py.Group:
+    def file(self) -> Union[File, Group]:
         """
         Get the h5 file this TemporalDataFrame is backed on.
         :return: the h5 file this TemporalDataFrame is backed on.
         """
-        return self._file
+        return object.__getattribute__(self, '_file')
 
     @file.setter
-    def file(self, new_file: h5py.Group):
+    def file(self, new_file: Union[File, Group]):
         """
         Set the h5 file this TemporalDataFrame is backed on.
         :param new_file: an h5 file to back this TemporalDataFrame.
         """
-        if not isinstance(new_file, h5py.Group):
+        if not isinstance(new_file, (File, Group)):
             raise VTypeError(f"Cannot back TemporalDataFrame '{self.name}' with an object of type '{type(new_file)}'.")
 
         self._file = new_file
@@ -764,7 +751,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             1. True --> cannot use self.index.setter() and self.reindex()
             2. True --> cannot use self.__delattr__(), self.columns.setter() and self.insert()
         """
-        return self._is_locked
+        return object.__getattribute__(self, '_is_locked')
 
     def lock(self, values: Tuple[bool, bool]) -> None:
         """
@@ -785,7 +772,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param with_time_points: add a column with time points data ?
         :return: the data in a pandas format.
         """
-        if self.is_backed:
+        if object.__getattribute__(self, 'is_backed'):
             data = pd.concat([pd.DataFrame(self._df[time_point][()],
                                            index=self.index_at(time_point),
                                            columns=self.columns)
@@ -812,7 +799,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
         """
-        return self._time_points
+        return object.__getattribute__(self, '_time_points')
 
     @property
     def time_points_column_name(self) -> Optional[str]:
@@ -820,7 +807,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Get the name of the column with time points data. Returns None if no column is used.
         :return: the name of the column with time points data.
         """
-        return self._time_points_column_name
+        return object.__getattribute__(self, '_time_points_column_name')
 
     @time_points_column_name.setter
     def time_points_column_name(self, value: str) -> None:
@@ -1225,7 +1212,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return TemporalDataFrame(data=_data, time_list=_time_list, time_col_name=self.time_points_column_name,
                                  name=name)
 
-    def write(self, file: Optional[Union[str, Path, h5py.Group]] = None) -> None:
+    def write(self, file: Optional[Union[str, Path, Group, File]] = None) -> None:
         """
         Save this TemporalDataFrame in HDF5 file format.
 
@@ -1237,9 +1224,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             write_TemporalDataFrame(self, self._file.parent, self.name)
             self._file.file.flush()
 
-        elif isinstance(file, h5py.Group):
+        elif isinstance(file, (Group, File)):
             write_TemporalDataFrame(self, file, self.name)
 
         else:
-            with h5py.File(file, 'w') as save_file:
+            with File(file, 'w') as save_file:
                 write_TemporalDataFrame(self, save_file, self.name)

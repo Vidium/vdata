@@ -15,7 +15,7 @@ from . import dataframe
 from ..name_utils import PreSlicer, Slicer
 from vdata.utils import repr_array
 from vdata.time_point import TimePoint
-from ..._IO import VValueError
+from ...IO import VValueError
 
 if TYPE_CHECKING:
     from .views import ViewTemporalDataFrame

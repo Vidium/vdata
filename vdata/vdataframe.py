@@ -8,13 +8,13 @@ VDataFrame wrapper around pandas DataFrames.
 
 # ====================================================
 # imports
-from typing import Optional, Collection, Sequence
+from typing import Optional, Collection, Sequence, Union
 
 import pandas as pd
-import h5pickle as h5py
 from pandas._typing import Axes, Dtype
 
-from ._IO import VTypeError
+from .IO import VTypeError
+from .h5pickle import File, Group
 
 
 # ====================================================
@@ -33,7 +33,7 @@ class VDataFrame(pd.DataFrame):
                  columns: Optional[Axes] = None,
                  dtype: Optional[Dtype] = None,
                  copy: bool = False,
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[Union[File, Group]] = None):
         """
         :param file: an optional h5py group where this VDataFrame is read from.
         """
@@ -50,7 +50,7 @@ class VDataFrame(pd.DataFrame):
         return self._file is not None
 
     @property
-    def file(self) -> h5py.Group:
+    def file(self) -> Union[File, Group]:
         """
         Get the h5 file this VDataFrame is backed on.
         :return: the h5 file this VDataFrame is backed on.
@@ -58,12 +58,12 @@ class VDataFrame(pd.DataFrame):
         return self._file
 
     @file.setter
-    def file(self, new_file: h5py.Group) -> None:
+    def file(self, new_file: Union[File, Group]) -> None:
         """
         Set the h5 file to back this VDataFrame on.
         :param new_file: an h5 file to back this VDataFrame on.
         """
-        if not isinstance(new_file, h5py.Group):
+        if not isinstance(new_file, (File, Group)):
             raise VTypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
 
         self._file = new_file

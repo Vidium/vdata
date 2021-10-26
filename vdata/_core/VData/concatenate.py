@@ -8,7 +8,7 @@ from typing import Optional, Sequence
 
 from .vdata import VData
 from ...vdataframe import VDataFrame
-from ..._IO import VValueError, VTypeError, generalLogger
+from ...IO import VValueError, VTypeError, generalLogger
 
 
 # ====================================================

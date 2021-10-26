@@ -7,7 +7,6 @@
 import os
 import abc
 import pandas as pd
-import h5pickle as h5py
 from abc import ABC
 from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, \
@@ -20,7 +19,8 @@ from ..TDF import TemporalDataFrame
 from vdata.vdataframe import VDataFrame
 from vdata.name_utils import DType
 from vdata.time_point import TimePoint
-from ..._IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
+from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
+from vdata.h5pickle import File, Group
 
 
 # ====================================================
@@ -300,7 +300,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         pass
 
     @abc.abstractmethod
-    def set_file(self, file: h5py.Group) -> None:
+    def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the Arrays in this ArrayContainer.
         :param file: an h5 file to back the Arrays on.
@@ -423,12 +423,12 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             # save array
             arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
-    def set_file(self, file: h5py.Group) -> None:
+    def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the TemporalDataFrames in this VBase3DArrayContainer.
         :param file: an h5 file to back the TemporalDataFrames on.
         """
-        if not isinstance(file, h5py.Group):
+        if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
                              f"{type(file)}'.")
 
@@ -649,7 +649,7 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
     """
 
     def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, Dict['TimePoint', pd.DataFrame]]],
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VObspArrayContainer is linked to.
         :param data: a dictionary of array-like objects to store in this VObspArrayContainer.
@@ -885,12 +885,12 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
 
                 index_cumul += len(arr)
 
-    def set_file(self, file: h5py.Group) -> None:
+    def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the VDataFrames in this VObspArrayContainer.
         :param file: an h5 file to back the VDataFrames on.
         """
-        if not isinstance(file, h5py.Group):
+        if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
                              f"{type(file)}'.")
 
@@ -907,7 +907,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     """
 
     def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, pd.DataFrame]],
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this ArrayContainer.
@@ -959,12 +959,12 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
             # save array
             arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
 
-    def set_file(self, file: h5py.Group) -> None:
+    def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the VDataFrames in this VBase2DArrayContainer.
         :param file: an h5 file to back the VDataFrames on.
         """
-        if not isinstance(file, h5py.Group):
+        if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"
                              f"{type(file)}'.")
 
@@ -981,7 +981,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
     """
 
     def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_VDF]] = None,
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.
@@ -1074,7 +1074,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
     """
 
     def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_VDF]] = None,
-                 file: Optional[h5py.Group] = None):
+                 file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
         :param data: a dictionary of DataFrames in this VVarmArrayContainer.

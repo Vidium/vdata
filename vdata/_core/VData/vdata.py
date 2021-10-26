@@ -23,7 +23,7 @@ from ..TDF import TemporalDataFrame
 from vdata.name_utils import DType, StrDType, DTypes
 from vdata.utils import repr_array
 from vdata.time_point import TimePoint
-from ..._IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
+from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
 from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
 from ...vdataframe import VDataFrame
 
