@@ -16,10 +16,7 @@ REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
 def test_VData_pickle_dump():
-    return
-
     v1 = vdata.read(REF_DIR / "vdata.vd", name=1)
-    print(v1, id(v1))
 
     pickle.dump(v1, open(REF_DIR / 'pickled_vdata.pkl', 'wb'))
 
@@ -27,10 +24,7 @@ def test_VData_pickle_dump():
 
 
 def test_VData_pickle_load():
-    return
-
     v2 = pickle.load(open(REF_DIR / 'pickled_vdata.pkl', 'rb'))
-    print('v2', id(v2))
 
     assert repr(v2) == "Backed VData '1' with n_obs x n_var = " \
                        "[179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 over 10 time points.\n" \
@@ -44,7 +38,7 @@ def test_VData_pickle_load():
 
 
 if __name__ == '__main__':
-    vdata.setLoggingLevel('DEBUG')
+    vdata.setLoggingLevel('INFO')
 
     test_VData_pickle_dump()
     test_VData_pickle_load()

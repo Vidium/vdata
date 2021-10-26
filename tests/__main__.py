@@ -73,6 +73,5 @@ test_VData_concatenate_mean()
 
 # VData pickling
 print('\n >>> VData pickling <<< \n')
-# test_VData_pickle_dump()
-# print('pickle 2')
-# test_VData_pickle_load()
+test_VData_pickle_dump()
+test_VData_pickle_load()
