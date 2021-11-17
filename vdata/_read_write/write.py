@@ -68,7 +68,6 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             write_data(obj.varm.data, save_file, 'varm')
             write_data(obj.varp.data, save_file, 'varp')
             # save time points
-            obj.time_points.value = [str(e) for e in obj.time_points.value]
             write_data(obj.time_points, save_file, 'time_points')
             # save uns
             write_data(obj.uns, save_file, 'uns')
@@ -142,7 +141,6 @@ def update_vdata(obj: 'vdata.VData') -> None:
     # update time points ------------------------------------------------------
     del obj.file.group['time_points']
     obj.file.group.flush()
-    obj.time_points.value = [str(e) for e in obj.time_points.value]
     write_data(obj.time_points, obj.file.group, 'time_points')
 
     # update uns --------------------------------------------------------------
@@ -243,7 +241,7 @@ def write_Dict(data: Dict, group: H5Group, key: str, key_level: int = 0) -> None
 @write_data.register(VDataFrame)
 def write_VDataFrame(data: VDataFrame, group: H5Group, key: str, key_level: int = 0) -> None:
     """
-    Function for writing pd.DataFrames to the h5 file. Each DataFrame is stored in a group, containing the index and the
+    Function for writing VDataFrames to the h5 file. Each VDataFrame is stored in a group, containing the index and the
     columns as Series.
     Used for obs, var, time_points.
     """
