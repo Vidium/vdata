@@ -1437,10 +1437,11 @@ class VData:
                      name=f"{self.name}_copy")
 
     # conversion ---------------------------------------------------------
-    def to_AnnData(self, time_points_list: Optional[Union[str, 'TimePoint',
-                                                          Collection[Union[str, 'TimePoint']]]] = None,
-                   into_one: bool = True, with_time_points_column: bool = True) \
-            -> Union[AnnData, List[AnnData]]:
+    def to_AnnData(self,
+                   time_points_list: Optional[Union[str, 'TimePoint', Collection[Union[str, 'TimePoint']]]] = None,
+                   into_one: bool = True,
+                   with_time_points_column: bool = True,
+                   layer_as_X: Optional[str] = None) -> Union[AnnData, List[AnnData]]:
         """
         Convert a VData object to an AnnData object.
 
@@ -1450,6 +1451,8 @@ class VData:
             AnnData for each time point (False) ?
         :param with_time_points_column: store time points data in the obs DataFrame. This is only used when
             concatenating the data into a single AnnData (i.e. into_one=True).
+        :param layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.
+
         :return: an AnnData object with data for selected time points.
         """
         generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
@@ -1472,9 +1475,13 @@ class VData:
                                 '---------------------------------------------------------- ')
 
             view = self[_time_points_list]
-            X_layer = list(view.layers.keys())[0]
+            if layer_as_X is None:
+                layer_as_X = list(view.layers.keys())[0]
 
-            X = view.layers[X_layer].to_pandas()
+            elif layer_as_X not in view.layers.keys():
+                raise ValueError(f"Layer '{layer_as_X}' was not found.")
+
+            X = view.layers[layer_as_X].to_pandas()
             X.index = X.index.astype(str)
             X.columns = X.columns.astype(str)
 
@@ -1493,9 +1500,13 @@ class VData:
             result = []
             for time_point in _time_points_list:
                 view = self[time_point]
-                X_layer = list(view.layers.keys())[0]
+                if layer_as_X is None:
+                    layer_as_X = list(view.layers.keys())[0]
 
-                X = view.layers[X_layer].to_pandas()
+                elif layer_as_X not in view.layers.keys():
+                    raise ValueError(f"Layer '{layer_as_X}' was not found.")
+
+                X = view.layers[layer_as_X].to_pandas()
                 X.index = X.index.astype(str)
                 X.columns = X.columns.astype(str)
 
