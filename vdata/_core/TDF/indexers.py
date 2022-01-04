@@ -6,7 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Union
 
 from . import dataframe
 from . import views
@@ -26,7 +26,7 @@ class _VAtIndexer:
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -34,7 +34,7 @@ class _VAtIndexer:
         self.__parent = parent
         self.__data = data
 
-    def __getitem__(self, key: Tuple[Any, Any]) -> 'views.ViewTemporalDataFrame':
+    def __getitem__(self, key: tuple[Any, Any]) -> 'views.ViewTemporalDataFrame':
         """
         Get values using the _AtIndexer.
         :param key: a tuple of row index and column name.
@@ -42,7 +42,7 @@ class _VAtIndexer:
         """
         return self.__parent[:, key[0], key[1]]
 
-    def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
+    def __setitem__(self, key: tuple[Any, Any], value: Any) -> None:
         """
         Set values using the _AtIndexer.
         :param key: a tuple of row index and column name.
@@ -61,7 +61,7 @@ class _ViAtIndexer:
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -69,7 +69,7 @@ class _ViAtIndexer:
         self.__parent = parent
         self.__data = data
 
-    def __get_target_tp(self, index_key: int) -> Tuple['TimePoint', int]:
+    def __get_target_tp(self, index_key: int) -> tuple['TimePoint', int]:
         """
         Get the time point where the data needs to be accessed.
         :return: the time point and the index offset.
@@ -88,7 +88,7 @@ class _ViAtIndexer:
 
         return target_tp, cnt
 
-    def __getitem__(self, key: Tuple[int, int]) -> Any:
+    def __getitem__(self, key: tuple[int, int]) -> Any:
         """
         Get values using the _AtIndexer.
         :param key: a tuple of row # and column #
@@ -98,7 +98,7 @@ class _ViAtIndexer:
 
         return self.__data[target_tp][key[0] - offset, key[1]]
 
-    def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
+    def __setitem__(self, key: tuple[int, int], value: Any) -> None:
         """
         Set values using the _AtIndexer.
         :param key: a tuple of row # and column #.
@@ -124,7 +124,7 @@ class _VLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict['TimePoint', np.ndarray]):
+                 data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -133,7 +133,7 @@ class _VLocIndexer:
         self.__data = data
         self.__pandas_data = parent.to_pandas()
 
-    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> 'views.ViewTemporalDataFrame':
+    def __getitem__(self, key: Union[Any, tuple[Any, Any]]) -> 'views.ViewTemporalDataFrame':
         """
         Get rows and columns from the loc.
         :param key: loc index.
@@ -174,7 +174,7 @@ class _VLocIndexer:
         generalLogger.debug(u'\u23BF .loc access : end --------------------------------------------------------- ')
         return final_result
 
-    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
+    def __setitem__(self, key: Union[Any, tuple[Any, Any]], value: Any) -> None:
         """
         Set rows and columns from the loc.
         :param key: loc index.
@@ -198,7 +198,7 @@ class _ViLocIndexer:
     """
 
     def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
-                 data: Dict['TimePoint', np.ndarray]):
+                 data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
@@ -207,7 +207,7 @@ class _ViLocIndexer:
         self.__data = data
         self.__pandas_data = parent.to_pandas()
 
-    def __getitem__(self, key: Union[Any, Tuple[Any, Any]]) -> 'views.ViewTemporalDataFrame':
+    def __getitem__(self, key: Union[Any, tuple[Any, Any]]) -> 'views.ViewTemporalDataFrame':
         """
         Get rows and columns from the loc.
         :param key: loc index.
@@ -248,7 +248,7 @@ class _ViLocIndexer:
         generalLogger.debug(u'\u23BF .iloc access : end --------------------------------------------------------- ')
         return final_result
 
-    def __setitem__(self, key: Union[Any, Tuple[Any, Any]], value: Any) -> None:
+    def __setitem__(self, key: Union[Any, tuple[Any, Any]], value: Any) -> None:
         """
         Set rows and columns from the loc.
         :param key: loc index.

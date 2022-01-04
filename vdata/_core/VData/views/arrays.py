@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import abc
 from pathlib import Path
-from typing import Tuple, Dict, Union, KeysView, ValuesView, ItemsView, List, Iterator, Mapping, TypeVar, Collection,\
-    Any
+from typing import Union, KeysView, ValuesView, ItemsView, Iterator, Mapping, TypeVar, Collection, Any
 
 from ..arrays import VBaseArrayContainer
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
@@ -21,7 +20,7 @@ from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 # ====================================================
 # code
 
-D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, Dict['TimePoint', pd.DataFrame])
+D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, dict['TimePoint', pd.DataFrame])
 D_VTDF = TypeVar('D_VTDF', bound=ViewTemporalDataFrame)
 D_VDF = TypeVar('D_VDF', bound=pd.DataFrame)
 
@@ -100,10 +99,10 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
     @property
     @abc.abstractmethod
     def shape(self) -> Union[
-        Tuple[int, int, int],
-        Tuple[int, int, List[int]],
-        Tuple[int, int, List[int], int],
-        Tuple[int, int, List[int], List[int]]
+        tuple[int, int, int],
+        tuple[int, int, list[int]],
+        tuple[int, int, list[int], int],
+        tuple[int, int, list[int], list[int]]
     ]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
@@ -114,7 +113,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
 
     @property
     @abc.abstractmethod
-    def data(self) -> Dict[str, D_V]:
+    def data(self) -> dict[str, D_V]:
         """
         Data of this view.
         :return: the data of this view.
@@ -143,7 +142,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         return self.data.items()
 
     @abc.abstractmethod
-    def dict_copy(self) -> Dict[str, D_V]:
+    def dict_copy(self) -> dict[str, D_V]:
         """
         Dictionary of keys and data items in this view.
         :return: Dictionary of this view.
@@ -211,7 +210,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         return all([VTDF.empty for VTDF in self.values()])
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], int]:
+    def shape(self) -> tuple[int, int, list[int], int]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -226,7 +225,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
             return 0, 0, [], 0
 
     @property
-    def data(self) -> Dict[str, D_VTDF]:
+    def data(self) -> dict[str, D_VTDF]:
         """
         Data of this view.
         :return: the data of this view.
@@ -234,7 +233,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         return {key: TDF[self._time_points_slicer, self._obs_slicer, self._var_slicer]
                 for key, TDF in self._array_container.items()}
 
-    def dict_copy(self) -> Dict[str, 'TemporalDataFrame']:
+    def dict_copy(self) -> dict[str, 'TemporalDataFrame']:
         """
         Dictionary of keys and data items in this view.
         :return: Dictionary of this view.
@@ -331,14 +330,14 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['Tim
         return False
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], List[int]]:
+    def shape(self) -> tuple[int, int, list[int], list[int]]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
         :return: the shape of this view.
         """
         if len(self):
-            _first_set: Dict['TimePoint', pd.DataFrame] = list(self.values())[0]
+            _first_set: dict['TimePoint', pd.DataFrame] = list(self.values())[0]
             len_index = [len(DF.loc[self._obs_slicer, self._obs_slicer].index) for DF in _first_set.values()]
             return len(self), len(self._time_points_slicer), len_index, len_index
 
@@ -346,7 +345,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['Tim
             return 0, 0, [], []
 
     @property
-    def data(self) -> Dict[str, Mapping['TimePoint', D_VDF]]:
+    def data(self) -> dict[str, Mapping['TimePoint', D_VDF]]:
         """
         Data of this view.
         :return: the data of this view.
@@ -355,14 +354,14 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['Tim
                       for tp, DF in _set if tp in self._time_points_slicer}
                 for key, _set in self.items()}
 
-    def dict_copy(self) -> Dict[str, Mapping['TimePoint', pd.DataFrame]]:
+    def dict_copy(self) -> dict[str, Mapping['TimePoint', pd.DataFrame]]:
         """
         Dictionary of keys and data items in this view.
         :return: Dictionary of this view.
         """
         return {key: {TimePoint(tp): DF.copy() for tp, DF in _set.items()} for key, _set in self.items()}
 
-    def compact(self) -> Dict[str, pd.DataFrame]:
+    def compact(self) -> dict[str, pd.DataFrame]:
         """
         Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
 
@@ -461,7 +460,7 @@ class ViewVBase2DArrayContainer(ViewVBaseArrayContainer, abc.ABC, Mapping[str, D
         """
         return all([DF.empty for DF in self.values()])
 
-    def dict_copy(self) -> Dict[str, D_VDF]:
+    def dict_copy(self) -> dict[str, D_VDF]:
         """
         Dictionary of keys and data items in this view.
         :return: Dictionary of this view.
@@ -509,7 +508,7 @@ class ViewVVarmArrayContainer(ViewVBase2DArrayContainer):
         self[key] = value
 
     @property
-    def shape(self) -> Tuple[int, int, List[int]]:
+    def shape(self) -> tuple[int, int, list[int]]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -523,7 +522,7 @@ class ViewVVarmArrayContainer(ViewVBase2DArrayContainer):
             return 0, 0, []
 
     @property
-    def data(self) -> Dict[str, D_VDF]:
+    def data(self) -> dict[str, D_VDF]:
         """
         Data of this view.
         :return: the data of this view.
@@ -556,7 +555,7 @@ class ViewVVarpArrayContainer(ViewVBase2DArrayContainer):
         self[key] = value
 
     @property
-    def shape(self) -> Tuple[int, int, int]:
+    def shape(self) -> tuple[int, int, int]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -570,7 +569,7 @@ class ViewVVarpArrayContainer(ViewVBase2DArrayContainer):
             return 0, 0, 0
 
     @property
-    def data(self) -> Dict[str, D_VDF]:
+    def data(self) -> dict[str, D_VDF]:
         """
         Data of this view.
         :return: the data of this view.

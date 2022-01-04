@@ -8,8 +8,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from collections import Counter
-from typing import Dict, Union, Optional, Collection, Tuple, Any, List
-from typing_extensions import Literal
+from typing import Union, Optional, Collection, Any, Literal
 
 from .name_utils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
 from .utils import unique_in_list, trim_time_points
@@ -31,14 +30,14 @@ from ...h5pickle import Group, File
 # ====================================================
 # code
 def parse_index_and_time_points(_index: Optional[Collection],
-                                _data: Optional[Union[Dict, pd.DataFrame]],
+                                _data: Optional[Union[dict, pd.DataFrame]],
                                 _time_list: 'TimePointList',
                                 _time_col_name: Optional[str],
-                                _time_points: Optional[List],
+                                _time_points: Optional[list],
                                 _columns: Collection[str]) \
-        -> Tuple[
-            Dict['TimePoint', np.ndarray], List['TimePoint'], Optional[str],
-            Dict['TimePoint', pd.Index], pd.Index
+        -> tuple[
+            dict['TimePoint', np.ndarray], list['TimePoint'], Optional[str],
+            dict['TimePoint', pd.Index], pd.Index
         ]:
     """
     Given the index, data, time list, time points and columns parameters from a TemporalDataFrame, infer correct
@@ -427,7 +426,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     This class implements a modified sub-setting mechanism to subset on time points and on the regular conditional
     selection.
     """
-    def __init__(self, data: Optional[Union[Dict, pd.DataFrame, Group, File]] = None,
+    def __init__(self, data: Optional[Union[dict, pd.DataFrame, Group, File]] = None,
                  time_list: Optional[Union[Collection, 'DType', Literal['*'], 'TimePoint']] = None,
                  time_col_name: Optional[str] = None,
                  time_points: Optional[Collection[Union['DType', 'TimePoint']]] = None,
@@ -571,9 +570,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return repr_str
 
     def __getitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
+                                       tuple['PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
             -> 'ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
@@ -710,7 +709,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             return self.eq(other)
 
-    def __getstate__(self) -> Dict:
+    def __getstate__(self) -> dict:
         return self.__dict__
 
     def __setstate__(self, state) -> None:
@@ -744,7 +743,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         self._file = new_file
 
     @property
-    def is_locked(self) -> Tuple[bool, bool]:
+    def is_locked(self) -> tuple[bool, bool]:
         """
         Get this TemporalDataFrame's lock.
         This controls what can be modified with 2 boolean values :
@@ -753,7 +752,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return object.__getattribute__(self, '_is_locked')
 
-    def lock(self, values: Tuple[bool, bool]) -> None:
+    def lock(self, values: tuple[bool, bool]) -> None:
         """
         Set this TemporalDataFrame's lock.
         This controls what can be modified with 2 boolean values :
@@ -794,7 +793,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return data
 
     @property
-    def time_points(self) -> List['TimePoint']:
+    def time_points(self) -> list['TimePoint']:
         """
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
@@ -1110,7 +1109,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'],
-                            axis: Literal[0, 1]) -> Tuple[Dict, np.ndarray, pd.Index]:
+                            axis: Literal[0, 1]) \
+            -> tuple[
+                dict[Literal['mean', 'min', 'max'], np.ndarray],
+                np.ndarray,
+                pd.Index
+            ]:
         """
         Compute mean, min or max of the values over the requested axis.
         """

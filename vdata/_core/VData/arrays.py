@@ -9,9 +9,8 @@ import abc
 import pandas as pd
 from abc import ABC
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, \
-    List, Collection, Generic
-from typing_extensions import Literal
+from typing import Optional, Union, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, Collection, \
+    Generic, Literal
 
 import vdata
 from .name_utils import DataFrame
@@ -25,7 +24,6 @@ from vdata.h5pickle import File, Group
 
 # ====================================================
 # code
-
 # Containers ------------------------------------------------------------------
 class TimePointDict(MutableMapping['TimePoint', VDataFrame]):
     """
@@ -33,7 +31,7 @@ class TimePointDict(MutableMapping['TimePoint', VDataFrame]):
     TimePoints instead of actual TimePoints.
     """
 
-    def __init__(self, _dict: Dict['TimePoint', VDataFrame]):
+    def __init__(self, _dict: dict['TimePoint', VDataFrame]):
         """
         :param _dict: a dictionary of TimePoints:pd.DataFrame
         """
@@ -135,7 +133,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     attribute for storing 2D/3D arrays.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D]]):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
@@ -147,7 +145,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         self._data = self._check_init_data(data)
 
     @abc.abstractmethod
-    def _check_init_data(self, data: Optional[Dict[K_, D]]) -> Dict[K_, D]:
+    def _check_init_data(self, data: Optional[dict[K_, D]]) -> dict[K_, D]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format.
         :param data: optional dictionary of data items.
@@ -236,10 +234,10 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     @property
     @abc.abstractmethod
     def shape(self) -> Union[
-        Tuple[int, int, int],
-        Tuple[int, int, List[int]],
-        Tuple[int, int, List[int], int],
-        Tuple[int, int, List[int], List[int]]
+        tuple[int, int, int],
+        tuple[int, int, list[int]],
+        tuple[int, int, list[int], int],
+        tuple[int, int, list[int], list[int]]
     ]:
         """
         The shape of this ArrayContainer is computed from the shape of the Arrays it contains.
@@ -249,7 +247,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         pass
 
     @property
-    def data(self) -> Dict[K_, D]:
+    def data(self) -> dict[K_, D]:
         """
         Data of this ArrayContainer.
         :return: the data of this ArrayContainer.
@@ -278,7 +276,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         return self._data.items()
 
     @abc.abstractmethod
-    def dict_copy(self) -> Dict[K_, D]:
+    def dict_copy(self) -> dict[K_, D]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
@@ -315,7 +313,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_TDF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this ArrayContainer.
@@ -382,7 +380,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             arr.astype(type_)
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], int]:
+    def shape(self) -> tuple[int, int, list[int], int]:
         """
         The shape of this ArrayContainer is computed from the shape of the TemporalDataFrames it contains.
         See __len__ for getting the number of TemporalDataFrames it contains.
@@ -396,7 +394,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         else:
             return 0, 0, [], 0
 
-    def dict_copy(self) -> Dict[K_, D_TDF]:
+    def dict_copy(self) -> dict[K_, D_TDF]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
@@ -444,14 +442,14 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         VData.layers[<array_name>]
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_TDF]]):
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
         """
         :param parent: the parent VData object this VLayerArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this VLayerArrayContainer.
         """
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[Dict[K_, D_TDF]]) -> Dict[K_, D_TDF]:
+    def _check_init_data(self, data: Optional[dict[K_, D_TDF]]) -> dict[K_, D_TDF]:
         """
         Function for checking, at VLayerArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
@@ -549,14 +547,14 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         VData.obsm[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_TDF]] = None):
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]] = None):
         """
         :param parent: the parent VData object this VObsmArrayContainer is linked to.
         :param data: a dictionary of TemporalDataFrames in this VObsmArrayContainer.
         """
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[Dict[K_, D_TDF]]) -> Dict[K_, D_TDF]:
+    def _check_init_data(self, data: Optional[dict[K_, D_TDF]]) -> dict[K_, D_TDF]:
         """
         Function for checking, at VObsmArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
@@ -648,7 +646,7 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         VData.obsp[<array_name>][<time point>]
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, Dict['TimePoint', pd.DataFrame]]],
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, dict['TimePoint', pd.DataFrame]]],
                  file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VObspArrayContainer is linked to.
@@ -658,8 +656,8 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
 
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[Dict[K_, Dict[TimePoint, pd.DataFrame]]]) \
-            -> Dict[K_, TPD_]:
+    def _check_init_data(self, data: Optional[dict[K_, dict[TimePoint, pd.DataFrame]]]) \
+            -> dict[K_, TPD_]:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
             - the shape of the DataFrames in 'data' match the parent VData object's index length.
@@ -734,7 +732,7 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         """
         return super().__getitem__(item)
 
-    def __setitem__(self, key: K_, value: Dict[TimePoint, Union[VDataFrame, pd.DataFrame]]) -> None:
+    def __setitem__(self, key: K_, value: dict[TimePoint, Union[VDataFrame, pd.DataFrame]]) -> None:
         """
         Set a specific set of DataFrames in _data. The given set of DataFrames must have the correct shape.
         :param key: key for storing a set of DataFrames in this VObspArrayContainer.
@@ -769,7 +767,7 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         self._data[key] = TimePointDict(formatted_values)
 
     @property
-    def data(self) -> Dict[K_, Dict[TimePoint, VDataFrame]]:
+    def data(self) -> dict[K_, dict[TimePoint, VDataFrame]]:
         """
         Data of this VObspArrayContainer.
         :return: the data of this VObspArrayContainer.
@@ -805,14 +803,14 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         return 'obsp'
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], List[int]]:
+    def shape(self) -> tuple[int, int, list[int], list[int]]:
         """
         The shape of the VObspArrayContainer is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
         :return: shape of this VObspArrayContainer.
         """
         if len(self):
-            _first_dict: Dict['TimePoint', pd.DataFrame] = list(self.values())[0]
+            _first_dict: dict['TimePoint', pd.DataFrame] = list(self.values())[0]
             nb_time_points = len(_first_dict)
             len_index = [len(df.index) for df in _first_dict.values()]
             return len(self), nb_time_points, len_index, len_index
@@ -820,14 +818,14 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         else:
             return 0, 0, [], []
 
-    def dict_copy(self) -> Dict[K_, Dict[TimePoint, VDataFrame]]:
+    def dict_copy(self) -> dict[K_, dict[TimePoint, VDataFrame]]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
         """
         return {k: {TimePoint(tp): v.copy() for tp, v in d.items()} for k, d in self.items()}
 
-    def compact(self) -> Dict[K_, VDataFrame]:
+    def compact(self) -> dict[K_, VDataFrame]:
         """
         Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
 
@@ -906,7 +904,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     It is based on VBaseArrayContainer and defines some functions shared by varm and varp.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, pd.DataFrame]],
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, pd.DataFrame]],
                  file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this ArrayContainer is linked to.
@@ -932,7 +930,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
         for arr_name, arr in self.items():
             self[arr_name] = arr.astype(type_)
 
-    def dict_copy(self) -> Dict[K_, VDataFrame]:
+    def dict_copy(self) -> dict[K_, VDataFrame]:
         """
         Dictionary of keys and data items in this ArrayContainer.
         :return: Dictionary of this ArrayContainer.
@@ -980,7 +978,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         VData.varm[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_VDF]] = None,
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
                  file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
@@ -988,7 +986,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         """
         super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[Dict[K_, pd.DataFrame]]) -> Dict[K_, D_VDF]:
+    def _check_init_data(self, data: Optional[dict[K_, pd.DataFrame]]) -> dict[K_, D_VDF]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -1051,7 +1049,7 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         return 'varm'
 
     @property
-    def shape(self) -> Tuple[int, int, List[int]]:
+    def shape(self) -> tuple[int, int, list[int]]:
         """
         The shape of this VVarmArrayContainer is computed from the shape of the DataFrames it contains.
         See __len__ for getting the number of TemporalDataFrames it contains.
@@ -1073,7 +1071,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         VData.varp[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[Dict[K_, D_VDF]] = None,
+    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
                  file: Optional[Union[File, Group]] = None):
         """
         :param parent: the parent VData object this VVarmArrayContainer is linked to.
@@ -1081,7 +1079,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         """
         super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[Dict[K_, pd.DataFrame]]) -> Dict[K_, D_VDF]:
+    def _check_init_data(self, data: Optional[dict[K_, pd.DataFrame]]) -> dict[K_, D_VDF]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -1153,7 +1151,7 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         return 'varp'
 
     @property
-    def shape(self) -> Tuple[int, int, int]:
+    def shape(self) -> tuple[int, int, int]:
         """
         The shape of this VVarpArrayContainer is computed from the shape of the DataFrames it contains.
         See __len__ for getting the number of TemporalDataFrames it contains.

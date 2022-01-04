@@ -8,8 +8,7 @@ Global types for typing in the vdata module.
 
 # ====================================================
 # imports
-from typing import Union
-from typing_extensions import Literal
+from typing import Union, Literal
 
 import numpy as np
 

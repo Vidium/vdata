@@ -12,8 +12,7 @@ import pandas as pd
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
-from typing import Dict, List, Union, Optional
-from typing_extensions import Literal
+from typing import Union, Optional, Literal
 
 import vdata
 from .utils import parse_path, H5GroupReader
@@ -221,7 +220,7 @@ def write_data(data, group: H5Group, key: str, key_level: int = 0,
 
 
 @write_data.register(dict)
-def write_Dict(data: Dict, group: H5Group, key: str, key_level: int = 0) -> None:
+def write_Dict(data: dict, group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing dictionaries to the h5 file.
     It creates a group for storing the keys and recursively calls write_data to store them.
@@ -380,7 +379,7 @@ def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0,
 
 
 @write_data.register(list)
-def write_list(data: List, group: H5Group, key: str, key_level: int = 0) -> None:
+def write_list(data: list, group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing lists to the h5 file.
     """

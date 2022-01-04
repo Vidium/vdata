@@ -8,8 +8,7 @@ TimePoint class for storing a time point's value and unit.
 
 # ====================================================
 # imports
-from typing import Optional, Union, cast, Tuple, TYPE_CHECKING
-from typing_extensions import Literal
+from typing import Optional, Union, cast, TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -120,7 +119,7 @@ class TimePoint:
             self.value, self.unit = self.__parse(time_point)
 
     @staticmethod
-    def __parse(time_point: Union[str, 'DType']) -> Tuple[float, Unit]:
+    def __parse(time_point: Union[str, 'DType']) -> tuple[float, Unit]:
         """
         Get time point's value and unit.
 

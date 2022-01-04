@@ -5,7 +5,7 @@
 # ====================================================
 # imports
 import numpy as np
-from typing import Any, List, Optional, Collection, Union, Sequence, cast, Set, Tuple
+from typing import Any, Optional, Collection, Union, Sequence, cast
 
 from .name_utils import TimePointList, PreSlicer
 from vdata.utils import isCollection, repr_array
@@ -16,7 +16,7 @@ from ..IO import VTypeError, ShapeError, VValueError
 # ====================================================
 # code
 # Formatting & Conversion ------------------------------------------------
-def to_list(value: Any) -> List[Any]:
+def to_list(value: Any) -> list[Any]:
     """
     Convert any object to a list.
     :param value: an object to convert to a list.
@@ -29,7 +29,7 @@ def to_list(value: Any) -> List[Any]:
         return [value]
 
 
-def list_to_tp_list_strict(item: Sequence[Any]) -> List[TimePoint]:
+def list_to_tp_list_strict(item: Sequence[Any]) -> list[TimePoint]:
     """
     Convert a list of elements into a list of TimePoints.
 
@@ -72,7 +72,7 @@ def to_tp_list(item: Any, reference_time_points: Optional[Sequence[TimePoint]] =
     return new_tp_list
 
 
-def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> List[Any]:
+def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> list[Any]:
     """
     Converts a slice or a range to a list of elements within that slice.
     :param s: a slice or range to convert.
@@ -166,13 +166,13 @@ def slicer_to_array(slicer: 'PreSlicer', reference_index: Collection, on_time_po
 
 
 def reformat_index(index: Union['PreSlicer',
-                                Tuple['PreSlicer'],
-                                Tuple['PreSlicer', 'PreSlicer'],
-                                Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']],
+                                tuple['PreSlicer'],
+                                tuple['PreSlicer', 'PreSlicer'],
+                                tuple['PreSlicer', 'PreSlicer', 'PreSlicer']],
                    time_points_reference: Collection[TimePoint],
                    obs_reference: Collection,
                    var_reference: Collection) \
-        -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Format a sub-setting index into 3 arrays of selected (and allowed) values for time points, observations and
     variables. The reference collections are used to transform a PreSlicer into an array of selected values.
@@ -204,14 +204,14 @@ def reformat_index(index: Union['PreSlicer',
 
 
 # Identification ---------------------------------------------------------
-def unique_in_list(c: Collection) -> Set:
+def unique_in_list(c: Collection) -> set:
     """
     Get the set of unique elements in a (nested) collection of elements.
 
     :param c: the (nested) collection of elements.
     :return: the set of unique elements in the (nested) collection of elements.
     """
-    unique_values: Set = set()
+    unique_values: set = set()
 
     for value in c:
         if isCollection(value):
@@ -283,10 +283,10 @@ def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> n
 
 
 # Representation ---------------------------------------------------------
-def repr_index(index: Union['PreSlicer', Tuple['PreSlicer'],
-                            Tuple['PreSlicer', 'PreSlicer'],
-                            Tuple['PreSlicer', 'PreSlicer', 'PreSlicer'],
-                            Tuple[np.ndarray, np.ndarray, np.ndarray]]) \
+def repr_index(index: Union['PreSlicer', tuple['PreSlicer'],
+                            tuple['PreSlicer', 'PreSlicer'],
+                            tuple['PreSlicer', 'PreSlicer', 'PreSlicer'],
+                            tuple[np.ndarray, np.ndarray, np.ndarray]]) \
         -> str:
     """
     Get a short string representation of a sub-setting index.

@@ -9,8 +9,8 @@ import pandas as pd
 from pathlib import Path
 from anndata import AnnData
 from scipy.sparse import spmatrix
-from typing import Optional, Union, Dict, Tuple, Any, List, TypeVar, Collection, Iterator, Sequence, cast
-from typing_extensions import Literal
+
+from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal
 
 from .name_utils import DataFrame
 from .utils import array_isin, expand_obsp
@@ -40,15 +40,15 @@ class VData:
     """
 
     def __init__(self,
-                 data: Optional[Union[AnnData, 'DataFrame', Dict[Any, 'DataFrame']]] = None,
+                 data: Optional[Union[AnnData, 'DataFrame', dict[Any, 'DataFrame']]] = None,
                  obs: Optional['DataFrame'] = None,
-                 obsm: Optional[Dict[Any, 'DataFrame']] = None,
-                 obsp: Optional[Dict[Any, Array2D]] = None,
+                 obsm: Optional[dict[Any, 'DataFrame']] = None,
+                 obsp: Optional[dict[Any, Array2D]] = None,
                  var: Optional[Union[pd.DataFrame, VDataFrame]] = None,
-                 varm: Optional[Dict[Any, Union[pd.DataFrame, VDataFrame]]] = None,
-                 varp: Optional[Dict[Any, Array2D]] = None,
+                 varm: Optional[dict[Any, Union[pd.DataFrame, VDataFrame]]] = None,
+                 varp: Optional[dict[Any, Array2D]] = None,
                  time_points: Optional[Union[pd.DataFrame, VDataFrame]] = None,
-                 uns: Optional[Dict] = None,
+                 uns: Optional[dict] = None,
                  time_col_name: Optional[str] = None,
                  time_list: Optional[Sequence[Union[str, TimePoint]]] = None,
                  dtype: Optional[Union['DType', 'StrDType']] = None,
@@ -91,7 +91,7 @@ class VData:
             self._dtype = None
         generalLogger.debug(f'Set data-type to {self._dtype}')
 
-        self._uns: Dict[str, Any] = {}
+        self._uns: dict[str, Any] = {}
 
         # check formats of arguments
         _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(
@@ -200,8 +200,8 @@ class VData:
             self._file.close()
 
     def __getitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer', 'PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
+                                       tuple['PreSlicer', 'PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
             -> ViewVData:
         """
         Get a view of this VData object with the usual sub-setting mechanics.
@@ -314,7 +314,7 @@ class VData:
         return self.layers.shape[1]
 
     @property
-    def n_obs(self) -> List[int]:
+    def n_obs(self) -> list[int]:
         """
         Number of observations in this VData object per time point. n_obs can be extracted directly from self.obs
         or from parameters supplied during this VData object's creation :
@@ -346,7 +346,7 @@ class VData:
         return self.layers.shape[3]
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], int]:
+    def shape(self) -> tuple[int, int, list[int], int]:
         """
         Shape of this VData object (# layers, # time points, # observations, # variables).
         :return: VData's shape.
@@ -383,7 +383,7 @@ class VData:
             self._time_points = df
 
     @property
-    def time_points_values(self) -> List['TimePoint']:
+    def time_points_values(self) -> list['TimePoint']:
         """
         Get the list of time points values (with the unit if possible).
 
@@ -401,7 +401,7 @@ class VData:
         return map(str, self.time_points.value.values)
 
     @property
-    def time_points_numerical(self) -> List[float]:
+    def time_points_numerical(self) -> list[float]:
         """
         Get the list of bare values from the time points.
 
@@ -519,7 +519,7 @@ class VData:
         self.varp.set_index(values)
 
     @property
-    def uns(self) -> Dict:
+    def uns(self) -> dict:
         """
         Get the uns dictionary in this VData.
         :return: the uns dictionary in this VData.
@@ -527,7 +527,7 @@ class VData:
         return self._uns
 
     @uns.setter
-    def uns(self, data: Dict) -> None:
+    def uns(self, data: dict) -> None:
         if not isinstance(data, dict):
             raise VTypeError("'uns' must be a dictionary.")
 
@@ -640,22 +640,22 @@ class VData:
 
     # init functions -----------------------------------------------------
 
-    def _check_formats(self, data: Optional[Union[AnnData, 'DataFrame', Dict[Any, 'DataFrame']]],
+    def _check_formats(self, data: Optional[Union[AnnData, 'DataFrame', dict[Any, 'DataFrame']]],
                        obs: Optional['DataFrame'],
-                       obsm: Optional[Dict[Any, 'DataFrame']],
-                       obsp: Optional[Dict[Any, Array2D]],
+                       obsm: Optional[dict[Any, 'DataFrame']],
+                       obsp: Optional[dict[Any, Array2D]],
                        var: Optional[Union[pd.DataFrame, VDataFrame]],
-                       varm: Optional[Dict[Any, Union[pd.DataFrame, VDataFrame]]],
-                       varp: Optional[Dict[Any, Array2D]],
+                       varm: Optional[dict[Any, Union[pd.DataFrame, VDataFrame]]],
+                       varp: Optional[dict[Any, Array2D]],
                        time_points: Optional[Union[pd.DataFrame, VDataFrame]],
-                       uns: Optional[Dict],
+                       uns: Optional[dict],
                        time_col_name: Optional[str] = None,
-                       time_list: Optional[Sequence[Union[str, TimePoint]]] = None) -> Tuple[
+                       time_list: Optional[Sequence[Union[str, TimePoint]]] = None) -> tuple[
         Optional[TemporalDataFrame], Optional[VDataFrame],
-        Optional[Dict[str, TemporalDataFrame]],
+        Optional[dict[str, TemporalDataFrame]],
         Optional[VDataFrame],
-        Optional[Dict[str, TemporalDataFrame]], Optional[Dict[str, VDataFrame]],
-        Optional[Dict[str, VDataFrame]], Optional[Dict[str, VDataFrame]],
+        Optional[dict[str, TemporalDataFrame]], Optional[dict[str, VDataFrame]],
+        Optional[dict[str, VDataFrame]], Optional[dict[str, VDataFrame]],
         Optional[pd.Index], Optional[pd.Index]
     ]:
         """
@@ -682,9 +682,9 @@ class VData:
         :return: Arrays in correct format (layers, obsm, obsp, varm, varp, obs index, var index).
         """
         def check_time_match(_time_points: Optional[Union[pd.DataFrame, VDataFrame]],
-                             _time_list: Optional[List[TimePoint]],
+                             _time_list: Optional[list[TimePoint]],
                              _time_col_name: Optional[str],
-                             _obs: TemporalDataFrame) -> Tuple[Optional[VDataFrame], int]:
+                             _obs: TemporalDataFrame) -> tuple[Optional[VDataFrame], int]:
             """
             Build time_points DataFrame if it was not given by the user but 'time_list' or 'time_col_name' were given.
             Otherwise, if both time_points and 'time_list' or 'time_col_name' were given, check that they match.
@@ -730,10 +730,10 @@ class VData:
         _time_points_VDF: Optional[VDataFrame] = None
         obs_index: Optional[pd.Index] = None
         var_index: Optional[pd.Index] = None
-        layers: Optional[Dict[str, TemporalDataFrame]] = None
+        layers: Optional[dict[str, TemporalDataFrame]] = None
 
         if time_list is not None:
-            verified_time_list: Optional[List[TimePoint]] = list_to_tp_list_strict(time_list)
+            verified_time_list: Optional[list[TimePoint]] = list_to_tp_list_strict(time_list)
 
         elif isinstance(obs, (pd.DataFrame, TemporalDataFrame)) and time_col_name is not None:
             if time_col_name in obs.columns:
@@ -1340,7 +1340,7 @@ class VData:
 
     # functions ----------------------------------------------------------
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
-            -> Tuple[Dict[str, TemporalDataFrame], Sequence[TimePoint], pd.Index]:
+            -> tuple[dict[str, TemporalDataFrame], Sequence[TimePoint], pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
@@ -1441,7 +1441,7 @@ class VData:
                    time_points_list: Optional[Union[str, 'TimePoint', Collection[Union[str, 'TimePoint']]]] = None,
                    into_one: bool = True,
                    with_time_points_column: bool = True,
-                   layer_as_X: Optional[str] = None) -> Union[AnnData, List[AnnData]]:
+                   layer_as_X: Optional[str] = None) -> Union[AnnData, list[AnnData]]:
         """
         Convert a VData object to an AnnData object.
 

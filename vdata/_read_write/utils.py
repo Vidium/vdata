@@ -7,8 +7,7 @@
 import os
 import numpy as np
 from pathlib import Path
-from typing import Union, Tuple, AbstractSet, ValuesView, Any, Optional
-from typing_extensions import Literal
+from typing import Union, AbstractSet, ValuesView, Any, Optional, Literal
 
 from vdata.h5pickle import H5Group
 
@@ -26,7 +25,7 @@ class H5GroupReader:
         """
         self.group = group
 
-    def __getitem__(self, key: Union[str, slice, 'ellipsis', Tuple[()]]) \
+    def __getitem__(self, key: Union[str, slice, 'ellipsis', tuple[()]]) \
             -> Union['H5GroupReader', np.ndarray, str, int, float, bool, type]:
         """
         Get a sub-group from the group, identified by a key

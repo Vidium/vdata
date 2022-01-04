@@ -7,8 +7,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Collection, Optional, Union, Tuple, Any, Dict, List, NoReturn
-from typing_extensions import Literal
+from typing import Collection, Optional, Union, Any, NoReturn, Literal
 
 from ..name_utils import ViewTemporalDataFrame_internal_attributes
 from .. import dataframe
@@ -31,7 +30,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', parent_data: Dict['TimePoint', np.ndarray],
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', parent_data: dict['TimePoint', np.ndarray],
                  tp_slicer: Collection['TimePoint'], index_slicer: Collection, column_slicer: Collection,
                  lock: bool):
         """
@@ -91,9 +90,9 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return repr_str
 
     def __getitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
+                                       tuple['PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
             -> 'ViewTemporalDataFrame':
         """
         Get a sub-view from this view using an index with the usual sub-setting mechanics.
@@ -288,7 +287,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             self._parent.write()
 
     @property
-    def is_locked(self) -> Tuple[bool, bool]:
+    def is_locked(self) -> tuple[bool, bool]:
         """
         Get this view of a TemporalDataFrame's lock.
         This controls what can be modified with 2 boolean values :
@@ -324,7 +323,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return data
 
     @property
-    def time_points(self) -> List['TimePoint']:
+    def time_points(self) -> list['TimePoint']:
         """
         Get the list of time points in this view of a TemporalDataFrame.
         :return: the list of time points in this view of a TemporalDataFrame.
@@ -438,7 +437,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._parent_data[self.columns].dtype
 
-    def astype(self, dtype: Union['DType', Dict[str, 'DType']]) -> NoReturn:
+    def astype(self, dtype: Union['DType', dict[str, 'DType']]) -> NoReturn:
         """
         Reference to TemporalDataFrame's astype method. This cannot be done in a view.
         """
@@ -489,7 +488,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return copy.copy_TemporalDataFrame(self)
 
-    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> Tuple[Dict, np.ndarray, pd.Index]:
+    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> tuple[dict, np.ndarray, pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
@@ -572,14 +571,14 @@ class _ViewVAtIndexer(_VAtIndexer):
         - a single label
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
         super().__init__(parent, data)
 
-    def __setitem__(self, key: Tuple[Any, Any], value: Any) -> None:
+    def __setitem__(self, key: tuple[Any, Any], value: Any) -> None:
         """
         Set values using the _AtIndexer.
         :param key: a tuple of row index and column name.
@@ -601,14 +600,14 @@ class _ViewViAtIndexer(_ViAtIndexer):
         - a single integer
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: Dict['TimePoint', np.ndarray]):
+    def __init__(self, parent: 'dataframe.TemporalDataFrame', data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.
         :param data: the parent TemporalDataFrame's data to work on.
         """
         super().__init__(parent, data)
 
-    def __setitem__(self, key: Tuple[int, int], value: Any) -> None:
+    def __setitem__(self, key: tuple[int, int], value: Any) -> None:
         """
         Set values using the _AtIndexer.
         :param key: a tuple of row # and column #.

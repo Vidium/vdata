@@ -50,7 +50,7 @@ class VDataFrame(pd.DataFrame):
         return self._file is not None
 
     @property
-    def file(self) -> Union[File, Group]:
+    def file(self) -> Optional[Union[File, Group]]:
         """
         Get the h5 file this VDataFrame is backed on.
         :return: the h5 file this VDataFrame is backed on.

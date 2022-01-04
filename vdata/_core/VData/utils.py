@@ -5,7 +5,7 @@
 # imports
 import pandas as pd
 import numpy as np
-from typing import Union, Collection, Dict, Optional
+from typing import Union, Collection, Optional
 
 from vdata.time_point import TimePoint
 
@@ -28,9 +28,9 @@ def array_isin(array: np.ndarray, list_arrays: Union[np.ndarray, Collection[np.n
 
 
 # Formatting & Conversion ------------------------------------------------
-def expand_obsp(data: Optional[Dict[str, pd.DataFrame]],
-                time_points: Dict['TimePoint', pd.Index]) \
-        -> Dict[str, Dict['TimePoint', pd.DataFrame]]:
+def expand_obsp(data: Optional[dict[str, pd.DataFrame]],
+                time_points: dict['TimePoint', pd.Index]) \
+        -> dict[str, dict['TimePoint', pd.DataFrame]]:
     """
     Transform square pandas DataFrames describing an obsp into multiple smaller square pandas DataFrames by cutting
     by TimePoint.

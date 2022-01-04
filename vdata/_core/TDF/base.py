@@ -8,8 +8,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import Iterable, Generator, Union, Tuple, Any, List, Collection, Optional, Dict, TYPE_CHECKING
-from typing_extensions import Literal
+from typing import Iterable, Generator, Union, Any, Collection, Optional, TYPE_CHECKING, Literal
 
 from . import dataframe
 from ..name_utils import PreSlicer, Slicer
@@ -37,9 +36,9 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __getitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
+                                       tuple['PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
             -> 'ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
@@ -64,8 +63,8 @@ class BaseTemporalDataFrame(ABC):
         pass
 
     def __setitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer'],
-                                       Tuple['PreSlicer', Collection[bool]]],
+                                       tuple['PreSlicer'],
+                                       tuple['PreSlicer', Collection[bool]]],
                     values: Any) -> None:
         """
         Set values in the TemporalDataFrame.
@@ -114,7 +113,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def time_points(self) -> List['TimePoint']:
+    def time_points(self) -> list['TimePoint']:
         """
         Get the list of time points in this TemporalDataFrame.
         :return: the list of time points in this TemporalDataFrame.
@@ -189,7 +188,7 @@ class BaseTemporalDataFrame(ABC):
         """
         pass
 
-    def to_dict(self, with_time_points: bool = False) -> Dict:
+    def to_dict(self, with_time_points: bool = False) -> dict[str, np.ndarray]:
         """
         Get the data in a dictionary.
         :param with_time_points: add a column with time points data ?
@@ -242,7 +241,7 @@ class BaseTemporalDataFrame(ABC):
         return self.to_pandas().values
 
     @property
-    def axes(self) -> List[pd.Index]:
+    def axes(self) -> list[pd.Index]:
         """
         Return a list of the row axis labels.
         :return: a list of the row axis labels.
@@ -266,7 +265,7 @@ class BaseTemporalDataFrame(ABC):
         return len(self.columns) * self.n_index_total
 
     @property
-    def shape(self) -> Tuple[int, List[int], int]:
+    def shape(self) -> tuple[int, list[int], int]:
         """
         Return a tuple representing the dimensionality of this TemporalDataFrame
             (nb_time_points, [n_index_at(time point) for all time points], nb_col).
@@ -390,7 +389,7 @@ class BaseTemporalDataFrame(ABC):
         """
         return self.columns
 
-    def items(self) -> Generator[Tuple[str, pd.Series], None, None]:
+    def items(self) -> Generator[tuple[str, pd.Series], None, None]:
         """
         Iterate over (column name, Series) pairs.
         :return: a tuple with the column name and the content as a Series.
@@ -400,7 +399,8 @@ class BaseTemporalDataFrame(ABC):
         for column in self.columns:
             yield column, _data[column]
 
-    def isin(self, values: Union[Iterable, pd.Series, pd.DataFrame, Dict]) -> 'dataframe.TemporalDataFrame':
+    def isin(self,
+             values: Union[Iterable, pd.Series, pd.DataFrame, dict[str, np.ndarray]]) -> 'dataframe.TemporalDataFrame':
         """
         Whether each element in the TemporalDataFrame is contained in values.
         :return: whether each element in the DataFrame is contained in values.

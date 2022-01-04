@@ -6,8 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
-from typing import Union, Tuple, List, Dict, Iterator
-from typing_extensions import Literal
+from typing import Union, Iterator, Literal
 
 import vdata
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
@@ -111,8 +110,8 @@ class ViewVData:
         return repr_str
 
     def __getitem__(self, index: Union['PreSlicer',
-                                       Tuple['PreSlicer', 'PreSlicer'],
-                                       Tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
+                                       tuple['PreSlicer', 'PreSlicer'],
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
             -> 'ViewVData':
         """
         Get a subset of a view of a VData object.
@@ -148,7 +147,7 @@ class ViewVData:
         return self.layers.shape[1]
 
     @property
-    def n_obs(self) -> List[int]:
+    def n_obs(self) -> list[int]:
         """
         Number of observations in this view of a VData object.
         :return: number of observations in this view
@@ -172,7 +171,7 @@ class ViewVData:
         return self.layers.shape[3]
 
     @property
-    def shape(self) -> Tuple[int, int, List[int], int]:
+    def shape(self) -> tuple[int, int, list[int], int]:
         """
         Shape of this view of a VData object.
         :return: view's shape
@@ -189,7 +188,7 @@ class ViewVData:
         return self._time_points
 
     @property
-    def time_points_values(self) -> List['TimePoint']:
+    def time_points_values(self) -> list['TimePoint']:
         """
         Get the list of time points values (with the unit if possible).
 
@@ -207,7 +206,7 @@ class ViewVData:
         return map(str, self.time_points.value.values)
 
     @property
-    def time_points_numerical(self) -> List[float]:
+    def time_points_numerical(self) -> list[float]:
         """
         Get the list of bare values from the time points.
 
@@ -278,7 +277,7 @@ class ViewVData:
             self._parent.var[self._var_slicer] = df
 
     @property
-    def uns(self) -> Dict:
+    def uns(self) -> dict:
         """
         Get a view on the uns dictionary in this ViewVData.
         :return: a view on the uns dictionary in this ViewVData.
@@ -353,7 +352,7 @@ class ViewVData:
 
     # functions ----------------------------------------------------------
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
-            -> Tuple[Dict[str, TemporalDataFrame], List[TimePoint], pd.Index]:
+            -> tuple[dict[str, TemporalDataFrame], list[TimePoint], pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """

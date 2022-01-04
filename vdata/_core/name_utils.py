@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-from typing import Union, Sequence, List
+from typing import Union, Sequence
 
 from ..time_point import TimePoint
 
@@ -13,4 +13,4 @@ from ..time_point import TimePoint
 Slicer = Union[Sequence[Union[int, float, str, bool, TimePoint]], range, slice]
 PreSlicer = Union[int, float, str, TimePoint, Slicer, 'ellipsis']
 
-TimePointList = List[Union[TimePoint, List[TimePoint]]]
+TimePointList = list[Union[TimePoint, list[TimePoint]]]

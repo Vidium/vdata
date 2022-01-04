@@ -10,8 +10,7 @@ import shutil
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Union, Optional, Dict, List, Any, Callable, Collection, cast
-from typing_extensions import Literal
+from typing import Union, Optional, Any, Callable, Collection, cast, Literal
 
 from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
 
@@ -173,7 +172,7 @@ def read_from_csv_TemporalDataFrame(file: Path, sep: str = ',',
 
 
 # GPU output --------------------------------------------------------------------------------------
-def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, pd.DataFrame]]],
+def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, pd.DataFrame]]],
                    obs: Optional[Union[pd.DataFrame, 'TemporalDataFrame']] = None,
                    var: Optional[pd.DataFrame] = None,
                    time_points: Optional[pd.DataFrame] = None,
@@ -206,7 +205,7 @@ def read_from_dict(data: Dict[str, Dict[Union['DType', str], Union[np.ndarray, p
     :return: a VData object containing the simulation's data
     """
     _data = {}
-    _time_points: List[TimePoint] = []
+    _time_points: list[TimePoint] = []
     check_tp = False
 
     _index = obs.index if isinstance(obs, (pd.DataFrame, TemporalDataFrame)) else None
@@ -372,7 +371,7 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
     return tdf
 
 
-def read_h5_dict(group: H5GroupReader, level: int = 1) -> Dict:
+def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
     """
     Function for reading a dictionary from an h5 file.
 
@@ -476,7 +475,7 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
                              index=index, columns=columns, name=group.name.split("/")[-1])
 
 
-def read_h5_series(group: H5GroupReader, index: Optional[List] = None, level: int = 1,
+def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: int = 1,
                    log_func: Literal['debug', 'info'] = 'info') -> pd.Series:
     """
     Function for reading a pandas Series from an h5 file.
@@ -579,7 +578,7 @@ def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
     return None
 
 
-func_: Dict[str, Callable] = {
+func_: dict[str, Callable] = {
     'dict': read_h5_dict,
     'VDF': read_h5_VDataFrame,
     'TDF': read_h5_TemporalDataFrame,
