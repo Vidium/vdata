@@ -638,6 +638,36 @@ class VData:
         """
         self.var = df
 
+    @property
+    def time_points_names(self) -> pd.Index:
+        """
+        Alias for the time points index names.
+
+        Returns:
+            The time points index names.
+        """
+        return self.time_points.index
+
+    @property
+    def obs_names(self) -> pd.Index:
+        """
+        Alias for the obs index names.
+
+        Returns:
+            The obs index names.
+        """
+        return self.obs.index
+
+    @property
+    def var_names(self) -> pd.Index:
+        """
+        Alias for the var index names.
+
+        Returns:
+            The var index names.
+        """
+        return self.var.index
+
     # init functions -----------------------------------------------------
 
     def _check_formats(self, data: Optional[Union[AnnData, 'DataFrame', dict[Any, 'DataFrame']]],
