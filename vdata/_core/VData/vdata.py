@@ -681,12 +681,16 @@ class VData:
                        uns: Optional[dict],
                        time_col_name: Optional[str] = None,
                        time_list: Optional[Sequence[Union[str, TimePoint]]] = None) -> tuple[
-        Optional[TemporalDataFrame], Optional[VDataFrame],
+        Optional[TemporalDataFrame],
+        Optional[VDataFrame],
         Optional[dict[str, TemporalDataFrame]],
         Optional[VDataFrame],
-        Optional[dict[str, TemporalDataFrame]], Optional[dict[str, VDataFrame]],
-        Optional[dict[str, VDataFrame]], Optional[dict[str, VDataFrame]],
-        Optional[pd.Index], Optional[pd.Index]
+        Optional[dict[str, TemporalDataFrame]],
+        Optional[dict[str, VDataFrame]],
+        Optional[dict[str, VDataFrame]],
+        Optional[dict[str, VDataFrame]],
+        Optional[pd.Index],
+        Optional[pd.Index]
     ]:
         """
         Function for checking the types and formats of the parameters supplied to the VData object at creation.
@@ -754,6 +758,15 @@ class VData:
                 return (VDataFrame(_time_points,
                                    file=self._file.group['time_points'] if self._file is not None else None),
                         len(_time_points))
+
+        def no_dense_data(_data: Union[np.ndarray, spmatrix]) -> np.ndarray:
+            """
+            Convert sparse matrices to dense.
+            """
+            if isinstance(_data, spmatrix):
+                return _data.todense()
+
+            return _data
 
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
@@ -862,9 +875,24 @@ class VData:
                                       ) for key, arr in data.layers.items()))
 
             # import other arrays
-            obsm, obsp = dict(data.obsm), dict(data.obsp)
+            obsm = {TDF_name: TemporalDataFrame(pd.DataFrame(no_dense_data(TDF_data)),
+                                                time_list=obs.time_points_column,
+                                                index=obs.index,
+                                                name=TDF_name, dtype=self.dtype)
+                    for TDF_name, TDF_data in data.obsm.items()}
+            obsp = {VDF_name: VDataFrame(no_dense_data(VDF_data),
+                                         index=obs.index, columns=obs.index,
+                                         file=self._file.group['obsp'][VDF_name] if self._file is not None else None)
+                    for VDF_name, VDF_data in data.obsp.items()}
             var = VDataFrame(data.var, file=self._file.group['var'] if self._file is not None else None)
-            varm, varp = dict(data.varm), dict(data.varp)
+            varm = {VDF_name: VDataFrame(no_dense_data(VDF_data),
+                                         index=var.index,
+                                         file=self._file.group['varm'][VDF_name] if self._file is not None else None)
+                    for VDF_name, VDF_data in data.varm.items()}
+            varp = {VDF_name: VDataFrame(no_dense_data(VDF_data),
+                                         index=var.index, columns=var.index,
+                                         file=self._file.group['varp'][VDF_name] if self._file is not None else None)
+                    for VDF_name, VDF_data in data.varp.items()}
             uns = dict(data.uns)
 
         # =========================================================================================
