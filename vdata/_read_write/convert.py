@@ -96,6 +96,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
 
         # save data, per time point, in DataSets
         for time_point in time_points_masks.keys():
+            # TODO : support for reading a sparse matrix
             data_group.create_dataset(
                 str(TimePoint(time_point)),
                 data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
