@@ -4,13 +4,15 @@
 
 # ====================================================
 # imports
+import anndata.compat
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from anndata import AnnData
 from scipy.sparse import spmatrix
+from collections import abc
 
-from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal
+from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal, MutableMapping
 
 from .name_utils import DataFrame
 from .utils import array_isin, expand_obsp
@@ -768,6 +770,22 @@ class VData:
 
             return _data
 
+        def deep_dict_convert(obj: MutableMapping) -> Any:
+            """
+            'Deep' convert a mapping of any kind (and children mappings) into regular dictionaries.
+
+            Args:
+                obj: a mapping to convert.
+
+            Returns:
+                a converted dictionary.
+            """
+            if not isinstance(obj, abc.MutableMapping):
+                return obj
+
+            return {k: deep_dict_convert(v) for k, v in obj.items()}
+
+
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 
         _time_points_VDF: Optional[VDataFrame] = None
@@ -893,7 +911,7 @@ class VData:
                                          index=var.index, columns=var.index,
                                          file=self._file.group['varp'][VDF_name] if self._file is not None else None)
                     for VDF_name, VDF_data in data.varp.items()}
-            uns = dict(data.uns)
+            uns = deep_dict_convert(data.uns)
 
         # =========================================================================================
         else:
