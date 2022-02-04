@@ -252,11 +252,23 @@ def write_VDataFrame(data: VDataFrame, group: H5Group, key: str, key_level: int 
     # save index
     write_data(data.index, df_group, 'index', key_level=key_level + 1)
 
-    # create group for storing the data
-    data_group = df_group.create_group('data', track_order=True)
+    # save columns
+    write_data(data.columns, df_group, 'columns', key_level=key_level + 1)
 
-    for col_name, series in data.items():
-        write_data(series, data_group, str(col_name), key_level=key_level + 1)
+    # save data
+    data_numeric = data.select_dtypes(include=[np.number, bool])
+    if not data_numeric.empty:
+        generalLogger.info(f"{spacer(key_level + 1)}Saving numeric data")
+        df_data_numeric_group = df_group.create_group('data_numeric')
+        write_data(data_numeric.columns, df_data_numeric_group, 'columns', key_level=key_level + 2)
+        write_data(data_numeric.values.astype(np.float64), df_data_numeric_group, 'data', key_level=key_level + 2)
+
+    data_str = data.select_dtypes(exclude=[np.number, bool])
+    if not data_str.empty:
+        generalLogger.info(f"{spacer(key_level + 1)}Saving non numeric data")
+        df_data_str_group = df_group.create_group('data_str')
+        write_data(data_str.columns, df_data_str_group, 'columns', key_level=key_level + 2)
+        write_data(data_str.values.astype(str), df_data_str_group, 'data', key_level=key_level + 2)
 
 
 @write_data.register

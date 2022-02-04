@@ -403,20 +403,40 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     dataset_type = cast(H5GroupReader, group['index']).attrs("type")
     index = func_[dataset_type](group['index'], level=level + 1)
 
-    # get columns in right order
-    data = {}
-    for col in group['data'].keys():
-        dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
-        data[get_value(col)] = func_[dataset_type](group['data'][col], level=level + 1)
+    # get columns
+    dataset_type = cast(H5GroupReader, group['columns']).attrs("type")
+    columns = func_[dataset_type](group['columns'], level=level + 1)
 
-    if data == {}:
-        return VDataFrame(index=index, file=group.group)
+    # get data
+    data = None
 
-    else:
-        vdf = VDataFrame(data, file=group.group)
-        vdf.index = index
+    if 'data_numeric' in group.keys():
+        generalLogger.info(f"{spacer(level + 1)}Reading numeric data.")
+        dataset_type = cast(H5GroupReader, group['data_numeric']['columns']).attrs("type")
+        data_numeric_columns = func_[dataset_type](group['data_numeric']['columns'], level=level + 2)
 
-        return vdf
+        dataset_type = cast(H5GroupReader, group['data_numeric']['data']).attrs("type")
+        data_numeric_data = func_[dataset_type](group['data_numeric']['data'], level=level + 2)
+
+        data = pd.DataFrame(data_numeric_data, columns=data_numeric_columns, index=index)
+
+    if 'data_str' in group.keys():
+        generalLogger.info(f"{spacer(level + 1)}Reading non numeric data.")
+        dataset_type = cast(H5GroupReader, group['data_str']['columns']).attrs("type")
+        data_str_columns = func_[dataset_type](group['data_str']['columns'], level=level + 2)
+
+        dataset_type = cast(H5GroupReader, group['data_str']['data']).attrs("type")
+        data_str_data = func_[dataset_type](group['data_str']['data'], level=level + 2)
+
+        if data is not None:
+            for col_i, col in enumerate(data_str_columns):
+                col_index = int(np.where(columns == col)[0][0])
+                data.insert(col_index, col, data_str_data[:, col_i])
+
+        else:
+            data = pd.DataFrame(data_str_data, columns=data_str_columns, index=index)
+
+    return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
 def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
