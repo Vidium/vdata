@@ -620,7 +620,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :return: a column with name <attr> from the DataFrame
         """
         try:
-            return object.__getattribute__(self, attr)
+            return object.__getattribute__(self, str(attr))
 
         except AttributeError:
             try:
