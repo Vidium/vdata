@@ -329,9 +329,6 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
             value: a TemporalDataFrame to store.
         """
-        if not isinstance(value, TemporalDataFrame):
-            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
-
         if not self._parent.time_points.value.equals(pd.Series(value.time_points)):
             raise VValueError("Time points do not match.")
 
@@ -522,14 +519,17 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
         :param value: a TemporalDataFrame to store.
         """
-        value.lock((True, True))
-        super().__setitem__(key, value)
+        if not isinstance(value, TemporalDataFrame):
+            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
         if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
         if not self._parent.var.index.equals(value.columns):
             raise VValueError("Column names do not match.")
+
+        value.lock((True, True))
+        super().__setitem__(key, value)
 
     @property
     def name(self) -> Literal['layers']:
@@ -626,11 +626,14 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
         :param value: a TemporalDataFrame to store.
         """
+        if not isinstance(value, TemporalDataFrame):
+            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
+
+        if not self.shape[1:3] == value.shape[:2]:
+            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
+
         value.lock((True, False))
         super().__setitem__(key, value)
-
-        if not self.shape[1:] == value.shape:
-            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
     @property
     def name(self) -> Literal['obsm']:
