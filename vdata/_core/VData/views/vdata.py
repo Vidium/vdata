@@ -72,7 +72,7 @@ class ViewVData:
         self._var = self._parent.var.loc[self._var_slicer]
 
         self._obsm = ViewVTDFArrayContainer(self._parent.obsm, self._time_points_slicer,
-                                            self._obs_slicer, self._var_slicer)
+                                            self._obs_slicer, slice(None))
         self._obsp = ViewVObspArrayContainer(self._parent.obsp, self._time_points_slicer, self._obs_slicer)
         self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
         self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
