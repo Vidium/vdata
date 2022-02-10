@@ -4,7 +4,6 @@
 
 # ====================================================
 # imports
-import anndata.compat
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -784,7 +783,6 @@ class VData:
                 return obj
 
             return {k: deep_dict_convert(v) for k, v in obj.items()}
-
 
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 

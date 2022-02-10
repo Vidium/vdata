@@ -324,24 +324,19 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
     def __setitem__(self, key: K_, value: D_TDF) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
-        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
-        :param value: a TemporalDataFrame to store.
+
+        Args:
+            key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+            value: a TemporalDataFrame to store.
         """
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
-        if not self.shape[1:] == value.shape:
-            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
-
-        _first_TDF = list(self.values())[0]
-        if not _first_TDF.time_points == value.time_points:
+        if not self._parent.time_points.value.equals(pd.Series(value.time_points)):
             raise VValueError("Time points do not match.")
 
-        if not _first_TDF.index.equals(value.index):
+        if not self._parent.obs.index.equals(value.index):
             raise VValueError("Index does not match.")
-
-        if not _first_TDF.columns.equals(value.columns):
-            raise VValueError("Column names do not match.")
 
         if key in self.keys():
             if value.is_backed and self._parent.is_backed_w:
@@ -530,6 +525,12 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         value.lock((True, True))
         super().__setitem__(key, value)
 
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
+
+        if not self._parent.var.index.equals(value.columns):
+            raise VValueError("Column names do not match.")
+
     @property
     def name(self) -> Literal['layers']:
         """
@@ -627,6 +628,9 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         """
         value.lock((True, False))
         super().__setitem__(key, value)
+
+        if not self.shape[1:] == value.shape:
+            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
     @property
     def name(self) -> Literal['obsm']:
