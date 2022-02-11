@@ -24,105 +24,40 @@ from vdata.h5pickle import File, Group
 
 # ====================================================
 # code
-# Containers ------------------------------------------------------------------
-class TimePointDict(MutableMapping['TimePoint', VDataFrame]):
-    """
-    Simple Wrapper around a dictionary of TimePoints:pd.DataFrame for easier access using string representations of
-    TimePoints instead of actual TimePoints.
-    """
-
-    def __init__(self, _dict: dict['TimePoint', VDataFrame]):
-        """
-        :param _dict: a dictionary of TimePoints:pd.DataFrame
-        """
-        self.__dict = _dict
-
-    def __repr__(self) -> str:
-        """
-        String representation for this TimePointDict.
-        :return: a string representation for this TimePointDict.
-        """
-        if not len(self):
-            return "Empty TimePointDict."
-
-        else:
-            repr_str = ""
-
-            for TP in self.keys():
-                repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
-                repr_str += f"{repr(self[TP])}\n\n"
-
-        return repr_str
-
-    def __getitem__(self, key: Union[str, 'TimePoint']) -> VDataFrame:
-        """
-        Get a specific DataFrame in this TimePointDict.
-        :param key: the key linked to the desired DataFrame.
-        :return: a specific DataFrame.
-        """
-        if isinstance(key, str):
-            key = TimePoint(key)
-
-        return self.__dict[key]
-
-    def __setitem__(self, key: Union[str, 'TimePoint'], value: VDataFrame) -> None:
-        """
-        Set a DataFrame in this TimePointDict.
-        :param key: the key linked to the DataFrame to set.
-        :param value: a DataFrame to set.
-        """
-        if isinstance(key, str):
-            key = TimePoint(key)
-
-        self.__dict[key] = value
-
-    def __delitem__(self, key: Union[str, 'TimePoint']) -> None:
-        """
-        Delete a DataFrame in this TimePointDict.
-        """
-        del self.__dict[key]
-
-    def __len__(self) -> int:
-        """
-        Get the number of DataFrames stored in this TimePointDict.
-        :return: the number of DataFrames stored in this TimePointDict.
-        """
-        return len(self.__dict)
-
-    def __iter__(self) -> Iterator['TimePoint']:
-        """
-        Iterate over this TimePointDict's keys.
-        :return: an iterator over this TimePointDict's keys.
-        """
-        return iter(self.__dict.keys())
-
-    def keys(self) -> KeysView['TimePoint']:
-        """
-        Get the keys in this TimePointDict.
-        :return: the keys in this TimePointDict.
-        """
-        return self.__dict.keys()
-
-    def values(self) -> ValuesView[VDataFrame]:
-        """
-        Get the values in this TimePointDict.
-        :return: the values in this TimePointDict.
-        """
-        return self.__dict.values()
-
-    def items(self) -> ItemsView['TimePoint', VDataFrame]:
-        """
-        Get the pairs of key,value in this TimePointDict.
-        :return: the pairs of key,value in this TimePointDict.
-        """
-        return self.__dict.items()
-
-
-D = TypeVar('D', DataFrame, TimePointDict)
 D_VDF = TypeVar('D_VDF', bound=VDataFrame)
 D_TDF = TypeVar('D_TDF', bound=TemporalDataFrame)
-K_ = TypeVar('K_', bound=str)
-TPD_ = TypeVar('TPD_', bound=TimePointDict)
+
+TD_K = tuple[Union[slice, TimePoint], str]
+K_ = TypeVar('K_', str, TD_K)
+
+
+# Containers ------------------------------------------------------------------
+class TimedDict(dict, Generic[K_, D_VDF]):
+    def __init__(self,
+                 parent: 'vdata.VData',
+                 **kwargs):
+        dict.__init__(kwargs)
+
+        self._parent = parent
+
+    def __getitem__(self,
+                    key: tuple[Union[slice, TimePoint], K_]) -> D_VDF:
+        vdf = dict.__getitem__(self, key[1])
+
+        if isinstance(key[0], slice):
+            return vdf
+
+        index = self._parent.obs.index_at(key[0])
+        return vdf[index, index]
+
+    def __setitem__(self,
+                    key: K_,
+                    value: D_VDF) -> None:
+        dict.__setitem__(self, key, value)
+
+
+D = TypeVar('D', DataFrame, TimedDict)
+TD_ = TypeVar('TD_', bound=TimedDict)
 
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -236,13 +171,14 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def shape(self) -> Union[
         tuple[int, int, int],
         tuple[int, int, list[int]],
-        tuple[int, int, list[int], int],
-        tuple[int, int, list[int], list[int]]
+        tuple[int, int, list[int], int]
     ]:
         """
         The shape of this ArrayContainer is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
-        :return: the shape of this ArrayContainer.
+
+        Returns:
+            The shape of this ArrayContainer.
         """
         pass
 
@@ -250,28 +186,36 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def data(self) -> dict[K_, D]:
         """
         Data of this ArrayContainer.
-        :return: the data of this ArrayContainer.
+
+        Returns:
+            The data of this ArrayContainer.
         """
         return self._data
 
     def keys(self) -> KeysView[K_]:
         """
         KeysView of keys for getting the data items in this ArrayContainer.
-        :return: KeysView of this ArrayContainer.
+
+        Returns:
+            KeysView of this ArrayContainer.
         """
         return self._data.keys()
 
     def values(self) -> ValuesView[D]:
         """
         ValuesView of data items in this ArrayContainer.
-        :return: ValuesView of this ArrayContainer.
+
+        Returns:
+            ValuesView of this ArrayContainer.
         """
         return self._data.values()
 
     def items(self) -> ItemsView[K_, D]:
         """
         ItemsView of pairs of keys and data items in this ArrayContainer.
-        :return: ItemsView of this ArrayContainer.
+
+        Returns:
+            ItemsView of this ArrayContainer.
         """
         return self._data.items()
 
@@ -279,7 +223,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def dict_copy(self) -> dict[K_, D]:
         """
         Dictionary of keys and data items in this ArrayContainer.
-        :return: Dictionary of this ArrayContainer.
+
+        Returns:
+            Dictionary of this ArrayContainer.
         """
         pass
 
@@ -288,12 +234,14 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
         Save this ArrayContainer in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
         pass
 
@@ -301,7 +249,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the Arrays in this ArrayContainer.
-        :param file: an h5 file to back the Arrays on.
+
+        Args:
+            file: an h5 file to back the Arrays on.
         """
         pass
 
@@ -641,7 +591,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict], Generic[K_, TPD_]):
+class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
     """
     Class for obsp.
     This object contains sets of <nb time points> 2D square DataFrames of shapes (<n_obs>, <n_obs>) for each time point.
@@ -649,18 +599,21 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         VData.obsp[<array_name>][<time point>]
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, dict['TimePoint', pd.DataFrame]]],
+    def __init__(self,
+                 parent: 'vdata.VData',
+                 data: Optional[dict[K_, pd.DataFrame]],
                  file: Optional[Union[File, Group]] = None):
         """
-        :param parent: the parent VData object this VObspArrayContainer is linked to.
-        :param data: a dictionary of array-like objects to store in this VObspArrayContainer.
+        Args:
+            parent: the parent VData object this VObspArrayContainer is linked to.
+            data: a dictionary of array-like objects to store in this VObspArrayContainer.
         """
         self._file = file
 
         super().__init__(parent, data)
 
-    def _check_init_data(self, data: Optional[dict[K_, dict[TimePoint, pd.DataFrame]]]) \
-            -> dict[K_, TPD_]:
+    def _check_init_data(self,
+                         data: Optional[dict[K_, pd.DataFrame]]) -> TimedDict[str, VDataFrame]:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
             - the shape of the DataFrames in 'data' match the parent VData object's index length.
@@ -668,134 +621,124 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
             TemporalDataFrame.
             - the time points of the dictionaries of DataFrames in 'data' match the index of the parent VData's
             time_points DataFrame.
-        :param data: dictionary of dictionaries (TimePoint: DataFrame (n_obs x n_obs))
-        :return: the data (dictionary of dictionaries of DataFrames), if correct.
+
+        Args:
+            data: dictionary of dictionaries (TimePoint: DataFrame (n_obs x n_obs))
+
+        Returns:
+            The data (dictionary of dictionaries of DataFrames), if correct.
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
-            return dict()
+            return TimedDict(parent=self._parent)
 
         else:
             generalLogger.debug("  Data was found.")
-            _data = dict()
-            _shape = self._parent.obs.shape[1]
-            _time_points: pd.Series = self._parent.time_points['value']
+            _data = TimedDict(parent=self._parent)
 
-            generalLogger.debug(f"  Reference shape is {_shape}.")
+            for key, df in data.items():
+                generalLogger.debug(f"  Checking DataFrame at key '{key}' with shape {df.shape}.")
 
-            for DF_dict_index, DF_dict in data.items():
-                data_time_points = list(DF_dict.keys())
+                _index = self._parent.obs.index
+                file = self._file[key] if self._file is not None else None
 
-                _data[DF_dict_index] = TimePointDict({})
+                # check that square
+                if df.shape[0] != df.shape[1]:
+                    raise ShapeError(f"DataFrame at key '{key}' should be square.")
 
-                # noinspection PyTypeChecker
-                if not all(_time_points == data_time_points):
-                    raise IncoherenceError(f"Time points of '{DF_dict_index}' ({data_time_points}) do not match "
-                                           f"time_point's index. ({_time_points})")
+                # check that indexes match
+                if not _index.equals(df.index):
+                    raise IncoherenceError(f"Index of DataFrame at key '{key}' ({df.index}) does not "
+                                           f"match obs' index. ({_index})")
 
-                for time_point_index, (time_point, DF) in enumerate(DF_dict.items()):
-                    DF_shape = DF.shape
-                    _index = self._parent.obs.index_at(time_point)
+                if not _index.equals(df.columns):
+                    raise IncoherenceError(f"Column names of DataFrame at key '{key}' ({df.columns}) "
+                                           f"do not match obs' index. ({_index})")
 
-                    generalLogger.debug(f"  Checking DataFrame at time point '{time_point}' with shape {DF_shape}.")
-
-                    # check that square
-                    if DF_shape[0] != DF_shape[1]:
-                        raise ShapeError(f"DataFrame at time point '{time_point}' in '{DF_dict_index}' should be "
-                                         f"square.")
-
-                    # check that shapes match
-                    if DF_shape[0] != _shape[time_point_index]:
-                        raise IncoherenceError(f"DataFrame at time point '{time_point}' in '{DF_dict_index}' "
-                                               f"has {DF_shape[0]} row{'s' if DF_shape[0] > 1 else ''}"
-                                               f" and column{'s' if DF_shape[0] > 1 else ''}, should have"
-                                               f" {_shape[time_point_index]}.")
-
-                    # check that indexes match
-                    if not _index.equals(DF.index):
-                        raise IncoherenceError(f"Index of DataFrame at time point '{time_point}' ({DF.index}) does not "
-                                               f"match obs' index. ({_index})")
-
-                    if not _index.equals(DF.columns):
-                        raise IncoherenceError(f"Column names of DataFrame at time point '{time_point}' ({DF.columns}) "
-                                               f"do not match obs' index. ({_index})")
-
-                    # checks passed, store the TemporalDataFrame
-                    _data[DF_dict_index][time_point] = VDataFrame(DF, file=self._file[DF_dict_index][
-                        str(time_point)] if self._file is not None else None)
+                # checks passed, store as VDataFrame
+                _data[key] = VDataFrame(df, file=file)
 
             generalLogger.debug("  Data was OK.")
             return _data
 
-    def __getitem__(self, item: K_) -> TPD_:
+    def __getitem__(self,
+                    item: K_) -> D_VDF:
         """
-        Get a specific set of DataFrames stored in this VObspArrayContainer.
-        :param item: key in _data linked to a set of DataFrames.
-        :return: set of DataFrames stored in _data under the given key.
+        Get a specific set VDataFrame stored in this VObspArrayContainer.
+
+        Args:
+            item: key in _data linked to a set of DataFrames.
+
+        Returns:
+            A VDataFrame stored in _data under the given key.
         """
-        return super().__getitem__(item)
+        if len(self) and item in self.keys():
+            return self._data[(slice(None), item)]
 
-    def __setitem__(self, key: K_, value: dict[TimePoint, Union[VDataFrame, pd.DataFrame]]) -> None:
+        else:
+            raise VAttributeError(f"{self.name} ArrayContainer has no attribute '{item}'")
+
+    def __setitem__(self,
+                    key: K_,
+                    value: Union[VDataFrame, pd.DataFrame]) -> None:
         """
-        Set a specific set of DataFrames in _data. The given set of DataFrames must have the correct shape.
-        :param key: key for storing a set of DataFrames in this VObspArrayContainer.
-        :param value: a set of DataFrames to store.
+        Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
+
+        Args:
+            key: key for storing a set of DataFrames in this VObspArrayContainer.
+            value: a set of DataFrames to store.
         """
-        if not isinstance(value, dict):
-            raise VTypeError(f"Cannot set obsp '{key}' from non dict object.")
+        if not isinstance(value, (pd.DataFrame, VDataFrame)):
+            raise VTypeError("The value should be a pandas DataFrame or a VDataFrame.")
 
-        formatted_values = {TimePoint(k): v for k, v in value.items()}
+        if isinstance(value, pd.DataFrame):
+            value = VDataFrame(value)
 
-        if not all([tp in self._parent.time_points_values for tp in formatted_values.keys()]):
-            raise VValueError("Time points do not match.")
+        _index = self._parent.obs.index
 
-        for tp, DF in formatted_values.items():
-            if not isinstance(DF, (pd.DataFrame, VDataFrame)):
-                raise VTypeError(f"Value at time point '{tp}' should be a pandas DataFrame.")
+        if not value.shape == (len(_index), len(_index)):
+            raise ShapeError(f"DataFrame should have shape ({len(_index)}, {len(_index)}).")
 
-            if isinstance(DF, pd.DataFrame):
-                DF = VDataFrame(DF)
+        if not value.index.equals(_index):
+            raise VValueError("The index of the DataFrame does not match the index of the parent VData.")
 
-            _index = self._parent.obs.index_at(tp)
+        if not value.columns.equals(_index):
+            raise VValueError("The column names the DataFrame do not match the index of the parent VData.")
 
-            if not DF.shape == (len(_index), len(_index)):
-                raise ShapeError(f"DataFrame at time point '{tp}' should have shape ({len(_index)}, {len(_index)}).")
-
-            if not DF.index.equals(_index):
-                raise VValueError(f"Index of DataFrame at time point '{tp}' does not match.")
-
-            if not DF.columns.equals(_index):
-                raise VValueError(f"Column names of DataFrame at time point '{tp}' do not match.")
-
-        self._data[key] = TimePointDict(formatted_values)
+        self._data[key] = value
 
     @property
-    def data(self) -> dict[K_, dict[TimePoint, VDataFrame]]:
+    def data(self) -> dict[K_, D_VDF]:
         """
         Data of this VObspArrayContainer.
-        :return: the data of this VObspArrayContainer.
+
+        Returns:
+            The data of this VObspArrayContainer.
         """
-        return {key: {tp: arr for tp, arr in TPDict.items()} for key, TPDict in self._data.items()}
+        return self._data
 
     @property
     def empty(self) -> bool:
         """
         Whether this VObspArrayContainer is empty or not.
-        :return: is this VObspArrayContainer empty ?
+
+        Returns:
+            Is this VObspArrayContainer empty ?
         """
-        if not len(self) or all([not len(self[set_name]) for set_name in self.keys()]) or \
-                all([self[set_name][tp].empty for set_name in self.keys() for tp in self[set_name].keys()]):
+        if not len(self) or all([vdf.empty for vdf in self.data.values()]):
             return True
         return False
 
-    def update_dtype(self, type_: 'DType') -> None:
+    def update_dtype(self,
+                     type_: 'DType') -> None:
         """
-        Update the data type of Arrays stored in this VObspArrayContainer.
-        :param type_: the new data type.
+        Update the data type of VDataFrames stored in this VObspArrayContainer.
+
+        Args:
+            type_: the new data type.
         """
-        for set_name in self.keys():
-            for tp in self[set_name].keys():
-                self[set_name][tp] = self[set_name][tp].astype(type_)
+        for vdf_name in self.keys():
+            self[vdf_name] = self[vdf_name].astype(type_)
 
     @property
     def name(self) -> Literal['obsp']:
@@ -806,98 +749,85 @@ class VObspArrayContainer(VBaseArrayContainer, MutableMapping[str, TimePointDict
         return 'obsp'
 
     @property
-    def shape(self) -> tuple[int, int, list[int], list[int]]:
+    def shape(self) -> tuple[int, int, int]:
         """
         The shape of the VObspArrayContainer is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
-        :return: shape of this VObspArrayContainer.
+
+        Returns:
+            The shape of this VObspArrayContainer.
         """
+        len_index = self._parent.n_obs_total
+
         if len(self):
-            _first_dict: dict['TimePoint', pd.DataFrame] = list(self.values())[0]
-            nb_time_points = len(_first_dict)
-            len_index = [len(df.index) for df in _first_dict.values()]
-            return len(self), nb_time_points, len_index, len_index
+            return len(self), len_index, len_index
 
         else:
-            return 0, 0, [], []
+            return 0, len_index, len_index
 
-    def dict_copy(self) -> dict[K_, dict[TimePoint, VDataFrame]]:
+    def dict_copy(self) -> dict[K_, D_VDF]:
         """
-        Dictionary of keys and data items in this ArrayContainer.
-        :return: Dictionary of this ArrayContainer.
+        Dictionary of keys and copied data items in this ArrayContainer.
+
+        Returns:
+            A dictionary copy of this ArrayContainer.
         """
-        return {k: {TimePoint(tp): v.copy() for tp, v in d.items()} for k, d in self.items()}
+        return {key: vdf.copy() for key, vdf in self.items()}
 
-    def compact(self) -> dict[K_, VDataFrame]:
-        """
-        Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
-
-        :return: a dictionary of str:large concatenated square DataFrame.
-        """
-        _compact_obsp = {key: VDataFrame(index=self._parent.obs.index,
-                                         columns=self._parent.obs.index) for key in self.keys()}
-
-        for key in self.keys():
-            index_cumul = 0
-
-            for arr in self[key].values():
-                _compact_obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
-                index_cumul += len(arr)
-
-        return _compact_obsp
-
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True, spacer: str = '') -> None:
+    def to_csv(self,
+               directory: Path,
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True,
+               spacer: str = '') -> None:
         """
         Save this VObspArrayContainer in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
         # create sub directory for storing sets
         os.makedirs(directory / self.name)
 
-        for set_name, set_dict in self.items():
-            # create sub directory for storing arrays
-            os.makedirs(directory / self.name / set_name)
+        for vdf_name, vdf in self.items():
+            generalLogger.info(f"{spacer}Saving {vdf_name}")
 
-            for arr_name, arr in set_dict.items():
-                generalLogger.info(f"{spacer}Saving {set_name}:{arr_name}")
+            # save array
+            vdf.to_csv(f"{directory / self.name / vdf_name}.csv", sep, na_rep, index=index, header=header)
 
-                # save array
-                arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
-
-    def set_index(self, values: Collection) -> None:
+    def set_index(self,
+                  values: Collection) -> None:
         """
         Set a new index for rows and columns.
 
-        :param values: collection of new index values.
+        Args:
+            values: collection of new index values.
         """
-        for set_name in self.keys():
+        for vdf_name in self.keys():
 
-            index_cumul = 0
-            for arr_name, arr in self[set_name].items():
+            self[vdf_name].index = values
+            self[vdf_name].columns = values
 
-                arr.index = values[index_cumul:index_cumul + len(arr)]
-                arr.columns = values[index_cumul:index_cumul + len(arr)]
-
-                index_cumul += len(arr)
-
-    def set_file(self, file: Union[File, Group]) -> None:
+    def set_file(self,
+                 file: Union[File, Group]) -> None:
         """
         Set the file to back the VDataFrames in this VObspArrayContainer.
-        :param file: an h5 file to back the VDataFrames on.
+
+        Args:
+            file: an h5 file to back the VDataFrames on.
         """
         if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
                              f"{type(file)}'.")
 
-        for arr_name, VDF_dict in self.items():
-            for tp, arr in VDF_dict.items():
-                arr.file = file[arr_name][str(tp)]
+        for vdf_name, vdf in self.items():
+            vdf.file = file[vdf_name]
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -

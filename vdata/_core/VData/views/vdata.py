@@ -25,13 +25,17 @@ class ViewVData:
     A view of a VData object.
     """
 
-    def __init__(self, parent: 'vdata.VData', time_points_slicer: np.ndarray, obs_slicer: np.ndarray,
+    def __init__(self,
+                 parent: 'vdata.VData',
+                 time_points_slicer: np.ndarray,
+                 obs_slicer: np.ndarray,
                  var_slicer: np.ndarray):
         """
-        :param parent: a VData object to build a view of
-        :param obs_slicer: the list of observations to view
-        :param var_slicer: the list of variables to view
-        :param time_points_slicer: the list of time points to view
+        Args:
+            parent: a VData object to build a view of
+            obs_slicer: the list of observations to view
+            var_slicer: the list of variables to view
+            time_points_slicer: the list of time points to view
         """
         self.name = f"{parent.name}_view"
         generalLogger.debug(u'\u23BE ViewVData creation : start ----------------------------------------------------- ')
@@ -73,7 +77,7 @@ class ViewVData:
 
         self._obsm = ViewVTDFArrayContainer(self._parent.obsm, self._time_points_slicer,
                                             self._obs_slicer, slice(None))
-        self._obsp = ViewVObspArrayContainer(self._parent.obsp, self._time_points_slicer, self._obs_slicer)
+        self._obsp = ViewVObspArrayContainer(self._parent.obsp, self._obs_slicer)
         self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
         self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
         self._uns = self._parent.uns
@@ -412,11 +416,9 @@ class ViewVData:
         """
         Build an actual VData object from this view.
         """
-        _obsp = self.obsp.compact()
-
         return vdata.VData(data=self.layers.dict_copy(),
                            obs=self.obs.copy(),
-                           obsm=self.obsm.dict_copy(), obsp=_obsp,
+                           obsm=self.obsm.dict_copy(), obsp=self.obsp.dict_copy(),
                            var=self.var,
                            varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
                            time_points=self.time_points,

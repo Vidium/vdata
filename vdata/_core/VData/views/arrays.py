@@ -14,6 +14,7 @@ from typing import Union, KeysView, ValuesView, ItemsView, Iterator, Mapping, Ty
 from ..arrays import VBaseArrayContainer
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
 from vdata.time_point import TimePoint
+from vdata.vdataframe import VDataFrame
 from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 
 
@@ -22,7 +23,7 @@ from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 
 D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, dict['TimePoint', pd.DataFrame])
 D_VTDF = TypeVar('D_VTDF', bound=ViewTemporalDataFrame)
-D_VDF = TypeVar('D_VDF', bound=pd.DataFrame)
+D_VDF = TypeVar('D_VDF', bound=VDataFrame)
 
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -171,13 +172,17 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
     It is based on VBaseArrayContainer.
     """
 
-    def __init__(self, array_container: VBaseArrayContainer, time_points_slicer: np.ndarray,
-                 obs_slicer: np.ndarray, var_slicer: np.ndarray):
+    def __init__(self,
+                 array_container: VBaseArrayContainer,
+                 time_points_slicer: np.ndarray,
+                 obs_slicer: np.ndarray,
+                 var_slicer: Union[np.ndarray, slice]):
         """
-        :param array_container: a VBaseArrayContainer object to build a view on.
-        :param obs_slicer: the list of observations to view.
-        :param var_slicer: the list of variables to view.
-        :param time_points_slicer: the list of time points to view.
+        Args:
+            array_container: a VBaseArrayContainer object to build a view on.
+            obs_slicer: the list of observations to view.
+            var_slicer: the list of variables to view.
+            time_points_slicer: the list of time points to view.
         """
         super().__init__(array_container)
 
@@ -262,163 +267,147 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, Mapping['TimePoint', D_VDF]]):
+class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VDF]):
     """
     Class for views of obsp.
     """
 
-    def __init__(self, array_container: VBaseArrayContainer, time_points_slicer: np.ndarray,
+    def __init__(self,
+                 array_container: VBaseArrayContainer,
                  obs_slicer: np.ndarray):
         """
-        :param array_container: a VBaseArrayContainer object to build a view on.
-        :param obs_slicer: the list of observations to view.
-        :param time_points_slicer: the list of time points to view.
+        Args:
+            array_container: a VBaseArrayContainer object to build a view on.
+            obs_slicer: the list of observations to view.
         """
         super().__init__(array_container)
 
-        self._time_points_slicer = time_points_slicer
         self._obs_slicer = obs_slicer
 
-    def __getitem__(self, item: str) -> Mapping['TimePoint', D_VDF]:
+    def __getitem__(self,
+                    item: str) -> D_VDF:
         """
         Get a specific data item stored in this view.
-        :param item: key in _data linked to a data item.
-        :return: data item stored in _data under the given key.
-        """
-        return {tp: DF.loc[self._obs_slicer, self._obs_slicer]
-                for tp, DF in self._array_container[item] if tp in self._time_points_slicer}
 
-    def __setitem__(self, key: str, value: Mapping['TimePoint', pd.DataFrame]) -> None:
+        Args:
+            item: key in _data linked to a data item.
+
+        Returns:
+            Data item stored in _data under the given key.
+        """
+        return self._array_container[item].loc[self._obs_slicer, self._obs_slicer]
+
+    def __setitem__(self, key: str, value: VDataFrame) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
-        :param key: key for storing a data item in this view.
-        :param value: a data item to store.
+
+        Args:
+            key: key for storing a data item in this view.
+            value: a data item to store.
         """
-        if not isinstance(value, dict):
-            raise VTypeError(f"Cannot set obsp view '{key}' from non dict object.")
+        if not isinstance(value, (pd.DataFrame, VDataFrame)):
+            raise VTypeError(f"Value at key '{key}' should be a pandas DataFrame or a VDataFrame.")
 
-        if not all([isinstance(tp, TimePoint) and tp in self._time_points_slicer
-                    for tp in value.keys()]):
-            raise VValueError("Time points do not match.")
+        _index = self._array_container[key].loc[self._obs_slicer, self._obs_slicer].index
 
-        for tp, DF in value.items():
-            if not isinstance(DF, pd.DataFrame):
-                raise VTypeError(f"Value at time point '{tp}' should be a pandas DataFrame.")
+        if not value.shape == (len(_index), len(_index)):
+            raise ShapeError(f"DataFrame at key '{key}' should have shape ({len(_index)}, {len(_index)}).")
 
-            _index = self._array_container[key][tp].loc[self._obs_slicer]
+        if not value.index.equals(_index):
+            raise VValueError(f"Index of DataFrame at key '{key}' does not match previous index.")
 
-            if not DF.shape == (len(_index), len(_index)):
-                raise ShapeError(f"DataFrame at time point '{tp}' should have shape ({len(_index)}, {len(_index)}).")
+        if not value.columns.equals(_index):
+            raise VValueError(f"Column names of DataFrame at key '{key}' do not match previous names.")
 
-            if not DF.index.equals(_index):
-                raise VValueError(f"Index of DataFrame at time point '{tp}' does not match.")
-
-            if not DF.columns.equals(_index):
-                raise VValueError(f"Column names of DataFrame at time point '{tp}' do not match.")
-
-            self._array_container[key][tp].loc[self._obs_slicer, self._obs_slicer] = DF
+        self._array_container[key].loc[self._obs_slicer, self._obs_slicer] = value
 
     @property
     def empty(self) -> bool:
         """
         Whether this view is empty or not.
-        :return: is this view empty ?
+
+        Returns:
+            Is this view empty ?
         """
-        if not len(self) or all([not len(_set) for _set in self.values()]) \
-                or all([_set[tp].empty for _set in self.values() for tp in self._time_points_slicer]):
+        if not len(self) or all([vdf.empty for vdf in self.values()]):
             return True
         return False
 
     @property
-    def shape(self) -> tuple[int, int, list[int], list[int]]:
+    def shape(self) -> tuple[int, int, int]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
-        :return: the shape of this view.
+
+        Returns:
+            The shape of this view.
         """
+        len_index = len(self._obs_slicer)
+
         if len(self):
-            _first_set: dict['TimePoint', pd.DataFrame] = list(self.values())[0]
-            len_index = [len(DF.loc[self._obs_slicer, self._obs_slicer].index) for DF in _first_set.values()]
-            return len(self), len(self._time_points_slicer), len_index, len_index
+            return len(self), len_index, len_index
 
         else:
-            return 0, 0, [], []
+            return 0, len_index, len_index
 
     @property
-    def data(self) -> dict[str, Mapping['TimePoint', D_VDF]]:
+    def data(self) -> dict[str, D_VDF]:
         """
         Data of this view.
-        :return: the data of this view.
-        """
-        return {key: {tp: DF.loc[self._obs_slicer, self._obs_slicer]
-                      for tp, DF in _set if tp in self._time_points_slicer}
-                for key, _set in self.items()}
 
-    def dict_copy(self) -> dict[str, Mapping['TimePoint', pd.DataFrame]]:
+        Returns:
+            The data of this view.
+        """
+        return {key: vdf.loc[self._obs_slicer, self._obs_slicer] for key, vdf in self._array_container.items()}
+
+    def dict_copy(self) -> dict[str, VDataFrame]:
         """
         Dictionary of keys and data items in this view.
-        :return: Dictionary of this view.
+
+        Returns:
+            Dictionary of this view.
         """
-        return {key: {TimePoint(tp): DF.copy() for tp, DF in _set.items()} for key, _set in self.items()}
+        return {key: vdf.loc[self._obs_slicer, self._obs_slicer].copy() for key, vdf in self.items()}
 
-    def compact(self) -> dict[str, pd.DataFrame]:
-        """
-        Transform this VObspArrayContainer into a dictionary of large square DataFrame per all TimePoints.
-
-        :return: a dictionary of str:large concatenated square DataFrame.
-        """
-        _compact_obsp = {key: pd.DataFrame(index=self._obs_slicer,
-                                           columns=self._obs_slicer) for key in self.keys()}
-
-        for key in self.keys():
-            index_cumul = 0
-
-            for arr in self[key]:
-                _compact_obsp[key].iloc[index_cumul:index_cumul + len(arr), index_cumul:index_cumul + len(arr)] = arr
-                index_cumul += len(arr)
-
-        return _compact_obsp
-
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "", index: bool = True, header: bool = True,
+    def to_csv(self,
+               directory: Path,
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True,
                spacer: str = '') -> None:
         """
         Save this view in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
         # create sub directory for storing sets
         os.makedirs(directory / self.name)
 
-        for set_name, set_dict in self.items():
-            # create sub directory for storing arrays
-            os.makedirs(directory / self.name / set_name)
+        for vdf_name, vdf in self.data:
+            generalLogger.info(f"{spacer}Saving {vdf_name}")
 
-            for arr_name, arr in set_dict.items():
-                generalLogger.info(f"{spacer}Saving {set_name}:{arr_name}")
-
-                # save array
-                arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            # save array
+            vdf.to_csv(f"{directory / self.name / vdf_name}.csv", sep, na_rep, index=index, header=header)
 
     def set_index(self, values: Collection) -> None:
         """
         Set a new index for rows and columns.
-        :param values: collection of new index values.
+
+        Args:
+            values: collection of new index values.
         """
-        for set_name in self.keys():
-
-            index_cumul = 0
-            for arr in self[set_name].values():
-
-                arr.lock = (False, False)
-                arr.index = values[index_cumul:index_cumul + len(arr)]
-                arr.columns = values[index_cumul:index_cumul + len(arr)]
-                arr.lock = (True, True)
-
-                index_cumul += len(arr)
+        for vdf_name, vdf in self.data:
+            vdf.lock = (False, False)
+            vdf.index = values
+            vdf.columns = values
+            vdf.lock = (True, True)
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -

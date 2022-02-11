@@ -14,7 +14,7 @@ from collections import abc
 from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal, MutableMapping
 
 from .name_utils import DataFrame
-from .utils import array_isin, expand_obsp
+from .utils import array_isin
 from .arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from .views import ViewVData
@@ -140,8 +140,7 @@ class VData:
 
         self._obsm = VObsmArrayContainer(self, data=_obsm)
         self._obsp: VObspArrayContainer = VObspArrayContainer(self,
-                                                              data=expand_obsp(_obsp, {tp: self._obs.index_at(tp)
-                                                                                       for tp in self.obs.time_points}),
+                                                              data=_obsp,
                                                               file=self._file.group['obsp'] if self._file is not None
                                                               else None)
         self._varm = VVarmArrayContainer(self,
@@ -699,23 +698,25 @@ class VData:
         If the types are not accepted, an error is raised. obsm, obsp, varm, varp and layers are prepared for
         being converted into custom arrays for maintaining coherence with this VData object.
 
-        :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
-            and for each variable/gene.
-            'data' can also be an AnnData to be converted to the VData format.
-        :param obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells
-        :param obsm: a dictionary of array-like objects describing measurements on the observations/cells
-        :param obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells
-        :param var: a pandas DataFrame describing the variables/genes
-        :param varm: a dictionary of array-like objects describing measurements on the variables/genes
-        :param varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes
-        :param time_points: a DataFrame describing the times points
-        :param uns: a dictionary of unstructured data
-        :param time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name
-            in obs that contains time information.
-        :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
-            time information of the same length as the number of rows in obs.
+        Args:
+            data: a single array-like object or a dictionary of them for storing data for each observation/cell
+                and for each variable/gene.
+                'data' can also be an AnnData to be converted to the VData format.
+            obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells
+            obsm: a dictionary of array-like objects describing measurements on the observations/cells
+            obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells
+            var: a pandas DataFrame describing the variables/genes
+            varm: a dictionary of array-like objects describing measurements on the variables/genes
+            varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes
+            time_points: a DataFrame describing the times points
+            uns: a dictionary of unstructured data
+            time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name
+                in obs that contains time information.
+            time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
+                time information of the same length as the number of rows in obs.
 
-        :return: Arrays in correct format (layers, obsm, obsp, varm, varp, obs index, var index).
+        Returns:
+            Arrays in correct format (layers, obsm, obsp, varm, varp, obs index, var index).
         """
         def check_time_match(_time_points: Optional[Union[pd.DataFrame, VDataFrame]],
                              _time_list: Optional[list[TimePoint]],
@@ -793,7 +794,7 @@ class VData:
         layers: Optional[dict[str, TemporalDataFrame]] = None
 
         if time_list is not None:
-            verified_time_list: Optional[list[TimePoint]] = list_to_tp_list_strict(time_list)
+            verified_time_list: Optional[Sequence[TimePoint]] = list_to_tp_list_strict(time_list)
 
         elif isinstance(obs, (pd.DataFrame, TemporalDataFrame)) and time_col_name is not None:
             if time_col_name in obs.columns:
@@ -1354,8 +1355,10 @@ class VData:
         """
         Function for finishing the initialization of the VData object. It checks for incoherence in the user-supplied
         arrays and raises an error in case something is wrong.
-        :param obs_index: If X was supplied as a pandas DataFrame, index of observations
-        :param var_index: If X was supplied as a pandas DataFrame, index of variables
+
+        Args:
+            obs_index: If X was supplied as a pandas DataFrame, index of observations
+            var_index: If X was supplied as a pandas DataFrame, index of variables
         """
         generalLogger.debug("Initialize the VData.")
 
@@ -1400,11 +1403,13 @@ class VData:
                                                f"{layer[0].shape[1]}, should be {self.n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
-        for attr in ('obsm', 'obsp'):
-            dataset = getattr(self, attr)
-            if not dataset.empty and self.n_obs != dataset.shape[2]:
-                raise IncoherenceError(f"'obs' and '{attr}' have different lengths ({self.n_obs} vs "
-                                       f"{dataset.shape[2]})")
+        if not self.obsm.empty and self.n_obs != self.obsm.shape[2]:
+            raise IncoherenceError(f"'obs' and 'obsm' have different lengths ({self.n_obs} vs "
+                                   f"{self.obsm.shape[2]})")
+
+        if not self.obsp.empty and self.n_obs_total != self.obsp.shape[1]:
+            raise IncoherenceError(f"'obs' and 'obsp' have different lengths ({self.n_obs} vs "
+                                   f"{self.obsp.shape[1]})")
 
         # check coherence between var, varm, varp shapes
         for attr in ('varm', 'varp'):
@@ -1501,10 +1506,8 @@ class VData:
         Build a deep copy of this VData object and not a view.
         :return: a new VData, which is a deep copy of this VData.
         """
-        _obsp = self.obsp.compact()
-
         return VData(data=self.layers.dict_copy(),
-                     obs=self.obs.copy(), obsm=self.obsm.dict_copy(), obsp=_obsp,
+                     obs=self.obs.copy(), obsm=self.obsm.dict_copy(), obsp=self._obsp.dict_copy(),
                      var=self.var.copy(), varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
                      time_points=self.time_points.copy(),
                      uns=dict(self.uns),

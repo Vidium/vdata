@@ -485,16 +485,13 @@ def test_VData_creation_full():
 
     v.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
-    assert repr(v.obsp['pair']) == "\033[4mTime point : 0.0 hours\033[0m\n" \
-                                   "     C_6  C_7  C_8  C_9\n" \
-                                   "C_6    1    1    1    1\n" \
-                                   "C_7    1    1    1    1\n" \
-                                   "C_8    1    1    1    1\n" \
-                                   "C_9    1    1    1    1\n\n" \
-                                   "\033[4mTime point : 5.0 hours\033[0m\n" \
-                                   "      C_10  C_11\n" \
-                                   "C_10     2     2\n" \
-                                   "C_11     2     2\n\n", repr(v.obsp['pair'])
+    assert repr(v.obsp['pair']) == '      C_6  C_7  C_8  C_9  C_10  C_11\n' \
+                                   'C_6     1    1    1    1     0     0\n' \
+                                   'C_7     1    1    1    1     0     0\n' \
+                                   'C_8     1    1    1    1     0     0\n' \
+                                   'C_9     1    1    1    1     0     0\n' \
+                                   'C_10    0    0    0    0     2     2\n' \
+                                   'C_11    0    0    0    0     2     2', repr(v.obsp['pair'])
 
 
 def test_VData_creation_from_dict():

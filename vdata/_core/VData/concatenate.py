@@ -13,12 +13,17 @@ from ...IO import VValueError, VTypeError, generalLogger
 
 # ====================================================
 # code
-def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
+def concatenate(arr: Sequence['VData'],
+                name: Optional[str] = None) -> 'VData':
     """
     Concatenate together multiple VData objects, which share the same layer keys, vars and time points.
-    :param arr: sequence of at least 2 VData objects to concatenate.
-    :param name: a name for the concatenated VData object.
-    :return: a concatenated VData object.
+
+    Args:
+        arr: sequence of at least 2 VData objects to concatenate.
+        name: a name for the concatenated VData object.
+
+    Returns:
+        A concatenated VData object.
     """
     if len(arr) < 2:
         raise VValueError("At least 2 VData objects must be provided.")
@@ -37,13 +42,12 @@ def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
     _data = first_VData.layers.dict_copy()
     _obs = first_VData.obs
     _obsm = first_VData.obsm.dict_copy()
+    _obsp = first_VData.obsp.dict_copy()
     _var = first_VData.var
     _varm = first_VData.varm.dict_copy()
     _varp = first_VData.varp.dict_copy()
     _time_points = first_VData.time_points
     _uns = first_VData.uns
-
-    _obsp = first_VData.obsp.compact()
 
     # concatenate with data in other VData objects
     for next_VData_index, next_VData in enumerate(arr[1:]):
@@ -106,7 +110,7 @@ def concatenate(arr: Sequence['VData'], name: Optional[str] = None) -> 'VData':
 
         # obsp ----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging obsp.")
-        next_obsp = next_VData.obsp.compact()
+        next_obsp = next_VData.obsp
         for key in _obsp.keys():
             generalLogger.info(f"    '\u21B3' merging obsp '{key}' DataFrame.")
 
