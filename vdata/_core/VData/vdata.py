@@ -56,24 +56,25 @@ class VData:
                  name: Optional[Any] = None,
                  file: Optional[H5GroupReader] = None):
         """
-        :param data: a single array-like object or a dictionary of them for storing data for each observation/cell
-            and for each variable/gene.
-            'data' can also be an AnnData to be converted to the VData format.
-        :param obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells.
-        :param obsm: a dictionary of array-like objects describing measurements on the observations/cells.
-        :param obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells.
-        :param var: a pandas DataFrame describing the variables/genes.
-        :param varm: a dictionary of array-like objects describing measurements on the variables/genes.
-        :param varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes.
-        :param time_points: a pandas DataFrame describing the times points.
-        :param uns: a dictionary of unstructured data.
-        :param time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name in
-            obs that contains time information.
-        :param time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
-            time information of the same length as the number of rows in obs.
-        :param dtype: a data type to impose on datasets stored in this VData.
-        :param name: a name for this VData.
-        :param file: an open h5 file from which this VData is read.
+        Args:
+            data: a single array-like object or a dictionary of them for storing data for each observation/cell
+                and for each variable/gene.
+                'data' can also be an AnnData to be converted to the VData format.
+            obs: a pandas DataFrame or a TemporalDataFrame describing the observations/cells.
+            obsm: a dictionary of array-like objects describing measurements on the observations/cells.
+            obsp: a dictionary of array-like objects describing pairwise comparisons on the observations/cells.
+            var: a pandas DataFrame describing the variables/genes.
+            varm: a dictionary of array-like objects describing measurements on the variables/genes.
+            varp: a dictionary of array-like objects describing pairwise comparisons on the variables/genes.
+            time_points: a pandas DataFrame describing the times points.
+            uns: a dictionary of unstructured data.
+            time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name in
+                obs that contains time information.
+            time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
+                time information of the same length as the number of rows in obs.
+            dtype: a data type to impose on datasets stored in this VData.
+            name: a name for this VData.
+            file: an open h5 file from which this VData is read.
         """
         self.name = str(name) if name is not None else 'No_Name'
 

@@ -154,6 +154,11 @@ class H5GroupReader:
 
         return self.group.asstr(encoding=encoding)[()]
 
+    def create_group(self,
+                     name: str,
+                     track_order: Any = None) -> None:
+        self.group.create_group(name=name, track_order=track_order)
+
 
 def parse_path(path: Optional[Union[str, Path]]) -> Optional[Path]:
     """

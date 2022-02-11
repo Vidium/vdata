@@ -329,31 +329,15 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
             value: a TemporalDataFrame to store.
         """
+        # TODO : prevent this kind of operation if the vdata is backed in read only mode
+
         if not self._parent.time_points.value.equals(pd.Series(value.time_points)):
             raise VValueError("Time points do not match.")
 
         if not self._parent.obs.index.equals(value.index):
             raise VValueError("Index does not match.")
 
-        if key in self.keys():
-            if value.is_backed and self._parent.is_backed_w:
-                # move h5 group to _parent's group
-                raise NotImplementedError
-
-            else:
-                self._data[key] = value
-
-        else:
-            if value.is_backed and self._parent.is_backed_w:
-                # replace h5 group in _parent's group
-                raise NotImplementedError
-
-            elif self._parent.is_backed_w:
-                # delete h5 group in _parent's group
-                raise NotImplementedError
-
-            else:
-                self._data[key] = value
+        self._data[key] = value
 
     @property
     def empty(self) -> bool:
@@ -522,14 +506,20 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
-        if not self.shape[1:] == value.shape:
+        elif not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
-        if not self._parent.var.index.equals(value.columns):
+        elif not self._parent.var.index.equals(value.columns):
             raise VValueError("Column names do not match.")
 
-        value.lock((True, True))
-        super().__setitem__(key, value)
+        value_copy = value.copy()
+        value_copy.name = key
+
+        if self._parent.is_backed_w:
+            value_copy.write(self._parent.file['layers'].group)
+
+        value_copy.lock((True, True))
+        super().__setitem__(key, value_copy)
 
     @property
     def name(self) -> Literal['layers']:
@@ -629,11 +619,17 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
-        if not self.shape[1:3] == value.shape[:2]:
+        elif not self.shape[1:3] == value.shape[:2]:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
-        value.lock((True, False))
-        super().__setitem__(key, value)
+        value_copy = value.copy()
+        value_copy.name = key
+
+        if self._parent.is_backed_w:
+            value_copy.write(self._parent.file['obsm'].group)
+
+        value_copy.lock((True, False))
+        super().__setitem__(key, value_copy)
 
     @property
     def name(self) -> Literal['obsm']:

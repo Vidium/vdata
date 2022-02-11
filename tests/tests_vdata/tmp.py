@@ -52,10 +52,24 @@ v = vdata.VData(expr_data_complex, time_points=time_points, obs=obs, var=var, un
                 obsm=obsm, obsp=obsp, varm=varm, varp=varp,
                 name=47)
 
-new_umap_coords = vdata.TemporalDataFrame({'X1': [1, 2, 3, 4, 5, 6],
-                                           'X2': [10, 20, 30, 40, 50, 60],
-                                           'X3': [100, 200, 300, 400, 500, 600]},
-                                          time_list=['0h', '0h', '0h', '0h', '5h', '5h'],
-                                          index=obs_index_data)
+v.write('/home/matteo/Desktop/test.vd')
+v = vdata.read('/home/matteo/Desktop/test.vd')
 
-v.obsm['umap'] = new_umap_coords
+print(v.obsm['pca'])
+
+pca = v.obsm['pca'].copy()
+pca.name = 'pca2'
+print(pca)
+
+v.obsm['pca'] = pca
+print(v.obsm['pca'])
+
+v.obsm['pca2'] = pca
+print(v.obsm['pca2'])
+
+s = v.layers['spliced'].copy()
+s.name = 's'
+print(s)
+
+v.layers['s'] = s
+print(v.layers['s'])

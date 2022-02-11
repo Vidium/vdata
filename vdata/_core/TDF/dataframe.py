@@ -36,8 +36,11 @@ def parse_index_and_time_points(_index: Optional[Collection],
                                 _time_points: Optional[list],
                                 _columns: Collection[str]) \
         -> tuple[
-            dict['TimePoint', np.ndarray], list['TimePoint'], Optional[str],
-            dict['TimePoint', pd.Index], pd.Index
+            dict['TimePoint', np.ndarray],
+            list['TimePoint'],
+            Optional[str],
+            dict['TimePoint', pd.Index],
+            pd.Index
         ]:
     """
     Given the index, data, time list, time points and columns parameters from a TemporalDataFrame, infer correct
@@ -426,7 +429,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     This class implements a modified sub-setting mechanism to subset on time points and on the regular conditional
     selection.
     """
-    def __init__(self, data: Optional[Union[dict, pd.DataFrame, Group, File]] = None,
+    def __init__(self,
+                 data: Optional[Union[dict, pd.DataFrame, Group, File]] = None,
                  time_list: Optional[Union[Collection, 'DType', Literal['*'], 'TimePoint']] = None,
                  time_col_name: Optional[str] = None,
                  time_points: Optional[Collection[Union['DType', 'TimePoint']]] = None,
@@ -436,27 +440,28 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                  name: Optional[Any] = None,
                  file: Optional[File] = None):
         """
-        :param data: data to store as a dataframe.
-        :param time_list: time points for the dataframe's rows. The value indicates at which time point a given row
-            exists in the dataframe.
-            It can be :
-                - a collection of values of the same length as the number of rows.
-                - a single value to set for all rows.
+        Args:
+            data: data to store as a dataframe.
+            time_list: time points for the dataframe's rows. The value indicates at which time point a given row
+                exists in the dataframe.
+                It can be :
+                    - a collection of values of the same length as the number of rows.
+                    - a single value to set for all rows.
 
-            In any case, the values can be :
-                - a single time point (indicating that the row only exists at that given time point)
-                - a collection of time points (indicating that the row exists at all those time points)
-                - the character '*' (indicating that the row exists at all time points)
+                In any case, the values can be :
+                    - a single time point (indicating that the row only exists at that given time point)
+                    - a collection of time points (indicating that the row exists at all those time points)
+                    - the character '*' (indicating that the row exists at all time points)
 
-        :param time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can
-            be given. This column will be used as the time data.
-        :param time_points: a list of time points that should exist. This is useful when using the '*' character to
-            specify the list of time points that the TemporalDataFrame should cover.
-        :param index: index for the dataframe's rows.
-        :param columns: column labels.
-        :param dtype: data type to force.
-        :param name: optional TemporalDataFrame's name.
-        :param file: optional TemporalDataFrame's h5 file for backing.
+            time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can
+                be given. This column will be used as the time data.
+            :param time_points: a list of time points that should exist. This is useful when using the '*' character to
+                specify the list of time points that the TemporalDataFrame should cover.
+            index: index for the dataframe's rows.
+            columns: column labels.
+            dtype: data type to force.
+            name: optional TemporalDataFrame's name.
+            file: optional TemporalDataFrame's h5 file for backing.
         """
         self._name = str(name) if name is not None else 'No_Name'
 
@@ -521,19 +526,13 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             assert columns is not None, "'columns' parameter must be set when reading an h5 file."
 
             self._columns = pd.Index(columns)
-            self._time_points_column_name = time_col_name
+            self._time_points_column_name = str(time_col_name) if time_col_name is not None else None
 
-            self._time_points = sorted([TimePoint(tp) for tp in data['data'].keys()])
+            self._time_points = []
             self._index = {}
             self._df = {}
 
-            for time_point in self._time_points:
-                self._df[time_point] = data['data'][str(time_point)]
-
-                self._index[time_point] = pd.Index(index[:len(self._df[time_point])])
-                index = index[len(self._df[time_point]):]
-
-            self._file = data
+            self.__load_from_file(data, index)
 
         # ---------------------------------------------------------------------
         # invalid data
@@ -714,6 +713,25 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     def __setstate__(self, state) -> None:
         self.__dict__ = state
+
+    def __load_from_file(self,
+                         file: Union[Group, File],
+                         index: Collection) -> None:
+        """
+
+        """
+        self._time_points = sorted([TimePoint(tp) for tp in file['data'].keys()])
+        self._df = {}
+        _index = {}
+
+        for time_point in self._time_points:
+            self._df[time_point] = file['data'][str(time_point)]
+
+            _index[time_point] = pd.Index(index[:len(self._df[time_point])])
+            index = index[len(self._df[time_point]):]
+
+        self._index = _index
+        self._file = file
 
     @property
     def is_backed(self) -> bool:
@@ -1220,17 +1238,24 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         Save this TemporalDataFrame in HDF5 file format.
 
-        :param file: path to save the TemporalDataFrame.
+        Args:
+            file: path to save the TemporalDataFrame.
         """
         from ..._read_write import write_TemporalDataFrame
 
         if file is None:
-            write_TemporalDataFrame(self, self._file.parent, self.name)
+            save_file = self._file.parent
+            write_TemporalDataFrame(self, save_file, self.name)
             self._file.file.flush()
 
         elif isinstance(file, (Group, File)):
-            write_TemporalDataFrame(self, file, self.name)
+            save_file = file
+            write_TemporalDataFrame(self, save_file, self.name)
 
         else:
-            with File(file, 'w') as save_file:
-                write_TemporalDataFrame(self, save_file, self.name)
+            save_file = File(file, 'w')
+            write_TemporalDataFrame(self, save_file, self.name)
+
+        if not self.is_backed:
+            index = np.concatenate([i.values for i in self._index.values()])
+            self.__load_from_file(save_file[self.name], index)
