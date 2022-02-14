@@ -9,9 +9,8 @@ import pandas as pd
 from pathlib import Path
 from anndata import AnnData
 from scipy.sparse import spmatrix
-from collections import abc
 
-from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal, MutableMapping
+from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal
 
 from .name_utils import DataFrame
 from .utils import array_isin
@@ -22,7 +21,7 @@ from ..name_utils import PreSlicer
 from ..utils import reformat_index, to_tp_list, match_time_points, repr_index, list_to_tp_list_strict
 from ..TDF import TemporalDataFrame
 from vdata.name_utils import DType, StrDType, DTypes
-from vdata.utils import repr_array
+from vdata.utils import repr_array, deep_dict_convert
 from vdata.time_point import TimePoint
 from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
 from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
@@ -770,21 +769,6 @@ class VData:
                 return _data.todense()
 
             return _data
-
-        def deep_dict_convert(obj: MutableMapping) -> Any:
-            """
-            'Deep' convert a mapping of any kind (and children mappings) into regular dictionaries.
-
-            Args:
-                obj: a mapping to convert.
-
-            Returns:
-                a converted dictionary.
-            """
-            if not isinstance(obj, abc.MutableMapping):
-                return obj
-
-            return {k: deep_dict_convert(v) for k, v in obj.items()}
 
         generalLogger.debug("  \u23BE Check arrays' formats. -- -- -- -- -- -- -- -- -- -- ")
 

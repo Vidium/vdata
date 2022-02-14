@@ -7,7 +7,9 @@
 import builtins
 import numpy as np
 import pandas as pd
-from typing import Union, Any, Sequence, cast
+from collections import abc
+
+from typing import Union, Any, Sequence, MutableMapping, cast
 
 from . import name_utils
 
@@ -55,7 +57,7 @@ def isCollection(obj: Any) -> bool:
     return True if hasattr(obj, '__iter__') and not issubclass(type(obj), str) else False
 
 
-# Representation ---------------------------------------------------------
+# Representation --------------------------------------------------------------
 def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis']) -> str:
     """
     Get a short string representation of an array.
@@ -75,3 +77,20 @@ def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis'
 
         else:
             return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"
+
+
+# Type coercion ---------------------------------------------------------------
+def deep_dict_convert(obj: MutableMapping) -> Any:
+    """
+    'Deep' convert a mapping of any kind (and children mappings) into regular dictionaries.
+
+    Args:
+        obj: a mapping to convert.
+
+    Returns:
+        a converted dictionary.
+    """
+    if not isinstance(obj, abc.MutableMapping):
+        return obj
+
+    return {k: deep_dict_convert(v) for k, v in obj.items()}

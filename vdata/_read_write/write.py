@@ -9,12 +9,15 @@ import json
 import shutil
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
-from typing import Union, Optional, Literal
+
+from typing import Union, Optional
 
 import vdata
+from vdata.utils import deep_dict_convert
 from .utils import parse_path, H5GroupReader
 from ..vdataframe import VDataFrame
 from ..IO import generalLogger, VPathError, VValueError
@@ -69,7 +72,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             # save time points
             write_data(obj.time_points, save_file, 'time_points')
             # save uns
-            write_data(obj.uns, save_file, 'uns')
+            write_data(deep_dict_convert(obj.uns), save_file, 'uns')
 
         obj.file = H5GroupReader(File(str(file), 'r+'))
 
@@ -200,22 +203,20 @@ def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str
 
 
 @singledispatch
-def write_data(data, group: H5Group, key: str, key_level: int = 0,
-               log_func: Literal['debug', 'info'] = 'info',
-               **kwargs) -> None:
+def write_data(data, group: H5Group, key: str, key_level: int = 0, **kwargs) -> None:
     """
     This is the default function called for writing data to an h5 file.
     Using singledispatch, the correct write_<type> function is called depending on the type of the 'data' parameter.
     If no write_<type> implementation is found, this function defaults and raises a Warning indicating that the
     data could not be saved.
 
-    :param data: data to write.
-    :param group: an h5py Group or File to write into.
-    :param key: a string for identifying the data.
-    :param key_level: for logging purposes, the recursion depth of calls to write_data.
-    :param log_func: name of the logging level function to use. Either 'info' or 'debug'.
+    Args:
+        data: data to write.
+        group: an h5py Group or File to write into.
+        key: a string for identifying the data.
+        key_level: for logging purposes, the recursion depth of calls to write_data.
     """
-    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving object {key}")
+    generalLogger.info(f"{spacer(key_level)}Saving object {key}")
     generalLogger.warning(f"H5 writing not yet implemented for data of type '{type(data)}'.")
 
 
@@ -332,12 +333,11 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
 
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
-def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, key_level: int = 0,
-                 log_func: Literal['debug', 'info'] = 'info', **kwargs) -> None:
+def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, key_level: int = 0, **kwargs) -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).
     """
-    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving Series {key}")
+    generalLogger.info(f"{spacer(key_level)}Saving Series {key}")
 
     # Series of strings
     if series.dtype == object:
@@ -352,11 +352,11 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
         series_group = group.create_group(str(key))
         # save values
         values = pd.Series(np.array(series.values))
-        write_data(values, series_group, "values", key_level=key_level + 1, log_func=log_func)
+        write_data(values, series_group, "values", key_level=key_level + 1)
         # save categories
         # noinspection PyUnresolvedReferences
         categories = np.array(series.values.categories, dtype='U')
-        write_data(categories, series_group, "categories", key_level=key_level + 1, log_func=log_func)
+        write_data(categories, series_group, "categories", key_level=key_level + 1)
         # save ordered
         # noinspection PyUnresolvedReferences
         series_group.attrs["ordered"] = series.values.ordered
@@ -375,12 +375,11 @@ def write_series(series: Union[pd.Series, pd.Index], group: H5Group, key: str, k
 
 
 @write_data.register
-def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0,
-                log_func: Literal['debug', 'info'] = 'info') -> None:
+def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing np.arrays to the h5 file.
     """
-    getattr(generalLogger, log_func)(f"{spacer(key_level)}Saving array {key}")
+    generalLogger.info(f"{spacer(key_level)}Saving array {key}")
 
     if data.dtype.type == np.str_:
         group.create_dataset(str(key), data=data.astype('S'))
@@ -388,6 +387,18 @@ def write_array(data: np.ndarray, group: H5Group, key: str, key_level: int = 0,
         group[str(key)] = data
 
     group[str(key)].attrs['type'] = 'array'
+
+
+@write_data.register
+def write_sparse_matrix(data: sp.spmatrix, group: H5Group, key: str, key_level: int = 0) -> None:
+    """
+    Function for writing scipy sparse matrices to the h5 file.
+    """
+    # TODO : fully handle sparse matrices in the future
+    # cast matrix to dense
+    data_dense = data.todense()
+
+    write_data(data_dense, group, key, key_level=key_level)
 
 
 @write_data.register(list)
