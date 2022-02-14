@@ -7,6 +7,8 @@
 import os
 import json
 import shutil
+
+import anndata.compat
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
@@ -17,7 +19,6 @@ from functools import singledispatch
 from typing import Union, Optional
 
 import vdata
-from vdata.utils import deep_dict_convert
 from .utils import parse_path, H5GroupReader
 from ..vdataframe import VDataFrame
 from ..IO import generalLogger, VPathError, VValueError
@@ -72,7 +73,7 @@ def write_vdata(obj: 'vdata.VData', file: Optional[Union[str, Path]]) -> None:
             # save time points
             write_data(obj.time_points, save_file, 'time_points')
             # save uns
-            write_data(deep_dict_convert(obj.uns), save_file, 'uns')
+            write_data(obj.uns, save_file, 'uns')
 
         obj.file = H5GroupReader(File(str(file), 'r+'))
 
@@ -221,12 +222,15 @@ def write_data(data, group: H5Group, key: str, key_level: int = 0, **kwargs) -> 
 
 
 @write_data.register(dict)
-def write_Dict(data: dict, group: H5Group, key: str, key_level: int = 0) -> None:
+@write_data.register(anndata.compat.OverloadedDict)
+def write_Dict(data: Union[dict, anndata.compat.OverloadedDict], group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing dictionaries to the h5 file.
     It creates a group for storing the keys and recursively calls write_data to store them.
     """
     generalLogger.info(f"{spacer(key_level)}Saving dict {key}")
+
+    data_dict = dict(data)
 
     if str(key) in group.keys():
         del group[str(key)]
@@ -234,7 +238,7 @@ def write_Dict(data: dict, group: H5Group, key: str, key_level: int = 0) -> None
     grp = group.create_group(str(key))
     grp.attrs['type'] = 'dict'
 
-    for dict_key, value in data.items():
+    for dict_key, value in data_dict.items():
         write_data(value, grp, dict_key, key_level=key_level+1)
 
 
