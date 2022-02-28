@@ -321,11 +321,13 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
         else:
             generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
+    data['time_points']['value'] = [TimePoint(tp, no_check=True) for tp in data['time_points']['value']]
+
     new_VData = vdata.VData(data['layers'],
                             data['obs'], data['obsm'], None,
                             data['var'], data['varm'], data['varp'],
                             data['time_points'], data['uns'], dtype=dtype,
-                            name=name, file=importFile)
+                            name=name, file=importFile, no_check=True)
 
     if data['obsp'] is not None:
         for key, arr in data['obsp'].items():
@@ -460,14 +462,31 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
     dataset_type = cast(H5GroupReader, group['time_list']).attrs("type")
     time_list = func_[dataset_type](group['time_list'], level=level + 1)
 
-    data = {}
-    for col in group['data'].keys():
+    # time_points = np.unique(time_list)
+    time_points = list(dict.fromkeys(time_list).keys())
+    time_point_sizes = [np.argmin(time_list == tp) for tp in time_points]
+    time_point_sizes_cumsum = np.cumsum([0] + time_point_sizes)
+
+    columns = pd.Index(group['data'].keys())
+    data = {tp: np.empty((time_point_sizes[tp_index], len(columns)), dtype=object) for tp_index, tp in enumerate(
+        time_points)}
+
+    for col_index, col in enumerate(group['data'].keys()):
         dataset_type = cast(H5GroupReader, group['data'][col]).attrs("type")
-        data[col] = func_[dataset_type](group['data'][col], level=level + 1)
+        whole_data = func_[dataset_type](group['data'][col], level=level + 1)
+
+        for tp_index, tp in enumerate(time_points):
+            tp_slice = slice(time_point_sizes_cumsum[tp_index], time_point_sizes_cumsum[tp_index + 1])
+            data[tp][:, col_index] = whole_data[tp_slice]
+
+    dict_index = {tp: pd.Index(index[time_point_sizes_cumsum[tp_index]:time_point_sizes_cumsum[tp_index + 1]])
+                  for tp_index, tp in enumerate(time_points)}
 
     return TemporalDataFrame(data, time_col_name=time_col_name,
-                             index=index, time_list=time_list, name=group.name.split("/")[-1],
-                             file=group.group)
+                             index=dict_index, columns=columns,
+                             time_points=time_points, name=group.name.split("/")[-1],
+                             file=group.group,
+                             no_check=True)
 
 
 def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
@@ -507,10 +526,18 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
     """
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
+    from time import time
+    start = time()
+
     # simple Series
     if group.isinstance(Dataset):
         data_type = get_dtype_from_string(group.attrs('dtype'))
-        values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
+        if data_type == TimePoint:
+            values = [TimePoint(tp, no_check=True) for tp in read_h5_array(group, level=level+1, log_func=log_func)]
+
+        else:
+            values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
+
         return pd.Series(values, index=index)
 
     # categorical Series
@@ -555,8 +582,6 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         return arr
 
     else:
-        print(group.name)
-        print(arr)
         raise VTypeError(f"Group is not an array (type is '{type(arr)}').")
 
 

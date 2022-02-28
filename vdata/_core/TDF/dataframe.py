@@ -438,7 +438,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                  columns: Optional[Collection] = None,
                  dtype: Optional['DType'] = None,
                  name: Optional[Any] = None,
-                 file: Optional[File] = None):
+                 file: Optional[File] = None,
+                 no_check: bool = False):
         """
         Args:
             data: data to store as a dataframe.
@@ -455,7 +456,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
             time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can
                 be given. This column will be used as the time data.
-            :param time_points: a list of time points that should exist. This is useful when using the '*' character to
+            time_points: a list of time points that should exist. This is useful when using the '*' character to
                 specify the list of time points that the TemporalDataFrame should cover.
             index: index for the dataframe's rows.
             columns: column labels.
@@ -496,8 +497,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             columns = columns if columns is not None else data.columns if data is not None and len(
                 data.columns) else None
 
-            data, self._time_points, self._time_points_column_name, self._index, self._columns = \
-                parse_index_and_time_points(index, None, time_list, time_col_name, self._time_points, columns)
+            if no_check:
+                self.time_points_column_name = time_col_name
+                self._index = index
+                self._columns = columns
+
+            else:
+                data, self._time_points, self._time_points_column_name, self._index, self._columns = \
+                    parse_index_and_time_points(index, None, time_list, time_col_name, self._time_points, columns)
 
             self._df = data
 
@@ -509,8 +516,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 # work on a copy of the data to avoid undesired modifications
                 data = data.copy()
 
-            data, self._time_points, self._time_points_column_name, self._index, self._columns = \
-                parse_index_and_time_points(index, data, time_list, time_col_name, self._time_points, columns)
+            if no_check:
+                self.time_points_column_name = time_col_name
+                self._index = index
+                self._columns = columns
+
+            else:
+                data, self._time_points, self._time_points_column_name, self._index, self._columns = \
+                    parse_index_and_time_points(index, data, time_list, time_col_name, self._time_points, columns)
 
             generalLogger.debug("Storing data in TemporalDataFrame.")
             self._df = data

@@ -53,7 +53,8 @@ class VData:
                  time_list: Optional[Sequence[Union[str, TimePoint]]] = None,
                  dtype: Optional[Union['DType', 'StrDType']] = None,
                  name: Optional[Any] = None,
-                 file: Optional[H5GroupReader] = None):
+                 file: Optional[H5GroupReader] = None,
+                 no_check: bool = False):
         """
         Args:
             data: a single array-like object or a dictionary of them for storing data for each observation/cell
@@ -94,9 +95,16 @@ class VData:
 
         self._uns: dict[str, Any] = {}
 
-        # check formats of arguments
-        _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(
-            data, obs, obsm, obsp, var, varm, varp, time_points, uns, time_col_name, time_list)
+        if no_check:
+            _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = obs, var, data, \
+                                                                                                  time_points, obsm, \
+                                                                                                  obsp, varm, varp, \
+                                                                                                  obs.index, var.index
+
+        else:
+            # check formats of arguments
+            _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(
+                data, obs, obsm, obsp, var, varm, varp, time_points, uns, time_col_name, time_list)
 
         ref_TDF = list(_layers.values())[0] if _layers is not None else None
 

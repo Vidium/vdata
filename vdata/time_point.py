@@ -106,7 +106,9 @@ class TimePoint:
     Simple class for storing a single time point, with its value and unit.
     """
 
-    def __init__(self, time_point: Union['DType', 'TimePoint']):
+    def __init__(self,
+                 time_point: Union['DType', 'TimePoint'],
+                 no_check: bool = False):
         """
         :param time_point: a time point's value. It can be an int or a float, or a string with format "<value><unit>"
             where <unit> is a single letter in s, m, h, D, M, Y (seconds, minutes, hours, Days, Months, Years).
@@ -114,6 +116,10 @@ class TimePoint:
         if isinstance(time_point, TimePoint):
             self.value: 'DType' = time_point.value
             self.unit: Unit = time_point.unit
+
+        elif no_check:
+            self.value = float(time_point[:-1])
+            self.unit = Unit(time_point[-1])
 
         else:
             self.value, self.unit = self.__parse(time_point)

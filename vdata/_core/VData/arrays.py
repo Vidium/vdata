@@ -436,7 +436,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                     raise IncoherenceError(f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
                                            f"index. ({_columns})")
 
-                if not all(_time_points == TDF.time_points):
+                if not list(TDF.time_points) == list(_time_points):
                     raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.time_points}) do not match "
                                            f"time_point's index. ({_time_points})")
 
