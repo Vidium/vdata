@@ -243,13 +243,17 @@ def write_Dict(data: Union[dict, anndata.compat.OverloadedDict], group: H5Group,
 
 
 @write_data.register(VDataFrame)
-def write_VDataFrame(data: VDataFrame, group: H5Group, key: str, key_level: int = 0) -> None:
+@write_data.register(pd.DataFrame)
+def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame], group: H5Group, key: str, key_level: int = 0) -> None:
     """
     Function for writing VDataFrames to the h5 file. Each VDataFrame is stored in a group, containing the index and the
     columns as Series.
     Used for obs, var, time_points.
     """
     generalLogger.info(f"{spacer(key_level)}Saving VDataFrame {key}")
+
+    # convert pandas DataFrames to VDataFrames for writing
+    data = VDataFrame(data)
 
     df_group = group.create_group(str(key))
     df_group.attrs['type'] = 'VDF'
