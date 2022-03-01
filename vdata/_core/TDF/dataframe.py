@@ -463,6 +463,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             dtype: data type to force.
             name: optional TemporalDataFrame's name.
             file: optional TemporalDataFrame's h5 file for backing.
+            no_check: skip checks (only use if you guaranty the data passed to create this TemporalDataFrame is valid !)
         """
         self._name = str(name) if name is not None else 'No_Name'
 

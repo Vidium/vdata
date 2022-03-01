@@ -75,6 +75,7 @@ class VData:
             dtype: a data type to impose on datasets stored in this VData.
             name: a name for this VData.
             file: an open h5 file from which this VData is read.
+            no_check: skip checks (only use if you guaranty the data passed to create this VData is valid !)
         """
         self.name = str(name) if name is not None else 'No_Name'
 

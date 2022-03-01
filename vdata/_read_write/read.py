@@ -327,7 +327,8 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
                             data['obs'], data['obsm'], None,
                             data['var'], data['varm'], data['varp'],
                             data['time_points'], data['uns'], dtype=dtype,
-                            name=name, file=importFile, no_check=True)
+                            name=name, file=importFile,
+                            no_check=True)
 
     if data['obsp'] is not None:
         for key, arr in data['obsp'].items():
@@ -464,7 +465,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
 
     # time_points = np.unique(time_list)
     time_points = list(dict.fromkeys(time_list).keys())
-    time_point_sizes = [np.argmin(time_list == tp) for tp in time_points]
+    time_point_sizes = [np.sum(time_list == tp) for tp in time_points]
     time_point_sizes_cumsum = np.cumsum([0] + time_point_sizes)
 
     columns = pd.Index(group['data'].keys())

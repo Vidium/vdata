@@ -110,8 +110,10 @@ class TimePoint:
                  time_point: Union['DType', 'TimePoint'],
                  no_check: bool = False):
         """
-        :param time_point: a time point's value. It can be an int or a float, or a string with format "<value><unit>"
-            where <unit> is a single letter in s, m, h, D, M, Y (seconds, minutes, hours, Days, Months, Years).
+        Args:
+            time_point: a time point's value. It can be an int or a float, or a string with format "<value><unit>"
+                where <unit> is a single letter in s, m, h, D, M, Y (seconds, minutes, hours, Days, Months, Years).
+            no_check: skip checks (only use if you guaranty the data passed to create this TimePoint is valid !)
         """
         if isinstance(time_point, TimePoint):
             self.value: 'DType' = time_point.value
