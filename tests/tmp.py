@@ -16,3 +16,6 @@ v = vdata.read("/home/matteo/git/Real_platform/storage/mbouvier/EI52/uploads/com
 # prof.dump_stats(file='/home/matteo/Desktop/vdata_read.prof')
 
 v.write('/home/matteo/git/Real_platform/storage/mbouvier/EI52/uploads/combinedData_filtered2.vd')
+
+v2 = vdata.read('/home/matteo/git/Real_platform/storage/mbouvier/EI52/uploads/combinedData_filtered2.vd')
+print(v2)

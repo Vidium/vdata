@@ -200,7 +200,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                    other.columns and all([self._df[tp] == other._df[tp] for tp in self.time_points])
 
         elif self.n_columns == 1:
-            return self.eq(other).values.flatten()
+            return self.values.flatten() == other
 
         else:
             return self.eq(other)
