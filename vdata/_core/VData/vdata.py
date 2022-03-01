@@ -104,8 +104,11 @@ class VData:
 
         else:
             # check formats of arguments
-            _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index = self._check_formats(
-                data, obs, obsm, obsp, var, varm, varp, time_points, uns, time_col_name, time_list)
+            _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index, uns = \
+                self._check_formats(data, obs, obsm, obsp, var, varm, varp, time_points, uns, time_col_name, time_list)
+
+        if uns is not None:
+            self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
 
         ref_TDF = list(_layers.values())[0] if _layers is not None else None
 
@@ -699,7 +702,8 @@ class VData:
         Optional[dict[str, VDataFrame]],
         Optional[dict[str, VDataFrame]],
         Optional[pd.Index],
-        Optional[pd.Index]
+        Optional[pd.Index],
+        Optional[dict[Any, Any]]
     ]:
         """
         Function for checking the types and formats of the parameters supplied to the VData object at creation.
@@ -1295,12 +1299,9 @@ class VData:
         else:
             generalLogger.debug("  Could not find time points.")
 
-        if uns is not None:
-            self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
-
         generalLogger.debug(u"  \u23BF Arrays' formats are OK.  -- -- -- -- -- -- -- -- -- ")
 
-        return obs, var, layers, _time_points_VDF, obsm, obsp, varm, varp, obs_index, var_index
+        return obs, var, layers, _time_points_VDF, obsm, obsp, varm, varp, obs_index, var_index, uns
 
     def _check_df_types(self, df: 'DataFrame') -> 'DataFrame':
         """
