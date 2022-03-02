@@ -36,7 +36,7 @@ time_point_units_seconds = {None: 1,
                             'M': 2592000,
                             'Y': 31104000}
 
-_units = (None, 's', 'm', 'h', 'D', 'M', 'Y')
+_units = (None, 's', 'm', 'h', 'D', 'M', 'Y', 'N')
 
 
 class Unit:
@@ -55,6 +55,9 @@ class Unit:
         """
         :param value: a string representing the unit, in [None, 's', 'm', 'h', 'D', 'M', 'Y'].
         """
+        if value == 'N':
+            value = None
+
         if value not in _units:
             raise VValueError(f"Invalid unit '{value}', should be in {_units}.")
 
@@ -174,7 +177,7 @@ class TimePoint:
         A short string representation where the unit is represented by a single character.
         """
         return f"{self.value}" \
-               f"{self.unit.value if self.unit.value is not None else ''}"
+               f"{self.unit.value if self.unit.value is not None else 'N'}"
 
     def round(self, decimals=0):
         """

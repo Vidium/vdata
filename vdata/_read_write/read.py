@@ -9,6 +9,7 @@ import json
 import shutil
 import pandas as pd
 import numpy as np
+from time import time
 from pathlib import Path
 from typing import Union, Optional, Any, Callable, Collection, cast, Literal
 
@@ -374,6 +375,7 @@ def read_TemporalDataFrame(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r
     return tdf
 
 
+# from HDF5 groups --------------------------------------------------------------------------------
 def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
     """
     Function for reading a dictionary from an h5 file.
@@ -383,6 +385,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
     """
     generalLogger.info(f"{spacer(level)}Reading dict {group.name}.")
 
+    start = time()
     data = {}
 
     for dataset_key in group.keys():
@@ -390,6 +393,9 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
 
         data[get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
 
+    end = time()
+
+    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
     return data
 
 
@@ -402,6 +408,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     """
     generalLogger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
 
+    start = time()
     # get index
     dataset_type = cast(H5GroupReader, group['index']).attrs("type")
     index = func_[dataset_type](group['index'], level=level + 1)
@@ -439,6 +446,9 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
         else:
             data = pd.DataFrame(data_str_data, columns=data_str_columns, index=index)
 
+    end = time()
+    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+
     return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
@@ -451,6 +461,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
     """
     generalLogger.info(f"{spacer(level)}Reading TemporalDataFrame {group.name}.")
 
+    start = time()
     # get index
     dataset_type = cast(H5GroupReader, group['index']).attrs("type")
     index = func_[dataset_type](group['index'], level=level + 1)
@@ -483,6 +494,9 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'Temporal
     dict_index = {tp: pd.Index(index[time_point_sizes_cumsum[tp_index]:time_point_sizes_cumsum[tp_index + 1]])
                   for tp_index, tp in enumerate(time_points)}
 
+    end = time()
+    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+
     return TemporalDataFrame(data, time_col_name=time_col_name,
                              index=dict_index, columns=columns,
                              time_points=time_points, name=group.name.split("/")[-1],
@@ -499,6 +513,7 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
     """
     generalLogger.info(f"{spacer(level)}Reading chunked TemporalDataFrame {group.name}.")
 
+    start = time()
     # get column order
     dataset_type = cast(H5GroupReader, group['columns']).attrs("type")
     columns = func_[dataset_type](group['columns'], level=level + 1)
@@ -510,6 +525,9 @@ def read_h5_chunked_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> '
     # get time_col
     dataset_type = cast(H5GroupReader, group['time_col_name']).attrs("type")
     time_col_name = func_[dataset_type](group['time_col_name'], level=level + 1)
+
+    end = time()
+    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
     return TemporalDataFrame(group.group, time_col_name=time_col_name,
                              index=index, columns=columns, name=group.name.split("/")[-1])
@@ -527,9 +545,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
     """
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
-    from time import time
     start = time()
-
     # simple Series
     if group.isinstance(Dataset):
         data_type = get_dtype_from_string(group.attrs('dtype'))
@@ -538,6 +554,9 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
 
         else:
             values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
+
+        end = time()
+        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
         return pd.Series(values, index=index)
 
@@ -549,6 +568,9 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
         ordered = get_value(group.attrs('ordered'))
         values = list(map(data_type, read_h5_array(cast(H5GroupReader, group['values']), level=level+1,
                                                    log_func=log_func)))
+
+        end = time()
+        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
         return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
 
@@ -569,16 +591,26 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
     """
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading array {group.name}.")
 
+    start = time()
     arr = group[()]
 
     if isinstance(arr, np.ndarray):
         # fix string arrays (object type to strings)
         if arr.dtype.type is np.object_:
             try:
+                end = time()
+                getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+
                 return arr.astype(float)
 
             except ValueError:
+                end = time()
+                getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+
                 return arr.astype(np.str_)
+
+        end = time()
+        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
         return arr
 

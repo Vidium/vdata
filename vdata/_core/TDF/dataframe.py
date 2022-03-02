@@ -499,7 +499,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 data.columns) else None
 
             if no_check:
-                self.time_points_column_name = time_col_name
+                self._time_points_column_name = time_col_name
                 self._index = index
                 self._columns = columns
 
@@ -518,7 +518,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 data = data.copy()
 
             if no_check:
-                self.time_points_column_name = time_col_name
+                self._time_points_column_name = time_col_name
                 self._index = index
                 self._columns = columns
 
@@ -841,12 +841,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return object.__getattribute__(self, '_time_points_column_name')
 
     @time_points_column_name.setter
-    def time_points_column_name(self, value: str) -> None:
+    def time_points_column_name(self, value: Optional[str]) -> None:
         """
         Set the name of the column with time points data.
         :param value: a new name for the column with time points data.
         """
-        value = str(value)
+        value = str(value) if value is not None else None
 
         self._time_points_column_name = value
 
@@ -1003,6 +1003,36 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             return None
 
+    @property
+    def dtypes(self) -> Optional[list[np.dtype]]:
+        """
+        Get the dtypes of each column in this TemporalDataFrame.
+        """
+        if self.n_time_points:
+            if self.dtype != object:
+                return [self.dtype for _ in range(self.n_columns)]
+
+            dtypes = []
+            for column in self.columns:
+                col_array = self[:, :, column].values
+                dt = type(col_array[0, 0])
+
+                if np.dtype(dt) == object:
+                    dtypes.append(object)
+
+                else:
+                    try:
+                        col_array.astype(dt)
+                        dtypes.append(dt)
+
+                    except ValueError:
+                        dtypes.append(object)
+
+            return [type(self[:, :, column].values[0, 0]) for column in self.columns]
+
+        else:
+            return None
+
     def astype(self, dtype: Optional['DType']) -> None:
         """
         Cast this TemporalDataFrame to a specified data type.
@@ -1091,6 +1121,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             raise VLockError("Cannot use 'insert' functionality on a locked TemporalDataFrame.")
 
         else:
+            if column in self.columns:
+                raise VValueError(f"Column '{column}' already in this TemporalDataFrame !")
+
             if isCollection(values):
                 if self.n_index_total != len(values):
                     raise VValueError("Length of values does not match length of index.")

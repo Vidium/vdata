@@ -315,13 +315,14 @@ def write_TemporalDataFrame(data: 'TemporalDataFrame', group: H5Group, key: str,
         write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1, data_type=vdata.TimePoint)
 
         # save data, per column, in arrays
-        for col in data.columns:
+        for dt, col in zip(data.dtypes, data.columns):
             values = data[:, :, col].values.flatten()
-            try:
-                values = values.astype(float)
 
-            except ValueError:
+            if dt == object:
                 values = values.astype(str)
+
+            else:
+                values = values.astype(dt)
 
             write_data(values, data_group, col, key_level=key_level + 1)
 
