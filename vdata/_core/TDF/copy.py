@@ -20,7 +20,7 @@ def copy_TemporalDataFrame(TDF: Union['dataframe.TemporalDataFrame', 'views.View
     """
     _time_list = TDF.time_points_column if TDF.time_points_column_name is None else None
 
-    new_TDF = dataframe.TemporalDataFrame(data=TDF.to_pandas(),
+    new_TDF = dataframe.TemporalDataFrame(data=TDF.to_pandas(with_time_points=True),
                                           time_list=_time_list,
                                           time_col_name=TDF.time_points_column_name,
                                           time_points=TDF.time_points,

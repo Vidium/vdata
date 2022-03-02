@@ -6,7 +6,6 @@
 # imports
 import builtins
 
-import anndata.compat
 import numpy as np
 import pandas as pd
 from collections import abc
