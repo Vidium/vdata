@@ -582,6 +582,15 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
     @property
+    def shape(self) -> tuple[int, int, list[int], int]:
+        """
+        The shape of this ArrayContainer is computed from the shape of the TemporalDataFrames it contains.
+        See __len__ for getting the number of TemporalDataFrames it contains.
+        :return: the shape of this ArrayContainer.
+        """
+        return len(self._data), *self._parent.shape[1:3], [d.shape[2] for d in self._data.values()]
+
+    @property
     def name(self) -> Literal['obsm']:
         """
         Name for this VObsmArrayContainer : obsm.
