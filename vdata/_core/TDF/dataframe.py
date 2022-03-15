@@ -592,23 +592,26 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             -> 'ViewTemporalDataFrame':
         """
         Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
-        :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
-            An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
-            Indexes are converted to a 3-tuple :
-                * TDF[index]            --> (index, :, :)
-                * TDF[index1, index2]   --> (index1, index2, :)
 
-            The first element in the 3-tuple is the list of time points to select, the second element is a
-            collection of rows to select, the third element is a collection of columns to select.
+        Args:
+            index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
+                An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
+                Indexes are converted to a 3-tuple :
+                    * TDF[index]            --> (index, :, :)
+                    * TDF[index1, index2]   --> (index1, index2, :)
 
-            The values ':' or '...' are shortcuts for 'take all values'.
+                The first element in the 3-tuple is the list of time points to select, the second element is a
+                collection of rows to select, the third element is a collection of columns to select.
 
-            Example:
-                * TemporalDataFrame[:] or TemporalDataFrame[...]    --> select all data
-                * TemporalDataFrame[0]                              --> select all data from time point 0
-                * TemporalDataFrame[[0, 1], [1, 2, 3], 'col1']      --> select data from time points 0 and 1 for rows
-                                                                    with index in [1, 2, 3] and column 'col1'
-        :return: a view on a sub-set of a TemporalDataFrame
+                The values ':' or '...' are shortcuts for 'take all values'.
+
+                Example:
+                    * TemporalDataFrame[:] or TemporalDataFrame[...]    --> select all data
+                    * TemporalDataFrame[0]                              --> select all data from time point 0
+                    * TemporalDataFrame[[0, 1], [1, 2, 3], 'col1']      --> select data from timepoints 0 and 1 for rows
+                                                                        with index in [1, 2, 3] and column 'col1'
+        Returns:
+            A view on a sub-set of a TemporalDataFrame
         """
         generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
         generalLogger.debug(f'  Got index \n{repr_index(index)}.')

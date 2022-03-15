@@ -123,7 +123,8 @@ class _VLocIndexer:
         - a boolean array of the same length as the axis
     """
 
-    def __init__(self, parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
+    def __init__(self,
+                 parent: Union['dataframe.TemporalDataFrame', 'views.ViewTemporalDataFrame'],
                  data: dict['TimePoint', np.ndarray]):
         """
         :param parent: a parent TemporalDataFrame.

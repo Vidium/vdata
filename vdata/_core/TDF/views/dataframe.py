@@ -6,6 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
+import numpy_indexed as npi
 from pathlib import Path
 from typing import Collection, Optional, Union, Any, NoReturn, Literal
 
@@ -30,17 +31,22 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     A view of a TemporalDataFrame, created on sub-setting operations.
     """
 
-    def __init__(self, parent: 'dataframe.TemporalDataFrame', parent_data: dict['TimePoint', np.ndarray],
-                 tp_slicer: Collection['TimePoint'], index_slicer: Collection, column_slicer: Collection,
+    def __init__(self,
+                 parent: 'dataframe.TemporalDataFrame',
+                 parent_data: dict['TimePoint', np.ndarray],
+                 tp_slicer: Collection['TimePoint'],
+                 index_slicer: Collection,
+                 column_slicer: Collection,
                  lock: bool):
         """
-        :param parent: a parent TemporalDataFrame to view.
-        :param parent_data: the parent TemporalDataFrame's data.
-        :param tp_slicer: a collection of time points to view.
-        :param index_slicer: a pandas Index of rows to view.
-            obs = pd.DataFrame({"cell_name": ["c1", "c2", "c3", "c4"], "batch": [1, 1, 2, 2]}, index=[1, 2, 3, 4])
-        :param column_slicer: a pandas Index of columns to view.
-        :param lock: lock this view on index modification ?
+        Args:
+            parent: a parent TemporalDataFrame to view.
+            parent_data: the parent TemporalDataFrame's data.
+            tp_slicer: a collection of time points to view.
+            index_slicer: a pandas Index of rows to view.
+                obs = pd.DataFrame({"cell_name": ["c1", "c2", "c3", "c4"], "batch": [1, 1, 2, 2]}, index=[1, 2, 3, 4])
+            column_slicer: a pandas Index of columns to view.
+            lock: lock this view on index modification ?
         """
         generalLogger.debug(f"\u23BE ViewTemporalDataFrame '{parent.name}':{id(self)} creation : begin "
                             f"---------------------------------------- ")
@@ -49,25 +55,25 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_parent_data', parent_data)
         object.__setattr__(self, '_index', pd.Index(index_slicer))
-        object.__setattr__(self, '_columns', parent.columns.intersection(column_slicer))
+        object.__setattr__(self, '_columns', pd.Index(column_slicer)[np.in1d(column_slicer, parent.columns)])
 
         # remove time points where the index does not match
         object.__setattr__(self, '_tp_slicer', sorted(np.array(tp_slicer)[
-            [any(self.index.isin(parent.index_at(time_point))) for time_point in tp_slicer]]))
+            [any(self._index.isin(parent.index_at(time_point))) for time_point in tp_slicer]]))
 
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
         # remove index elements where time points do not match
         if len(self._tp_slicer):
             valid_indexes = np.concatenate([parent.index_at(time_point) for time_point in self._tp_slicer])
-            index_at_tp_slicer = pd.Index([i for i in valid_indexes if i in self.index])
+            index_at_tp_slicer = pd.Index([i for i in self._index if i in valid_indexes])
 
         else:
             index_at_tp_slicer = pd.Index([], dtype=object)
 
         object.__setattr__(self, '_index', index_at_tp_slicer)
 
-        generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self.index)}")
+        generalLogger.debug(f"  2. Refactored index slicer to : {repr_array(self._index)}")
 
         object.__setattr__(self, '_lock', lock)
 
@@ -110,7 +116,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             return self.__getattr__(index[2])
 
         else:
-            _index = reformat_index(index, self.time_points, self.index, self.columns)
+            _index = reformat_index(index, self.time_points, self._index, self.columns)
 
             generalLogger.debug(f'  Refactored index to : {repr_index(_index)}')
 
@@ -208,11 +214,13 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     def set(self, values: Any) -> None:
         """
         Set values for this ViewTemporalDataFrame.
-        Values can be given as a single value, a collection of values a pandas.DataFrame, a TemporalDataFrame or an
-        other ViewTemporalDataFrame.
+        Values can be given as a single value, a collection of values a pandas.DataFrame, a TemporalDataFrame or
+        another ViewTemporalDataFrame.
         To set values from DataFrames, the columns and indexes must match ALL columns and indexes in this
         ViewTemporalDataFrame.
-        :param values: new values to set to this view.
+
+        Args:
+            values: new values to set to this view.
         """
         if isinstance(values, pd.DataFrame):
             # only one tp in this view
@@ -299,13 +307,16 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     def to_pandas(self, with_time_points: bool = False) -> Any:
         """
         Get the data in a pandas format.
-        :param with_time_points: add a column with time points data ?
-        :return: the data in a pandas format.
+
+        Args:
+            with_time_points: add a column with time points data ?
+
+        Returns:
+            The data in a pandas format.
         """
         if not self.empty:
             data = pd.concat([
-                pd.DataFrame(self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0]][:,
-                             np.where(self.bool_columns())[0]],
+                pd.DataFrame(self._parent_data[time_point][self.pos_index_at(time_point)][:, self.pos_columns()],
                              index=self.index_at(time_point),
                              columns=self.columns)
                 for time_point in self.time_points if self._parent_data[time_point].ndim == 2])
@@ -339,12 +350,19 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return self._parent.time_points_column_name
 
     @property
-    def index(self):
+    def index(self) -> pd.Index:
         """
-        Get the full index of this view (concatenated over all time points).
-        :return: the full index of this view.
+        Get the full index of this view (concatenated over all timepoints).
+
+        Returns:
+            The full index of this view.
         """
-        return self._index
+        index = pd.Index([])
+
+        for tp in self.time_points:
+            index = index.union(self.index_at(tp), sort=False)
+
+        return index
 
     @index.setter
     def index(self, values: Collection) -> None:
@@ -385,10 +403,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         if time_point not in self._tp_slicer:
             raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
 
-        dup_index = self._parent.index_at(time_point).intersection(self.index, sort=False)
-        unique_idx = np.unique(dup_index, return_index=True)[1]
-
-        return pd.Index([dup_index[i] for i in sorted(unique_idx)])
+        return self._index.intersection(self._parent.index_at(time_point))
 
     def bool_index_at(self, time_point: Union['TimePoint', str]) -> np.ndarray:
         """
@@ -405,6 +420,25 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             return np.array([False for _ in range(self._parent.n_index_at(time_point))])
 
+    def pos_index_at(self, time_point: Union['TimePoint', str]) -> np.ndarray:
+        """
+        Get the positions of the indices of this view of a TemporalDataFrame inside the parent TemporalDataFrame's
+        index.
+
+        Args:
+            time_point: a time point in this view of a TemporalDataFrame.
+
+        Returns:
+            The positions of this view's indices inside the parent TemporalDataFrame's index.
+        """
+        if not isinstance(time_point, TimePoint):
+            time_point = TimePoint(time_point)
+
+        if time_point not in self._tp_slicer:
+            raise VValueError(f"TimePoint '{time_point}' cannot be found in this view.")
+
+        return npi.indices(self._parent.index_at(time_point), self.index_at(time_point))
+
     @property
     def columns(self) -> pd.Index:
         """
@@ -420,6 +454,16 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :return: boolean array on parental columns index in this view.
         """
         return self._parent.columns.isin(self.columns)
+
+    def pos_columns(self) -> np.ndarray:
+        """
+        Get the positions of the columns of this view of a TemporalDataFrame inside the parent TemporalDataFrame's
+        columns.
+
+        Returns:
+            The positions of this view's columns inside the parent TemporalDataFrame's columns.
+        """
+        return npi.indices(self._parent.columns, self._columns)
 
     @property
     def name(self) -> str:
@@ -506,7 +550,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                          func)(axis=1) for tp in self.time_points]
             )}
             _time_list = self.time_points_column
-            _index = self.index
+            _index = self._index
 
         else:
             raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")

@@ -521,6 +521,14 @@ class ViewVVarmArrayContainer(ViewVBase2DArrayContainer):
 
 class ViewVVarpArrayContainer(ViewVBase2DArrayContainer):
 
+    def __getitem__(self, item: str) -> D_VDF:
+        """
+        Get a specific data item stored in this view.
+        :param item: key in _data linked to a data item.
+        :return: data item stored in _data under the given key.
+        """
+        return self._array_container[item].loc[self._var_slicer, self._var_slicer]
+
     def __setitem__(self, key: str, value: pd.DataFrame) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.

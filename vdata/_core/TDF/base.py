@@ -307,7 +307,7 @@ class BaseTemporalDataFrame(ABC):
             TP_cnt = 0
             suppl_TPs = []
 
-            for TP in time_points:
+            for TP_cnt, TP in enumerate(time_points):
                 if TP_cnt < 5:
                     repr_str += f"\033[4mTime point : {repr(TP)}\033[0m\n"
 
@@ -320,7 +320,6 @@ class BaseTemporalDataFrame(ABC):
                         repr_str += f"{pandas_repr}\n\n"
 
                         repr_str += f"[{self.n_index_at(TP)} x {self.n_columns}]\n\n"
-                        TP_cnt += 1
 
                     else:
                         repr_str += f"Empty DataFrame\n" \

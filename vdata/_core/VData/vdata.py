@@ -1554,7 +1554,6 @@ class VData:
                 raise ValueError(f"Layer '{layer_as_X}' was not found.")
 
             X = view.layers[layer_as_X].to_pandas()
-            X.index = X.index.astype(str)
             X.columns = X.columns.astype(str)
 
             return AnnData(X=X,
@@ -1579,7 +1578,6 @@ class VData:
                     raise ValueError(f"Layer '{layer_as_X}' was not found.")
 
                 X = view.layers[layer_as_X].to_pandas()
-                X.index = X.index.astype(str)
                 X.columns = X.columns.astype(str)
 
                 result.append(AnnData(X=X,
