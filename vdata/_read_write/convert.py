@@ -25,12 +25,13 @@ def convert_anndata_to_vdata(file: Union[Path, str],
                              inplace: bool = False) -> None:
     """
     Convert an anndata h5 file into a valid vdata h5 file.
+    /!\\ WARNING : if done inplace, you won't be able to open the file as an anndata anymore !
 
-    :param file: path to the anndata h5 file to convert.
-    :param time_point: a time point to set for the data in the anndata.
-    :param time_column_name: the name of the column in anndata's obs to use as indicator of time point for the data.
-    :param inplace: perform file conversion directly on the anndata h5 file ? (default False)
-        WARNING : if done inplace, you won't be able to open the file as an anndata anymore !
+    Args:
+        file: path to the anndata h5 file to convert.
+        time_point: a time point to set for the data in the anndata.
+        time_column_name: the name of the column in anndata's obs to use as indicator of time point for the data.
+        inplace: perform file conversion directly on the anndata h5 file ? (default False)
     """
     working_on_file = Path(file).with_suffix('.vd')
 

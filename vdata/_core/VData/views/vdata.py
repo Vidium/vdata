@@ -6,16 +6,19 @@
 # imports
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
 from typing import Union, Iterator, Literal
 
 import vdata
 from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
-from ...utils import reformat_index, repr_index
-from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
-from ...name_utils import PreSlicer
+from vdata._core.utils import reformat_index, repr_index
+from vdata._core.TDF import TemporalDataFrame, ViewTemporalDataFrame
+from vdata._core.name_utils import PreSlicer
 from vdata.utils import repr_array
-from ....time_point import TimePoint
-from ....IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
+from vdata.time_point import TimePoint
+from vdata.IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
+from ...._read_write.write import write_vdata, write_vdata_to_csv
 
 
 # ====================================================
@@ -129,6 +132,26 @@ class ViewVData:
         generalLogger.debug(f"  1. Refactored index to \n{repr_index(index)}")
 
         return ViewVData(self._parent, index[0], index[1], index[2])
+
+    @property
+    def is_backed(self) -> False:
+        """
+        For compliance with VData's API.
+
+        Returns:
+            False
+        """
+        return False
+
+    @property
+    def is_backed_w(self) -> False:
+        """
+        For compliance with VData's API.
+
+        Returns:
+            False
+        """
+        return False
 
     # Shapes -------------------------------------------------------------
     @property
@@ -410,6 +433,35 @@ class ViewVData:
         _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
+    # writing ------------------------------------------------------------
+    def write(self,
+              file: Union[str, Path]) -> None:
+        """
+        Save this VData object in HDF5 file format.
+
+        Args:
+            file: path to save the VData
+        """
+        write_vdata(self, file)
+
+    def write_to_csv(self,
+                     directory: Union[str, Path],
+                     sep: str = ",",
+                     na_rep: str = "",
+                     index: bool = True,
+                     header: bool = True) -> None:
+        """
+        Save layers, time_points, obs, obsm, obsp, var, varm and varp to csv files in a directory.
+
+        Args:
+            directory: path to a directory for saving the matrices
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+        """
+        write_vdata_to_csv(self, directory, sep, na_rep, index, header)
+
     # copy ---------------------------------------------------------------
     def copy(self) -> 'vdata.VData':
         """
@@ -418,9 +470,10 @@ class ViewVData:
         return vdata.VData(data=self.layers.dict_copy(),
                            obs=self.obs.copy(),
                            obsm=self.obsm.dict_copy(), obsp=self.obsp.dict_copy(),
-                           var=self.var,
+                           var=self.var.copy(),
                            varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
-                           time_points=self.time_points,
+                           time_points=self.time_points.copy(),
                            uns=self.uns,
                            dtype=self._parent.dtype,
-                           name=f"{self.name}_copy")
+                           name=f"{self.name}_copy",
+                           no_check=True)

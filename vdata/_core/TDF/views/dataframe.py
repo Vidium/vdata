@@ -474,12 +474,24 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return self._parent.name
 
     @property
+    def dtype(self) -> Optional[np.dtype]:
+        """
+        Return the dtype of this view of a TemporalDataFrame.
+        :return: the dtype of this view of a TemporalDataFrame.
+        """
+        if self.n_time_points:
+            return self._parent_data[self.time_points[0]].dtype
+
+        else:
+            return None
+
+    @property
     def dtypes(self) -> None:
         """
         Return the dtypes in the DataFrame.
         :return: the dtypes in the DataFrame.
         """
-        return self._parent_data[self.columns].dtype
+        return np.array(self._parent.dtypes)[self.pos_columns()]
 
     def astype(self, dtype: Union['DType', dict[str, 'DType']]) -> NoReturn:
         """
@@ -531,6 +543,22 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         :return: a copy of this view of a TemporalDataFrame.
         """
         return copy.copy_TemporalDataFrame(self)
+
+    def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
+               index: bool = True, header: bool = True) -> None:
+        """
+        Save this view of a TemporalDataFrame in a csv file.
+
+        Args:
+            path: a path to the csv file.
+            sep: String of length 1. Field delimiter for the output file.
+            na_rep: Missing data representation.
+            index: Write row names (index) ?
+            header: Write out the column names ? If a list of strings is given it is
+                assumed to be aliases for the column names.
+        """
+        # save DataFrame to csv
+        self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> tuple[dict, np.ndarray, pd.Index]:
         """

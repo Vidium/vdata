@@ -102,6 +102,10 @@ class VData:
                                                                                                   obsp, varm, varp, \
                                                                                                   obs.index, var.index
 
+            if not isinstance(_layers, dict):
+                raise VTypeError("'data' parameter should be an optional dictionary of [str, TemporalDataFrame] when "
+                                 "using 'no_check' !")
+
         else:
             # check formats of arguments
             _obs, _var, _layers, _time_points, _obsm, _obsp, _varm, _varp, obs_index, var_index, uns = \
@@ -997,11 +1001,11 @@ class VData:
                                 var_index = value.columns
 
                                 if _time_points_VDF is not None:
-                                    if not _time_points_VDF.value.equals(pd.Series(value.time_points)):
+                                    if not np.all(_time_points_VDF.value.values == value.time_points):
                                         raise VValueError(
                                             f"'time points' found in DataFrame ({repr_array(_time_points_VDF.value)}) "
                                             f"do not match 'layers' time points ("
-                                            f"{repr_array(value._time_points_VDF)}).")
+                                            f"{repr_array(value.time_points)}).")
 
                                 else:
                                     _time_points_VDF = VDataFrame({'value': value.time_points},
@@ -1470,27 +1474,34 @@ class VData:
         return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     # writing ------------------------------------------------------------
-    def write(self, file: Optional[Union[str, Path]] = None) -> None:
+    def write(self,
+              file: Optional[Union[str, Path]] = None) -> None:
         """
         Save this VData object in HDF5 file format.
 
-        :param file: path to save the VData
+        Args:
+            file: path to save the VData
         """
         if not self.is_backed and file is None:
             raise VValueError("No file path was provided for writing this VData.")
 
         write_vdata(self, file)
 
-    def write_to_csv(self, directory: Union[str, Path], sep: str = ",", na_rep: str = "",
-                     index: bool = True, header: bool = True) -> None:
+    def write_to_csv(self,
+                     directory: Union[str, Path],
+                     sep: str = ",",
+                     na_rep: str = "",
+                     index: bool = True,
+                     header: bool = True) -> None:
         """
         Save layers, time_points, obs, obsm, obsp, var, varm and varp to csv files in a directory.
 
-        :param directory: path to a directory for saving the matrices
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
+        Args:
+            directory: path to a directory for saving the matrices
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
         """
         write_vdata_to_csv(self, directory, sep, na_rep, index, header)
 
