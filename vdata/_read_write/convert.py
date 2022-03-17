@@ -51,6 +51,11 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     # -------------------------------------------------------------------------
     # 1. remove X
     generalLogger.info("Removing 'X' layer.")
+    if 'layers' not in h5_file.keys():
+        h5_file.create_group('layers')
+        h5_file['layers'].create_dataset_like('data', h5_file['X'])
+        h5_file['layers']['data'][()] = h5_file['X']
+
     del h5_file['X']
 
     # -------------------------------------------------------------------------
@@ -72,6 +77,11 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     # set group type
     h5_file['layers'].attrs['type'] = 'dict'
 
+    obs_index_name = h5_file['obs'].attrs['_index']
+    obs_index = h5_file['obs'][obs_index_name]
+    var_index_name = h5_file['var'].attrs['_index']
+    var_index = h5_file['var'][var_index_name]
+
     for layer in h5_file['layers'].keys():
         generalLogger.info(f"Converting layer '{layer}'.")
 
@@ -79,7 +89,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         h5_file['layers'].create_group(layer)
 
         # save index
-        h5_file['obs'].copy('_index', f'/layers/{layer}/index')
+        h5_file[f'layers/{layer}'].create_dataset_like('index', obs_index)
+        h5_file[f'layers/{layer}/index'][()] = obs_index
         h5_file['layers'][layer]['index'].attrs['type'] = 'array'
 
         # save time_col_name
@@ -92,7 +103,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         h5_file['layers'][layer].attrs['type'] = 'CHUNKED_TDF'
 
         # save columns
-        h5_file['var'].copy('_index', f'/layers/{layer}/columns')
+        h5_file[f'layers/{layer}'].create_dataset_like('columns', var_index)
+        h5_file[f'layers/{layer}/columns'][()] = var_index
         h5_file['layers'][layer]['columns'].attrs['type'] = 'array'
 
         # save data, per time point, in DataSets
@@ -100,7 +112,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
             # TODO : support for reading a sparse matrix
             data_group.create_dataset(
                 str(TimePoint(time_point)),
-                data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point][:, None], :],
+                data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point]],
                 chunks=True, maxshape=(None, None)
             )
 
@@ -115,15 +127,16 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     h5_file.create_group('obs')
 
     # save index
-    h5_file['obs_data'].copy('_index', '/obs/index')
+    h5_file['obs'].create_dataset_like('index', obs_index)
+    h5_file['obs/index'][()] = obs_index
     h5_file['obs']['index'].attrs['type'] = 'array'
 
     # save time_col_name
     write_data(time_column_name, h5_file['obs'], 'time_col_name', key_level=1)
 
     # save time_list
-    write_data(np.repeat([str(TimePoint(tp)) for tp in time_points_masks.keys()],
-                         [len(i) for i in time_points_masks.values()]),
+    write_data(list(np.repeat([TimePoint(tp) for tp in time_points_masks.keys()],
+                              [len(i) for i in time_points_masks.values()])),
                h5_file['obs'], 'time_list', key_level=1)
 
     # create group for storing the data
@@ -246,7 +259,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     h5_file.create_group('var')
 
     # save index
-    h5_file['var_data'].copy('_index', '/var/index')
+    h5_file['var'].create_dataset_like('index', var_index)
+    h5_file['var/index'][()] = var_index
     h5_file['var']['index'].attrs['type'] = 'array'
 
     # create group for storing the data
@@ -279,7 +293,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     # 6. copy uns
     generalLogger.info("Converting 'uns'.")
 
-    set_type_to_dict(h5_file['uns'])
+    if 'uns' in h5_file.keys():
+        set_type_to_dict(h5_file['uns'])
 
     # -------------------------------------------------------------------------
     # 7. create time_points
