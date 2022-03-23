@@ -5,9 +5,8 @@
 # ====================================================
 # imports
 import os
-import abc
 import pandas as pd
-from abc import ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Union, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, Collection, \
     Generic, Literal
@@ -18,7 +17,8 @@ from ..TDF import TemporalDataFrame
 from vdata.vdataframe import VDataFrame
 from vdata.name_utils import DType
 from vdata.time_point import TimePoint
-from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError
+from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError, \
+    VClosedFileError, VReadOnlyError
 from vdata.h5pickle import File, Group
 
 
@@ -70,21 +70,25 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
 
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D]]):
         """
-        :param parent: the parent VData object this ArrayContainer is linked to.
-        :param data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
-        DataFrames) to store in this ArrayContainer.
+        Args:
+            parent: the parent VData object this ArrayContainer is linked to.
+            data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
+            DataFrames) to store in this ArrayContainer.
         """
         generalLogger.debug(f"== Creating {self.__class__.__name__}. ==========================")
 
         self._parent = parent
         self._data = self._check_init_data(data)
 
-    @abc.abstractmethod
+    @abstractmethod
     def _check_init_data(self, data: Optional[dict[K_, D]]) -> dict[K_, D]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format.
-        :param data: optional dictionary of data items.
-        :return: the data, if correct.
+
+        Args:
+            data: optional dictionary of data items.
+        Returns:
+            The data, if correct.
         """
         pass
 
@@ -102,21 +106,29 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     def __getitem__(self, item: str) -> D:
         """
         Get a specific data item stored in this ArrayContainer.
-        :param item: key in _data linked to a data item.
-        :return: data item stored in _data under the given key.
-        """
-        if len(self) and item in self.keys():
-            return self._data[item]
 
-        else:
+        Args:
+            item: key in _data linked to a data item.
+
+        Returns:
+            Data item stored in _data under the given key.
+        """
+        if self.is_closed:
+            raise VClosedFileError
+
+        if not len(self) or item not in self.keys():
             raise VAttributeError(f"{self.name} ArrayContainer has no attribute '{item}'")
 
-    @abc.abstractmethod
+        return self._data[item]
+
+    @abstractmethod
     def __setitem__(self, key: K_, value: D) -> None:
         """
         Set a specific data item in _data. The given data item must have the correct shape.
-        :param key: key for storing a data item in this ArrayContainer.
-        :param value: a data item to store.
+
+        Args:
+            key: key for storing a data item in this ArrayContainer.
+            value: a data item to store.
         """
         pass
 
@@ -124,6 +136,12 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         """
         Delete a specific data item stored in this ArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
+        if self.is_read_only:
+            raise VReadOnlyError
+
         del self._data[key]
 
     def __len__(self) -> int:
@@ -138,10 +156,27 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         Iterate on this ArrayContainer's keys.
         :return: an iterator over this ArrayContainer's keys.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return iter(self.keys())
 
     @property
-    @abc.abstractmethod
+    def is_closed(self) -> bool:
+        """
+        Is the parent's file closed ?
+        """
+        return self._parent.is_closed
+
+    @property
+    def is_read_only(self) -> bool:
+        """
+        Is the parent's file open in read only mode ?
+        """
+        return self._parent.is_read_only
+
+    @property
+    @abstractmethod
     def empty(self) -> bool:
         """
         Whether this ArrayContainer is empty or not.
@@ -149,16 +184,18 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of Arrays stored in this ArrayContainer.
-        :param type_: the new data type.
+
+        Args:
+            type_: the new data type.
         """
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def name(self) -> str:
         """
         Name for this ArrayContainer.
@@ -167,7 +204,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def shape(self) -> Union[
         tuple[int, int, int],
         tuple[int, int, list[int]],
@@ -190,6 +227,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         Returns:
             The data of this ArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return self._data
 
     def keys(self) -> KeysView[K_]:
@@ -199,6 +239,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         Returns:
             KeysView of this ArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return self._data.keys()
 
     def values(self) -> ValuesView[D]:
@@ -208,6 +251,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         Returns:
             ValuesView of this ArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return self._data.values()
 
     def items(self) -> ItemsView[K_, D]:
@@ -217,9 +263,12 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         Returns:
             ItemsView of this ArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return self._data.items()
 
-    @abc.abstractmethod
+    @abstractmethod
     def dict_copy(self) -> dict[K_, D]:
         """
         Dictionary of keys and data items in this ArrayContainer.
@@ -229,7 +278,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
@@ -245,13 +294,13 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the Arrays in this ArrayContainer.
 
         Args:
-            file: an h5 file to back the Arrays on.
+            file: a h5 file to back the Arrays on.
         """
         pass
 
@@ -265,10 +314,10 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
 
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
         """
-        :param parent: the parent VData object this ArrayContainer is linked to.
-        :param data: a dictionary of TemporalDataFrames in this ArrayContainer.
+        Args:
+            parent: the parent VData object this ArrayContainer is linked to.
+            data: a dictionary of TemporalDataFrames in this ArrayContainer.
         """
-
         super().__init__(parent, data)
 
     def __setitem__(self, key: K_, value: D_TDF) -> None:
@@ -279,7 +328,11 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
             value: a TemporalDataFrame to store.
         """
-        # TODO : prevent this kind of operation if the vdata is backed in read only mode
+        if self.is_closed:
+            raise VClosedFileError
+
+        if self.is_read_only:
+            raise VReadOnlyError
 
         if not self._parent.time_points.value.equals(pd.Series(value.time_points)):
             raise VValueError("Time points do not match.")
@@ -300,7 +353,9 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
     def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
-        :param type_: the new data type.
+
+        Args:
+            type_: the new data type.
         """
         for arr in self.values():
             arr.astype(type_)
@@ -331,14 +386,19 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
         Save the ArrayContainer in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
-        # create sub directory for storing arrays
+        if self.is_closed:
+            raise VClosedFileError
+
+        # create subdirectory for storing arrays
         os.makedirs(directory / self.name)
 
         for arr_name, arr in self.items():
@@ -350,8 +410,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
     def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the TemporalDataFrames in this VBase3DArrayContainer.
-        :param file: an h5 file to back the TemporalDataFrames on.
+
+        Args:
+            file: a h5 file to back the TemporalDataFrames on.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
                              f"{type(file)}'.")
@@ -370,8 +435,9 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
         """
-        :param parent: the parent VData object this VLayerArrayContainer is linked to.
-        :param data: a dictionary of TemporalDataFrames in this VLayerArrayContainer.
+        Args:
+            parent: the parent VData object this VLayerArrayContainer is linked to.
+            data: a dictionary of TemporalDataFrames in this VLayerArrayContainer.
         """
         super().__init__(parent, data)
 
@@ -383,8 +449,12 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             - the column names of the TemporalDataFrames in 'data' match the index of the parent VData's var DataFrame.
             - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
             DataFrame.
-        :param data: optional dictionary of TemporalDataFrames.
-        :return: the data (dictionary of TemporalDataFrames), if correct.
+
+        Args:
+            data: optional dictionary of TemporalDataFrames.
+
+        Returns:
+            The data (dictionary of TemporalDataFrames), if correct.
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
@@ -450,8 +520,10 @@ class VLayerArrayContainer(VBase3DArrayContainer):
     def __setitem__(self, key: K_, value: D_TDF) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
-        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
-        :param value: a TemporalDataFrame to store.
+
+        Args:
+            key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+            value: a TemporalDataFrame to store.
         """
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
@@ -465,11 +537,11 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         value_copy = value.copy()
         value_copy.name = key
 
-        if self._parent.is_backed_w:
-            value_copy.write(self._parent.file['layers'].group)
-
         value_copy.lock((True, True))
         super().__setitem__(key, value_copy)
+
+        if self._parent.is_backed_w:
+            value_copy.write(self._parent.file['layers'].group)
 
     @property
     def name(self) -> Literal['layers']:
@@ -490,8 +562,9 @@ class VObsmArrayContainer(VBase3DArrayContainer):
 
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]] = None):
         """
-        :param parent: the parent VData object this VObsmArrayContainer is linked to.
-        :param data: a dictionary of TemporalDataFrames in this VObsmArrayContainer.
+        Args:
+            parent: the parent VData object this VObsmArrayContainer is linked to.
+            data: a dictionary of TemporalDataFrames in this VObsmArrayContainer.
         """
         super().__init__(parent, data)
 
@@ -503,8 +576,12 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             - the index of the TemporalDataFrames in 'data' match the index of the parent VData's obs TemporalDataFrame.
             - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
             DataFrame.
-        :param data: optional dictionary of TemporalDataFrames.
-        :return: the data (dictionary of TemporalDataFrames), if correct.
+
+        Args:
+            data: optional dictionary of TemporalDataFrames.
+
+        Returns:
+            The data (dictionary of TemporalDataFrames), if correct.
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
@@ -563,8 +640,10 @@ class VObsmArrayContainer(VBase3DArrayContainer):
     def __setitem__(self, key: K_, value: D_TDF) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
-        :param key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
-        :param value: a TemporalDataFrame to store.
+
+        Args:
+            key: key for storing a TemporalDataFrame in this VObsmArrayContainer.
+            value: a TemporalDataFrame to store.
         """
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
@@ -575,20 +654,25 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         value_copy = value.copy()
         value_copy.name = key
 
-        if self._parent.is_backed_w:
-            value_copy.write(self._parent.file['obsm'].group)
-
         value_copy.lock((True, False))
         super().__setitem__(key, value_copy)
 
+        if self._parent.is_backed_w:
+            value_copy.write(self._parent.file['obsm'].group)
+
     @property
-    def shape(self) -> tuple[int, int, list[int], int]:
+    def shape(self) -> tuple[int, int, list[int], list[int]]:
         """
         The shape of this ArrayContainer is computed from the shape of the TemporalDataFrames it contains.
         See __len__ for getting the number of TemporalDataFrames it contains.
-        :return: the shape of this ArrayContainer.
+
+        Returns:
+            The shape of this ArrayContainer.
         """
-        return len(self._data), *self._parent.shape[1:3], [d.shape[2] for d in self._data.values()]
+        n_time_points = self._parent.shape[1]
+        n_obs = self._parent.shape[2]
+
+        return len(self._data), n_time_points, n_obs, [d.shape[2] for d in self._data.values()]
 
     @property
     def name(self) -> Literal['obsm']:
@@ -681,6 +765,9 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         Returns:
             A VDataFrame stored in _data under the given key.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         if len(self) and item in self.keys():
             return self._data[(slice(None), item)]
 
@@ -697,6 +784,12 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             key: key for storing a set of DataFrames in this VObspArrayContainer.
             value: a set of DataFrames to store.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(value, (pd.DataFrame, VDataFrame)):
             raise VTypeError("The value should be a pandas DataFrame or a VDataFrame.")
 
@@ -724,6 +817,9 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         Returns:
             The data of this VObspArrayContainer.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
         return self._data
 
     @property
@@ -801,7 +897,10 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             header: Write col names ?
             spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
-        # create sub directory for storing sets
+        if self.is_closed:
+            raise VClosedFileError
+
+        # create subdirectory for storing sets
         os.makedirs(directory / self.name)
 
         for vdf_name, vdf in self.items():
@@ -829,7 +928,7 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         Set the file to back the VDataFrames in this VObspArrayContainer.
 
         Args:
-            file: an h5 file to back the VDataFrames on.
+            file: a h5 file to back the VDataFrames on.
         """
         if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
@@ -849,8 +948,9 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, pd.DataFrame]],
                  file: Optional[Union[File, Group]] = None):
         """
-        :param parent: the parent VData object this ArrayContainer is linked to.
-        :param data: a dictionary of DataFrames in this ArrayContainer.
+        Args:
+            parent: the parent VData object this ArrayContainer is linked to.
+            data: a dictionary of DataFrames in this ArrayContainer.
         """
         self._file = file
 
@@ -867,7 +967,9 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
-        :param type_: the new data type.
+
+        Args:
+            type_: the new data type.
         """
         for arr_name, arr in self.items():
             self[arr_name] = arr.astype(type_)
@@ -879,18 +981,28 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
         """
         return {k: v.copy() for k, v in self.items()}
 
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True, spacer: str = '') -> None:
+    def to_csv(self,
+               directory: Path,
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True,
+               spacer: str = '') -> None:
         """
         Save the ArrayContainer in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
-        # create sub directory for storing arrays
+        if self.is_closed:
+            raise VClosedFileError
+
+        # create subdirectory for storing arrays
         os.makedirs(directory / self.name)
 
         for arr_name, arr in self.items():
@@ -902,7 +1014,9 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
     def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the VDataFrames in this VBase2DArrayContainer.
-        :param file: an h5 file to back the VDataFrames on.
+
+        Args:
+            file: a h5 file to back the VDataFrames on.
         """
         if not isinstance(file, (File, Group)):
             raise VTypeError(f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"
@@ -923,8 +1037,9 @@ class VVarmArrayContainer(VBase2DArrayContainer):
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
                  file: Optional[Union[File, Group]] = None):
         """
-        :param parent: the parent VData object this VVarmArrayContainer is linked to.
-        :param data: a dictionary of DataFrames in this VVarmArrayContainer.
+        Args:
+            parent: the parent VData object this VVarmArrayContainer is linked to.
+            data: a dictionary of DataFrames in this VVarmArrayContainer.
         """
         super().__init__(parent, data, file)
 
@@ -965,9 +1080,17 @@ class VVarmArrayContainer(VBase2DArrayContainer):
     def __setitem__(self, key: K_, value: Union[VDataFrame, pd.DataFrame]) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
-        :param key: key for storing a DataFrame in this VVarmArrayContainer.
-        :param value: a DataFrame to store.
+
+        Args:
+            key: key for storing a DataFrame in this VVarmArrayContainer.
+            value: a DataFrame to store.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(value, (pd.DataFrame, VDataFrame)):
             raise VTypeError(f"Cannot set varm '{key}' from non pandas DataFrame object.")
 
@@ -1016,8 +1139,9 @@ class VVarpArrayContainer(VBase2DArrayContainer):
     def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
                  file: Optional[Union[File, Group]] = None):
         """
-        :param parent: the parent VData object this VVarmArrayContainer is linked to.
-        :param data: a dictionary of DataFrames in this VVarmArrayContainer.
+        Args:
+            parent: the parent VData object this VVarmArrayContainer is linked to.
+            data: a dictionary of DataFrames in this VVarmArrayContainer.
         """
         super().__init__(parent, data, file)
 
@@ -1056,17 +1180,29 @@ class VVarpArrayContainer(VBase2DArrayContainer):
     def __getitem__(self, item: K_) -> D_VDF:
         """
         Get a specific DataFrame stored in this VVarpArrayContainer.
-        :param item: key in _data linked to a DataFrame.
-        :return: DataFrame stored in _data under the given key.
+
+        Args:
+            item: key in _data linked to a DataFrame.
+
+        Returns:
+            DataFrame stored in _data under the given key.
         """
         return super().__getitem__(item)
 
     def __setitem__(self, key: K_, value: Union[VDataFrame, pd.DataFrame]) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
-        :param key: key for storing a DataFrame in this VVarpArrayContainer.
-        :param value: a DataFrame to store.
+
+        Args:
+            key: key for storing a DataFrame in this VVarpArrayContainer.
+            value: a DataFrame to store.
         """
+        if self.is_closed:
+            raise VClosedFileError
+
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(value, (pd.DataFrame, VDataFrame)):
             raise VTypeError(f"Cannot set varp '{key}' from non pandas DataFrame object.")
 
@@ -1109,7 +1245,9 @@ class VVarpArrayContainer(VBase2DArrayContainer):
     def set_index(self, values: Collection) -> None:
         """
         Set a new index for rows and columns.
-        :param values: collection of new index values.
+
+        Args:
+            values: collection of new index values.
         """
         for arr in self.values():
 

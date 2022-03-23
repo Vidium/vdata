@@ -26,6 +26,23 @@ from vdata.IO import generalLogger, VValueError, VAttributeError, VTypeError, VL
 
 # ==========================================
 # code
+def _check_parent_has_not_changed(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
+
+        if hash(tuple(object.__getattribute__(self, '_parent').time_points)) != \
+                object.__getattribute__(self, '_parent_time_points_hash') or \
+                hash(tuple(object.__getattribute__(self, '_parent').index)) != \
+                object.__getattribute__(self, '_parent_index_hash') or \
+                hash(tuple(object.__getattribute__(self, '_parent').columns)) != \
+                object.__getattribute__(self, '_parent_columns_hash'):
+            raise VValueError("View no longer valid since the parent TDF has changed.")
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
     """
     A view of a TemporalDataFrame, created on sub-setting operations.
@@ -54,12 +71,18 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         # set attributes on init using object's __setattr__ method to avoid self's __setattr__ which would provoke bugs
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_parent_data', parent_data)
+
+        object.__setattr__(self, '_parent_time_points_hash', hash(tuple(parent.time_points)))
+        object.__setattr__(self, '_parent_index_hash', hash(tuple(parent.index)))
+        object.__setattr__(self, '_parent_columns_hash', hash(tuple(parent.columns)))
+
         object.__setattr__(self, '_index', pd.Index(index_slicer))
         object.__setattr__(self, '_columns', pd.Index(column_slicer)[np.in1d(column_slicer, parent.columns)])
 
         # remove time points where the index does not match
         object.__setattr__(self, '_tp_slicer', sorted(np.array(tp_slicer)[
-            [any(self._index.isin(parent.index_at(time_point))) for time_point in tp_slicer]]))
+            [any(object.__getattribute__(self, '_index').isin(parent.index_at(time_point)))
+             for time_point in tp_slicer]]))
 
         generalLogger.debug(f"  1. Refactored time point slicer to : {repr_array(self._tp_slicer)}")
 
@@ -80,6 +103,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         generalLogger.debug(f"\u23BF ViewTemporalDataFrame '{parent.name}':{id(self)} creation : end "
                             f"------------------------------------------ ")
 
+    @_check_parent_has_not_changed
     def __repr__(self):
         """
         Description for this view of a TemporalDataFrame object to print.
@@ -95,6 +119,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         return repr_str
 
+    @_check_parent_has_not_changed
     def __getitem__(self, index: Union['PreSlicer',
                                        tuple['PreSlicer'],
                                        tuple['PreSlicer', 'PreSlicer'],
@@ -126,6 +151,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             return ViewTemporalDataFrame(self._parent, self._parent_data, _index[0], _index[1], _index[2],
                                          self._lock)
 
+    @_check_parent_has_not_changed
     def __getattribute__(self, attr: str) -> Any:
         """
         Get attribute from this TemporalDataFrame in obj.attr fashion.
@@ -138,6 +164,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         return object.__getattribute__(self, attr)
 
+    @_check_parent_has_not_changed
     def __getattr__(self, attr: str) -> Any:
         """
         Get columns in the DataFrame (this is done for maintaining the pandas DataFrame behavior).
@@ -150,6 +177,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             return object.__getattribute__(self, attr)
 
+    @_check_parent_has_not_changed
     def __setattr__(self, attr: str, value: Any) -> None:
         """
         Set value for a regular attribute of for a column in the DataFrame.
@@ -168,6 +196,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             raise AttributeError(f"'{attr}' is not a valid attribute name.")
 
+    @_check_parent_has_not_changed
     def __add__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
@@ -176,6 +205,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__add__', value)
 
+    @_check_parent_has_not_changed
     def __sub__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
@@ -184,6 +214,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__sub__', value)
 
+    @_check_parent_has_not_changed
     def __mul__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
@@ -192,6 +223,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__mul__', value)
 
+    @_check_parent_has_not_changed
     def __truediv__(self, value: Union[int, float]) -> 'dataframe.TemporalDataFrame':
         """
         Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
@@ -200,6 +232,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._asmd_func('__truediv__', value)
 
+    @_check_parent_has_not_changed
     def __eq__(self, other):
         if isinstance(other, (dataframe.TemporalDataFrame, ViewTemporalDataFrame)):
             return self.time_points == other.time_points and self.index == other.index and self.columns == \
@@ -211,6 +244,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             return self.eq(other)
 
+    @_check_parent_has_not_changed
     def set(self, values: Any) -> None:
         """
         Set values for this ViewTemporalDataFrame.
@@ -304,6 +338,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._lock, True
 
+    @_check_parent_has_not_changed
     def to_pandas(self, with_time_points: bool = False) -> Any:
         """
         Get the data in a pandas format.
@@ -334,6 +369,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return data
 
     @property
+    @_check_parent_has_not_changed
     def time_points(self) -> list['TimePoint']:
         """
         Get the list of time points in this view of a TemporalDataFrame.
@@ -350,6 +386,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return self._parent.time_points_column_name
 
     @property
+    @_check_parent_has_not_changed
     def index(self) -> pd.Index:
         """
         Get the full index of this view (concatenated over all timepoints).
@@ -365,6 +402,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return index
 
     @index.setter
+    @_check_parent_has_not_changed
     def index(self, values: Collection) -> None:
         """
         Set a new index for observations in this view.
@@ -391,6 +429,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 self._parent.file['index'][()] = self._parent.index
                 self._parent.file.file.flush()
 
+    @_check_parent_has_not_changed
     def index_at(self, time_point: Union['TimePoint', str]) -> pd.Index:
         """
         Get the index of this view of a TemporalDataFrame.
@@ -405,6 +444,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
 
         return self._index.intersection(self._parent.index_at(time_point))
 
+    @_check_parent_has_not_changed
     def bool_index_at(self, time_point: Union['TimePoint', str]) -> np.ndarray:
         """
         Get a boolean array of the same length as the parental index, where True means that the index at that
@@ -420,6 +460,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         else:
             return np.array([False for _ in range(self._parent.n_index_at(time_point))])
 
+    @_check_parent_has_not_changed
     def pos_index_at(self, time_point: Union['TimePoint', str]) -> np.ndarray:
         """
         Get the positions of the indices of this view of a TemporalDataFrame inside the parent TemporalDataFrame's
@@ -440,6 +481,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return npi.indices(self._parent.index_at(time_point), self.index_at(time_point))
 
     @property
+    @_check_parent_has_not_changed
     def columns(self) -> pd.Index:
         """
         Get the columns of this view of a TemporalDataFrame.
@@ -447,6 +489,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._columns
 
+    @_check_parent_has_not_changed
     def bool_columns(self) -> np.ndarray:
         """
         Get a boolean array of the same length as the parental columns index, where True means that the column at that
@@ -455,6 +498,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return self._parent.columns.isin(self.columns)
 
+    @_check_parent_has_not_changed
     def pos_columns(self) -> np.ndarray:
         """
         Get the positions of the columns of this view of a TemporalDataFrame inside the parent TemporalDataFrame's
@@ -474,6 +518,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return self._parent.name
 
     @property
+    @_check_parent_has_not_changed
     def dtype(self) -> Optional[np.dtype]:
         """
         Return the dtype of this view of a TemporalDataFrame.
@@ -486,6 +531,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
             return None
 
     @property
+    @_check_parent_has_not_changed
     def dtypes(self) -> None:
         """
         Return the dtypes in the DataFrame.
@@ -500,6 +546,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         raise VAttributeError('Cannot set data type from a view of a TemporalDataFrame.')
 
     @property
+    @_check_parent_has_not_changed
     def at(self) -> '_ViewVAtIndexer':
         """
         Access a single value for a row/column label pair.
@@ -508,6 +555,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return _ViewVAtIndexer(self._parent, self._parent_data)
 
     @property
+    @_check_parent_has_not_changed
     def iat(self) -> '_ViewViAtIndexer':
         """
         Access a single value for a row/column pair by integer position.
@@ -516,6 +564,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return _ViewViAtIndexer(self._parent, self._parent_data)
 
     @property
+    @_check_parent_has_not_changed
     def loc(self) -> _VLocIndexer:
         """
         Access a group of rows and columns by label(s) or a boolean array.
@@ -524,6 +573,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         return _VLocIndexer(self, self._parent_data)
 
     @property
+    @_check_parent_has_not_changed
     def iloc(self) -> _ViLocIndexer:
         """
         Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
@@ -537,6 +587,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         raise VValueError("Cannot insert a column from a view.")
 
+    @_check_parent_has_not_changed
     def copy(self) -> 'dataframe.TemporalDataFrame':
         """
         Create a new copy of this view of a TemporalDataFrame.
@@ -544,6 +595,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         """
         return copy.copy_TemporalDataFrame(self)
 
+    @_check_parent_has_not_changed
     def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
         """
@@ -560,6 +612,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         # save DataFrame to csv
         self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
+    @_check_parent_has_not_changed
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) -> tuple[dict, np.ndarray, pd.Index]:
         """
         Compute mean, min or max of the values over the requested axis.
@@ -621,6 +674,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         _name = f"Maximum of {self.name}'s view" if self.name != 'No_Name' else None
         return dataframe.TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
 
+    @_check_parent_has_not_changed
     def write(self, file: Union[str, Path]) -> None:
         """
         Save this TemporalDataFrame in HDF5 file format.

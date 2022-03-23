@@ -7,8 +7,10 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+# from sys import getsizeof
 from anndata import AnnData
 from scipy.sparse import spmatrix
+from pympler.asizeof import asizeof
 
 from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal
 
@@ -23,7 +25,7 @@ from ..TDF import TemporalDataFrame
 from vdata.name_utils import DType, StrDType, DTypes
 from vdata.utils import repr_array, deep_dict_convert
 from vdata.time_point import TimePoint
-from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError
+from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError, VReadOnlyError
 from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
 from ...vdataframe import VDataFrame
 
@@ -217,7 +219,7 @@ class VData:
 
     def __getitem__(self, index: Union['PreSlicer',
                                        tuple['PreSlicer', 'PreSlicer'],
-                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
             -> ViewVData:
         """
         Get a view of this VData object with the usual sub-setting mechanics.
@@ -241,8 +243,7 @@ class VData:
         :return: a view on this VData
         """
         if self.is_closed:
-            # TODO partout
-            raise VClosedFileError()
+            raise VClosedFileError("Cannot get data, file is closed.")
 
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
@@ -276,9 +277,18 @@ class VData:
     def is_closed(self) -> bool:
         """
         Is this VData's file closed ?
-        :return Is this VData's file closed ?
+
+        Returns:
+            Is this VData's file closed ?
         """
         return self._file is not None and not self._file.group.id.valid
+
+    @property
+    def is_read_only(self) -> bool:
+        """
+        Is this VData's file open in read only mode ?
+        """
+        return self._file is not None and self._file.mode == 'r'
 
     @property
     def file(self) -> Optional[H5GroupReader]:
@@ -308,12 +318,32 @@ class VData:
         self.varp.set_file(file_reader.group['varp'])
         self.time_points.file = file_reader.group['time_points']
 
+    @property
+    def size_in_memory(self) -> int:
+        """
+        Get the in-memory size of this VData (in bytes).
+        """
+        return asizeof(self)
+
+    @property
+    def size_in_file(self) -> int:
+        """"""
+        # TODO
+        return 1 if self.is_backed else 0
+
+    @property
+    def size(self) -> tuple[int, int]:
+        """"""
+        return self.size_in_memory, self.size_in_file
+
     # Shapes -------------------------------------------------------------
     @property
     def empty(self) -> bool:
         """
         Is this VData object empty ? (no time points or no obs or no vars)
-        :return: VData empty ?
+
+        Returns:
+            VData empty ?
         """
         if not len(self.layers) or not self.n_time_points or not self.n_obs_total or not self.n_var:
             return True
@@ -325,7 +355,8 @@ class VData:
         Number of time points in this VData object. n_time_points can be extracted directly from self.time_points or
         from the nb of time points in the layers. If no data was given, a default list of time points was created
         with integer values.
-        :return: VData's number of time points
+        Returns:
+            VData's number of time points
         """
         return self.layers.shape[1]
 
@@ -337,7 +368,9 @@ class VData:
             - nb of observations in the layers
             - nb of observations in obsm
             - nb of observations in obsp
-        :return: VData's number of observations
+
+        Returns:
+            VData's number of observations
         """
         return self.layers.shape[2]
 
@@ -345,7 +378,9 @@ class VData:
     def n_obs_total(self) -> int:
         """
         Get the total number of observations across all time points.
-        :return: the total number of observations across all time points.
+
+        Returns:
+            The total number of observations across all time points.
         """
         return sum(self.n_obs)
 
@@ -357,7 +392,9 @@ class VData:
             - nb of variables in the layers
             - nb of variables in varm
             - nb of variables in varp
-        :return: VData's number of variables
+
+        Returns:
+            VData's number of variables
         """
         return self.layers.shape[3]
 
@@ -365,7 +402,8 @@ class VData:
     def shape(self) -> tuple[int, int, list[int], int]:
         """
         Shape of this VData object (# layers, # time points, # observations, # variables).
-        :return: VData's shape.
+        Returns:
+            VData's shape.
         """
         return self.layers.shape
 
@@ -382,8 +420,12 @@ class VData:
     def time_points(self, df: Union[pd.DataFrame, VDataFrame]) -> None:
         """
         Set the time points data.
-        :param df: a pandas DataFrame with at least the 'value' column.
+        Args:
+            df: a pandas DataFrame with at least the 'value' column.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(df, (pd.DataFrame, VDataFrame)):
             raise VTypeError("'time points' must be a pandas DataFrame.")
 
@@ -437,8 +479,13 @@ class VData:
     def obs(self, df: Union[pd.DataFrame, VDataFrame, TemporalDataFrame]) -> None:
         """
         Set the obs data.
-        :param df: a pandas DataFrame or a TemporalDataFrame.
+
+        Args:
+            df: a pandas DataFrame or a TemporalDataFrame.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(df, (pd.DataFrame, VDataFrame, TemporalDataFrame)):
             raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
@@ -476,8 +523,13 @@ class VData:
     def set_obs_index(self, values: Collection) -> None:
         """
         Set a new index for observations.
-        :param values: collection of new index values.
+
+        Args:
+            values: collection of new index values.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         for layer in self.layers.values():
             layer.lock((False, True))
             layer.index = values
@@ -506,8 +558,12 @@ class VData:
     def var(self, df: Union[pd.DataFrame, VDataFrame]) -> None:
         """
         Set the var data.
-        :param df: a pandas DataFrame.
+        Args:
+            df: a pandas DataFrame.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(df, (pd.DataFrame, VDataFrame)):
             raise VTypeError("'var' must be a pandas DataFrame.")
 
@@ -520,8 +576,12 @@ class VData:
     def set_var_index(self, values: Collection) -> None:
         """
         Set a new index for variables.
-        :param values: collection of new index values.
+        Args:
+            values: collection of new index values.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         for layer in self.layers.values():
             layer.lock((True, False))
             layer.columns = values
@@ -544,6 +604,9 @@ class VData:
 
     @uns.setter
     def uns(self, data: dict) -> None:
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if not isinstance(data, dict):
             raise VTypeError("'uns' must be a dictionary.")
 
@@ -604,8 +667,12 @@ class VData:
     def dtype(self, type_: Union['DType', 'StrDType']) -> None:
         """
         Set the data type of this VData object.
-        :param type_: a data type.
+        Args:
+            type_: a data type.
         """
+        if self.is_read_only:
+            raise VReadOnlyError
+
         if type_ not in DTypes.keys():
             raise VTypeError(f"Incorrect data-type '{type_}', should be in {list(DTypes.keys())}")
         else:
@@ -1509,7 +1576,9 @@ class VData:
     def copy(self) -> 'VData':
         """
         Build a deep copy of this VData object and not a view.
-        :return: a new VData, which is a deep copy of this VData.
+
+        Returns:
+            A new VData, which is a deep copy of this VData.
         """
         return VData(data=self.layers.dict_copy(),
                      obs=self.obs.copy(), obsm=self.obsm.dict_copy(), obsp=self._obsp.dict_copy(),
@@ -1528,15 +1597,17 @@ class VData:
         """
         Convert a VData object to an AnnData object.
 
-        :param time_points_list: a list of time points for which to extract data to build the AnnData. If set to
-            None, all time points are selected.
-        :param into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
-            AnnData for each time point (False) ?
-        :param with_time_points_column: store time points data in the obs DataFrame. This is only used when
-            concatenating the data into a single AnnData (i.e. into_one=True).
-        :param layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.
+        Args:
+            time_points_list: a list of time points for which to extract data to build the AnnData. If set to
+                None, all timepoints are selected.
+            into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
+                AnnData for each time point (False) ?
+            with_time_points_column: store time points data in the obs DataFrame. This is only used when
+                concatenating the data into a single AnnData (i.e. into_one=True).
+            layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.
 
-        :return: an AnnData object with data for selected time points.
+        Returns:
+            An AnnData object with data for selected time points.
         """
         generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
                             u'---------------------------------------------------------- ')
@@ -1571,7 +1642,7 @@ class VData:
                            layers={key: layer.to_pandas() for key, layer in view.layers.items()},
                            obs=view.obs.to_pandas(with_time_points=with_time_points_column),
                            obsm={key: arr.to_pandas() for key, arr in view.obsm.items()},
-                           var=view.var,
+                           var=view.var.to_pandas(),
                            varm={key: arr for key, arr in view.varm.items()},
                            varp={key: arr for key, arr in view.varp.items()},
                            uns=view.uns)
@@ -1595,7 +1666,7 @@ class VData:
                                       layers={key: layer.to_pandas() for key, layer in view.layers.items()},
                                       obs=view.obs.to_pandas(),
                                       obsm={key: arr.to_pandas() for key, arr in view.obsm.items()},
-                                      var=view.var,
+                                      var=view.var.to_pandas(),
                                       varm={key: arr for key, arr in view.varm.items()},
                                       varp={key: arr for key, arr in view.varp.items()},
                                       uns=view.uns))

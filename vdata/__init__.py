@@ -13,10 +13,13 @@ from .IO import setLoggingLevel, getLoggingLevel, VTypeError, VValueError, Shape
     VAttributeError, VLockError
 from ._read_write import read, read_from_dict, read_from_csv, read_TemporalDataFrame, \
     read_from_csv_TemporalDataFrame, convert_anndata_to_vdata
+from .vdataframe import VDataFrame
 from .time_point import TimePoint
 
 __all__ = ["VData", "TemporalDataFrame", "ViewVData", "ViewTemporalDataFrame",
            "read", "read_from_dict", "read_from_csv", "read_TemporalDataFrame", "read_from_csv_TemporalDataFrame",
            "convert_anndata_to_vdata",
-           "setLoggingLevel", "getLoggingLevel", "TimePoint", "concatenate",
-           "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError", "VAttributeError", "VLockError"]
+           "setLoggingLevel", "getLoggingLevel", "concatenate",
+           "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError", "VAttributeError",
+           "VLockError",
+           "VDataFrame", "TimePoint"]

@@ -276,12 +276,13 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
     """
     Function for reading data from an h5 file and building a VData object from it.
 
-    :param file: path to an h5 file.
-    :param mode: reading mode : 'r' (read only) or 'r+' (read and write).
-    :param dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
-        the h5 file.
-    :param name: an optional name for the loaded VData object.
-    :param backup: create a backup copy of the read h5 file in case something goes wrong ?
+    Args:
+        file: path to an h5 file.
+        mode: reading mode : 'r' (read only) or 'r+' (read and write).
+        dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
+            the h5 file.
+        name: an optional name for the loaded VData object.
+        backup: create a backup copy of the read h5 file in case something goes wrong ?
     """
     generalLogger.debug("\u23BE read VData : begin -------------------------------------------------------- ")
     file = parse_path(file)
@@ -325,15 +326,15 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
     data['time_points']['value'] = [TimePoint(tp, no_check=True) for tp in data['time_points']['value']]
 
     new_VData = vdata.VData(data['layers'],
-                            data['obs'], data['obsm'], None,
+                            data['obs'], data['obsm'], data['obsp'],
                             data['var'], data['varm'], data['varp'],
                             data['time_points'], data['uns'], dtype=dtype,
                             name=name, file=importFile,
                             no_check=True)
 
-    if data['obsp'] is not None:
-        for key, arr in data['obsp'].items():
-            new_VData.obsp[key] = arr
+    # if data['obsp'] is not None:
+    #     for key, arr in data['obsp'].items():
+    #         new_VData.obsp[key] = arr
 
     generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
 
@@ -627,8 +628,8 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     """
     generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
 
-    if group.isstring():
-        return group.asstring()
+    if group.is_string():
+        return group.as_string()
 
     return get_value(group[()])
 
@@ -642,7 +643,7 @@ def read_h5_path(group: H5GroupReader, level: int = 1) -> Path:
     """
     generalLogger.info(f"{spacer(level)}Reading Path {group.name}.")
 
-    return Path(group.asstring())
+    return Path(group.as_string())
 
 
 def read_h5_None(_: H5GroupReader, level: int = 1) -> None:

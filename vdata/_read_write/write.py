@@ -33,12 +33,14 @@ def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
-def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'], file: Optional[Union[str, Path]]) -> None:
+def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
+                file: Optional[Union[str, Path]]) -> None:
     """
     Save this VData object in HDF5 file format.
 
-    :param obj: VData object to save into an h5 file.
-    :param file: path to save the VData.
+    Args:
+        obj: VData object to save into an h5 file.
+        file: path to save the VData.
     """
     file = parse_path(file)
     if file is not None and file.suffix != '.vd':
@@ -156,17 +158,22 @@ def update_vdata(obj: 'vdata.VData') -> None:
     obj.file.group.flush()
 
 
-def write_vdata_to_csv(obj: 'vdata.VData', directory: Union[str, Path], sep: str = ",", na_rep: str = "",
-                       index: bool = True, header: bool = True) -> None:
+def write_vdata_to_csv(obj: Union['vdata.VData', 'vdata.ViewVData'],
+                       directory: Union[str, Path],
+                       sep: str = ",",
+                       na_rep: str = "",
+                       index: bool = True,
+                       header: bool = True) -> None:
     """
     Save a VData object into csv files in a directory.
 
-    :param obj: a VData object to save into csv files.
-    :param directory: path to a directory for saving the matrices
-    :param sep: delimiter character
-    :param na_rep: string to replace NAs
-    :param index: write row names ?
-    :param header: Write col names ?
+    Args:
+        obj: a VData object to save into csv files.
+        directory: path to a directory for saving the matrices
+        sep: delimiter character
+        na_rep: string to replace NAs
+        index: write row names ?
+        header: Write col names ?
     """
     directory = parse_path(directory)
 

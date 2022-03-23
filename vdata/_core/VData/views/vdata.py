@@ -11,18 +11,32 @@ from pathlib import Path
 from typing import Union, Iterator, Literal
 
 import vdata
-from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
+from .arrays import ViewVLayerArrayContainer, ViewVObsmArrayContainer, ViewVObspArrayContainer, \
+    ViewVVarmArrayContainer, ViewVVarpArrayContainer
 from vdata._core.utils import reformat_index, repr_index
 from vdata._core.TDF import TemporalDataFrame, ViewTemporalDataFrame
 from vdata._core.name_utils import PreSlicer
 from vdata.utils import repr_array
 from vdata.time_point import TimePoint
+from vdata.vdataframe import ViewVDataFrame
 from vdata.IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
 from ...._read_write.write import write_vdata, write_vdata_to_csv
 
 
 # ====================================================
 # code
+def _check_parent_has_not_changed(func):
+    def wrapper(self, *args, **kwargs):
+        if hash(tuple(self._parent.time_points.value.values)) != self._time_points_hash or \
+                hash(tuple(self._parent.obs.index)) != self._obs_hash or \
+                hash(tuple(self._parent.var.index)) != self._var_hash:
+            raise VValueError("View no longer valid since parent's VData has changed.")
+
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class ViewVData:
     """
     A view of a VData object.
@@ -45,49 +59,57 @@ class ViewVData:
 
         self._parent = parent
 
-        # DataFrame slicers
-        # time points -------------------------
-        self._time_points_slicer = time_points_slicer
-
-        # obs -------------------------
-        self._obs_slicer = obs_slicer
-
-        # var -------------------------
-        self._var_slicer = var_slicer
+        self._time_points_hash = hash(tuple(parent.time_points.value.values))
+        self._obs_hash = hash(tuple(parent.obs.index))
+        self._var_hash = hash(tuple(parent.var.index))
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[self._time_points_slicer, self._obs_slicer]
+        self._obs = self._parent.obs[time_points_slicer, obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
-        self._time_points_slicer = np.array([e for e in self._time_points_slicer if e in self._obs.time_points])
+        self._time_points_slicer = np.array([e for e in time_points_slicer if e in self._obs.time_points])
+        self._time_points = ViewVDataFrame(self._parent.time_points,
+                                           index_slicer=self._parent.time_points.value.isin(self._time_points_slicer))
 
         generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._time_points_slicer)} "
                             f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
                             f" selected)")
 
-        self._obs_slicer = np.array(self._obs_slicer)[np.isin(self._obs_slicer, self._obs.index)]
+        self._obs_slicer = [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
+                            for tp in self._obs.time_points]
+        self._obs_slicer_flat = np.concatenate(self._obs_slicer)
 
-        generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer)} "
-                            f"({len(self._obs_slicer)} value{'' if len(self._obs_slicer) == 1 else 's'}"
+        generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
+                            f"({len(self._obs_slicer_flat)} value{'' if len(self._obs_slicer_flat) == 1 else 's'}"
                             f" selected)")
 
-        # subset and store arrays
-        self._layers = ViewVTDFArrayContainer(self._parent.layers,
-                                              self._time_points_slicer, self._obs_slicer, self._var_slicer)
-        self._time_points = self._parent.time_points[self._parent.time_points.value.isin(self._time_points_slicer)]
-        self._var = self._parent.var.loc[self._var_slicer]
+        # then store var : we get a sub-set of the parent's var VDataFrame
+        # this is needed to recompute the var slicer
+        self._var = ViewVDataFrame(self._parent.var, index_slicer=var_slicer)
 
-        self._obsm = ViewVTDFArrayContainer(self._parent.obsm, self._time_points_slicer, self._obs_slicer, slice(None))
+        # recompute var slicer
+        # TODO : check the order is maintained
+        self._var_slicer = np.array(var_slicer)[np.isin(var_slicer, self._var.index)]
+
+        # subset and store arrays
+        self._layers = ViewVLayerArrayContainer(self._parent.layers,
+                                                self._time_points_slicer, self._obs_slicer_flat, self._var_slicer)
+
+        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._time_points_slicer, self._obs_slicer_flat,
+                                             slice(None))
         self._obsp = ViewVObspArrayContainer(self._parent.obsp, np.array(self._obs.index))
         self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
         self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
+
+        # uns is not subset
         self._uns = self._parent.uns
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
         generalLogger.debug(u'\u23BF ViewVData creation : end ------------------------------------------------------- ')
 
+    @_check_parent_has_not_changed
     def __repr__(self) -> str:
         """
         Description for this view of a Vdata object to print.
@@ -115,9 +137,10 @@ class ViewVData:
 
         return repr_str
 
+    @_check_parent_has_not_changed
     def __getitem__(self, index: Union['PreSlicer',
                                        tuple['PreSlicer', 'PreSlicer'],
-                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']])\
+                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
             -> 'ViewVData':
         """
         Get a subset of a view of a VData object.
@@ -127,7 +150,7 @@ class ViewVData:
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
         # convert to a 3-tuple
-        index = reformat_index(index, self._time_points_slicer, self._obs_slicer, self._var_slicer)
+        index = reformat_index(index, self._time_points_slicer, self._obs_slicer_flat, self._var_slicer)
 
         generalLogger.debug(f"  1. Refactored index to \n{repr_index(index)}")
 
@@ -155,30 +178,39 @@ class ViewVData:
 
     # Shapes -------------------------------------------------------------
     @property
+    @_check_parent_has_not_changed
     def is_empty(self) -> bool:
         """
         Is this view of a Vdata object empty ? (no obs or no vars)
-        :return: is view empty ?
+
+        Returns:
+            Is view empty ?
         """
         if not len(self.layers) or not self.n_time_points or not self.n_obs_total or not self.n_var:
             return True
         return False
 
     @property
+    @_check_parent_has_not_changed
     def n_time_points(self) -> int:
         """
         Number of time points in this view of a VData object.
-        :return: number of time points in this view
+
+        Returns:
+            The number of time points in this view
         """
-        return self.layers.shape[1]
+        return len(self._time_points_slicer)
 
     @property
+    @_check_parent_has_not_changed
     def n_obs(self) -> list[int]:
         """
         Number of observations in this view of a VData object.
-        :return: number of observations in this view
+
+        Returns:
+            The number of observations in this view
         """
-        return self.layers.shape[2]
+        return [len(slicer) for slicer in self._obs_slicer]
 
     @property
     def n_obs_total(self) -> int:
@@ -189,12 +221,13 @@ class ViewVData:
         return sum(self.n_obs)
 
     @property
+    @_check_parent_has_not_changed
     def n_var(self) -> int:
         """
         Number of variables in this view of a VData object.
         :return: number of variables in this view
         """
-        return self.layers.shape[3]
+        return len(self._var_slicer)
 
     @property
     def shape(self) -> tuple[int, int, list[int], int]:
@@ -202,11 +235,12 @@ class ViewVData:
         Shape of this view of a VData object.
         :return: view's shape
         """
-        return self.layers.shape
+        return len(self.layers), self.n_time_points, self.n_obs, self.n_var
 
     # DataFrames ---------------------------------------------------------
     @property
-    def time_points(self) -> pd.DataFrame:
+    @_check_parent_has_not_changed
+    def time_points(self) -> ViewVDataFrame:
         """
         Get a view on the time points DataFrame in this ViewVData.
         :return: a view on the time points DataFrame.
@@ -257,6 +291,7 @@ class ViewVData:
     #         self._parent.time_points[self._time_points_slicer] = df
 
     @property
+    @_check_parent_has_not_changed
     def obs(self) -> ViewTemporalDataFrame:
         """
         Get a view on the obs in this ViewVData.
@@ -265,6 +300,7 @@ class ViewVData:
         return self._obs
 
     @obs.setter
+    @_check_parent_has_not_changed
     def obs(self, df: Union['TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
             raise VTypeError("'obs' must be a TemporalDataFrame.")
@@ -276,11 +312,12 @@ class ViewVData:
             raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
 
         else:
-            df.index = self._parent.obs[self._obs_slicer].index
-            self._parent.obs[self._obs_slicer] = df
+            df.index = self._parent.obs[self._obs_slicer_flat].index
+            self._parent.obs[self._obs_slicer_flat] = df
 
     @property
-    def var(self) -> pd.DataFrame:
+    @_check_parent_has_not_changed
+    def var(self) -> ViewVDataFrame:
         """
         Get a view on the var DataFrame in this ViewVData.
         :return: a view on the var DataFrame.
@@ -288,6 +325,7 @@ class ViewVData:
         return self._var
 
     @var.setter
+    @_check_parent_has_not_changed
     def var(self, df: pd.DataFrame) -> None:
         if not isinstance(df, pd.DataFrame):
             raise VTypeError("'var' must be a pandas DataFrame.")
@@ -303,6 +341,7 @@ class ViewVData:
             self._parent.var[self._var_slicer] = df
 
     @property
+    @_check_parent_has_not_changed
     def uns(self) -> dict:
         """
         Get a view on the uns dictionary in this ViewVData.
@@ -312,7 +351,8 @@ class ViewVData:
 
     # Array containers ---------------------------------------------------
     @property
-    def layers(self) -> ViewVTDFArrayContainer:
+    @_check_parent_has_not_changed
+    def layers(self) -> ViewVLayerArrayContainer:
         """
         Get a view on the layers in this ViewVData.
         :return: a view on the layers.
@@ -320,7 +360,8 @@ class ViewVData:
         return self._layers
 
     @property
-    def obsm(self) -> ViewVTDFArrayContainer:
+    @_check_parent_has_not_changed
+    def obsm(self) -> ViewVObsmArrayContainer:
         """
         Get a view on the obsm in this ViewVData.
         :return: a view on the obsm.
@@ -328,6 +369,7 @@ class ViewVData:
         return self._obsm
 
     @property
+    @_check_parent_has_not_changed
     def obsp(self) -> ViewVObspArrayContainer:
         """
         Get a view on the obsp in this ViewVData.
@@ -336,6 +378,7 @@ class ViewVData:
         return self._obsp
 
     @property
+    @_check_parent_has_not_changed
     def varm(self) -> ViewVVarmArrayContainer:
         """
         Get a view on the varm in this ViewVData.
@@ -344,6 +387,7 @@ class ViewVData:
         return self._varm
 
     @property
+    @_check_parent_has_not_changed
     def varp(self) -> ViewVVarpArrayContainer:
         """
         Get a view on the varp in this ViewVData.
@@ -365,7 +409,7 @@ class ViewVData:
         self.obs = df
 
     @property
-    def genes(self) -> pd.DataFrame:
+    def genes(self) -> ViewVDataFrame:
         """
         Alias for the var attribute.
         :return: a view on the var DataFrame.
@@ -397,6 +441,7 @@ class ViewVData:
 
         return _data, _time_list, _index
 
+    @_check_parent_has_not_changed
     def mean(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
         """
         Return the mean of the values over the requested axis.
@@ -409,6 +454,7 @@ class ViewVData:
         _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
+    @_check_parent_has_not_changed
     def min(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
         """
         Return the minimum of the values over the requested axis.
@@ -421,6 +467,7 @@ class ViewVData:
         _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
+    @_check_parent_has_not_changed
     def max(self, axis: Literal[0, 1] = 0) -> 'vdata.VData':
         """
         Return the maximum of the values over the requested axis.
@@ -434,6 +481,7 @@ class ViewVData:
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     # writing ------------------------------------------------------------
+    @_check_parent_has_not_changed
     def write(self,
               file: Union[str, Path]) -> None:
         """
@@ -444,6 +492,7 @@ class ViewVData:
         """
         write_vdata(self, file)
 
+    @_check_parent_has_not_changed
     def write_to_csv(self,
                      directory: Union[str, Path],
                      sep: str = ",",
@@ -463,6 +512,7 @@ class ViewVData:
         write_vdata_to_csv(self, directory, sep, na_rep, index, header)
 
     # copy ---------------------------------------------------------------
+    @_check_parent_has_not_changed
     def copy(self) -> 'vdata.VData':
         """
         Build an actual VData object from this view.

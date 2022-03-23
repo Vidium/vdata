@@ -6,8 +6,6 @@
 # imports
 import numpy as np
 import pandas as pd
-import scanpy as sc
-from pathlib import Path
 
 import vdata
 

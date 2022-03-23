@@ -7,27 +7,46 @@
 import os
 import numpy as np
 import pandas as pd
-import abc
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union, KeysView, ValuesView, ItemsView, Iterator, Mapping, TypeVar, Collection, Any
 
 from ..arrays import VBaseArrayContainer
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
+from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 from vdata.time_point import TimePoint
 from vdata.vdataframe import VDataFrame
-from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 
 
 # ====================================================
 # code
 
-D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, dict['TimePoint', pd.DataFrame])
+D_V = TypeVar('D_V', ViewTemporalDataFrame, pd.DataFrame, dict[TimePoint, pd.DataFrame])
 D_VTDF = TypeVar('D_VTDF', bound=ViewTemporalDataFrame)
 D_VDF = TypeVar('D_VDF', bound=VDataFrame)
 
 
+def _check_parent_has_not_changed(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
+
+        if isinstance(self, ViewVLayerArrayContainer):
+            if hash(tuple(self._array_container._parent.time_points.value.values)) != self._parent_time_points_hash or \
+                    hash(tuple(self._array_container._parent.obs.index)) != self._parent_obs_hash or \
+                    hash(tuple(self._array_container._parent.var.index)) != self._parent_var_hash:
+                raise VValueError("View no longer valid since parent's VData has changed.")
+
+        elif isinstance(self, ViewVObsmArrayContainer):
+            if hash(tuple(self._array_container._parent.time_points.value.values)) != self._parent_time_points_hash or \
+                    hash(tuple(self._array_container._parent.obs.index)) != self._parent_obs_hash:
+                raise VValueError("View no longer valid since parent's VData has changed.")
+
+        return func(*args, **kwargs)
+    return wrapper
+
+
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
+class ViewVBaseArrayContainer(ABC, Mapping[str, D_V]):
     """
     A base abstract class for views of VBaseArrayContainers.
     This class is used to create views on VLayerArrayContainer, VAxisArrays and VPairwiseArrays.
@@ -35,12 +54,14 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
 
     def __init__(self, array_container: VBaseArrayContainer):
         """
-        :param array_container: a VBaseArrayContainer object to build a view on.
+        Args:
+            array_container: a VBaseArrayContainer object to build a view on.
         """
         generalLogger.debug(f"== Creating {self.__class__.__name__}. ================================")
 
         self._array_container = array_container
 
+    @_check_parent_has_not_changed
     def __repr__(self) -> str:
         """
         Description for this view  to print.
@@ -48,7 +69,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         return f"View of {self._array_container}"
 
-    @abc.abstractmethod
+    @abstractmethod
     def __getitem__(self, item: str) -> D_V:
         """
         Get a specific data item stored in this view.
@@ -57,7 +78,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def __setitem__(self, key: str, value: D_V) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
@@ -66,6 +87,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         pass
 
+    @_check_parent_has_not_changed
     def __len__(self) -> int:
         """
         Length of this view : the number of data items in the VBaseArrayContainer.
@@ -73,6 +95,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         return len(self.keys())
 
+    @_check_parent_has_not_changed
     def __iter__(self) -> Iterator[str]:
         """
         Iterate on this view's keys.
@@ -81,7 +104,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         return iter(self.keys())
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def empty(self) -> bool:
         """
         Whether this view is empty or not.
@@ -98,7 +121,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         return f"{self._array_container.name}_view"
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def shape(self) -> Union[
         tuple[int, int, int],
         tuple[int, int, list[int]],
@@ -113,7 +136,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         pass
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def data(self) -> dict[str, D_V]:
         """
         Data of this view.
@@ -121,6 +144,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         pass
 
+    @_check_parent_has_not_changed
     def keys(self) -> KeysView[str]:
         """
         KeysView of keys for getting the data items in this view.
@@ -128,6 +152,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         return self._array_container.keys()
 
+    @_check_parent_has_not_changed
     def values(self) -> ValuesView[D_V]:
         """
         ValuesView of data items in this view.
@@ -135,6 +160,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         return self.data.values()
 
+    @_check_parent_has_not_changed
     def items(self) -> ItemsView[str, D_V]:
         """
         ItemsView of pairs of keys and data items in this view.
@@ -142,7 +168,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         return self.data.items()
 
-    @abc.abstractmethod
+    @abstractmethod
     def dict_copy(self) -> dict[str, D_V]:
         """
         Dictionary of keys and data items in this view.
@@ -150,7 +176,7 @@ class ViewVBaseArrayContainer(abc.ABC, Mapping[str, D_V]):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True, spacer: str = '') -> None:
         """
@@ -186,40 +212,56 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         super().__init__(array_container)
 
-        self._time_points_slicer = time_points_slicer
-        self._obs_slicer = obs_slicer
-        self._var_slicer = var_slicer
+        self._data = {key: TDF[time_points_slicer, obs_slicer, var_slicer]
+                      for key, TDF in array_container.items()}
 
-    def __getitem__(self, item: str) -> D_VTDF:
+        self._parent_time_points_hash = hash(tuple(self._array_container._parent.time_points.value.values))
+        self._parent_obs_hash = hash(tuple(self._array_container._parent.obs.index))
+
+    @_check_parent_has_not_changed
+    def __getitem__(self, key: str) -> D_VTDF:
         """
         Get a specific data item stored in this view.
-        :param item: key in _data linked to a data item.
-        :return: data item stored in _data under the given key.
-        """
-        return self._array_container[item][self._time_points_slicer, self._obs_slicer, self._var_slicer]
 
+        Args:
+            key: key in _data linked to a data item.
+
+        Returns:
+            The data item stored in _data under the given key.
+        """
+        return self._data[key]
+
+    @_check_parent_has_not_changed
     def __setitem__(self, key: str, value: Any) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
-        :param key: key for storing a data item in this view.
-        :param value: a data item to store.
+
+        Args:
+            key: key for storing a data item in this view.
+            value: a data item to store.
         """
-        self[key] = value
+        self._data[key] = value
 
     @property
+    @_check_parent_has_not_changed
     def empty(self) -> bool:
         """
         Whether this view is empty or not.
-        :return: is this view empty ?
+
+        Returns:
+            Is this view empty ?
         """
         return all([VTDF.empty for VTDF in self.values()])
 
     @property
+    @_check_parent_has_not_changed
     def shape(self) -> tuple[int, int, list[int], int]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
-        :return: the shape of this view.
+
+        Returns:
+            The shape of this view.
         """
         if len(self):
             _first_VTDF = list(self.values())[0]
@@ -230,31 +272,44 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
             return 0, 0, [], 0
 
     @property
+    @_check_parent_has_not_changed
     def data(self) -> dict[str, D_VTDF]:
         """
         Data of this view.
-        :return: the data of this view.
-        """
-        return {key: TDF[self._time_points_slicer, self._obs_slicer, self._var_slicer]
-                for key, TDF in self._array_container.items()}
 
+        Returns:
+            The data of this view.
+        """
+        return self._data
+
+    @_check_parent_has_not_changed
     def dict_copy(self) -> dict[str, 'TemporalDataFrame']:
         """
         Dictionary of keys and data items in this view.
-        :return: Dictionary of this view.
+
+        Returns:
+            Dictionary of this view.
         """
         return {key: VTDF.copy() for key, VTDF in self.items()}
 
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "", index: bool = True, header: bool = True,
+    @_check_parent_has_not_changed
+    def to_csv(self,
+               directory: Path,
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True,
                spacer: str = '') -> None:
         """
         Save this view in CSV file format.
-        :param directory: path to a directory for saving the Array
-        :param sep: delimiter character
-        :param na_rep: string to replace NAs
-        :param index: write row names ?
-        :param header: Write col names ?
-        :param spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
+
+        Args:
+            directory: path to a directory for saving the Array
+            sep: delimiter character
+            na_rep: string to replace NAs
+            index: write row names ?
+            header: Write col names ?
+            spacer: for logging purposes, the recursion depth of calls to a read_h5 function.
         """
         # create sub directory for storing arrays
         os.makedirs(directory / self.name)
@@ -264,6 +319,44 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
             # save view of TemporalDataFrame
             VTDF.to_csv(f"{directory / self.name / VTDF_name}.csv", sep, na_rep, index=index, header=header)
+
+
+class ViewVLayerArrayContainer(ViewVTDFArrayContainer):
+    """TODO"""
+
+    def __init__(self,
+                 array_container: VBaseArrayContainer,
+                 time_points_slicer: np.ndarray,
+                 obs_slicer: np.ndarray,
+                 var_slicer: Union[np.ndarray, slice]):
+        """
+        Args:
+            array_container: a VBaseArrayContainer object to build a view on.
+            obs_slicer: the list of observations to view.
+            var_slicer: the list of variables to view.
+            time_points_slicer: the list of time points to view.
+        """
+        super().__init__(array_container, time_points_slicer, obs_slicer, var_slicer)
+
+        self._parent_var_hash = hash(tuple(self._array_container._parent.var.index))
+
+
+class ViewVObsmArrayContainer(ViewVTDFArrayContainer):
+    """TODO"""
+
+    def __init__(self,
+                 array_container: VBaseArrayContainer,
+                 time_points_slicer: np.ndarray,
+                 obs_slicer: np.ndarray,
+                 var_slicer: Union[np.ndarray, slice]):
+        """
+        Args:
+            array_container: a VBaseArrayContainer object to build a view on.
+            obs_slicer: the list of observations to view.
+            var_slicer: the list of variables to view.
+            time_points_slicer: the list of time points to view.
+        """
+        super().__init__(array_container, time_points_slicer, obs_slicer, var_slicer)
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -411,7 +504,7 @@ class ViewVObspArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VDF]):
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class ViewVBase2DArrayContainer(ViewVBaseArrayContainer, abc.ABC, Mapping[str, D_VDF]):
+class ViewVBase2DArrayContainer(ViewVBaseArrayContainer, ABC, Mapping[str, D_VDF]):
     """
     Base abstract class for views of ArrayContainers that contain DataFrames (varm and varp)
     It is based on VBaseArrayContainer.

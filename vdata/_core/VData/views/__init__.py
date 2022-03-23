@@ -5,7 +5,8 @@
 # ====================================================
 # imports
 from .vdata import ViewVData
-from .arrays import ViewVTDFArrayContainer, ViewVObspArrayContainer, ViewVVarmArrayContainer, ViewVVarpArrayContainer
+from .arrays import ViewVLayerArrayContainer, ViewVObsmArrayContainer, ViewVObspArrayContainer, \
+    ViewVVarmArrayContainer, ViewVVarpArrayContainer
 
-__all__ = ['ViewVData', 'ViewVTDFArrayContainer', 'ViewVObspArrayContainer',
+__all__ = ['ViewVData', 'ViewVLayerArrayContainer', 'ViewVObsmArrayContainer', 'ViewVObspArrayContainer',
            'ViewVVarmArrayContainer', 'ViewVVarpArrayContainer']

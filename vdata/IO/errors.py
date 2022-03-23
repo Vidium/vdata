@@ -77,3 +77,12 @@ class VClosedFileError(VBaseError):
     """
     def __init__(self, msg: str = ""):
         self.msg = "Closed backing file !"
+
+
+class VReadOnlyError(VBaseError):
+    """
+    Custom error for modifications on read only data.
+    """
+
+    def __init__(self, msg: str = ""):
+        self.msg = "Read-only file !"

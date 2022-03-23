@@ -17,6 +17,7 @@ TemporalDataFrame_internal_attributes = ['_name', 'name', '_time_points', 'time_
                                          'file', '_backed_state', '__dict__']
 
 ViewTemporalDataFrame_internal_attributes = TemporalDataFrame_internal_attributes + \
-                                            ['parent', '_tp_slicer', '_parent_data', '_index', '_columns', '_lock']
+                                            ['parent', '_tp_slicer', '_parent_data', '_index', '_columns', '_lock',
+                                             '_parent_time_points_hash', '_parent_index_hash', '_parent_columns_hash']
 
 TemporalDataFrame_reserved_keys = ['Time_Point']
