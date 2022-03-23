@@ -666,6 +666,29 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             self.insert(self.n_columns, attr, value)
 
+    def __delitem__(self,
+                    index: Union['PreSlicer',
+                                 tuple['PreSlicer'],
+                                 tuple['PreSlicer', 'PreSlicer'],
+                                 tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
+            -> None:
+        """
+        Delete a column from this TemporalDataFrame using an index.
+
+        Args:
+            index: A sub-setting index. It must be 3-tuple with the first two elements being ':' or '...' and the
+            third element being the name of a column to delete.
+        """
+        # TODO : here check for read only or file closed
+        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
+                and not isinstance(index[2], slice) and index[2] is not ... \
+                and (index[0] is ... or (isinstance(index[0], slice) and index[0] == slice(None)))\
+                and (index[1] is ... or index[1] == slice(None)):
+            self.__delattr__(index[2])
+
+        else:
+            raise VValueError("Can only delete a column !")
+
     def __delattr__(self, col: str) -> None:
         if self.is_locked[1]:
             raise VLockError("Cannot use 'delattr' functionality on a locked TemporalDataFrame.")
