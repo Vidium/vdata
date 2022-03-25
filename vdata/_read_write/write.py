@@ -377,6 +377,51 @@ def write_ViewTemporalDataFrame(data: 'ViewTemporalDataFrame',
     write_TDF(data, group, key, key_level)
 
 
+def quick_delete_TDF_column(group: H5Group,
+                            column_name: str) -> None:
+    """
+    Function for quickly removing a column from a TDF's group in a H5 file.
+
+    Args:
+        group: TDF's file group.
+        column_name: name of the column to delete.
+    """
+    if group.attrs['type'] == 'TDF':
+        if column_name not in group['data'].keys():
+            raise VValueError(f"Column '{column_name}' not found in this TemporalDataFrame.")
+
+        del group['data'][column_name]
+
+    else:
+        raise NotImplementedError
+
+
+def quick_insert_TDF_column(group: H5Group,
+                            column_name: str,
+                            values: np.ndarray,
+                            position: int) -> None:
+    """
+    Function for quickly inserting a column into a TDF's group in a H5 file.
+
+    Args:
+        group: TDF's file group.
+        column_name: name of the column to insert.
+        values: values to insert.
+        position: index at which to insert the column. # TODO : not working right now
+    """
+    if group.attrs['type'] == 'TDF':
+        if (l := len(values)) != group['index'].shape[0]:
+            raise VValueError(f"'values' parameter has wrong length ({l}), expected {group['index'].shape[0]}.")
+
+        if values.dtype == object:
+            values = values.astype(str)
+
+        write_data(values, group['data'], column_name, key_level=0)
+
+    else:
+        raise NotImplementedError
+
+
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
 def write_series(series: Union[pd.Series, pd.Index],

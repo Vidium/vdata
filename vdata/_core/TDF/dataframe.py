@@ -623,14 +623,23 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             return self.__getattr__(index[2])
 
         else:
-            index = reformat_index(index, self.time_points, self.index, self.columns)
+            formatted_index = reformat_index(index, self.time_points, self.index, self.columns)
 
             generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
 
-            if not len(index[0]):
+            if not len(formatted_index[0]):
                 raise VValueError("Time points not found in this TemporalDataFrame.")
 
-            return ViewTemporalDataFrame(self, self._df, index[0], index[1], index[2], self._is_locked[0])
+            if not len(formatted_index[1]) and isinstance(index, tuple) and len(index) >= 2 \
+                    and index[1] not in (..., slice(None)):
+                raise VValueError("Indices not found in this TemporalDataFrame.")
+
+            if not len(formatted_index[2]) and isinstance(index, tuple) and len(index) == 3 \
+                    and index[2] not in (..., slice(None)):
+                raise VValueError("Columns not found in this TemporalDataFrame.")
+
+            return ViewTemporalDataFrame(self, self._df,
+                                         formatted_index[0], formatted_index[1], formatted_index[2], self._is_locked[0])
 
     def __getattr__(self, attr: str) -> Any:
         """
@@ -690,6 +699,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             raise VValueError("Can only delete a column !")
 
     def __delattr__(self, col: str) -> None:
+        from ..._read_write.write import quick_delete_TDF_column
+
         if self.is_locked[1]:
             raise VLockError("Cannot use 'delattr' functionality on a locked TemporalDataFrame.")
 
@@ -703,7 +714,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 self._columns = self._columns.delete(col_index)
 
                 if self.is_backed and self._file.file.mode == 'r+':
-                    self.write()
+                    quick_delete_TDF_column(self.file, col)
 
             else:
                 raise VValueError(f"Column '{col}' not found in TemporalDataFrame '{self.name}'.")
@@ -1136,6 +1147,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         :param column: str, number, or hashable object. Label of the inserted column.
         :param values: int, Series, or array-like
         """
+        from ..._read_write.write import quick_insert_TDF_column
+
         def _insert(arr, _values):
             try:
                 arr = np.insert(arr, loc, _values, axis=1)
@@ -1166,16 +1179,25 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                     cumul += self.n_index_at(time_point)
 
+                if self.is_backed and self._file.file.mode == 'r+':
+                    quick_insert_TDF_column(self.file,
+                                            column,
+                                            np.array(values),
+                                            loc)
+
             else:
                 for time_point in self.time_points:
                     # insert values into array
                     self._df[time_point] = _insert(self._df[time_point], values)
 
+                if self.is_backed and self._file.file.mode == 'r+':
+                    quick_insert_TDF_column(self.file,
+                                            column,
+                                            np.array([values for _ in range(self.n_index_total)]),
+                                            loc)
+
             # insert column name into column index
             self._columns = self._columns.insert(loc, column)
-
-            if self.is_backed and self._file.file.mode == 'r+':
-                self.write()
 
     def copy(self) -> 'TemporalDataFrame':
         """

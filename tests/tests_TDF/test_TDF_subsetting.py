@@ -30,10 +30,11 @@ def test_TDF_sub_setting():
     except vdata.VValueError as e:
         assert e.msg == "Time points not found in this TemporalDataFrame."
 
-    assert repr(TDF['0h', 'z']) == "Empty View of TemporalDataFrame '1'\n" \
-                                   "Time points: []\n" \
-                                   "Columns: ['col1']\n" \
-                                   "Index: []", repr(TDF['0h', 'z'])
+    try:
+        repr(TDF['0h', 'z'])
+
+    except vdata.VValueError as e:
+        assert e.msg == "Indices not found in this TemporalDataFrame."
 
     assert TDF['0h'].time_points == [vdata.TimePoint('0h')]
 

@@ -89,7 +89,7 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
         # remove index elements where time points do not match
         if len(self._tp_slicer):
             valid_indexes = np.concatenate([parent.index_at(time_point) for time_point in self._tp_slicer])
-            index_at_tp_slicer = pd.Index([i for i in self._index if i in valid_indexes])
+            index_at_tp_slicer = self._index.intersection(valid_indexes)
 
         else:
             index_at_tp_slicer = pd.Index([], dtype=object)
@@ -322,11 +322,19 @@ class ViewTemporalDataFrame(base.BaseTemporalDataFrame):
                 col_indices = np.where(self.bool_columns())[0]
 
                 for col_index in col_indices:
-                    self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0], col_index] \
-                        = values
+                    self._parent_data[time_point][np.where(self.bool_index_at(time_point))[0], col_index] = values
 
         if self._parent.is_backed and self._parent.file.file.mode == 'r+':
-            self._parent.write()
+            from ...._read_write.write import quick_delete_TDF_column, quick_insert_TDF_column
+            # TODO : handle data directly from the h5 file
+
+            for column, col_index in zip(self.columns, np.where(self.bool_columns())[0]):
+                values = np.concatenate([self._parent_data[tp][:, col_index] for tp in self._parent.time_points])
+
+                quick_delete_TDF_column(self._parent.file, column)
+                quick_insert_TDF_column(self._parent.file, column, values, col_index)
+
+            # self._parent.write()
 
     @property
     def is_locked(self) -> tuple[bool, bool]:
