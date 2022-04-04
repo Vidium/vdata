@@ -594,14 +594,15 @@ class TemporalDataFrame:
                 no column is created.
         """
         if with_timepoints is None:
-            return pd.DataFrame(np.concatenate((self.values_num, self.values_str), axis=1),
-                                index=self.index,
-                                columns=self.columns)
+            return pd.concat((pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
+                              pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                             axis=1)
 
-        return pd.DataFrame(np.concatenate((self.timepoints_column_str[:, None], self.values_num, self.values_str),
-                                           axis=1),
-                            index=self.index,
-                            columns=np.concatenate(([str(with_timepoints)], self.columns)))
+        return pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
+                                       index=self.index, columns=[str(with_timepoints)]),
+                          pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
+                          pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                         axis=1)
 
     @check_can_read
     def write(self, file: Optional[Union[str, Path, H5Data]] = None) -> None:
@@ -633,5 +634,13 @@ class TemporalDataFrame:
         """
         Get a copy of this TemporalDataFrame.
         """
-        # TODO
-        pass
+        if self._timepoints_column_name is None:
+            return TemporalDataFrame(self.to_pandas(),
+                                     time_list=self.timepoints_column,
+                                     lock=self._lock,
+                                     name=f"copy of {self._name}")
+
+        return TemporalDataFrame(self.to_pandas(with_timepoints=self._timepoints_column_name),
+                                 time_col_name=self._timepoints_column_name,
+                                 lock=self._lock,
+                                 name=f"copy of {self._name}")

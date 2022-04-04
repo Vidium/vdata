@@ -39,7 +39,8 @@ def get_TDF(name: str) -> TemporalDataFrame:
 
 
 def get_backed_TDF(input_file: Path,
-                   name: str) -> TemporalDataFrame:
+                   name: str,
+                   mode: H5Mode = H5Mode.READ) -> TemporalDataFrame:
     with File(input_file, H5Mode.WRITE_TRUNCATE) as h5_file:
         # write data to h5 file directly
         h5_file.attrs['type'] = reference_backed_data['type']
@@ -61,4 +62,4 @@ def get_backed_TDF(input_file: Path,
                                chunks=True, maxshape=(None, None))
 
     # read TDF from file
-    return read_TDF(input_file, mode=H5Mode.READ)
+    return read_TDF(input_file, mode=mode)
