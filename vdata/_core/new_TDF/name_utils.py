@@ -4,21 +4,22 @@
 
 # ====================================================
 # imports
+import numpy as np
+from numbers import Number
 from h5py import File, Group
 
 from typing import Union, Collection
 
-from vdata import TimePoint
+from vdata.new_time_point import TimePoint
 
 
 # ====================================================
 # code
+SLICER = Union[Number, np.number, str, TimePoint,
+               Collection[Union[Number, np.number, str, TimePoint]],
+               range, slice, 'ellipsis']
+
 H5Data = Union[File, Group]
-TIMEPOINTS_SLICER = Union[None,
-                          Union[int, float, str, TimePoint],
-                          Collection[Union[int, float, str, TimePoint]],
-                          range,
-                          slice]
 
 
 class H5Mode(str):

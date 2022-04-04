@@ -8,7 +8,8 @@ import numpy as np
 from h5py import File, Dataset
 from pathlib import Path
 
-from vdata._core.new_TDF.dataframe import TemporalDataFrame
+from .utils import get_TDF
+from ..dataframe import TemporalDataFrame
 
 
 # ====================================================
@@ -60,13 +61,6 @@ def check_H5_file(reference_TDF: TemporalDataFrame,
         assert np.all(get_dset(h5_file['values_string']) == reference_TDF.values_str)
 
 
-def get_TDF() -> TemporalDataFrame:
-    return TemporalDataFrame({'col1': [i for i in range(100)],
-                             'col2': [i for i in range(100, 200)]},
-                             name='1',
-                             time_list=['0h' for _ in range(50)] + ['1h' for _ in range(50)])
-
-
 def cleanup(paths: list[Path]) -> None:
     for path in paths:
         if path.exists():
@@ -77,10 +71,10 @@ def test_write():
     output_file = Path(__file__).parent
 
     # create TDF
-    TDF = get_TDF()
+    TDF = get_TDF('1')
 
     # create exact copy as reference
-    reference_TDF = get_TDF()
+    reference_TDF = get_TDF('1')
 
     # create TDF with different values
     modified_TDF = TemporalDataFrame({'col1': [i for i in range(1000, 1100)],
@@ -119,7 +113,7 @@ def test_write():
 
     #       Path exists and data is the same shape
     modified_TDF.write(save_path_modified)
-    TDF = get_TDF()
+    TDF = get_TDF('1')
     assert not TDF.is_backed
     TDF.write(save_path_modified)
     check_H5_file(reference_TDF, save_path_modified)
@@ -127,14 +121,14 @@ def test_write():
 
     #       Path exists and data is different
     smaller_TDF.write(save_path_smaller)
-    TDF = get_TDF()
+    TDF = get_TDF('1')
     assert not TDF.is_backed
     TDF.write(save_path_smaller)
     check_H5_file(reference_TDF, save_path_smaller)
     assert TDF.is_backed
 
     #   H5 file
-    TDF = get_TDF()
+    TDF = get_TDF('1')
     assert not TDF.is_backed
 
     with File(save_path_another, 'a') as h5_file:

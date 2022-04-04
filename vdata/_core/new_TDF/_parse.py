@@ -12,7 +12,7 @@ from h5py import File, Group
 
 from typing import Union, Collection, Optional
 
-from vdata import TimePoint
+from vdata.new_time_point import TimePoint
 from .name_utils import H5Data
 
 
@@ -76,7 +76,7 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
 
     if isinstance(data, pd.DataFrame):
         numerical_array, string_array, timepoints_array, index, columns_numerical, columns_string, time_col_name = \
-            parse_data_df(data, index, columns_numerical, columns_string, time_list, time_col_name)
+            parse_data_df(data.copy(), index, columns_numerical, columns_string, time_list, time_col_name)
 
         return None, numerical_array, string_array, timepoints_array, index, columns_numerical, columns_string, \
             (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), time_col_name, str(name)
@@ -103,68 +103,83 @@ def parse_data_df(data: pd.DataFrame,
                   time_list: Optional[Collection[Union[Number, str, TimePoint]]],
                   time_col_name: Optional[str]) \
         -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[str]]:
-    numerical_df = data.select_dtypes(include='number')
-    string_df = data.select_dtypes(exclude='number')
+    def sort_and_get_tp(col_name: str,
+                        timepoints: Collection) -> np.ndarray:
+        data[col_name] = list(map(TimePoint, timepoints))
+        data.sort_values(by=col_name, inplace=True, kind='mergesort')
 
+        time_values_ = data[col_name].values
+        del data[col_name]
+
+        return time_values_
+
+    # parse INDEX -------------------------------------------------------------
     if index is not None:
         if (l := len(index)) != (s := data.shape[0]):
             raise ValueError(f"'index' parameter has incorrect length {l}, expected {s}.")
 
-    else:
-        index = data.index.values
+        data.index = index
 
-    if columns_numerical is not None:
-        if (l := len(columns_numerical)) != (s := numerical_df.shape[1]):
-            raise ValueError(f"'columns_numerical' parameter has incorrect length {l}, expected {s}.")
-
-    else:
-        columns_numerical = numerical_df.columns.values
-
-    if columns_string is not None:
-        if (l := len(columns_string)) != (s := string_df.shape[1]):
-            raise ValueError(f"'columns_string' parameter has incorrect length {l}, expected {s}.")
-
-    else:
-        columns_string = string_df.columns.values
-
+    # parse TIMEPOINTS COLUMN -------------------------------------------------
     if time_list is None:
         if time_col_name is None:
-            # set time values to default value '0'
-            time_values = [TimePoint(0) for _ in enumerate(index)]
+            # set time values to default value '0h'
+            time_values = np.array([TimePoint('0h') for _ in enumerate(data.index)])
 
         else:
             # pick time values from df
             if time_col_name not in data.columns:
                 raise ValueError(f"'time_col_name' ('{time_col_name}') is not in the data's columns.")
 
-            if time_col_name in numerical_df.columns:
-                time_values = list(map(TimePoint, numerical_df[time_col_name].values))
-                del numerical_df[time_col_name]
-
-            else:
-                time_values = list(map(TimePoint, string_df[time_col_name].values))
-                del string_df[time_col_name]
+            # convert column to time-points and sort data in ascending order
+            time_values = sort_and_get_tp(time_col_name, data[time_col_name])
 
     else:
         # pick time values from time_list
         if time_col_name is not None:
             warn("'time_list' parameter already supplied, 'time_col_name' parameter is ignored.")
 
-        if (l := len(time_list)) != (li := len(index)):
+        if (l := len(time_list)) != (li := len(data.index)):
             raise ValueError(f"'time_list' parameter has incorrect length {l}, expected {li}.")
 
-        time_values = list(map(TimePoint, time_list))
+        # also sort data and time-points in ascending order
+        time_values = sort_and_get_tp('__TDF_TMP_COLUMN__', time_list)
 
+    numerical_df = data.select_dtypes(include='number')
+    string_df = data.select_dtypes(exclude='number')
+
+    # parse COLUMNS NUM -------------------------------------------------------
+    if columns_numerical is not None:
+        if (l := len(columns_numerical)) != (s := numerical_df.shape[1]):
+            raise ValueError(f"'columns_numerical' parameter has incorrect length {l}, expected {s}.")
+
+        columns_numerical_ = np.array(columns_numerical)
+
+    else:
+        columns_numerical_ = np.array(numerical_df.columns.values)
+
+    # parse COLUMNS STR -------------------------------------------------------
+    if columns_string is not None:
+        if (l := len(columns_string)) != (s := string_df.shape[1]):
+            raise ValueError(f"'columns_string' parameter has incorrect length {l}, expected {s}.")
+
+        columns_string_ = np.array(columns_string)
+
+    else:
+        columns_string_ = np.array(string_df.columns.values)
+
+    # parse ARRAY NUM ---------------------------------------------------------
     numerical_array = numerical_df.values.copy()
     if numerical_df.empty:
         numerical_array = numerical_array.astype(int)
 
+    # parse ARRAY STR ---------------------------------------------------------
     string_array = string_df.values.copy()
     if string_df.empty:
         string_array = string_array.astype('O')
 
-    return numerical_array, string_array, np.array(time_values), np.array(index), \
-        np.array(columns_numerical), np.array(columns_string), time_col_name
+    return numerical_array, string_array, time_values, np.array(data.index), \
+        columns_numerical_, columns_string_, time_col_name
 
 
 def parse_data_h5(data: H5Data,

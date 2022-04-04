@@ -4,8 +4,10 @@
 
 # ====================================================
 # imports
+import numpy as np
 import pandas as pd
 
+from .utils import get_TDF
 from vdata._core.new_TDF.dataframe import TemporalDataFrame
 
 
@@ -16,8 +18,6 @@ def test_TDF_creation():
     #   time_list is None
     #       index is None
     TDF = TemporalDataFrame(data=None, time_list=None, time_col_name=None, index=None, name=1)
-
-    print(TDF)
 
     assert repr(TDF) == "Empty TemporalDataFrame '1'\n" \
                         "Time points: []\n" \
@@ -66,26 +66,26 @@ def test_TDF_creation():
         #       index is None
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None, index=None, name=7)
         assert repr(_TDF) == "TemporalDataFrame '7'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
-                             "0       0.0N  |  1.0\n" \
-                             "1       0.0N  |  2.0\n" \
-                             "2       0.0N  |  3.0\n" \
-                             "3       0.0N  |  4.0\n" \
-                             "4       0.0N  |  5.0\n" \
+                             "0       0.0h  |  1.0\n" \
+                             "1       0.0h  |  2.0\n" \
+                             "2       0.0h  |  3.0\n" \
+                             "3       0.0h  |  4.0\n" \
+                             "4       0.0h  |  5.0\n" \
                              "[9 x 1]\n\n", repr(_TDF)
 
         #       index is a Collection of values, same length as data
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None,
                                  index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=8)
         assert repr(_TDF) == "TemporalDataFrame '8'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
-                             "a       0.0N  |  1.0\n" \
-                             "b       0.0N  |  2.0\n" \
-                             "c       0.0N  |  3.0\n" \
-                             "d       0.0N  |  4.0\n" \
-                             "e       0.0N  |  5.0\n" \
+                             "a       0.0h  |  1.0\n" \
+                             "b       0.0h  |  2.0\n" \
+                             "c       0.0h  |  3.0\n" \
+                             "d       0.0h  |  4.0\n" \
+                             "e       0.0h  |  5.0\n" \
                              "[9 x 1]\n\n", repr(_TDF)
 
         #   time_list is a Collection of time points
@@ -169,26 +169,26 @@ def test_TDF_creation():
         #       index is None
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None, index=None, name=12)
         assert repr(_TDF) == "TemporalDataFrame '12'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
-                             "0       0.0N  |    a\n" \
-                             "1       0.0N  |    b\n" \
-                             "2       0.0N  |    c\n" \
-                             "3       0.0N  |    d\n" \
-                             "4       0.0N  |    e\n" \
+                             "0       0.0h  |    a\n" \
+                             "1       0.0h  |    b\n" \
+                             "2       0.0h  |    c\n" \
+                             "3       0.0h  |    d\n" \
+                             "4       0.0h  |    e\n" \
                              "[9 x 1]\n\n", repr(_TDF)
 
         #       index is a Collection of values, same length as data
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None,
                                  index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=13)
         assert repr(_TDF) == "TemporalDataFrame '13'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
-                             "a       0.0N  |    a\n" \
-                             "b       0.0N  |    b\n" \
-                             "c       0.0N  |    c\n" \
-                             "d       0.0N  |    d\n" \
-                             "e       0.0N  |    e\n" \
+                             "a       0.0h  |    a\n" \
+                             "b       0.0h  |    b\n" \
+                             "c       0.0h  |    c\n" \
+                             "d       0.0h  |    d\n" \
+                             "e       0.0h  |    e\n" \
                              "[9 x 1]\n\n", repr(_TDF)
 
         #   time_list is a Collection of time points
@@ -272,26 +272,26 @@ def test_TDF_creation():
         #       index is None
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None, index=None, name=17)
         assert repr(_TDF) == "TemporalDataFrame '17'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1    col2\n" \
-                             "0       0.0N  |  1.0  |    a\n" \
-                             "1       0.0N  |  2.0  |    b\n" \
-                             "2       0.0N  |  3.0  |    c\n" \
-                             "3       0.0N  |  4.0  |    d\n" \
-                             "4       0.0N  |  5.0  |    e\n" \
+                             "0       0.0h  |  1.0  |    a\n" \
+                             "1       0.0h  |  2.0  |    b\n" \
+                             "2       0.0h  |  3.0  |    c\n" \
+                             "3       0.0h  |  4.0  |    d\n" \
+                             "4       0.0h  |  5.0  |    e\n" \
                              "[9 x 2]\n\n", repr(_TDF)
 
         #       index is a Collection of values, same length as data
         _TDF = TemporalDataFrame(data=data, time_list=None, time_col_name=None,
                                  index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=18)
         assert repr(_TDF) == "TemporalDataFrame '18'\n" \
-                             "\033[4mTime point : 0.0 (no unit)\033[0m\n" \
+                             "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1    col2\n" \
-                             "a       0.0N  |  1.0  |    a\n" \
-                             "b       0.0N  |  2.0  |    b\n" \
-                             "c       0.0N  |  3.0  |    c\n" \
-                             "d       0.0N  |  4.0  |    d\n" \
-                             "e       0.0N  |  5.0  |    e\n" \
+                             "a       0.0h  |  1.0  |    a\n" \
+                             "b       0.0h  |  2.0  |    b\n" \
+                             "c       0.0h  |  3.0  |    c\n" \
+                             "d       0.0h  |  4.0  |    d\n" \
+                             "e       0.0h  |  5.0  |    e\n" \
                              "[9 x 2]\n\n", repr(_TDF)
 
         #   time_list is a Collection of time points
@@ -385,14 +385,71 @@ def test_TDF_creation():
 
     sub_test_str(data)
 
-    # data is a dictionary, both numeric and string data only
+    # data is a dictionary, both numeric and string data
     data = {'col1': [1., 2., 3., 4., 5., 6., 7., 8., 9.],
             'col2': ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']}
 
     sub_test_both(data)
 
-    # data is in a H5 file
+    # data is not sorted
+    data = {'col2': ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+            'col1': [1., 2., 3., 4., 5., 6., 7., 8., 9.]}
 
+    TDF = TemporalDataFrame(data=data, time_list=['10h', '10h', '10h', '0h', '0h', '0h', '5h', '5h', '5h'],
+                            time_col_name=None, index=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], name=22)
+    assert repr(TDF) == "TemporalDataFrame '22'\n" \
+                        "\033[4mTime point : 0.0 hours\033[0m\n" \
+                        "  Time-point    col1    col2\n" \
+                        "d       0.0h  |  4.0  |    d\n" \
+                        "e       0.0h  |  5.0  |    e\n" \
+                        "f       0.0h  |  6.0  |    f\n" \
+                        "[3 x 2]\n" \
+                        "\n" \
+                        "\033[4mTime point : 5.0 hours\033[0m\n" \
+                        "  Time-point    col1    col2\n" \
+                        "g       5.0h  |  7.0  |    g\n" \
+                        "h       5.0h  |  8.0  |    h\n" \
+                        "i       5.0h  |  9.0  |    i\n" \
+                        "[3 x 2]\n" \
+                        "\n" \
+                        "\033[4mTime point : 10.0 hours\033[0m\n" \
+                        "  Time-point    col1    col2\n" \
+                        "a      10.0h  |  1.0  |    a\n" \
+                        "b      10.0h  |  2.0  |    b\n" \
+                        "c      10.0h  |  3.0  |    c\n" \
+                        "[3 x 2]\n\n", repr(TDF)
+
+    assert np.all(TDF.index == np.array(['d', 'e', 'f', 'g', 'h', 'i', 'a', 'b', 'c']))
+    assert np.all(TDF.columns == np.array(['col1', 'col2']))
+    assert np.all(TDF.timepoints == np.array(['0h', '5h', '10h']))
+    assert np.all(TDF.timepoints_column == np.array(['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h']))
+
+    assert np.all(TDF.values_num == np.array([[4], [5], [6], [7], [8], [9], [1], [2], [3]]))
+    assert np.all(TDF.values_str == np.array([['d'], ['e'], ['f'], ['g'], ['h'], ['i'], ['a'], ['b'], ['c']]))
+
+    TDF = get_TDF('23')
+
+    assert repr(TDF) == "TemporalDataFrame '23'\n" \
+                        "\033[4mTime point : 0.0 hours\033[0m\n" \
+                        "   Time-point    col1 col2    col3 col4\n" \
+                        "50       0.0h  |   50  150  |  250  350\n" \
+                        "51       0.0h  |   51  151  |  251  351\n" \
+                        "52       0.0h  |   52  152  |  252  352\n" \
+                        "53       0.0h  |   53  153  |  253  353\n" \
+                        "54       0.0h  |   54  154  |  254  354\n" \
+                        "[50 x 4]\n" \
+                        "\n" \
+                        "\033[4mTime point : 1.0 hours\033[0m\n" \
+                        "  Time-point    col1 col2    col3 col4\n" \
+                        "0       1.0h  |    0  100  |  200  300\n" \
+                        "1       1.0h  |    1  101  |  201  301\n" \
+                        "2       1.0h  |    2  102  |  202  302\n" \
+                        "3       1.0h  |    3  103  |  203  303\n" \
+                        "4       1.0h  |    4  104  |  204  304\n" \
+                        "[50 x 4]\n\n"
+
+    # data is in a H5 file
+    # TODO
 
 
 if __name__ == '__main__':
