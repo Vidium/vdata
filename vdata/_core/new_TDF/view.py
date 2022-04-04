@@ -310,3 +310,16 @@ class ViewTemporalDataFrame:
     @check_can_read
     def values_str(self) -> np.ndarray:
         return self._parent.values_str[self.index_positions][:, self.columns_str_positions]
+
+    @check_can_read
+    def write(self) -> None:
+        # TODO
+        pass
+
+    @check_can_read
+    def copy(self) -> 'TemporalDataFrame':
+        """
+        Get a TemporalDataFrame that is a copy of this view.
+        """
+        # TODO
+        pass

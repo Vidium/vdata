@@ -481,7 +481,7 @@ class TemporalDataFrame:
         """
         Get the column of time-point values cast as strings.
         """
-        return np.array(list(map(str, self._timepoints_array)))
+        return np.array(list(map(str, self.timepoints_column)))
 
     @property
     @check_can_read
@@ -584,6 +584,26 @@ class TemporalDataFrame:
         return self._string_array
 
     @check_can_read
+    def to_pandas(self,
+                  with_timepoints: Optional[str] = None) -> pd.DataFrame:
+        """
+        Convert this TemporalDataFrame to a pandas DataFrame.
+
+        Args:
+            with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
+                no column is created.
+        """
+        if with_timepoints is None:
+            return pd.DataFrame(np.concatenate((self.values_num, self.values_str), axis=1),
+                                index=self.index,
+                                columns=self.columns)
+
+        return pd.DataFrame(np.concatenate((self.timepoints_column_str[:, None], self.values_num, self.values_str),
+                                           axis=1),
+                            index=self.index,
+                            columns=np.concatenate(([str(with_timepoints)], self.columns)))
+
+    @check_can_read
     def write(self, file: Optional[Union[str, Path, H5Data]] = None) -> None:
         """
         Save this TemporalDataFrame in HDF5 file format.
@@ -607,3 +627,11 @@ class TemporalDataFrame:
             write_TDF(self, file)
 
             self.__reload_from_file(file)
+
+    @check_can_read
+    def copy(self) -> 'TemporalDataFrame':
+        """
+        Get a copy of this TemporalDataFrame.
+        """
+        # TODO
+        pass
