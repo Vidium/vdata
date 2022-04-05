@@ -27,8 +27,10 @@ def check_can_read(func):
     def wrapper(*args, **kwargs):
         self = args[0]
 
+        file = object.__getattribute__(self, '_file')
+
         # if TDF is backed but file is closed : can't read
-        if self.is_backed and not self.file:
+        if file is not None and not file:
             raise ValueError("Can't read TemporalDataFrame backed on closed file.")
 
         return func(*args, **kwargs)
@@ -40,12 +42,14 @@ def check_can_write(func):
     def wrapper(*args, **kwargs):
         self = args[0]
 
+        file = object.__getattribute__(self, '_file')
+
         # if TDF is backed but file is closed or file mode is not a or r+ : can't write
-        if self.is_backed:
-            if not self.file:
+        if file is not None:
+            if not file:
                 raise ValueError("Can't write to TemporalDataFrame backed on closed file.")
 
-            if (m := self.file.mode) not in (H5Mode.READ_WRITE_CREATE, H5Mode.READ_WRITE):
+            if (m := file.mode) not in (H5Mode.READ_WRITE_CREATE, H5Mode.READ_WRITE):
                 raise ValueError(f"Can't write to TemporalDataFrame backed on file with mode='{m}'.")
 
         return func(*args, **kwargs)
@@ -61,6 +65,8 @@ class TemporalDataFrame:
 
     __slots__ = '_name', '_file', '_numerical_array', '_string_array', '_timepoints_array', '_index', \
                 '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
+
+    __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str')
 
     def __init__(self,
                  data: Union[None, dict, pd.DataFrame, H5Data] = None,
@@ -97,9 +103,20 @@ class TemporalDataFrame:
         #   string data (objects which are not numbers, assumed strings)
         #   index (any type)
         #   columns (any type)
-        self._file, self._numerical_array, self._string_array, self._timepoints_array, self._index, \
-            self._columns_numerical, self._columns_string, self._lock, self._timepoints_column_name, self._name = \
+        _file, _numerical_array, _string_array, _timepoints_array, _index, _columns_numerical, _columns_string, \
+            _lock, _timepoints_column_name, _name = \
             parse_data(data, index, columns_numerical, columns_string, time_list, time_col_name, lock, name)
+
+        object.__setattr__(self, '_file', _file)
+        object.__setattr__(self, '_numerical_array', _numerical_array)
+        object.__setattr__(self, '_string_array', _string_array)
+        object.__setattr__(self, '_timepoints_array', _timepoints_array)
+        object.__setattr__(self, '_index', _index)
+        object.__setattr__(self, '_columns_numerical', _columns_numerical)
+        object.__setattr__(self, '_columns_string', _columns_string)
+        object.__setattr__(self, '_lock', _lock)
+        object.__setattr__(self, '_timepoints_column_name', _timepoints_column_name)
+        object.__setattr__(self, '_name', _name)
 
         # TODO : implement locking logic
 
@@ -116,20 +133,82 @@ class TemporalDataFrame:
         return dir(TemporalDataFrame) + list(self.columns)
 
     @check_can_read
-    def __getattr__(self, item: str) -> ViewTemporalDataFrame:
+    def __getattr__(self,
+                    column_name: str) -> ViewTemporalDataFrame:
         """
         Get a single column from this TemporalDataFrame.
         """
-        if item in self.columns_num:
-            return ViewTemporalDataFrame(self, self.index, np.array([item]), np.array([]))
+        if column_name in self.columns_num:
+            return ViewTemporalDataFrame(self, self.index, np.array([column_name]), np.array([]))
 
-        elif item in self.columns_str:
-            return ViewTemporalDataFrame(self, self.index, np.array([]), np.array([item]))
+        elif column_name in self.columns_str:
+            return ViewTemporalDataFrame(self, self.index, np.array([]), np.array([column_name]))
 
-        raise AttributeError(f"'{item}' not found in this TemporalDataFrame.")
+        raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
     @check_can_write
-    def __delattr__(self, item: str) -> None:
+    def __setattr__(self,
+                    name: str,
+                    values: np.ndarray) -> None:
+        """
+        Set values of a single column. If the column does not already exist in this TemporalDataFrame, it is created
+            at the end.
+        """
+        if name in TemporalDataFrame.__attributes or name in TemporalDataFrame.__slots__:
+            object.__setattr__(self, name, values)
+            return
+
+        values = np.array(values)
+
+        if (l := len(values)) != (n := self.n_index):
+            raise ValueError(f"Wrong number of values ({l}) for column '{name}', expected {n}.")
+
+        if name in self.columns_num:
+            # set values for numerical column
+            self._numerical_array[:, np.where(self.columns_num == name)[0][0]] = \
+                values.astype(self._numerical_array.dtype)
+
+        elif name in self.columns_str:
+            # set values for string column
+            self._string_array[:, np.where(self.columns_str == name)[0][0]] = values.astype(str)
+
+        else:
+            if np.issubdtype(values.dtype, np.number):
+                # create numerical column
+                if self.is_backed:
+                    self._numerical_array.resize((self.n_index, self.n_columns_num + 1))
+                    self._numerical_array[:, -1] = values.astype(self._numerical_array.dtype)
+
+                    self._columns_numerical.resize((self.n_columns_num + 1,))
+                    self._columns_numerical[-1] = name
+
+                else:
+                    object.__setattr__(self, '_numerical_array',
+                                       np.append(self._numerical_array,
+                                                 values.astype(self._numerical_array.dtype)[:, None], axis=1))
+
+                    self._columns_numerical.resize((self.n_columns_num + 1,), refcheck=False)
+                    self._columns_numerical[-1] = name
+
+            else:
+                # create string column
+                if self.is_backed:
+                    self._string_array.resize((self.n_index, self.n_columns_str + 1))
+                    self._string_array[:, -1] = values.astype(str)
+
+                    self._columns_string.resize((self.n_columns_str + 1,))
+                    self._columns_string[-1] = name
+
+                else:
+                    object.__setattr__(self, '_string_array',
+                                       np.append(self._string_array, values.astype(str)[:, None], axis=1))
+
+                    self._columns_string.resize((self.n_columns_str + 1,), refcheck=False)
+                    self._columns_string[-1] = name
+
+    @check_can_write
+    def __delattr__(self,
+                    column_name: str) -> None:
         def drop_column_np(array_: np.ndarray,
                            columns_: np.ndarray,
                            index_: int) -> tuple[np.ndarray, np.ndarray]:
@@ -156,8 +235,8 @@ class TemporalDataFrame:
             columns_.resize((len(columns_) - 1,))
             array_.resize((array_.shape[0], array_.shape[1] - 1))
 
-        if item in self.columns_num:
-            item_index = np.where(self.columns_num == item)[0][0]
+        if column_name in self.columns_num:
+            item_index = np.where(self.columns_num == column_name)[0][0]
 
             if self.is_backed:
                 drop_column_h5(self._numerical_array, self._columns_numerical, item_index)
@@ -166,8 +245,8 @@ class TemporalDataFrame:
                 self._numerical_array, self._columns_numerical = \
                     drop_column_np(self._numerical_array, self._columns_numerical, item_index)
 
-        elif item in self.columns_str:
-            item_index = np.where(self.columns_str == item)[0][0]
+        elif column_name in self.columns_str:
+            item_index = np.where(self.columns_str == column_name)[0][0]
 
             if self.is_backed:
                 drop_column_h5(self._string_array, self._columns_string, item_index)
@@ -177,9 +256,10 @@ class TemporalDataFrame:
                     drop_column_np(self._string_array, self._columns_string, item_index)
 
         else:
-            raise AttributeError(f"'{item}' not found in this TemporalDataFrame.")
+            raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
-    def __parse_slicer(self, slicer: tuple[SLICER, SLICER, SLICER]) \
+    def __parse_slicer(self,
+                       slicer: tuple[SLICER, SLICER, SLICER]) \
             -> tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
         """TODO"""
         def parse_one(axis_slicer: SLICER,
@@ -264,10 +344,10 @@ class TemporalDataFrame:
         return selected_index, selected_columns_num, selected_columns_str
 
     @check_can_read
-    def __getitem__(self, slicer: Union[SLICER,
+    def __getitem__(self,
+                    slicer: Union[SLICER,
                                         tuple[SLICER, SLICER],
-                                        tuple[SLICER, SLICER, SLICER]]) \
-            -> ViewTemporalDataFrame:
+                                        tuple[SLICER, SLICER, SLICER]]) -> ViewTemporalDataFrame:
         def expand_slicer(s: Union[SLICER,
                                    tuple[SLICER, SLICER],
                                    tuple[SLICER, SLICER, SLICER]]) \
@@ -293,7 +373,8 @@ class TemporalDataFrame:
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
-    def __reload_from_file(self, file: H5Data) -> None:
+    def __reload_from_file(self,
+                           file: H5Data) -> None:
         """
         Reload data from a H5 file into this TemporalDataFrame. This function is called after a .write() on a TDF that
             was not backed.
@@ -322,7 +403,8 @@ class TemporalDataFrame:
 
     @name.setter
     @check_can_write
-    def name(self, name: str) -> None:
+    def name(self,
+             name: str) -> None:
         self._name = str(name)
 
         if self.is_backed:
@@ -372,7 +454,8 @@ class TemporalDataFrame:
         """
         return self._empty_numerical() and self._empty_string()
 
-    def _head_tail(self, n: int) -> str:
+    def _head_tail(self,
+                   n: int) -> str:
         """
         Common function for getting a head or tail representation of this TemporalDataFrame.
 
@@ -460,7 +543,8 @@ class TemporalDataFrame:
         return repr_string
 
     @check_can_read
-    def head(self, n: int = 5) -> str:
+    def head(self,
+             n: int = 5) -> str:
         """
         Get a short representation of the first n rows in this TemporalDataFrame.
 
@@ -473,7 +557,8 @@ class TemporalDataFrame:
         return self._head_tail(n)
 
     @check_can_read
-    def tail(self, n: int = 5) -> str:
+    def tail(self,
+             n: int = 5) -> str:
         """
         Get a short representation of the last n rows in this TemporalDataFrame.
 
@@ -500,7 +585,8 @@ class TemporalDataFrame:
         return unique_timepoints
 
     @check_can_read
-    def get_timepoint_mask(self, timepoint: Union[str, TimePoint]) -> np.ndarray:
+    def get_timepoint_mask(self,
+                           timepoint: Union[str, TimePoint]) -> np.ndarray:
         """
         Get a boolean mask indicating where in this TemporalDataFrame's the rows' time-point are equal to <timepoint>.
 
@@ -557,18 +643,21 @@ class TemporalDataFrame:
 
     @index.setter
     @check_can_write
-    def index(self, values: np.ndarray) -> None:
+    def index(self,
+              values: np.ndarray) -> None:
         if not (vs := values.shape) == (s := self._index.shape):
             raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
 
         self._index = values
 
+    @property
     @check_can_read
     def n_index(self) -> int:
         return len(self.index)
 
     @check_can_read
-    def index_at(self, timepoint: Union[str, TimePoint]) -> np.ndarray:
+    def index_at(self,
+                 timepoint: Union[str, TimePoint]) -> np.ndarray:
         """
         Get the index of rows existing at the given time-point.
 
@@ -615,7 +704,8 @@ class TemporalDataFrame:
 
     @columns_str.setter
     @check_can_write
-    def columns_str(self, values: np.ndarray) -> None:
+    def columns_str(self,
+                    values: np.ndarray) -> None:
         if not (vs := values.shape) == (s := self._columns_string.shape):
             raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
 
@@ -660,7 +750,8 @@ class TemporalDataFrame:
                          axis=1)
 
     @check_can_read
-    def write(self, file: Optional[Union[str, Path, H5Data]] = None) -> None:
+    def write(self,
+              file: Optional[Union[str, Path, H5Data]] = None) -> None:
         """
         Save this TemporalDataFrame in HDF5 file format.
 
