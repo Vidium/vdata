@@ -49,21 +49,21 @@ def test_read():
 
     assert repr(TDF) == "Backed TemporalDataFrame '1'\n" \
                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                        "  Time-point    col1 col2       col3\n" \
-                        "0       0.0h  |    0    1  |  b'100'\n" \
-                        "1       0.0h  |    2    3  |  b'101'\n" \
-                        "2       0.0h  |    4    5  |  b'102'\n" \
-                        "3       0.0h  |    6    7  |  b'103'\n" \
-                        "4       0.0h  |    8    9  |  b'104'\n" \
+                        "  Time-point    col1 col2    col3\n" \
+                        "0       0.0h  |    0    1  |  100\n" \
+                        "1       0.0h  |    2    3  |  101\n" \
+                        "2       0.0h  |    4    5  |  102\n" \
+                        "3       0.0h  |    6    7  |  103\n" \
+                        "4       0.0h  |    8    9  |  104\n" \
                         "[25 x 3]\n" \
                         "\n" \
                         "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                        "   Time-point    col1 col2       col3\n" \
-                        "25       1.0h  |   50   51  |  b'125'\n" \
-                        "26       1.0h  |   52   53  |  b'126'\n" \
-                        "27       1.0h  |   54   55  |  b'127'\n" \
-                        "28       1.0h  |   56   57  |  b'128'\n" \
-                        "29       1.0h  |   58   59  |  b'129'\n" \
+                        "   Time-point    col1 col2    col3\n" \
+                        "25       1.0h  |   50   51  |  125\n" \
+                        "26       1.0h  |   52   53  |  126\n" \
+                        "27       1.0h  |   54   55  |  127\n" \
+                        "28       1.0h  |   56   57  |  128\n" \
+                        "29       1.0h  |   58   59  |  129\n" \
                         "[25 x 3]\n\n"
 
     TDF.file.close()

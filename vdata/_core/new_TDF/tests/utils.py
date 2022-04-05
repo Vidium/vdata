@@ -51,8 +51,9 @@ def get_backed_TDF(input_file: Path,
 
         h5_file.create_dataset('index', data=reference_backed_data['index'])
         h5_file.create_dataset('columns_numerical', data=reference_backed_data['columns_numerical'],
-                               dtype=string_dtype())
-        h5_file.create_dataset('columns_string', data=reference_backed_data['columns_string'], dtype=string_dtype())
+                               chunks=True, maxshape=(None,), dtype=string_dtype())
+        h5_file.create_dataset('columns_string', data=reference_backed_data['columns_string'],
+                               chunks=True, maxshape=(None,), dtype=string_dtype())
         h5_file.create_dataset('timepoints', data=reference_backed_data['timepoints'], dtype=string_dtype())
 
         h5_file.create_dataset('values_numerical', data=reference_backed_data['values_numerical'],

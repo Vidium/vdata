@@ -128,6 +128,57 @@ class TemporalDataFrame:
 
         raise AttributeError(f"'{item}' not found in this TemporalDataFrame.")
 
+    @check_can_write
+    def __delattr__(self, item: str) -> None:
+        def drop_column_np(array_: np.ndarray,
+                           columns_: np.ndarray,
+                           index_: int) -> tuple[np.ndarray, np.ndarray]:
+            # delete column from the data array
+            array_ = np.delete(array_, index_, 1)
+
+            # delete column from the column names
+            columns_ = np.delete(columns_, index_)
+
+            return array_, columns_
+
+        def drop_column_h5(array_: np.ndarray,
+                           columns_: np.ndarray,
+                           index_: int) -> None:
+            # transfer data one row to the left, starting from the column after the one to delete
+            # matrix | 0 1 2 3 4 | with index of the column to delete = 2
+            #   ==>  | 0 1 3 4 . |
+            array_[:, index_:len(columns_) - 1] = array_[:, index_ + 1:len(columns_)]
+
+            # delete column from the column names as above
+            columns_[index_:len(columns_) - 1] = columns_[index_ + 1:len(columns_)]
+
+            # resize the arrays to drop the extra column at the end
+            columns_.resize((len(columns_) - 1,))
+            array_.resize((array_.shape[0], array_.shape[1] - 1))
+
+        if item in self.columns_num:
+            item_index = np.where(self.columns_num == item)[0][0]
+
+            if self.is_backed:
+                drop_column_h5(self._numerical_array, self._columns_numerical, item_index)
+
+            else:
+                self._numerical_array, self._columns_numerical = \
+                    drop_column_np(self._numerical_array, self._columns_numerical, item_index)
+
+        elif item in self.columns_str:
+            item_index = np.where(self.columns_str == item)[0][0]
+
+            if self.is_backed:
+                drop_column_h5(self._string_array, self._columns_string, item_index)
+
+            else:
+                self._string_array, self._columns_string = \
+                    drop_column_np(self._string_array, self._columns_string, item_index)
+
+        else:
+            raise AttributeError(f"'{item}' not found in this TemporalDataFrame.")
+
     def __parse_slicer(self, slicer: tuple[SLICER, SLICER, SLICER]) \
             -> tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
         """TODO"""
@@ -369,7 +420,7 @@ class TemporalDataFrame:
                 tp_numerical_array = tp_numerical_array.reshape((len(tp_numerical_array) // self.n_columns_num,
                                                                  self.n_columns_num))
 
-                tp_string_array = self._string_array[
+                tp_string_array = self.values_str[
                     np.repeat(tp_mask[:, None], self.n_columns_str, axis=1)
                 ]
                 tp_string_array = tp_string_array.reshape((len(tp_string_array) // self.n_columns_str,
@@ -392,10 +443,10 @@ class TemporalDataFrame:
                 tp_shape = (tp_numerical_array.shape[0], tp_numerical_array.shape[1] + tp_string_array.shape[1])
 
             elif not self._empty_numerical():
-                tp_df, tp_shape = repr_single_array(self._numerical_array, self._columns_numerical)
+                tp_df, tp_shape = repr_single_array(self.values_num, self.columns_num)
 
             elif not self._empty_string():
-                tp_df, tp_shape = repr_single_array(self._string_array, self._columns_string)
+                tp_df, tp_shape = repr_single_array(self.values_str, self.columns_str)
 
             else:
                 raise ValueError
@@ -511,6 +562,10 @@ class TemporalDataFrame:
             raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
 
         self._index = values
+
+    @check_can_read
+    def n_index(self) -> int:
+        return len(self.index)
 
     @check_can_read
     def index_at(self, timepoint: Union[str, TimePoint]) -> np.ndarray:

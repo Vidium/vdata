@@ -75,14 +75,6 @@ def write_TDF(TDF: 'TemporalDataFrame',
         TDF: A TemporalDataFrame to write.
         file: A H5 File or Group in which to save the TemporalDataFrame.
     """
-    # if TDF.name in file:
-    #     group = file[TDF.name]
-    #     # TODO : check size of elements already in file, if size does not match : resize/delete and recreate
-    #     # TODO : handle how arrays can be copied from one file to another
-    #
-    # else:
-    #     group = file.create_group(TDF.name)
-
     # save attributes
     file.attrs['type'] = 'TDF'
     file.attrs['name'] = TDF.name
