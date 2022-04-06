@@ -81,6 +81,20 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     def __dir__(self):
         return dir(ViewTemporalDataFrame) + list(self.columns)
 
+    @check_can_read
+    def __getattr__(self,
+                    column_name: str) -> 'ViewTemporalDataFrame':
+        """
+        Get a single column from this view of a TemporalDataFrame.
+        """
+        if column_name in self.columns_num:
+            return ViewTemporalDataFrame(self._parent, self.index, np.array([column_name]), np.array([]))
+
+        elif column_name in self.columns_str:
+            return ViewTemporalDataFrame(self._parent, self.index, np.array([]), np.array([column_name]))
+
+        raise AttributeError(f"'{column_name}' not found in this view of a TemporalDataFrame.")
+
     @property
     @check_can_read
     def name(self) -> str:

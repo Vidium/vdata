@@ -28,12 +28,12 @@ class BaseTemporalDataFrame(ABC):
         pass
 
     # TODO for views
-    # def __getattr__(self,
-    #                 column_name: str) -> 'ViewTemporalDataFrame':
-    #     """
-    #     Get a single column.
-    #     """
-    #
+    def __getattr__(self,
+                    column_name: str) -> 'ViewTemporalDataFrame':
+        """
+        Get a single column.
+        """
+
     # def __setattr__(self,
     #                 name: str,
     #                 values: np.ndarray) -> None:
