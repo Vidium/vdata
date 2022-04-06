@@ -328,6 +328,159 @@ def test_append():
     cleanup(input_file)
 
 
+def test_insert():
+    # TDF is not backed
+    TDF = get_TDF('1')
+
+    #   column numerical
+    TDF.insert(1, 'col5', np.arange(500, 600))
+
+    assert repr(TDF) == "TemporalDataFrame '1'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "   Time-point    col1 col5 col2    col3 col4\n" \
+                        "50       0.0h  |   50  500  150  |  250  350\n" \
+                        "51       0.0h  |   51  501  151  |  251  351\n" \
+                        "52       0.0h  |   52  502  152  |  252  352\n" \
+                        "53       0.0h  |   53  503  153  |  253  353\n" \
+                        "54       0.0h  |   54  504  154  |  254  354\n" \
+                        "[50 x 5]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "  Time-point    col1 col5 col2    col3 col4\n" \
+                        "0       1.0h  |    0  550  100  |  200  300\n" \
+                        "1       1.0h  |    1  551  101  |  201  301\n" \
+                        "2       1.0h  |    2  552  102  |  202  302\n" \
+                        "3       1.0h  |    3  553  103  |  203  303\n" \
+                        "4       1.0h  |    4  554  104  |  204  304\n" \
+                        "[50 x 5]\n\n"
+
+    #   column string
+    TDF.insert(2, 'col6', np.arange(700, 800).astype(str))
+
+    assert repr(TDF) == "TemporalDataFrame '1'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "   Time-point    col1 col5 col2    col3 col4 col6\n" \
+                        "50       0.0h  |   50  500  150  |  250  350  700\n" \
+                        "51       0.0h  |   51  501  151  |  251  351  701\n" \
+                        "52       0.0h  |   52  502  152  |  252  352  702\n" \
+                        "53       0.0h  |   53  503  153  |  253  353  703\n" \
+                        "54       0.0h  |   54  504  154  |  254  354  704\n" \
+                        "[50 x 6]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "  Time-point    col1 col5 col2    col3 col4 col6\n" \
+                        "0       1.0h  |    0  550  100  |  200  300  750\n" \
+                        "1       1.0h  |    1  551  101  |  201  301  751\n" \
+                        "2       1.0h  |    2  552  102  |  202  302  752\n" \
+                        "3       1.0h  |    3  553  103  |  203  303  753\n" \
+                        "4       1.0h  |    4  554  104  |  204  304  754\n" \
+                        "[50 x 6]\n\n"
+
+    #   array is empty
+    del TDF.col1
+    del TDF.col5
+    del TDF.col2
+
+    TDF.insert(0, 'col1', np.arange(800, 900))
+
+    assert repr(TDF) == "TemporalDataFrame '1'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "   Time-point    col1    col3 col4 col6\n" \
+                        "50       0.0h  |  800  |  250  350  700\n" \
+                        "51       0.0h  |  801  |  251  351  701\n" \
+                        "52       0.0h  |  802  |  252  352  702\n" \
+                        "53       0.0h  |  803  |  253  353  703\n" \
+                        "54       0.0h  |  804  |  254  354  704\n" \
+                        "[50 x 4]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "  Time-point    col1    col3 col4 col6\n" \
+                        "0       1.0h  |  850  |  200  300  750\n" \
+                        "1       1.0h  |  851  |  201  301  751\n" \
+                        "2       1.0h  |  852  |  202  302  752\n" \
+                        "3       1.0h  |  853  |  203  303  753\n" \
+                        "4       1.0h  |  854  |  204  304  754\n" \
+                        "[50 x 4]\n\n"
+
+    # TDF is backed
+    input_file = Path(__file__).parent / 'test_insertion_TDF'
+    cleanup(input_file)
+
+    TDF = get_backed_TDF(input_file, '2', mode=H5Mode.READ_WRITE)
+
+    #   column numerical
+    TDF.insert(0, 'col4', np.arange(500, 550))
+
+    assert repr(TDF) == "Backed TemporalDataFrame '2'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "  Time-point    col4 col1 col2    col3\n" \
+                        "0       0.0h  |  500    0    1  |  100\n" \
+                        "1       0.0h  |  501    2    3  |  101\n" \
+                        "2       0.0h  |  502    4    5  |  102\n" \
+                        "3       0.0h  |  503    6    7  |  103\n" \
+                        "4       0.0h  |  504    8    9  |  104\n" \
+                        "[25 x 4]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "   Time-point    col4 col1 col2    col3\n" \
+                        "25       1.0h  |  525   50   51  |  125\n" \
+                        "26       1.0h  |  526   52   53  |  126\n" \
+                        "27       1.0h  |  527   54   55  |  127\n" \
+                        "28       1.0h  |  528   56   57  |  128\n" \
+                        "29       1.0h  |  529   58   59  |  129\n" \
+                        "[25 x 4]\n\n"
+
+    #   column string
+    TDF.insert(1, 'col5', np.arange(700, 750).astype(str))
+
+    assert repr(TDF) == "Backed TemporalDataFrame '2'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "  Time-point    col4 col1 col2    col3 col5\n" \
+                        "0       0.0h  |  500    0    1  |  100  700\n" \
+                        "1       0.0h  |  501    2    3  |  101  701\n" \
+                        "2       0.0h  |  502    4    5  |  102  702\n" \
+                        "3       0.0h  |  503    6    7  |  103  703\n" \
+                        "4       0.0h  |  504    8    9  |  104  704\n" \
+                        "[25 x 5]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "   Time-point    col4 col1 col2    col3 col5\n" \
+                        "25       1.0h  |  525   50   51  |  125  725\n" \
+                        "26       1.0h  |  526   52   53  |  126  726\n" \
+                        "27       1.0h  |  527   54   55  |  127  727\n" \
+                        "28       1.0h  |  528   56   57  |  128  728\n" \
+                        "29       1.0h  |  529   58   59  |  129  729\n" \
+                        "[25 x 5]\n\n"
+
+    #   array is empty
+    del TDF.col1
+    del TDF.col2
+    del TDF.col4
+
+    TDF.insert(0, 'col1', np.arange(800, 850))
+
+    assert repr(TDF) == "Backed TemporalDataFrame '2'\n" \
+                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                        "  Time-point    col1    col3 col5\n" \
+                        "0       0.0h  |  800  |  100  700\n" \
+                        "1       0.0h  |  801  |  101  701\n" \
+                        "2       0.0h  |  802  |  102  702\n" \
+                        "3       0.0h  |  803  |  103  703\n" \
+                        "4       0.0h  |  804  |  104  704\n" \
+                        "[25 x 3]\n" \
+                        "\n" \
+                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                        "   Time-point    col1    col3 col5\n" \
+                        "25       1.0h  |  825  |  125  725\n" \
+                        "26       1.0h  |  826  |  126  726\n" \
+                        "27       1.0h  |  827  |  127  727\n" \
+                        "28       1.0h  |  828  |  128  728\n" \
+                        "29       1.0h  |  829  |  129  729\n" \
+                        "[25 x 3]\n\n"
+
+    cleanup(input_file)
+
+
 if __name__ == '__main__':
     test_delete()
     test_append()

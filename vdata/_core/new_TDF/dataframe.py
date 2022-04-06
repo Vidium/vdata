@@ -346,8 +346,8 @@ class TemporalDataFrame:
     @check_can_read
     def __getitem__(self,
                     slicer: Union[SLICER,
-                                        tuple[SLICER, SLICER],
-                                        tuple[SLICER, SLICER, SLICER]]) -> ViewTemporalDataFrame:
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]]) -> ViewTemporalDataFrame:
         def expand_slicer(s: Union[SLICER,
                                    tuple[SLICER, SLICER],
                                    tuple[SLICER, SLICER, SLICER]]) \
@@ -405,7 +405,7 @@ class TemporalDataFrame:
     @check_can_write
     def name(self,
              name: str) -> None:
-        self._name = str(name)
+        object.__setattr__(self, '_name', str(name))
 
         if self.is_backed:
             self._file.attrs['name'] = name
@@ -628,7 +628,7 @@ class TemporalDataFrame:
     @timepoints_column_name.setter
     @check_can_write
     def timepoints_column_name(self, name) -> None:
-        self._timepoints_column_name = str(name)
+        object.__setattr__(self, '_timepoints_column_name', str(name))
 
         if self.is_backed:
             self._file.attrs['time_points_column_name'] = str(name)
@@ -648,7 +648,7 @@ class TemporalDataFrame:
         if not (vs := values.shape) == (s := self._index.shape):
             raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
 
-        self._index = values
+        object.__setattr__(self, '_index', values)
 
     @property
     @check_can_read
@@ -688,7 +688,7 @@ class TemporalDataFrame:
         if not (vs := values.shape) == (s := self._columns_numerical.shape):
             raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
 
-        self._columns_numerical = values
+        object.__setattr__(self, '_columns_numerical', values)
 
     @property
     def n_columns_num(self) -> int:
@@ -709,7 +709,7 @@ class TemporalDataFrame:
         if not (vs := values.shape) == (s := self._columns_string.shape):
             raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
 
-        self._columns_string = values
+        object.__setattr__(self, '_columns_string', values)
 
     @property
     def n_columns_str(self) -> int:
@@ -790,3 +790,70 @@ class TemporalDataFrame:
                                  time_col_name=self._timepoints_column_name,
                                  lock=self._lock,
                                  name=f"copy of {self._name}")
+
+    @check_can_write
+    def insert(self,
+               loc: int,
+               name: str,
+               values: np.ndarray) -> None:
+        """
+        Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
+            The column is inserted at position <loc> with name <name>.
+        """
+        def insert_column_np(array_: np.ndarray,
+                             columns_: np.ndarray,
+                             index_: int) -> tuple[np.ndarray, np.ndarray]:
+            # insert column in the data array the position index_.
+            array_ = np.insert(array_, index_, values, axis=1)
+
+            # insert column in the column names
+            columns_ = np.insert(columns_, index_, name)
+
+            return array_, columns_
+
+        def insert_column_h5(array_: np.ndarray,
+                             columns_: np.ndarray,
+                             index_: int) -> None:
+            # resize the arrays to insert an extra column at the end
+            columns_.resize((len(columns_) + 1,))
+            array_.resize((array_.shape[0], array_.shape[1] + 1))
+
+            # transfer data one row to the right, starting from the column after the index
+            # matrix | 0 1 2 3 4 | with index = 2
+            #   ==>  | 0 1 . 2 3 4 |
+            array_[:, index_ + 1:len(columns_)] = array_[:, index_:len(columns_) - 1]
+
+            # insert values at index
+            array_[:, index_] = values
+
+            # insert column from the column names as above
+            columns_[index_ + 1:len(columns_)] = columns_[index_:len(columns_) - 1]
+            columns_[index_] = name
+
+        values = np.array(values)
+
+        if (l := len(values)) != (n := self.n_index):
+            raise ValueError(f"Wrong number of values ({l}), expected {n}.")
+
+        if name in self.columns:
+            raise ValueError(f"A column named '{name}' already exists.")
+
+        if np.issubdtype(values.dtype, np.number):
+            # create numerical column
+            if self.is_backed:
+                insert_column_h5(self._numerical_array, self._columns_numerical, loc)
+
+            else:
+                array, columns = insert_column_np(self._numerical_array, self._columns_numerical, loc)
+                object.__setattr__(self, '_numerical_array', array)
+                object.__setattr__(self, '_columns_numerical', columns)
+
+        else:
+            # create string column
+            if self.is_backed:
+                insert_column_h5(self._string_array, self._columns_string, loc)
+
+            else:
+                array, columns = insert_column_np(self._string_array, self._columns_string, loc)
+                object.__setattr__(self, '_string_array', array)
+                object.__setattr__(self, '_columns_string', columns)
