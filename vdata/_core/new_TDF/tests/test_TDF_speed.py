@@ -35,7 +35,7 @@ def test_speed():
 
     assert time() - start < MAX_ELAPSED_TIME
 
-    # TDF subsetting
+    # TDF sub-setting
     start = time()
     view = TDF[['2h', '0h', '4h'], range(5_000, 15_000)]
 

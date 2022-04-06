@@ -740,16 +740,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
         """
-        if with_timepoints is None:
-            return pd.concat((pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
-                              pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
-                             axis=1)
-
-        return pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                       index=self.index, columns=[str(with_timepoints)]),
-                          pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
-                          pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
-                         axis=1)
+        return self._convert_to_pandas(with_timepoints=with_timepoints)
 
     @check_can_read
     def write(self,

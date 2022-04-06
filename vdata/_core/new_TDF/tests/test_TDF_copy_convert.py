@@ -70,8 +70,46 @@ def test_convert():
 
     # -------------------------------------------------------------------------
     # TDF is a view
+    # TDF is not backed
+    TDF = get_TDF('3')
 
-    # TODO
+    view = TDF[:, range(10, 90), ['col1', 'col4']]
+
+    #   no time-points
+    df = view.to_pandas()
+
+    assert np.all(df.values[:, 0] == np.concatenate((np.arange(50, 90), np.arange(10, 50))))
+    assert np.all(df.values[:, 1] == np.concatenate((np.arange(350, 390).astype(str), np.arange(310, 350).astype(str))))
+
+    #   with time-points
+    df = view.to_pandas(with_timepoints='time_points')
+
+    assert np.all(df.time_points == ['0.0h' for _ in range(40)] + ['1.0h' for _ in range(40)])
+    assert np.all(df.values[:, 1] == np.concatenate((np.arange(50, 90), np.arange(10, 50))))
+    assert np.all(df.values[:, 2] == np.concatenate((np.arange(350, 390).astype(str), np.arange(310, 350).astype(str))))
+
+    # TDF is backed
+    input_file = Path(__file__).parent / 'test_convert_TDF'
+    cleanup(input_file)
+
+    TDF = get_backed_TDF(input_file, '4')
+
+    view = TDF[:, range(10, 40), ['col1', 'col3']]
+
+    #   no time-points
+    df = view.to_pandas()
+
+    assert np.all(df.values[:, 0] == np.arange(20, 80, 2))
+    assert np.all(df.values[:, 1] == np.arange(110, 140).astype(str))
+
+    #   with time-points
+    df = view.to_pandas(with_timepoints='time_points')
+
+    assert np.all(df.time_points == ['0.0h' for _ in range(15)] + ['1.0h' for _ in range(15)])
+    assert np.all(df.values[:, 1] == np.arange(20, 80, 2))
+    assert np.all(df.values[:, 2] == np.arange(110, 140).astype(str))
+
+    cleanup(input_file)
 
 
 def test_copy():

@@ -345,6 +345,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     def values_str(self) -> np.ndarray:
         return self._parent.values_str[self.index_positions][:, self.columns_str_positions]
 
+    @check_can_read
     def to_pandas(self,
                   with_timepoints: Optional[str] = None) -> pd.DataFrame:
         """
@@ -354,8 +355,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
         """
-        # TODO
-        raise NotImplementedError
+        return self._convert_to_pandas(with_timepoints=with_timepoints)
 
     @check_can_read
     def write(self,

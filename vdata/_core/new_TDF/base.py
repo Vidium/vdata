@@ -235,6 +235,26 @@ class BaseTemporalDataFrame(ABC):
         Get the string data.
         """
 
+    def _convert_to_pandas(self,
+                           with_timepoints: Optional[str] = None) -> pd.DataFrame:
+        """
+        Internal function for converting to a pandas DataFrame. Do not use directly, it is called by '.to_pandas()'.
+
+        Args:
+            with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
+                no column is created.
+        """
+        if with_timepoints is None:
+            return pd.concat((pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
+                              pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                             axis=1)
+
+        return pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
+                                       index=self.index, columns=[str(with_timepoints)]),
+                          pd.DataFrame(self.values_num, index=self.index, columns=self.columns_num),
+                          pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                         axis=1)
+
     @abstractmethod
     def to_pandas(self,
                   with_timepoints: Optional[str] = None) -> pd.DataFrame:
