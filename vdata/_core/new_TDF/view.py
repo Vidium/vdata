@@ -84,7 +84,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def name(self) -> str:
-        return f"View of {self._parent.name}"
+        return f"view of {self._parent.name}"
 
     @property
     @check_can_read
@@ -377,5 +377,4 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a TemporalDataFrame that is a copy of this view.
         """
-        # TODO
-        pass
+        return self._copy()

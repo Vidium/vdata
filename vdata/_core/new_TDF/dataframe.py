@@ -773,16 +773,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a copy of this TemporalDataFrame.
         """
-        if self._timepoints_column_name is None:
-            return TemporalDataFrame(self.to_pandas(),
-                                     time_list=self.timepoints_column,
-                                     lock=self._lock,
-                                     name=f"copy of {self._name}")
-
-        return TemporalDataFrame(self.to_pandas(with_timepoints=self._timepoints_column_name),
-                                 time_col_name=self._timepoints_column_name,
-                                 lock=self._lock,
-                                 name=f"copy of {self._name}")
+        return self._copy()
 
     @check_can_write
     def insert(self,

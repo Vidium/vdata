@@ -15,6 +15,7 @@ from vdata.new_time_point import TimePoint
 from .name_utils import SLICER, H5Data
 
 if TYPE_CHECKING:
+    from .dataframe import TemporalDataFrame
     from .view import ViewTemporalDataFrame
 
 
@@ -274,4 +275,27 @@ class BaseTemporalDataFrame(ABC):
 
         Args:
             file: path to save the data.
+        """
+
+    def _copy(self) -> 'TemporalDataFrame':
+        """
+        Internal function for getting a copy. Do not use directly, it is called by '.copy()'.
+        """
+        from .dataframe import TemporalDataFrame
+
+        if self.timepoints_column_name is None:
+            return TemporalDataFrame(self.to_pandas(),
+                                     time_list=self.timepoints_column,
+                                     lock=self.lock,
+                                     name=f"copy of {self.name}")
+
+        return TemporalDataFrame(self.to_pandas(with_timepoints=self.timepoints_column_name),
+                                 time_col_name=self.timepoints_column_name,
+                                 lock=self.lock,
+                                 name=f"copy of {self.name}")
+
+    @abstractmethod
+    def copy(self) -> 'TemporalDataFrame':
+        """
+        Get a copy.
         """

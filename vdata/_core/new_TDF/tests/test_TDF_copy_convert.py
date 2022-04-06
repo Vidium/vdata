@@ -168,7 +168,6 @@ def test_copy():
     assert np.all(TDF_copy.values_str == TDF.values_str)
 
     # TDF is backed
-
     input_file = Path(__file__).parent / 'test_copy_TDF'
     cleanup(input_file)
 
@@ -229,8 +228,128 @@ def test_copy():
 
     # -------------------------------------------------------------------------
     # TDF is a view
+    # TDF is not backed
+    TDF = get_TDF('3')
 
-    # TODO
+    view = TDF[:, range(10, 90), ['col1', 'col4']]
+
+    #   time-points column name is None
+    view_copy = view.copy()
+
+    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 3'\n" \
+                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                              "   Time-point    col1    col4\n" \
+                              "50       0.0h  |   50  |  350\n" \
+                              "51       0.0h  |   51  |  351\n" \
+                              "52       0.0h  |   52  |  352\n" \
+                              "53       0.0h  |   53  |  353\n" \
+                              "54       0.0h  |   54  |  354\n" \
+                              "[40 x 2]\n" \
+                              "\n" \
+                              "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                              "   Time-point    col1    col4\n" \
+                              "10       1.0h  |   10  |  310\n" \
+                              "11       1.0h  |   11  |  311\n" \
+                              "12       1.0h  |   12  |  312\n" \
+                              "13       1.0h  |   13  |  313\n" \
+                              "14       1.0h  |   14  |  314\n" \
+                              "[40 x 2]\n\n"
+
+    assert np.all(view_copy.values_num == view.values_num)
+    assert np.all(view_copy.values_str == view.values_str)
+
+    #   time-points column name is not None
+    TDF.timepoints_column_name = 'Time'
+
+    view = TDF[:, range(10, 90), ['col1', 'col4']]
+
+    view_copy = view.copy()
+
+    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 3'\n" \
+                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                              "    Time    col1    col4\n" \
+                              "50  0.0h  |   50  |  350\n" \
+                              "51  0.0h  |   51  |  351\n" \
+                              "52  0.0h  |   52  |  352\n" \
+                              "53  0.0h  |   53  |  353\n" \
+                              "54  0.0h  |   54  |  354\n" \
+                              "[40 x 2]\n" \
+                              "\n" \
+                              "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                              "    Time    col1    col4\n" \
+                              "10  1.0h  |   10  |  310\n" \
+                              "11  1.0h  |   11  |  311\n" \
+                              "12  1.0h  |   12  |  312\n" \
+                              "13  1.0h  |   13  |  313\n" \
+                              "14  1.0h  |   14  |  314\n" \
+                              "[40 x 2]\n\n"
+
+    assert np.all(view_copy.values_num == view.values_num)
+    assert np.all(view_copy.values_str == view.values_str)
+
+    # TDF is backed
+    input_file = Path(__file__).parent / 'test_copy_TDF'
+    cleanup(input_file)
+
+    TDF = get_backed_TDF(input_file, '4', mode=H5Mode.READ_WRITE)
+
+    view = TDF[:, range(10, 40), ['col1', 'col3']]
+
+    #   time-points column name is None
+    view_copy = view.copy()
+
+    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 4'\n" \
+                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                              "   Time-point    col1    col3\n" \
+                              "10       0.0h  |   20  |  110\n" \
+                              "11       0.0h  |   22  |  111\n" \
+                              "12       0.0h  |   24  |  112\n" \
+                              "13       0.0h  |   26  |  113\n" \
+                              "14       0.0h  |   28  |  114\n" \
+                              "[15 x 2]\n" \
+                              "\n" \
+                              "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                              "   Time-point    col1    col3\n" \
+                              "25       1.0h  |   50  |  125\n" \
+                              "26       1.0h  |   52  |  126\n" \
+                              "27       1.0h  |   54  |  127\n" \
+                              "28       1.0h  |   56  |  128\n" \
+                              "29       1.0h  |   58  |  129\n" \
+                              "[15 x 2]\n\n"
+
+    assert np.all(view_copy.values_num == view.values_num)
+    assert np.all(view_copy.values_str == view.values_str)
+
+    #   time-points column name is not None
+    TDF.timepoints_column_name = 'Time'
+
+    view = TDF[:, range(10, 40), ['col1', 'col3']]
+
+    view_copy = view.copy()
+
+    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 4'\n" \
+                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                              "    Time    col1    col3\n" \
+                              "10  0.0h  |   20  |  110\n" \
+                              "11  0.0h  |   22  |  111\n" \
+                              "12  0.0h  |   24  |  112\n" \
+                              "13  0.0h  |   26  |  113\n" \
+                              "14  0.0h  |   28  |  114\n" \
+                              "[15 x 2]\n" \
+                              "\n" \
+                              "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                              "    Time    col1    col3\n" \
+                              "25  1.0h  |   50  |  125\n" \
+                              "26  1.0h  |   52  |  126\n" \
+                              "27  1.0h  |   54  |  127\n" \
+                              "28  1.0h  |   56  |  128\n" \
+                              "29  1.0h  |   58  |  129\n" \
+                              "[15 x 2]\n\n"
+
+    assert np.all(view_copy.values_num == view.values_num)
+    assert np.all(view_copy.values_str == view.values_str)
+
+    cleanup(input_file)
 
 
 if __name__ == '__main__':
