@@ -4,17 +4,21 @@
 
 # ====================================================
 # imports
+import pytest
 import numpy as np
 from h5py import File, Dataset
 from pathlib import Path
 
+from typing import Union
+
 from .utils import get_TDF
 from ..dataframe import TemporalDataFrame
+from ..view import ViewTemporalDataFrame
 
 
 # ====================================================
 # code
-def check_H5_file(reference_TDF: TemporalDataFrame,
+def check_H5_file(reference_TDF: Union[TemporalDataFrame, ViewTemporalDataFrame],
                   path: Path) -> None:
     """
     Check a TemporalDataFrame was correctly written to a H5 file at path <path>.
@@ -97,12 +101,11 @@ def test_write():
 
     # write TDF : not backed
     #   no file path
-    try:
+    with pytest.raises(ValueError) as exc_info:
         TDF.write()
 
-    except ValueError as e:
-        assert str(e) == "A file path must be supplied when write a TemporalDataFrame that is not already backed " \
-                         "on a file."
+    assert str(exc_info.value) == "A file path must be supplied when write a TemporalDataFrame that is not already " \
+                                  "backed on a file."
 
     #   Path object
     #       Path does not exist
@@ -151,6 +154,22 @@ def test_write():
     #       Path exists and data is different
 
     #   H5 file
+
+    # write TDF : is a view ---------------------------------------------------
+    # view of TDF
+    TDF = get_TDF('1')
+
+    save_path = Path(output_file / 'test_view_TDF')
+
+    view = TDF[:, range(10, 90), ['col1', 'col4']]
+
+    view.write(save_path)
+
+    check_H5_file(view, save_path)
+
+    cleanup([save_path])
+
+    # view of backed TDF
 
 
 if __name__ == '__main__':

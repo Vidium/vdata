@@ -7,13 +7,16 @@
 import numpy as np
 import pandas as pd
 import numpy_indexed as npi
-from h5py import Dataset
+from pathlib import Path
+from h5py import Dataset, File
 
 from typing import TYPE_CHECKING, Union, Optional
 
 from vdata.new_time_point import TimePoint
 from vdata.utils import repr_array
-from .name_utils import H5Mode
+from .name_utils import H5Mode, H5Data
+from .base import BaseTemporalDataFrame
+from ._write import write_TDF
 
 if TYPE_CHECKING:
     from .dataframe import TemporalDataFrame
@@ -51,7 +54,7 @@ def check_can_write(func):
     return wrapper
 
 
-class ViewTemporalDataFrame:
+class ViewTemporalDataFrame(BaseTemporalDataFrame):
     __slots__ = '_parent', '_index', '_columns_numerical', '_columns_string'
 
     def __init__(self,
@@ -77,6 +80,29 @@ class ViewTemporalDataFrame:
 
     def __dir__(self):
         return dir(ViewTemporalDataFrame) + list(self.columns)
+
+    @property
+    @check_can_read
+    def name(self) -> str:
+        return f"View of {self._parent.name}"
+
+    @property
+    @check_can_read
+    def has_locked_indices(self) -> bool:
+        return self._parent.has_locked_indices
+
+    @property
+    @check_can_read
+    def has_locked_columns(self) -> bool:
+        return self._parent.has_locked_columns
+
+    @property
+    @check_can_read
+    def lock(self) -> tuple[bool, bool]:
+        """
+        Get the index and columns lock state.
+        """
+        return self.has_locked_indices, self.has_locked_columns
 
     @property
     @check_can_read
@@ -229,6 +255,14 @@ class ViewTemporalDataFrame:
 
     @property
     @check_can_read
+    def timepoints_column_str(self) -> np.ndarray:
+        """
+        Get the column of time-point values cast as strings.
+        """
+        return np.array(list(map(str, self.timepoints_column)))
+
+    @property
+    @check_can_read
     def timepoints_column_name(self) -> Optional[str]:
         return self._parent.timepoints_column_name
 
@@ -311,10 +345,32 @@ class ViewTemporalDataFrame:
     def values_str(self) -> np.ndarray:
         return self._parent.values_str[self.index_positions][:, self.columns_str_positions]
 
-    @check_can_read
-    def write(self) -> None:
+    def to_pandas(self,
+                  with_timepoints: Optional[str] = None) -> pd.DataFrame:
+        """
+        Convert to a pandas DataFrame.
+
+        Args:
+            with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
+                no column is created.
+        """
         # TODO
-        pass
+        raise NotImplementedError
+
+    @check_can_read
+    def write(self,
+              file: Union[str, Path, H5Data]) -> None:
+        """
+        Save this view of a TemporalDataFrame in HDF5 file format.
+
+        Args:
+            file: path to save the TemporalDataFrame.
+        """
+        if isinstance(file, (str, Path)):
+            # open H5 file in 'a' mode: equivalent to r+ and creates the file if it does not exist
+            file = File(Path(file), 'a')
+
+        write_TDF(self, file)
 
     @check_can_read
     def copy(self) -> 'TemporalDataFrame':

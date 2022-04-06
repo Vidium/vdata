@@ -7,12 +7,13 @@
 import numpy as np
 from h5py import string_dtype
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from .name_utils import H5Data
 
 if TYPE_CHECKING:
     from .dataframe import TemporalDataFrame
+    from .view import ViewTemporalDataFrame
 
 
 # ====================================================
@@ -66,7 +67,7 @@ def write_array_chunked(array: np.ndarray,
         file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None, None))
 
 
-def write_TDF(TDF: 'TemporalDataFrame',
+def write_TDF(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
               file: H5Data) -> None:
     """
     Write a TemporalDataFrame to a H5 file.

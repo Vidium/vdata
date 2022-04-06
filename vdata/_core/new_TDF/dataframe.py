@@ -16,6 +16,7 @@ from vdata.new_time_point import TimePoint, TimePointRange
 from vdata.utils import repr_array
 from .name_utils import H5Data, H5Mode, SLICER
 from .utils import is_collection
+from .base import BaseTemporalDataFrame
 from .view import ViewTemporalDataFrame
 from ._parse import parse_data
 from ._write import write_TDF
@@ -57,7 +58,7 @@ def check_can_write(func):
     return wrapper
 
 
-class TemporalDataFrame:
+class TemporalDataFrame(BaseTemporalDataFrame):
     """
     An equivalent to pandas DataFrames that includes the notion of time on the rows.
     This class implements a modified sub-setting mechanism to subset on time points, rows and columns
@@ -347,7 +348,8 @@ class TemporalDataFrame:
     def __getitem__(self,
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
-                                  tuple[SLICER, SLICER, SLICER]]) -> ViewTemporalDataFrame:
+                                  tuple[SLICER, SLICER, SLICER]]) \
+            -> ViewTemporalDataFrame:
         def expand_slicer(s: Union[SLICER,
                                    tuple[SLICER, SLICER],
                                    tuple[SLICER, SLICER, SLICER]]) \
