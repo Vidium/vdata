@@ -175,8 +175,8 @@ def parse_data_df(data: pd.DataFrame,
 
     # parse ARRAY STR ---------------------------------------------------------
     string_array = string_df.values.copy()
-    if string_df.empty:
-        string_array = string_array.astype('O')
+    # enforce 'string' data type
+    string_array = string_array.astype(str)
 
     return numerical_array, string_array, time_values, np.array(data.index), \
         columns_numerical_, columns_string_, time_col_name

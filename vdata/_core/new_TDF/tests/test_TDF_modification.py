@@ -4,6 +4,7 @@
 
 # ====================================================
 # imports
+import pytest
 from pathlib import Path
 
 import numpy as np
@@ -481,6 +482,473 @@ def test_insert():
     cleanup(input_file)
 
 
+def test_add_sub_mul_div():
+    # TDF is not backed
+    TDF = get_TDF('1')
+
+    #   add
+    #       numerical value
+    assert repr(TDF + 1) == "TemporalDataFrame '1 + 1'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3 col4\n" \
+                            "50       0.0h  |   51  151  |  250  350\n" \
+                            "51       0.0h  |   52  152  |  251  351\n" \
+                            "52       0.0h  |   53  153  |  252  352\n" \
+                            "53       0.0h  |   54  154  |  253  353\n" \
+                            "54       0.0h  |   55  155  |  254  354\n" \
+                            "[50 x 4]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3 col4\n" \
+                            "0       1.0h  |    1  101  |  200  300\n" \
+                            "1       1.0h  |    2  102  |  201  301\n" \
+                            "2       1.0h  |    3  103  |  202  302\n" \
+                            "3       1.0h  |    4  104  |  203  303\n" \
+                            "4       1.0h  |    5  105  |  204  304\n" \
+                            "[50 x 4]\n\n"
+
+    #       string value
+    assert repr(TDF + '_1') == "TemporalDataFrame '1 + _1'\n" \
+                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                               "   Time-point    col1 col2      col3   col4\n" \
+                               "50       0.0h  |   50  150  |  250_1  350_1\n" \
+                               "51       0.0h  |   51  151  |  251_1  351_1\n" \
+                               "52       0.0h  |   52  152  |  252_1  352_1\n" \
+                               "53       0.0h  |   53  153  |  253_1  353_1\n" \
+                               "54       0.0h  |   54  154  |  254_1  354_1\n" \
+                               "[50 x 4]\n" \
+                               "\n" \
+                               "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                               "  Time-point    col1 col2      col3   col4\n" \
+                               "0       1.0h  |    0  100  |  200_1  300_1\n" \
+                               "1       1.0h  |    1  101  |  201_1  301_1\n" \
+                               "2       1.0h  |    2  102  |  202_1  302_1\n" \
+                               "3       1.0h  |    3  103  |  203_1  303_1\n" \
+                               "4       1.0h  |    4  104  |  204_1  304_1\n" \
+                               "[50 x 4]\n\n"
+
+    #   sub
+    assert repr(TDF - 1) == "TemporalDataFrame '1 - 1'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3 col4\n" \
+                            "50       0.0h  |   49  149  |  250  350\n" \
+                            "51       0.0h  |   50  150  |  251  351\n" \
+                            "52       0.0h  |   51  151  |  252  352\n" \
+                            "53       0.0h  |   52  152  |  253  353\n" \
+                            "54       0.0h  |   53  153  |  254  354\n" \
+                            "[50 x 4]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3 col4\n" \
+                            "0       1.0h  |   -1   99  |  200  300\n" \
+                            "1       1.0h  |    0  100  |  201  301\n" \
+                            "2       1.0h  |    1  101  |  202  302\n" \
+                            "3       1.0h  |    2  102  |  203  303\n" \
+                            "4       1.0h  |    3  103  |  204  304\n" \
+                            "[50 x 4]\n\n"
+
+    #   mul
+    assert repr(TDF * 2) == "TemporalDataFrame '1 * 2'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3 col4\n" \
+                            "50       0.0h  |  100  300  |  250  350\n" \
+                            "51       0.0h  |  102  302  |  251  351\n" \
+                            "52       0.0h  |  104  304  |  252  352\n" \
+                            "53       0.0h  |  106  306  |  253  353\n" \
+                            "54       0.0h  |  108  308  |  254  354\n" \
+                            "[50 x 4]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3 col4\n" \
+                            "0       1.0h  |    0  200  |  200  300\n" \
+                            "1       1.0h  |    2  202  |  201  301\n" \
+                            "2       1.0h  |    4  204  |  202  302\n" \
+                            "3       1.0h  |    6  206  |  203  303\n" \
+                            "4       1.0h  |    8  208  |  204  304\n" \
+                            "[50 x 4]\n\n"
+
+    #   div
+    assert repr(TDF / 2) == "TemporalDataFrame '1 / 2'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "   Time-point     col1  col2    col3 col4\n" \
+                            "50       0.0h  |  25.0  75.0  |  250  350\n" \
+                            "51       0.0h  |  25.5  75.5  |  251  351\n" \
+                            "52       0.0h  |  26.0  76.0  |  252  352\n" \
+                            "53       0.0h  |  26.5  76.5  |  253  353\n" \
+                            "54       0.0h  |  27.0  77.0  |  254  354\n" \
+                            "[50 x 4]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "  Time-point    col1  col2    col3 col4\n" \
+                            "0       1.0h  |  0.0  50.0  |  200  300\n" \
+                            "1       1.0h  |  0.5  50.5  |  201  301\n" \
+                            "2       1.0h  |  1.0  51.0  |  202  302\n" \
+                            "3       1.0h  |  1.5  51.5  |  203  303\n" \
+                            "4       1.0h  |  2.0  52.0  |  204  304\n" \
+                            "[50 x 4]\n\n"
+
+    # add to empty array
+    del TDF.col1
+    del TDF.col2
+
+    with pytest.raises(ValueError) as exc_info:
+        TDF + 1
+
+    assert str(exc_info.value) == "No numerical data to add."
+
+    # sub in empty array
+    with pytest.raises(ValueError) as exc_info:
+        TDF - 1
+
+    assert str(exc_info.value) == "No numerical data to subtract."
+
+    # TDF is backed
+    input_file = Path(__file__).parent / 'test_insertion_TDF'
+    cleanup(input_file)
+
+    TDF = get_backed_TDF(input_file, '2', mode=H5Mode.READ)
+
+    #   add
+    #       numerical value
+    assert repr(TDF + 1) == "TemporalDataFrame '2 + 1'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3\n" \
+                            "0       0.0h  |    1    2  |  100\n" \
+                            "1       0.0h  |    3    4  |  101\n" \
+                            "2       0.0h  |    5    6  |  102\n" \
+                            "3       0.0h  |    7    8  |  103\n" \
+                            "4       0.0h  |    9   10  |  104\n" \
+                            "[25 x 3]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3\n" \
+                            "25       1.0h  |   51   52  |  125\n" \
+                            "26       1.0h  |   53   54  |  126\n" \
+                            "27       1.0h  |   55   56  |  127\n" \
+                            "28       1.0h  |   57   58  |  128\n" \
+                            "29       1.0h  |   59   60  |  129\n" \
+                            "[25 x 3]\n\n"
+
+    #       string value
+    assert repr(TDF + '_1') == "TemporalDataFrame '2 + _1'\n" \
+                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                               "  Time-point    col1 col2      col3\n" \
+                               "0       0.0h  |    0    1  |  100_1\n" \
+                               "1       0.0h  |    2    3  |  101_1\n" \
+                               "2       0.0h  |    4    5  |  102_1\n" \
+                               "3       0.0h  |    6    7  |  103_1\n" \
+                               "4       0.0h  |    8    9  |  104_1\n" \
+                               "[25 x 3]\n" \
+                               "\n" \
+                               "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                               "   Time-point    col1 col2      col3\n" \
+                               "25       1.0h  |   50   51  |  125_1\n" \
+                               "26       1.0h  |   52   53  |  126_1\n" \
+                               "27       1.0h  |   54   55  |  127_1\n" \
+                               "28       1.0h  |   56   57  |  128_1\n" \
+                               "29       1.0h  |   58   59  |  129_1\n" \
+                               "[25 x 3]\n\n"
+
+    # sub
+    assert repr(TDF - 1) == "TemporalDataFrame '2 - 1'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3\n" \
+                            "0       0.0h  |   -1    0  |  100\n" \
+                            "1       0.0h  |    1    2  |  101\n" \
+                            "2       0.0h  |    3    4  |  102\n" \
+                            "3       0.0h  |    5    6  |  103\n" \
+                            "4       0.0h  |    7    8  |  104\n" \
+                            "[25 x 3]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3\n" \
+                            "25       1.0h  |   49   50  |  125\n" \
+                            "26       1.0h  |   51   52  |  126\n" \
+                            "27       1.0h  |   53   54  |  127\n" \
+                            "28       1.0h  |   55   56  |  128\n" \
+                            "29       1.0h  |   57   58  |  129\n" \
+                            "[25 x 3]\n\n"
+
+    # mul
+    assert repr(TDF * 2) == "TemporalDataFrame '2 * 2'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3\n" \
+                            "0       0.0h  |    0    2  |  100\n" \
+                            "1       0.0h  |    4    6  |  101\n" \
+                            "2       0.0h  |    8   10  |  102\n" \
+                            "3       0.0h  |   12   14  |  103\n" \
+                            "4       0.0h  |   16   18  |  104\n" \
+                            "[25 x 3]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "   Time-point    col1 col2    col3\n" \
+                            "25       1.0h  |  100  102  |  125\n" \
+                            "26       1.0h  |  104  106  |  126\n" \
+                            "27       1.0h  |  108  110  |  127\n" \
+                            "28       1.0h  |  112  114  |  128\n" \
+                            "29       1.0h  |  116  118  |  129\n" \
+                            "[25 x 3]\n\n"
+
+    # div
+    assert repr(TDF / 2) == "TemporalDataFrame '2 / 2'\n" \
+                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                            "  Time-point    col1 col2    col3\n" \
+                            "0       0.0h  |  0.0  0.5  |  100\n" \
+                            "1       0.0h  |  1.0  1.5  |  101\n" \
+                            "2       0.0h  |  2.0  2.5  |  102\n" \
+                            "3       0.0h  |  3.0  3.5  |  103\n" \
+                            "4       0.0h  |  4.0  4.5  |  104\n" \
+                            "[25 x 3]\n" \
+                            "\n" \
+                            "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                            "   Time-point     col1  col2    col3\n" \
+                            "25       1.0h  |  25.0  25.5  |  125\n" \
+                            "26       1.0h  |  26.0  26.5  |  126\n" \
+                            "27       1.0h  |  27.0  27.5  |  127\n" \
+                            "28       1.0h  |  28.0  28.5  |  128\n" \
+                            "29       1.0h  |  29.0  29.5  |  129\n" \
+                            "[25 x 3]\n\n"
+
+    TDF.file.close()
+    cleanup(input_file)
+
+    # TDF is a view -----------------------------------------------------------
+    # TDF is not backed
+    TDF = get_TDF('3')
+    view = TDF[:, range(10, 90), ['col1', 'col4']]
+
+    #   add
+    #       numerical value
+    assert repr(view + 1) == "TemporalDataFrame 'view of 3 + 1'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "50       0.0h  |   51  |  350\n" \
+                             "51       0.0h  |   52  |  351\n" \
+                             "52       0.0h  |   53  |  352\n" \
+                             "53       0.0h  |   54  |  353\n" \
+                             "54       0.0h  |   55  |  354\n" \
+                             "[40 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "10       1.0h  |   11  |  310\n" \
+                             "11       1.0h  |   12  |  311\n" \
+                             "12       1.0h  |   13  |  312\n" \
+                             "13       1.0h  |   14  |  313\n" \
+                             "14       1.0h  |   15  |  314\n" \
+                             "[40 x 2]\n\n"
+
+    #       string value
+    assert repr(view + '_1') == "TemporalDataFrame 'view of 3 + _1'\n" \
+                                "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                "   Time-point    col1      col4\n" \
+                                "50       0.0h  |   50  |  350_1\n" \
+                                "51       0.0h  |   51  |  351_1\n" \
+                                "52       0.0h  |   52  |  352_1\n" \
+                                "53       0.0h  |   53  |  353_1\n" \
+                                "54       0.0h  |   54  |  354_1\n" \
+                                "[40 x 2]\n" \
+                                "\n" \
+                                "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                "   Time-point    col1      col4\n" \
+                                "10       1.0h  |   10  |  310_1\n" \
+                                "11       1.0h  |   11  |  311_1\n" \
+                                "12       1.0h  |   12  |  312_1\n" \
+                                "13       1.0h  |   13  |  313_1\n" \
+                                "14       1.0h  |   14  |  314_1\n" \
+                                "[40 x 2]\n\n"
+
+    # sub
+    assert repr(view - 1) == "TemporalDataFrame 'view of 3 - 1'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "50       0.0h  |   49  |  350\n" \
+                             "51       0.0h  |   50  |  351\n" \
+                             "52       0.0h  |   51  |  352\n" \
+                             "53       0.0h  |   52  |  353\n" \
+                             "54       0.0h  |   53  |  354\n" \
+                             "[40 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "10       1.0h  |    9  |  310\n" \
+                             "11       1.0h  |   10  |  311\n" \
+                             "12       1.0h  |   11  |  312\n" \
+                             "13       1.0h  |   12  |  313\n" \
+                             "14       1.0h  |   13  |  314\n" \
+                             "[40 x 2]\n\n"
+
+    # mul
+    assert repr(view * 2) == "TemporalDataFrame 'view of 3 * 2'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "50       0.0h  |  100  |  350\n" \
+                             "51       0.0h  |  102  |  351\n" \
+                             "52       0.0h  |  104  |  352\n" \
+                             "53       0.0h  |  106  |  353\n" \
+                             "54       0.0h  |  108  |  354\n" \
+                             "[40 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "10       1.0h  |   20  |  310\n" \
+                             "11       1.0h  |   22  |  311\n" \
+                             "12       1.0h  |   24  |  312\n" \
+                             "13       1.0h  |   26  |  313\n" \
+                             "14       1.0h  |   28  |  314\n" \
+                             "[40 x 2]\n\n"
+
+    # div
+    assert repr(view / 2) == "TemporalDataFrame 'view of 3 / 2'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point     col1    col4\n" \
+                             "50       0.0h  |  25.0  |  350\n" \
+                             "51       0.0h  |  25.5  |  351\n" \
+                             "52       0.0h  |  26.0  |  352\n" \
+                             "53       0.0h  |  26.5  |  353\n" \
+                             "54       0.0h  |  27.0  |  354\n" \
+                             "[40 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col4\n" \
+                             "10       1.0h  |  5.0  |  310\n" \
+                             "11       1.0h  |  5.5  |  311\n" \
+                             "12       1.0h  |  6.0  |  312\n" \
+                             "13       1.0h  |  6.5  |  313\n" \
+                             "14       1.0h  |  7.0  |  314\n" \
+                             "[40 x 2]\n\n"
+
+    # add to empty array
+    view = TDF[:, range(10, 90), ['col4']]
+
+    with pytest.raises(ValueError) as exc_info:
+        view + 1
+
+    assert str(exc_info.value) == "No numerical data to add."
+
+    # sub in empty array
+    with pytest.raises(ValueError) as exc_info:
+        view - 1
+
+    assert str(exc_info.value) == "No numerical data to subtract."
+
+    # TDF is a view of a backed TDF
+    input_file = Path(__file__).parent / 'test_insertion_TDF'
+    cleanup(input_file)
+
+    TDF = get_backed_TDF(input_file, '4', mode=H5Mode.READ)
+
+    view = TDF[:, range(10, 40), ['col1', 'col3']]
+
+    #   add
+    #       numerical value
+    assert repr(view + 1) == "TemporalDataFrame 'view of 4 + 1'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "10       0.0h  |   21  |  110\n" \
+                             "11       0.0h  |   23  |  111\n" \
+                             "12       0.0h  |   25  |  112\n" \
+                             "13       0.0h  |   27  |  113\n" \
+                             "14       0.0h  |   29  |  114\n" \
+                             "[15 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "25       1.0h  |   51  |  125\n" \
+                             "26       1.0h  |   53  |  126\n" \
+                             "27       1.0h  |   55  |  127\n" \
+                             "28       1.0h  |   57  |  128\n" \
+                             "29       1.0h  |   59  |  129\n" \
+                             "[15 x 2]\n\n"
+
+    #       string value
+    assert repr(view + '_1') == "TemporalDataFrame 'view of 4 + _1'\n" \
+                                "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                "   Time-point    col1      col3\n" \
+                                "10       0.0h  |   20  |  110_1\n" \
+                                "11       0.0h  |   22  |  111_1\n" \
+                                "12       0.0h  |   24  |  112_1\n" \
+                                "13       0.0h  |   26  |  113_1\n" \
+                                "14       0.0h  |   28  |  114_1\n" \
+                                "[15 x 2]\n" \
+                                "\n" \
+                                "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                "   Time-point    col1      col3\n" \
+                                "25       1.0h  |   50  |  125_1\n" \
+                                "26       1.0h  |   52  |  126_1\n" \
+                                "27       1.0h  |   54  |  127_1\n" \
+                                "28       1.0h  |   56  |  128_1\n" \
+                                "29       1.0h  |   58  |  129_1\n" \
+                                "[15 x 2]\n\n"
+
+    # sub
+    assert repr(view - 1) == "TemporalDataFrame 'view of 4 - 1'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "10       0.0h  |   19  |  110\n" \
+                             "11       0.0h  |   21  |  111\n" \
+                             "12       0.0h  |   23  |  112\n" \
+                             "13       0.0h  |   25  |  113\n" \
+                             "14       0.0h  |   27  |  114\n" \
+                             "[15 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "25       1.0h  |   49  |  125\n" \
+                             "26       1.0h  |   51  |  126\n" \
+                             "27       1.0h  |   53  |  127\n" \
+                             "28       1.0h  |   55  |  128\n" \
+                             "29       1.0h  |   57  |  129\n" \
+                             "[15 x 2]\n\n"
+
+    # mul
+    assert repr(view * 2) == "TemporalDataFrame 'view of 4 * 2'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "10       0.0h  |   40  |  110\n" \
+                             "11       0.0h  |   44  |  111\n" \
+                             "12       0.0h  |   48  |  112\n" \
+                             "13       0.0h  |   52  |  113\n" \
+                             "14       0.0h  |   56  |  114\n" \
+                             "[15 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point    col1    col3\n" \
+                             "25       1.0h  |  100  |  125\n" \
+                             "26       1.0h  |  104  |  126\n" \
+                             "27       1.0h  |  108  |  127\n" \
+                             "28       1.0h  |  112  |  128\n" \
+                             "29       1.0h  |  116  |  129\n" \
+                             "[15 x 2]\n\n" \
+                             ""
+
+    # div
+    assert repr(view / 2) == "TemporalDataFrame 'view of 4 / 2'\n" \
+                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                             "   Time-point     col1    col3\n" \
+                             "10       0.0h  |  10.0  |  110\n" \
+                             "11       0.0h  |  11.0  |  111\n" \
+                             "12       0.0h  |  12.0  |  112\n" \
+                             "13       0.0h  |  13.0  |  113\n" \
+                             "14       0.0h  |  14.0  |  114\n" \
+                             "[15 x 2]\n" \
+                             "\n" \
+                             "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                             "   Time-point     col1    col3\n" \
+                             "25       1.0h  |  25.0  |  125\n" \
+                             "26       1.0h  |  26.0  |  126\n" \
+                             "27       1.0h  |  27.0  |  127\n" \
+                             "28       1.0h  |  28.0  |  128\n" \
+                             "29       1.0h  |  29.0  |  129\n" \
+                             "[15 x 2]\n\n"
+
+    TDF.file.close()
+
+    cleanup(input_file)
+
+
 if __name__ == '__main__':
     test_delete()
     test_append()
+    test_insert()
+    test_add_sub_mul_div()

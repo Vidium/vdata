@@ -7,9 +7,11 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from numbers import Number
 from abc import ABC, abstractmethod
 
 from typing import TYPE_CHECKING, Union, Optional
+from typing_extensions import Literal
 
 from vdata.new_time_point import TimePoint
 from .name_utils import SLICER, H5Data
@@ -27,13 +29,15 @@ class BaseTemporalDataFrame(ABC):
     def __dir__(self) -> 'ViewTemporalDataFrame':
         pass
 
-    # TODO for views
+    @abstractmethod
     def __getattr__(self,
                     column_name: str) -> 'ViewTemporalDataFrame':
         """
         Get a single column.
         """
 
+    # TODO for views
+    # @abstractmethod
     # def __setattr__(self,
     #                 name: str,
     #                 values: np.ndarray) -> None:
@@ -41,12 +45,14 @@ class BaseTemporalDataFrame(ABC):
     #     Set values of a single column. If the column does not already exist, it is appended at the end.
     #     """
     #
+    # @abstractmethod
     # def __delattr__(self,
     #                 column_name: str) -> None:
     #     """
     #     Delete a single column.
     #     """
 
+    @abstractmethod
     def __getitem__(self,
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
@@ -56,13 +62,176 @@ class BaseTemporalDataFrame(ABC):
         Get a subset.
         """
 
-    def __setitem__(self,
-                    slicer: Union[SLICER,
-                                  tuple[SLICER, SLICER],
-                                  tuple[SLICER, SLICER, SLICER]],
-                    values: np.ndarray) -> None:
+    # TODO
+    # @abstractmethod
+    # def __setitem__(self,
+    #                 slicer: Union[SLICER,
+    #                               tuple[SLICER, SLICER],
+    #                               tuple[SLICER, SLICER, SLICER]],
+    #                 values: np.ndarray) -> None:
+    #     """
+    #     Set values in a subset.
+    #     """
+
+    def _add_core(self,
+                  value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
         """
-        Set values in a subset.
+        Internal function for adding a value, called from __add__. Do not use directly.
+        """
+        from .dataframe import TemporalDataFrame
+
+        if isinstance(value, (Number, np.number)):
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to add.")
+
+            values_num = self.values_num + value
+            values_str = self.values_str
+
+        else:
+            if self.values_str.size == 0:
+                raise ValueError("No string data to add to.")
+
+            values_num = self.values_num
+            values_str = np.core.defchararray.add(self.values_str, value)
+
+        if self.timepoints_column_name is None:
+            df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
+                                axis=1)
+
+            return TemporalDataFrame(df_data,
+                                     time_list=self.timepoints_column,
+                                     lock=self.lock,
+                                     name=f"{self.name} + {value}")
+
+        else:
+            df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
+                                              index=self.index, columns=[str(self.timepoints_column_name)]),
+                                 pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
+                                axis=1)
+
+            return TemporalDataFrame(df_data,
+                                     time_col_name=self.timepoints_column_name,
+                                     lock=self.lock,
+                                     name=f"{self.name} + {value}")
+
+    @abstractmethod
+    def __add__(self,
+                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values incremented by <value> if <value> is a number
+            - <value> appended to string values if <value> is a string
+        """
+
+    @abstractmethod
+    def __iadd__(self,
+                 value: Union[Number, np.number, str]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values incremented by <value> if <value> is a number.
+            - <value> appended to string values if <value> is a string.
+        """
+
+    def _op_core(self,
+                 value: Union[Number, np.number],
+                 operation: Literal['sub', 'mul', 'div']) -> 'TemporalDataFrame':
+        """
+        Internal function for subtracting, multiplying by and dividing by a value, called from __add__. Do not use
+        directly.
+        """
+        from .dataframe import TemporalDataFrame
+
+        if operation == 'sub':
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to subtract.")
+            op = '-'
+            values_num = self.values_num - value
+
+        elif operation == 'mul':
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to multiply.")
+            op = '*'
+            values_num = self.values_num * value
+
+        elif operation == 'div':
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to divide.")
+            op = '/'
+            values_num = self.values_num / value
+
+        else:
+            raise ValueError(f"Unknown operation '{operation}'.")
+
+        if self.timepoints_column_name is None:
+            df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                                axis=1)
+
+            return TemporalDataFrame(df_data,
+                                     time_list=self.timepoints_column,
+                                     lock=self.lock,
+                                     name=f"{self.name} {op} {value}")
+
+        else:
+            df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
+                                              index=self.index, columns=[str(self.timepoints_column_name)]),
+                                 pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
+                                axis=1)
+
+            return TemporalDataFrame(df_data,
+                                     time_col_name=self.timepoints_column_name,
+                                     lock=self.lock,
+                                     name=f"{self.name} {op} {value}")
+
+    @abstractmethod
+    def __sub__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values decremented by <value>.
+        """
+
+    @abstractmethod
+    def __isub__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values decremented by <value>.
+        """
+
+    @abstractmethod
+    def __mul__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values multiplied by <value>.
+        """
+
+    @abstractmethod
+    def __imul__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values multiplied by <value>.
+        """
+
+    @abstractmethod
+    def __truediv__(self,
+                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values divided by <value>.
+        """
+
+    @abstractmethod
+    def __idiv__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values divided by <value>.
         """
 
     @property

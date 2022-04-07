@@ -121,6 +121,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         # TODO : implement locking logic
 
+    @check_can_read
     def __repr__(self) -> str:
         if self.is_backed and not self._file:
             return f"Backed TemporalDataFrame on closed file."
@@ -130,6 +131,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return f"{'Backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
 
+    @check_can_read
     def __dir__(self) -> Iterable[str]:
         return dir(TemporalDataFrame) + list(self.columns)
 
@@ -375,6 +377,80 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
+    @check_can_read
+    def __add__(self,
+                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values incremented by <value> if <value> is a number
+            - <value> appended to string values if <value> is a string
+        """
+        return self._add_core(value)
+
+    @check_can_write
+    def __iadd__(self,
+                 value: Union[Number, np.number, str]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values incremented by <value> if <value> is a number.
+            - <value> appended to string values if <value> is a string.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __sub__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values decremented by <value>.
+        """
+        return self._op_core(value, 'sub')
+
+    @check_can_write
+    def __isub__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values decremented by <value>.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __mul__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values multiplied by <value>.
+        """
+        return self._op_core(value, 'mul')
+
+    @check_can_write
+    def __imul__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values multiplied by <value>.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __truediv__(self,
+                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values divided by <value>.
+        """
+        return self._op_core(value, 'div')
+
+    @check_can_write
+    def __idiv__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values divided by <value>.
+        """
+        raise NotImplementedError
+
     def __reload_from_file(self,
                            file: H5Data) -> None:
         """
@@ -413,6 +489,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             self._file.attrs['name'] = name
 
     @property
+    @check_can_read
     def file(self) -> Union[None, H5Data]:
         """
         Get the file this TemporalDataFrame is backed on.
@@ -421,6 +498,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return self._file
 
     @property
+    @check_can_read
     def is_backed(self) -> bool:
         """
         Whether this TemporalDataFrame is backed on a file or not.
@@ -693,6 +771,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         object.__setattr__(self, '_columns_numerical', values)
 
     @property
+    @check_can_read
     def n_columns_num(self) -> int:
         return len(self.columns_num)
 
@@ -714,6 +793,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         object.__setattr__(self, '_columns_string', values)
 
     @property
+    @check_can_read
     def n_columns_str(self) -> int:
         return len(self.columns_str)
 
@@ -725,8 +805,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def values_str(self) -> np.ndarray:
+        # TODO : avoid loading entire dataset in RAM
+        #  Maybe create another TDF class specific to backed TDFs
         if isinstance(self._string_array, Dataset):
-            return self._string_array.asstr()[()]
+            return self._string_array.asstr()[()].astype(str)
 
         return self._string_array
 

@@ -8,13 +8,14 @@ import numpy as np
 import pandas as pd
 import numpy_indexed as npi
 from pathlib import Path
+from numbers import Number
 from h5py import Dataset, File
 
 from typing import TYPE_CHECKING, Union, Optional
 
 from vdata.new_time_point import TimePoint
 from vdata.utils import repr_array
-from .name_utils import H5Mode, H5Data
+from .name_utils import H5Mode, H5Data, SLICER
 from .base import BaseTemporalDataFrame
 from ._write import write_TDF
 
@@ -67,6 +68,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
 
+    @check_can_read
     def __repr__(self) -> str:
         if self._parent.is_backed and not self._parent.file:
             return "View of backed TemporalDataFrame with closed file."
@@ -78,6 +80,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return f"View of {'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
                f"{self._parent.name}'\n" + self.head()
 
+    @check_can_read
     def __dir__(self):
         return dir(ViewTemporalDataFrame) + list(self.columns)
 
@@ -94,6 +97,91 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             return ViewTemporalDataFrame(self._parent, self.index, np.array([]), np.array([column_name]))
 
         raise AttributeError(f"'{column_name}' not found in this view of a TemporalDataFrame.")
+
+    @check_can_read
+    def __getitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]]) \
+            -> 'ViewTemporalDataFrame':
+        """
+        Get a subset.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __add__(self,
+                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values incremented by <value> if <value> is a number
+            - <value> appended to string values if <value> is a string
+        """
+        return self._add_core(value)
+
+    @check_can_write
+    def __iadd__(self,
+                 value: Union[Number, np.number, str]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values incremented by <value> if <value> is a number.
+            - <value> appended to string values if <value> is a string.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __sub__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values decremented by <value>.
+        """
+        return self._op_core(value, 'sub')
+
+    @check_can_write
+    def __isub__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values decremented by <value>.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __mul__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values multiplied by <value>.
+        """
+        return self._op_core(value, 'mul')
+
+    @check_can_write
+    def __imul__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values multiplied by <value>.
+        """
+        raise NotImplementedError
+
+    @check_can_read
+    def __truediv__(self,
+                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values divided by <value>.
+        """
+        return self._op_core(value, 'div')
+
+    @check_can_write
+    def __idiv__(self,
+                 value: Union[Number, np.number]) -> None:
+        """
+        Modify inplace the values :
+            - numerical values divided by <value>.
+        """
+        raise NotImplementedError
 
     @property
     @check_can_read

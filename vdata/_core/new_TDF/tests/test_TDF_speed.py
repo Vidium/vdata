@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-from time import time
+from time import perf_counter
 
 from ..dataframe import TemporalDataFrame
 
@@ -30,22 +30,22 @@ def test_speed():
                                       ['7h' for _ in range(2500)])
 
     # TDF representation
-    start = time()
+    start = perf_counter()
     repr(TDF)
 
-    assert time() - start < MAX_ELAPSED_TIME
+    assert perf_counter() - start < MAX_ELAPSED_TIME
 
     # TDF sub-setting
-    start = time()
+    start = perf_counter()
     view = TDF[['2h', '0h', '4h'], range(5_000, 15_000)]
 
-    assert time() - start < MAX_ELAPSED_TIME
+    assert perf_counter() - start < MAX_ELAPSED_TIME
 
     # view TDF representation
-    start = time()
+    start = perf_counter()
     repr(view)
 
-    assert time() - start < MAX_ELAPSED_TIME
+    assert perf_counter() - start < MAX_ELAPSED_TIME
 
     # TDF view sub
 
