@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Union, Optional
 from vdata.new_time_point import TimePoint
 from vdata.utils import repr_array
 from .name_utils import H5Mode, H5Data, SLICER
+from .utils import parse_slicer
 from .base import BaseTemporalDataFrame
 from ._write import write_TDF
 
@@ -107,7 +108,9 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a subset.
         """
-        raise NotImplementedError
+        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
+
+        return ViewTemporalDataFrame(self._parent, index_slicer, column_num_slicer, column_str_slicer)
 
     @check_can_read
     def __add__(self,

@@ -10,12 +10,12 @@ from h5py import File, Dataset
 from pathlib import Path
 from numbers import Number
 
-from typing import Union, Optional, Collection, Any, Iterable, Type
+from typing import Union, Optional, Collection, Any, Iterable
 
-from vdata.new_time_point import TimePoint, TimePointRange
+from vdata.new_time_point import TimePoint
 from vdata.utils import repr_array
 from .name_utils import H5Data, H5Mode, SLICER
-from .utils import is_collection
+from .utils import parse_slicer
 from .base import BaseTemporalDataFrame
 from .view import ViewTemporalDataFrame
 from ._parse import parse_data
@@ -261,119 +261,13 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
-    def __parse_slicer(self,
-                       slicer: tuple[SLICER, SLICER, SLICER]) \
-            -> tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
-        """TODO"""
-        def parse_one(axis_slicer: SLICER,
-                      cast_type: Union[np.dtype, Type[TimePoint]],
-                      range_function: Union[Type[range], Type[TimePointRange]],
-                      possible_values: np.ndarray) -> Optional[np.ndarray]:
-            if axis_slicer is Ellipsis or (isinstance(axis_slicer, slice) and axis_slicer == slice(None)):
-                return None
-
-            elif isinstance(axis_slicer, slice):
-                start = possible_values[0] if axis_slicer.start is None else cast_type(axis_slicer.start)
-                stop = possible_values[-1] if axis_slicer.stop is None else cast_type(axis_slicer.stop)
-                step = cast_type(1, start.unit) if axis_slicer.step is None else cast_type(axis_slicer.step)
-
-                return np.array(list(iter(range_function(start, stop, step))))
-
-            elif isinstance(axis_slicer, range) or is_collection(axis_slicer):
-                return np.array(list(map(cast_type, axis_slicer)))
-
-            return np.array([cast_type(axis_slicer)])
-
-        tp_slicer, index_slicer, column_slicer = slicer
-
-        # convert slicers to simple lists of values
-        tp_array = parse_one(tp_slicer, TimePoint, TimePointRange, self.timepoints)
-        index_array = parse_one(index_slicer, self.index.dtype.type, range, self.index)
-        columns_array = parse_one(column_slicer, self.columns.dtype.type, range, self.columns)
-
-        if tp_array is None and index_array is None:
-            selected_index = self.index
-
-        elif tp_array is None:
-            valid_index = np.in1d(index_array, self.index)
-
-            if not np.all(valid_index):
-                raise ValueError(f"Some indices were not found in this TemporalDataFrame "
-                                 f"({repr_array(index_array[~valid_index])})")
-
-            uniq, indices = np.unique(np.concatenate([index_array[np.in1d(index_array, self.index_at(tp))]
-                                                      for tp in self.timepoints]), return_index=True)
-            selected_index = uniq[indices.argsort()]
-
-        elif index_array is None:
-            valid_tp = np.in1d(tp_array, self.timepoints)
-
-            if not np.all(valid_tp):
-                raise ValueError(f"Some time-points were not found in this TemporalDataFrame "
-                                 f"({repr_array(tp_array[~valid_tp])})")
-
-            selected_index = self.index[np.in1d(self.timepoints_column, tp_array)]
-
-        else:
-            valid_tp = np.in1d(tp_array, self.timepoints)
-
-            if not np.all(valid_tp):
-                raise ValueError(f"Some time-points were not found in this TemporalDataFrame "
-                                 f"({repr_array(tp_array[~valid_tp])})")
-
-            valid_index = np.in1d(index_array, self.index)
-
-            if not np.all(valid_index):
-                raise ValueError(f"Some indices were not found in this TemporalDataFrame "
-                                 f"({repr_array(index_array[~valid_index])})")
-
-            selected_index = np.concatenate([index_array[np.in1d(index_array, self.index_at(tp))]
-                                             for tp in tp_array])
-
-        if columns_array is None:
-            selected_columns_num = self.columns_num
-            selected_columns_str = self.columns_str
-
-        else:
-            valid_columns = np.in1d(columns_array, self.columns)
-
-            if not np.all(valid_columns):
-                raise ValueError(f"Some columns were not found in this TemporalDataFrame "
-                                 f"({repr_array(columns_array[~valid_columns])})")
-
-            selected_columns_num = columns_array[np.in1d(columns_array, self.columns_num)]
-            selected_columns_str = columns_array[np.in1d(columns_array, self.columns_str)]
-
-        return selected_index, selected_columns_num, selected_columns_str
-
     @check_can_read
     def __getitem__(self,
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]]) \
             -> ViewTemporalDataFrame:
-        def expand_slicer(s: Union[SLICER,
-                                   tuple[SLICER, SLICER],
-                                   tuple[SLICER, SLICER, SLICER]]) \
-                -> tuple[SLICER, SLICER, SLICER]:
-            if isinstance(s, tuple) and len(s) == 3:
-                return s
-
-            elif isinstance(s, tuple) and len(s) == 2:
-                return s[0], s[1], slice(None)
-
-            elif isinstance(s, tuple) and len(s) == 1:
-                return s[0], slice(None), slice(None)
-
-            elif isinstance(s, (Number, np.number, str, TimePoint, range, slice)) \
-                or s is Ellipsis \
-                    or is_collection(s) and all([isinstance(e, (Number, np.number, str, TimePoint)) for e in s]):
-                return s, slice(None), slice(None)
-
-            else:
-                raise ValueError("Invalid slicer.")
-
-        index_slicer, column_num_slicer, column_str_slicer = self.__parse_slicer(expand_slicer(slicer))
+        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
