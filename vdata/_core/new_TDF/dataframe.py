@@ -67,7 +67,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     __slots__ = '_name', '_file', '_numerical_array', '_string_array', '_timepoints_array', '_index', \
                 '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
 
-    __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str')
+    __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str')
 
     def __init__(self,
                  data: Union[None, dict, pd.DataFrame, H5Data] = None,
@@ -269,7 +269,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                       cast_type: Union[np.dtype, Type[TimePoint]],
                       range_function: Union[Type[range], Type[TimePointRange]],
                       possible_values: np.ndarray) -> Optional[np.ndarray]:
-            if axis_slicer is Ellipsis or axis_slicer == slice(None):
+            if axis_slicer is Ellipsis or (isinstance(axis_slicer, slice) and axis_slicer == slice(None)):
                 return None
 
             elif isinstance(axis_slicer, slice):
@@ -389,13 +389,29 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> None:
+                 value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
             - <value> appended to string values if <value> is a string.
         """
-        raise NotImplementedError
+        if isinstance(value, (Number, np.number)):
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to add.")
+
+            self.values_num += value
+            return self
+
+        else:
+            if self.values_str.size == 0:
+                raise ValueError("No string data to add to.")
+
+            # TODO : does not work for backed TDFs, we need to split the class for managing backed TDFs
+            if self.is_backed:
+                raise NotImplementedError
+
+            self.values_str = np.char.add(self.values_str, value)
+            return self
 
     @check_can_read
     def __sub__(self,
@@ -408,12 +424,16 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __isub__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to subtract.")
+
+        self.values_num -= value
+        return self
 
     @check_can_read
     def __mul__(self,
@@ -426,12 +446,16 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __imul__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to multiply.")
+
+        self.values_num *= value
+        return self
 
     @check_can_read
     def __truediv__(self,
@@ -443,13 +467,17 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         return self._op_core(value, 'div')
 
     @check_can_write
-    def __idiv__(self,
-                 value: Union[Number, np.number]) -> None:
+    def __itruediv__(self,
+                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values divided by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to divide.")
+
+        self.values_num /= value
+        return self
 
     def __reload_from_file(self,
                            file: H5Data) -> None:
@@ -508,17 +536,17 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def has_locked_indices(self) -> bool:
-        return self._lock[0]
+        return bool(self._lock[0])
 
     @property
     @check_can_read
     def has_locked_columns(self) -> bool:
-        return self._lock[1]
+        return bool(self._lock[1])
 
     @property
     @check_can_read
     def lock(self) -> tuple[bool, bool]:
-        return self._lock
+        return self.has_locked_indices, self.has_locked_columns
 
     def _empty_numerical(self) -> bool:
         return self._numerical_array.size == 0
@@ -690,7 +718,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if isinstance(self._timepoints_array, Dataset):
             return self._timepoints_array.asstr()[()]
 
-        return self._timepoints_array
+        return self._timepoints_array.copy()
 
     @property
     @check_can_read
@@ -719,7 +747,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if isinstance(self._index, Dataset) and self._index.dtype == np.dtype('O'):
             return self._index.asstr()[()]
 
-        return self._index[()]
+        return self._index[()].copy()
 
     @index.setter
     @check_can_write
@@ -747,7 +775,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Returns:
             The index of rows existing at that time-point.
         """
-        return self._index[self.get_timepoint_mask(timepoint)]
+        return self._index[self.get_timepoint_mask(timepoint)].copy()
 
     @property
     @check_can_read
@@ -760,7 +788,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if isinstance(self._columns_numerical, Dataset) and self._columns_numerical.dtype == np.dtype('O'):
             return self._columns_numerical.asstr()[()]
 
-        return self._columns_numerical[()]
+        return self._columns_numerical[()].copy()
 
     @columns_num.setter
     @check_can_write
@@ -781,7 +809,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if isinstance(self._columns_string, Dataset) and self._columns_string.dtype == np.dtype('O'):
             return self._columns_string.asstr()[()]
 
-        return self._columns_string[()]
+        return self._columns_string[()].copy()
 
     @columns_str.setter
     @check_can_write
@@ -802,15 +830,28 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def values_num(self) -> np.ndarray:
         return self._numerical_array[()]
 
+    @values_num.setter
+    @check_can_write
+    def values_num(self,
+                   values: np.ndarray) -> None:
+        self._numerical_array[()] = values
+
     @property
     @check_can_read
     def values_str(self) -> np.ndarray:
-        # TODO : avoid loading entire dataset in RAM
+        # TODO : avoid loading entire dataset in RAM ??
         #  Maybe create another TDF class specific to backed TDFs
         if isinstance(self._string_array, Dataset):
             return self._string_array.asstr()[()].astype(str)
 
         return self._string_array
+
+    @values_str.setter
+    @check_can_write
+    def values_str(self,
+                   values: np.ndarray) -> None:
+        object.__setattr__(self, '_string_array', self._string_array.astype(values.dtype))
+        self._string_array[()] = values
 
     @check_can_read
     def to_pandas(self,

@@ -170,8 +170,8 @@ def parse_data_df(data: pd.DataFrame,
 
     # parse ARRAY NUM ---------------------------------------------------------
     numerical_array = numerical_df.values.copy()
-    if numerical_df.empty:
-        numerical_array = numerical_array.astype(int)
+    # enforce 'float' data type
+    numerical_array = numerical_array.astype(float)
 
     # parse ARRAY STR ---------------------------------------------------------
     string_array = string_df.values.copy()

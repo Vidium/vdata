@@ -92,7 +92,7 @@ class BaseTemporalDataFrame(ABC):
                 raise ValueError("No string data to add to.")
 
             values_num = self.values_num
-            values_str = np.core.defchararray.add(self.values_str, value)
+            values_str = np.char.add(self.values_str, value)
 
         if self.timepoints_column_name is None:
             df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
@@ -127,7 +127,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> None:
+                 value: Union[Number, np.number, str]) -> Union['TemporalDataFrame', 'ViewTemporalDataFrame']:
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -227,8 +227,8 @@ class BaseTemporalDataFrame(ABC):
         """
 
     @abstractmethod
-    def __idiv__(self,
-                 value: Union[Number, np.number]) -> None:
+    def __itruediv__(self,
+                     value: Union[Number, np.number]) -> None:
         """
         Modify inplace the values :
             - numerical values divided by <value>.

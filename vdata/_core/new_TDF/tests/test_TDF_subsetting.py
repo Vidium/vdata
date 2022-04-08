@@ -18,12 +18,12 @@ def test_sub_setting():
     # subset single TP
     assert repr(TDF['0h']) == "View of TemporalDataFrame '1'\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                              "   Time-point    col1 col2    col3 col4\n" \
-                              "50       0.0h  |   50  150  |  250  350\n" \
-                              "51       0.0h  |   51  151  |  251  351\n" \
-                              "52       0.0h  |   52  152  |  252  352\n" \
-                              "53       0.0h  |   53  153  |  253  353\n" \
-                              "54       0.0h  |   54  154  |  254  354\n" \
+                              "   Time-point     col1   col2    col3 col4\n" \
+                              "50       0.0h  |  50.0  150.0  |  250  350\n" \
+                              "51       0.0h  |  51.0  151.0  |  251  351\n" \
+                              "52       0.0h  |  52.0  152.0  |  252  352\n" \
+                              "53       0.0h  |  53.0  153.0  |  253  353\n" \
+                              "54       0.0h  |  54.0  154.0  |  254  354\n" \
                               "[50 x 4]\n\n"
 
     assert np.all(TDF['0h'].values_num == np.hstack((np.arange(50, 100)[:, None], np.arange(150, 200)[:, None])))
@@ -40,21 +40,21 @@ def test_sub_setting():
     # subset multiple TPs
     assert repr(TDF[['0h', '1h']]) == "View of TemporalDataFrame '1'\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                      "   Time-point    col1 col2    col3 col4\n" \
-                                      "50       0.0h  |   50  150  |  250  350\n" \
-                                      "51       0.0h  |   51  151  |  251  351\n" \
-                                      "52       0.0h  |   52  152  |  252  352\n" \
-                                      "53       0.0h  |   53  153  |  253  353\n" \
-                                      "54       0.0h  |   54  154  |  254  354\n" \
+                                      "   Time-point     col1   col2    col3 col4\n" \
+                                      "50       0.0h  |  50.0  150.0  |  250  350\n" \
+                                      "51       0.0h  |  51.0  151.0  |  251  351\n" \
+                                      "52       0.0h  |  52.0  152.0  |  252  352\n" \
+                                      "53       0.0h  |  53.0  153.0  |  253  353\n" \
+                                      "54       0.0h  |  54.0  154.0  |  254  354\n" \
                                       "[50 x 4]\n" \
                                       "\n" \
                                       "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                      "  Time-point    col1 col2    col3 col4\n" \
-                                      "0       1.0h  |    0  100  |  200  300\n" \
-                                      "1       1.0h  |    1  101  |  201  301\n" \
-                                      "2       1.0h  |    2  102  |  202  302\n" \
-                                      "3       1.0h  |    3  103  |  203  303\n" \
-                                      "4       1.0h  |    4  104  |  204  304\n" \
+                                      "  Time-point    col1   col2    col3 col4\n" \
+                                      "0       1.0h  |  0.0  100.0  |  200  300\n" \
+                                      "1       1.0h  |  1.0  101.0  |  201  301\n" \
+                                      "2       1.0h  |  2.0  102.0  |  202  302\n" \
+                                      "3       1.0h  |  3.0  103.0  |  203  303\n" \
+                                      "4       1.0h  |  4.0  104.0  |  204  304\n" \
                                       "[50 x 4]\n\n"
 
     assert np.all(TDF[['0h', '1h']].values_num == np.hstack((
@@ -76,8 +76,8 @@ def test_sub_setting():
     # subset single row
     assert repr(TDF[:, 10]) == "View of TemporalDataFrame '1'\n" \
                                "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                               "   Time-point    col1 col2    col3 col4\n" \
-                               "10       1.0h  |   10  110  |  210  310\n" \
+                               "   Time-point     col1   col2    col3 col4\n" \
+                               "10       1.0h  |  10.0  110.0  |  210  310\n" \
                                "[1 x 4]\n\n"
 
     assert np.all(TDF[:, 10].values_num == np.array([[10, 110]]))
@@ -92,21 +92,21 @@ def test_sub_setting():
     # subset multiple rows
     assert repr(TDF[:, range(25, 75)]) == "View of TemporalDataFrame '1'\n" \
                                           "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                          "   Time-point    col1 col2    col3 col4\n" \
-                                          "50       0.0h  |   50  150  |  250  350\n" \
-                                          "51       0.0h  |   51  151  |  251  351\n" \
-                                          "52       0.0h  |   52  152  |  252  352\n" \
-                                          "53       0.0h  |   53  153  |  253  353\n" \
-                                          "54       0.0h  |   54  154  |  254  354\n" \
+                                          "   Time-point     col1   col2    col3 col4\n" \
+                                          "50       0.0h  |  50.0  150.0  |  250  350\n" \
+                                          "51       0.0h  |  51.0  151.0  |  251  351\n" \
+                                          "52       0.0h  |  52.0  152.0  |  252  352\n" \
+                                          "53       0.0h  |  53.0  153.0  |  253  353\n" \
+                                          "54       0.0h  |  54.0  154.0  |  254  354\n" \
                                           "[25 x 4]\n" \
                                           "\n" \
                                           "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                          "   Time-point    col1 col2    col3 col4\n" \
-                                          "25       1.0h  |   25  125  |  225  325\n" \
-                                          "26       1.0h  |   26  126  |  226  326\n" \
-                                          "27       1.0h  |   27  127  |  227  327\n" \
-                                          "28       1.0h  |   28  128  |  228  328\n" \
-                                          "29       1.0h  |   29  129  |  229  329\n" \
+                                          "   Time-point     col1   col2    col3 col4\n" \
+                                          "25       1.0h  |  25.0  125.0  |  225  325\n" \
+                                          "26       1.0h  |  26.0  126.0  |  226  326\n" \
+                                          "27       1.0h  |  27.0  127.0  |  227  327\n" \
+                                          "28       1.0h  |  28.0  128.0  |  228  328\n" \
+                                          "29       1.0h  |  29.0  129.0  |  229  329\n" \
                                           "[25 x 4]\n\n"
 
     assert np.all(TDF[:, range(25, 75)].values_num == np.hstack((
@@ -128,17 +128,17 @@ def test_sub_setting():
     # subset multiple rows, not in order
     assert repr(TDF[:, [30, 10, 20, 80, 60, 70]]) == "View of TemporalDataFrame '1'\n"\
                                                      "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                                     "   Time-point    col1 col2    col3 col4\n" \
-                                                     "80       0.0h  |   80  180  |  280  380\n" \
-                                                     "60       0.0h  |   60  160  |  260  360\n" \
-                                                     "70       0.0h  |   70  170  |  270  370\n" \
+                                                     "   Time-point     col1   col2    col3 col4\n" \
+                                                     "80       0.0h  |  80.0  180.0  |  280  380\n" \
+                                                     "60       0.0h  |  60.0  160.0  |  260  360\n" \
+                                                     "70       0.0h  |  70.0  170.0  |  270  370\n" \
                                                      "[3 x 4]\n" \
                                                      "\n" \
                                                      "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                                     "   Time-point    col1 col2    col3 col4\n" \
-                                                     "30       1.0h  |   30  130  |  230  330\n" \
-                                                     "10       1.0h  |   10  110  |  210  310\n" \
-                                                     "20       1.0h  |   20  120  |  220  320\n" \
+                                                     "   Time-point     col1   col2    col3 col4\n" \
+                                                     "30       1.0h  |  30.0  130.0  |  230  330\n" \
+                                                     "10       1.0h  |  10.0  110.0  |  210  310\n" \
+                                                     "20       1.0h  |  20.0  120.0  |  220  320\n" \
                                                      "[3 x 4]\n\n"
 
     assert np.all(TDF[:, [30, 10, 20, 80, 60, 70]].values_num == np.array([[80, 180],
@@ -182,21 +182,21 @@ def test_sub_setting():
     #   getattr
     assert repr(TDF.col2) == "View of TemporalDataFrame '1'\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                             "   Time-point    col2\n" \
-                             "50       0.0h  |  150\n" \
-                             "51       0.0h  |  151\n" \
-                             "52       0.0h  |  152\n" \
-                             "53       0.0h  |  153\n" \
-                             "54       0.0h  |  154\n" \
+                             "   Time-point      col2\n" \
+                             "50       0.0h  |  150.0\n" \
+                             "51       0.0h  |  151.0\n" \
+                             "52       0.0h  |  152.0\n" \
+                             "53       0.0h  |  153.0\n" \
+                             "54       0.0h  |  154.0\n" \
                              "[50 x 1]\n" \
                              "\n" \
                              "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                             "  Time-point    col2\n" \
-                             "0       1.0h  |  100\n" \
-                             "1       1.0h  |  101\n" \
-                             "2       1.0h  |  102\n" \
-                             "3       1.0h  |  103\n" \
-                             "4       1.0h  |  104\n" \
+                             "  Time-point      col2\n" \
+                             "0       1.0h  |  100.0\n" \
+                             "1       1.0h  |  101.0\n" \
+                             "2       1.0h  |  102.0\n" \
+                             "3       1.0h  |  103.0\n" \
+                             "4       1.0h  |  104.0\n" \
                              "[50 x 1]\n\n"
 
     assert np.all(TDF.col2.values_num == np.concatenate((np.arange(150, 200), np.arange(100, 150)))[:, None])
@@ -218,21 +218,21 @@ def test_sub_setting():
     # subset multiple columns
     assert repr(TDF[:, :, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
                                                 "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                                "   Time-point    col1    col3\n" \
-                                                "50       0.0h  |   50  |  250\n" \
-                                                "51       0.0h  |   51  |  251\n" \
-                                                "52       0.0h  |   52  |  252\n" \
-                                                "53       0.0h  |   53  |  253\n" \
-                                                "54       0.0h  |   54  |  254\n" \
+                                                "   Time-point     col1    col3\n" \
+                                                "50       0.0h  |  50.0  |  250\n" \
+                                                "51       0.0h  |  51.0  |  251\n" \
+                                                "52       0.0h  |  52.0  |  252\n" \
+                                                "53       0.0h  |  53.0  |  253\n" \
+                                                "54       0.0h  |  54.0  |  254\n" \
                                                 "[50 x 2]\n" \
                                                 "\n" \
                                                 "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
                                                 "  Time-point    col1    col3\n" \
-                                                "0       1.0h  |    0  |  200\n" \
-                                                "1       1.0h  |    1  |  201\n" \
-                                                "2       1.0h  |    2  |  202\n" \
-                                                "3       1.0h  |    3  |  203\n" \
-                                                "4       1.0h  |    4  |  204\n" \
+                                                "0       1.0h  |  0.0  |  200\n" \
+                                                "1       1.0h  |  1.0  |  201\n" \
+                                                "2       1.0h  |  2.0  |  202\n" \
+                                                "3       1.0h  |  3.0  |  203\n" \
+                                                "4       1.0h  |  4.0  |  204\n" \
                                                 "[50 x 2]\n\n"
 
     assert np.all(TDF[:, :, ['col1', 'col3']].values_num == np.concatenate((
@@ -249,21 +249,21 @@ def test_sub_setting():
     # subset multiple columns, not in order
     assert repr(TDF[:, :, ['col4', 'col2', 'col1']]) == "View of TemporalDataFrame '1'\n" \
                                                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                                        "   Time-point    col2 col1    col4\n" \
-                                                        "50       0.0h  |  150   50  |  350\n" \
-                                                        "51       0.0h  |  151   51  |  351\n" \
-                                                        "52       0.0h  |  152   52  |  352\n" \
-                                                        "53       0.0h  |  153   53  |  353\n" \
-                                                        "54       0.0h  |  154   54  |  354\n" \
+                                                        "   Time-point      col2  col1    col4\n" \
+                                                        "50       0.0h  |  150.0  50.0  |  350\n" \
+                                                        "51       0.0h  |  151.0  51.0  |  351\n" \
+                                                        "52       0.0h  |  152.0  52.0  |  352\n" \
+                                                        "53       0.0h  |  153.0  53.0  |  353\n" \
+                                                        "54       0.0h  |  154.0  54.0  |  354\n" \
                                                         "[50 x 3]\n" \
                                                         "\n" \
                                                         "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                                        "  Time-point    col2 col1    col4\n" \
-                                                        "0       1.0h  |  100    0  |  300\n" \
-                                                        "1       1.0h  |  101    1  |  301\n" \
-                                                        "2       1.0h  |  102    2  |  302\n" \
-                                                        "3       1.0h  |  103    3  |  303\n" \
-                                                        "4       1.0h  |  104    4  |  304\n" \
+                                                        "  Time-point      col2 col1    col4\n" \
+                                                        "0       1.0h  |  100.0  0.0  |  300\n" \
+                                                        "1       1.0h  |  101.0  1.0  |  301\n" \
+                                                        "2       1.0h  |  102.0  2.0  |  302\n" \
+                                                        "3       1.0h  |  103.0  3.0  |  303\n" \
+                                                        "4       1.0h  |  104.0  4.0  |  304\n" \
                                                         "[50 x 3]\n\n"
 
     assert np.all(TDF[:, :, ['col4', 'col2', 'col1']].values_num == np.hstack((
@@ -277,12 +277,12 @@ def test_sub_setting():
     # subset TP, rows, columns
     assert repr(TDF['1h', 10:40:5, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
                                                          "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                                         "   Time-point    col1    col3\n" \
-                                                         "10       1.0h  |   10  |  210\n" \
-                                                         "15       1.0h  |   15  |  215\n" \
-                                                         "20       1.0h  |   20  |  220\n" \
-                                                         "25       1.0h  |   25  |  225\n" \
-                                                         "30       1.0h  |   30  |  230\n" \
+                                                         "   Time-point     col1    col3\n" \
+                                                         "10       1.0h  |  10.0  |  210\n" \
+                                                         "15       1.0h  |  15.0  |  215\n" \
+                                                         "20       1.0h  |  20.0  |  220\n" \
+                                                         "25       1.0h  |  25.0  |  225\n" \
+                                                         "30       1.0h  |  30.0  |  230\n" \
                                                          "[6 x 2]\n\n"
 
     assert np.all(TDF['1h', 10:40:5, ['col1', 'col3']].values_num == np.array([10, 15, 20, 25, 30, 35])[:, None])
@@ -292,11 +292,11 @@ def test_sub_setting():
     # subset TPs, rows, columns
     assert repr(TDF[['0h'], 10:70:5, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
                                                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                                           "   Time-point    col1    col3\n" \
-                                                           "50       0.0h  |   50  |  250\n" \
-                                                           "55       0.0h  |   55  |  255\n" \
-                                                           "60       0.0h  |   60  |  260\n" \
-                                                           "65       0.0h  |   65  |  265\n" \
+                                                           "   Time-point     col1    col3\n" \
+                                                           "50       0.0h  |  50.0  |  250\n" \
+                                                           "55       0.0h  |  55.0  |  255\n" \
+                                                           "60       0.0h  |  60.0  |  260\n" \
+                                                           "65       0.0h  |  65.0  |  265\n" \
                                                            "[4 x 2]\n\n"
 
     assert np.all(TDF[['0h'], 10:70:5, ['col1', 'col3']].values_num == np.array([50, 55, 60, 65])[:, None])
@@ -324,11 +324,11 @@ def test_sub_setting():
     assert repr(TDF[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col2', 'col1', 'col3']]) == \
            "View of TemporalDataFrame '1'\n" \
            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-           "   Time-point    col2 col1    col3\n" \
-           "80       0.0h  |  180   80  |  280\n" \
-           "60       0.0h  |  160   60  |  260\n" \
-           "70       0.0h  |  170   70  |  270\n" \
-           "50       0.0h  |  150   50  |  250\n" \
+           "   Time-point      col2  col1    col3\n" \
+           "80       0.0h  |  180.0  80.0  |  280\n" \
+           "60       0.0h  |  160.0  60.0  |  260\n" \
+           "70       0.0h  |  170.0  70.0  |  270\n" \
+           "50       0.0h  |  150.0  50.0  |  250\n" \
            "[4 x 3]\n\n"
 
     assert np.all(TDF[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col2', 'col1', 'col3']].values_num == np.array([
@@ -349,17 +349,17 @@ def test_sub_setting():
 
     assert repr(TDF[:, [4, 0, 2]]) == "View of TemporalDataFrame '1'\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                                      "  Time-point    col1 col2    col3 col4\n" \
-                                      "4       0.0h  |   54  154  |  254  354\n" \
-                                      "0       0.0h  |   50  150  |  250  350\n" \
-                                      "2       0.0h  |   52  152  |  252  352\n" \
+                                      "  Time-point     col1   col2    col3 col4\n" \
+                                      "4       0.0h  |  54.0  154.0  |  254  354\n" \
+                                      "0       0.0h  |  50.0  150.0  |  250  350\n" \
+                                      "2       0.0h  |  52.0  152.0  |  252  352\n" \
                                       "[3 x 4]\n" \
                                       "\n" \
                                       "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                                      "  Time-point    col1 col2    col3 col4\n" \
-                                      "4       1.0h  |    4  104  |  204  304\n" \
-                                      "0       1.0h  |    0  100  |  200  300\n" \
-                                      "2       1.0h  |    2  102  |  202  302\n" \
+                                      "  Time-point    col1   col2    col3 col4\n" \
+                                      "4       1.0h  |  4.0  104.0  |  204  304\n" \
+                                      "0       1.0h  |  0.0  100.0  |  200  300\n" \
+                                      "2       1.0h  |  2.0  102.0  |  202  302\n" \
                                       "[3 x 4]\n\n"
 
     assert np.all(TDF[:, [4, 0, 2]].values_num == np.array([[54, 154],
@@ -547,21 +547,21 @@ def test_view_sub_setting():
     #   getattr
     assert repr(view.col1) == "View of TemporalDataFrame '2'\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                              "   Time-point    col1\n" \
-                              "50       0.0h  |   50\n" \
-                              "51       0.0h  |   51\n" \
-                              "52       0.0h  |   52\n" \
-                              "53       0.0h  |   53\n" \
-                              "54       0.0h  |   54\n" \
+                              "   Time-point     col1\n" \
+                              "50       0.0h  |  50.0\n" \
+                              "51       0.0h  |  51.0\n" \
+                              "52       0.0h  |  52.0\n" \
+                              "53       0.0h  |  53.0\n" \
+                              "54       0.0h  |  54.0\n" \
                               "[40 x 1]\n" \
                               "\n" \
                               "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                              "   Time-point    col1\n" \
-                              "10       1.0h  |   10\n" \
-                              "11       1.0h  |   11\n" \
-                              "12       1.0h  |   12\n" \
-                              "13       1.0h  |   13\n" \
-                              "14       1.0h  |   14\n" \
+                              "   Time-point     col1\n" \
+                              "10       1.0h  |  10.0\n" \
+                              "11       1.0h  |  11.0\n" \
+                              "12       1.0h  |  12.0\n" \
+                              "13       1.0h  |  13.0\n" \
+                              "14       1.0h  |  14.0\n" \
                               "[40 x 1]\n\n"
 
     assert np.all(view.col1.values_num == np.concatenate((np.arange(50, 90), np.arange(10, 50)))[:, None])

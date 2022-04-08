@@ -7,7 +7,7 @@
 import numpy as np
 from pathlib import Path
 
-from .utils import get_backed_TDF, reference_backed_data
+from .utils import get_backed_TDF, reference_backed_data, cleanup
 from ..name_utils import H5Mode
 from ..dataframe import TemporalDataFrame
 
@@ -31,15 +31,10 @@ def check_TDF(TDF: TemporalDataFrame,
     assert TDF.timepoints_column_name is None
 
 
-def cleanup(path: Path) -> None:
-    if path.exists():
-        path.unlink(missing_ok=True)
-
-
 def test_read():
     input_file = Path(__file__).parent / 'test_read_TDF'
 
-    cleanup(input_file)
+    cleanup([input_file])
 
     TDF = get_backed_TDF(input_file, '1')
 
@@ -50,25 +45,25 @@ def test_read():
     assert repr(TDF) == "Backed TemporalDataFrame '1'\n" \
                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                         "  Time-point    col1 col2    col3\n" \
-                        "0       0.0h  |    0    1  |  100\n" \
-                        "1       0.0h  |    2    3  |  101\n" \
-                        "2       0.0h  |    4    5  |  102\n" \
-                        "3       0.0h  |    6    7  |  103\n" \
-                        "4       0.0h  |    8    9  |  104\n" \
+                        "0       0.0h  |  0.0  1.0  |  100\n" \
+                        "1       0.0h  |  2.0  3.0  |  101\n" \
+                        "2       0.0h  |  4.0  5.0  |  102\n" \
+                        "3       0.0h  |  6.0  7.0  |  103\n" \
+                        "4       0.0h  |  8.0  9.0  |  104\n" \
                         "[25 x 3]\n" \
                         "\n" \
                         "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                        "   Time-point    col1 col2    col3\n" \
-                        "25       1.0h  |   50   51  |  125\n" \
-                        "26       1.0h  |   52   53  |  126\n" \
-                        "27       1.0h  |   54   55  |  127\n" \
-                        "28       1.0h  |   56   57  |  128\n" \
-                        "29       1.0h  |   58   59  |  129\n" \
+                        "   Time-point     col1  col2    col3\n" \
+                        "25       1.0h  |  50.0  51.0  |  125\n" \
+                        "26       1.0h  |  52.0  53.0  |  126\n" \
+                        "27       1.0h  |  54.0  55.0  |  127\n" \
+                        "28       1.0h  |  56.0  57.0  |  128\n" \
+                        "29       1.0h  |  58.0  59.0  |  129\n" \
                         "[25 x 3]\n\n"
 
     TDF.file.close()
 
-    cleanup(input_file)
+    cleanup([input_file])
 
 
 if __name__ == '__main__':

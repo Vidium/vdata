@@ -121,13 +121,25 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> None:
+                 value: Union[Number, np.number, str]) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
             - <value> appended to string values if <value> is a string.
         """
-        raise NotImplementedError
+        if isinstance(value, (Number, np.number)):
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to add.")
+
+            self.values_num += value
+            return self
+
+        else:
+            if self.values_str.size == 0:
+                raise ValueError("No string data to add to.")
+
+            self.values_str = np.char.add(self.values_str, value)
+            return self
 
     @check_can_read
     def __sub__(self,
@@ -140,12 +152,16 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __isub__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to subtract.")
+
+        self.values_num -= value
+        return self
 
     @check_can_read
     def __mul__(self,
@@ -158,12 +174,16 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __imul__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to multiply.")
+
+        self.values_num *= value
+        return self
 
     @check_can_read
     def __truediv__(self,
@@ -175,13 +195,17 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return self._op_core(value, 'div')
 
     @check_can_write
-    def __idiv__(self,
-                 value: Union[Number, np.number]) -> None:
+    def __itruediv__(self,
+                     value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values divided by <value>.
         """
-        raise NotImplementedError
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to divide.")
+
+        self.values_num /= value
+        return self
 
     @property
     @check_can_read
@@ -371,7 +395,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def index(self) -> np.ndarray:
-        return self._index
+        return self._index.copy()
 
     @property
     @check_can_read
@@ -400,7 +424,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def columns_num(self) -> np.ndarray:
-        return self._columns_numerical
+        return self._columns_numerical.copy()
 
     @property
     @check_can_read
@@ -415,7 +439,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def columns_str(self) -> np.ndarray:
-        return self._columns_string
+        return self._columns_string.copy()
 
     @property
     @check_can_read
@@ -440,12 +464,30 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def values_num(self) -> np.ndarray:
-        return self._parent.values_num[self.index_positions][:, self.columns_num_positions]
+        return self._parent.values_num[self.index_positions[:, None], self.columns_num_positions]
+
+    @values_num.setter
+    @check_can_write
+    def values_num(self,
+                   values: np.ndarray) -> None:
+        if self._parent.is_backed:
+            for column_position in self.columns_num_positions:
+                self._parent._numerical_array[self.index_positions, column_position] = values[:, column_position]
+
+        else:
+            self._parent._numerical_array[self.index_positions[:, None], self.columns_num_positions] = values
 
     @property
     @check_can_read
     def values_str(self) -> np.ndarray:
-        return self._parent.values_str[self.index_positions][:, self.columns_str_positions]
+        return self._parent.values_str[self.index_positions[:, None], self.columns_str_positions]
+
+    @values_str.setter
+    @check_can_write
+    def values_str(self,
+                   values: np.ndarray) -> None:
+        self._parent._string_array = self._parent._string_array.astype(values.dtype)
+        self._parent._string_array[self.index_positions[:, None], self.columns_str_positions] = values
 
     @check_can_read
     def to_pandas(self,

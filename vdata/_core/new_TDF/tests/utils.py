@@ -24,7 +24,7 @@ reference_backed_data = {
     'columns_numerical': np.array(['col1', 'col2'], dtype=np.dtype('O')),
     'columns_string': np.array(['col3'], dtype=np.dtype('O')),
     'timepoints': np.array(['0.0h' for _ in range(25)] + ['1.0h' for _ in range(25)], dtype=np.dtype('O')),
-    'values_numerical': np.array(range(100)).reshape((50, 2)),
+    'values_numerical': np.array(range(100), dtype=float).reshape((50, 2)),
     'values_string': np.array(list(map(str, range(100, 150))), dtype=np.dtype('O')).reshape((50, 1))
 }
 
@@ -64,3 +64,9 @@ def get_backed_TDF(input_file: Path,
 
     # read TDF from file
     return read_TDF(input_file, mode=mode)
+
+
+def cleanup(paths: list[Path]) -> None:
+    for path in paths:
+        if path.exists():
+            path.unlink(missing_ok=True)

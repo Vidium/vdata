@@ -11,7 +11,7 @@ from pathlib import Path
 
 from typing import Union
 
-from .utils import get_TDF
+from .utils import get_TDF, cleanup
 from ..dataframe import TemporalDataFrame
 from ..view import ViewTemporalDataFrame
 
@@ -63,12 +63,6 @@ def check_H5_file(reference_TDF: Union[TemporalDataFrame, ViewTemporalDataFrame]
 
         assert 'values_string' in h5_file.keys()
         assert np.all(get_dset(h5_file['values_string']) == reference_TDF.values_str)
-
-
-def cleanup(paths: list[Path]) -> None:
-    for path in paths:
-        if path.exists():
-            path.unlink(missing_ok=True)
 
 
 def test_write():
@@ -170,6 +164,7 @@ def test_write():
     cleanup([save_path])
 
     # view of backed TDF
+    # TODO
 
 
 if __name__ == '__main__':
