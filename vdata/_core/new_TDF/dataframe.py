@@ -6,6 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
+import numpy_indexed as npi
 from h5py import File, Dataset
 from pathlib import Path
 from numbers import Number
@@ -267,9 +268,66 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]]) \
             -> ViewTemporalDataFrame:
-        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
+
+    @check_can_write
+    def __setitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]],
+                    values: np.ndarray) -> None:
+        """
+        Set values in a subset.
+        """
+        def get_index_positions(index_: np.ndarray) -> np.ndarray:
+            indices = []
+            cumulated_length = 0
+
+            for tp in self.timepoints:
+                itp = self.index_at(tp)
+                indices.append(npi.indices(itp, index_[np.in1d(index_, itp)]) + cumulated_length)
+                cumulated_length += len(itp)
+
+            return np.concatenate(indices)
+
+        index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
+
+        index_positions = get_index_positions(index_slicer)
+
+        if values.shape != (li := len(index_positions),
+                            (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
+            raise ValueError(f"Can't set {li} x {lcn + lcs} values from {values.shape[0]} x {values.shape[1]} array.")
+
+        if not lcn + lcs:
+            return
+
+        if self.is_backed:
+            values = values[np.argsort(index_positions)]
+            index_positions.sort()
+
+        if lcn:
+            if self.is_backed:
+                for column_position, column_name in zip(npi.indices(self.columns_num, column_num_slicer),
+                                                        column_num_slicer):
+                    self._numerical_array[index_positions, column_position] = \
+                        values[:, np.where(columns_array == column_name)[0][0]].astype(float)
+
+            else:
+                self.values_num[index_positions[:, None], npi.indices(self._columns_numerical, column_num_slicer)] = \
+                    values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
+
+        if lcs:
+            if self.is_backed:
+                for column_position, column_name in zip(npi.indices(self.columns_str, column_str_slicer),
+                                                        column_str_slicer):
+                    self._string_array[index_positions, column_position] = \
+                        values[:, np.where(columns_array == column_name)[0][0]].astype(str)
+
+            else:
+                self.values_str[index_positions[:, None], npi.indices(self._columns_string, column_str_slicer)] = \
+                    values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
 
     @check_can_read
     def __add__(self,

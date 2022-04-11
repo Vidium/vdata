@@ -62,16 +62,15 @@ class BaseTemporalDataFrame(ABC):
         Get a subset.
         """
 
-    # TODO
-    # @abstractmethod
-    # def __setitem__(self,
-    #                 slicer: Union[SLICER,
-    #                               tuple[SLICER, SLICER],
-    #                               tuple[SLICER, SLICER, SLICER]],
-    #                 values: np.ndarray) -> None:
-    #     """
-    #     Set values in a subset.
-    #     """
+    @abstractmethod
+    def __setitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]],
+                    values: np.ndarray) -> None:
+        """
+        Set values in a subset.
+        """
 
     def _add_core(self,
                   value: Union[Number, np.number, str]) -> 'TemporalDataFrame':

@@ -108,9 +108,20 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self._parent, index_slicer, column_num_slicer, column_str_slicer)
+
+    @check_can_write
+    def __setitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]],
+                    values: np.ndarray) -> None:
+        """
+        Set values in a subset.
+        """
+        raise NotImplementedError
 
     @check_can_read
     def __add__(self,
