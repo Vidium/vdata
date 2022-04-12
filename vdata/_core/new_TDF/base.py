@@ -6,7 +6,6 @@
 # imports
 import numpy as np
 import pandas as pd
-import numpy_indexed as npi
 from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
@@ -20,6 +19,7 @@ from .name_utils import SLICER, H5Data
 if TYPE_CHECKING:
     from .dataframe import TemporalDataFrame
     from .view import ViewTemporalDataFrame
+    from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
 
 
 # ====================================================
@@ -36,22 +36,6 @@ class BaseTemporalDataFrame(ABC):
         """
         Get a single column.
         """
-
-    # TODO for views
-    # @abstractmethod
-    # def __setattr__(self,
-    #                 name: str,
-    #                 values: np.ndarray) -> None:
-    #     """
-    #     Set values of a single column. If the column does not already exist, it is appended at the end.
-    #     """
-    #
-    # @abstractmethod
-    # def __delattr__(self,
-    #                 column_name: str) -> None:
-    #     """
-    #     Delete a single column.
-    #     """
 
     @abstractmethod
     def __getitem__(self,
@@ -434,6 +418,52 @@ class BaseTemporalDataFrame(ABC):
         Args:
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
+        """
+
+    @property
+    @abstractmethod
+    def at(self) -> 'VAtIndexer':
+        """
+        Access a single value from a pair of row and column labels.
+        """
+
+    @property
+    @abstractmethod
+    def iat(self) -> 'ViAtIndexer':
+        """
+        Access a single value from a pair of row and column indices.
+        """
+
+    @property
+    @abstractmethod
+    def loc(self) -> 'VLocIndexer':
+        """
+        Access a group of rows and columns by label(s) or a boolean array.
+
+        Allowed inputs are:
+            - A single label, e.g. 5 or 'a', (note that 5 is interpreted as a label of the index, and never as an
+            integer position along the index).
+            - A list or array of labels, e.g. ['a', 'b', 'c'].
+            - A slice object with labels, e.g. 'a':'f'.
+            - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above)
+        """
+
+    @property
+    @abstractmethod
+    def iloc(self) -> 'ViLocIndexer':
+        """
+        Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
+
+        Allowed inputs are:
+            - An integer, e.g. 5.
+            - A list or array of integers, e.g. [4, 3, 0].
+            - A slice object with ints, e.g. 1:7.
+            - A boolean array.
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
+            calling object, but would like to base your selection on some value.
         """
 
     @abstractmethod

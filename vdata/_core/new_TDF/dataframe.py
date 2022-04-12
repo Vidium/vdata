@@ -14,10 +14,11 @@ from numbers import Number
 from typing import Union, Optional, Collection, Any, Iterable
 
 from vdata.new_time_point import TimePoint
-from vdata.utils import repr_array
+from vdata.utils import repr_array, isCollection
 from .name_utils import H5Data, H5Mode, SLICER
 from .utils import parse_slicer
 from .base import BaseTemporalDataFrame
+from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
 from .view import ViewTemporalDataFrame
 from ._parse import parse_data
 from ._write import write_TDF
@@ -289,13 +290,27 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: np.ndarray) -> None:
+                    values: Union[Number, np.number, str, np.ndarray]) -> None:
         """
         Set values in a subset.
         """
         index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
 
         index_positions = self._get_index_positions(index_slicer)
+
+        # parse values, in case 'values' is not a numpy array
+        if not isinstance(values, np.ndarray):
+            if isCollection(values):
+                # collection of values : make 2D array of shape (1, len(values)) if only 1 index was selected ...
+                values = np.array([values])
+
+                # ... or make 2D array of shape (len(values), 1)
+                if len(index_positions) != 1:
+                    values = values.T
+
+            # single value : make 2D array of shape (1, 1)
+            else:
+                values = np.array([[values]])
 
         if values.shape != (li := len(index_positions),
                             (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
@@ -817,6 +832,52 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 no column is created.
         """
         return self._convert_to_pandas(with_timepoints=with_timepoints)
+
+    @property
+    def at(self) -> 'VAtIndexer':
+        """
+        Access a single value from a pair of row and column labels.
+        """
+        return VAtIndexer(self)
+
+    @property
+    def iat(self) -> 'ViAtIndexer':
+        """
+        Access a single value from a pair of row and column indices.
+        """
+        return ViAtIndexer(self)
+
+    @property
+    def loc(self) -> 'VLocIndexer':
+        """
+        Access a group of rows and columns by label(s) or a boolean array.
+
+        Allowed inputs are:
+            - A single label, e.g. 5 or 'a', (note that 5 is interpreted as a label of the index, and never as an
+            integer position along the index).
+            - A list or array of labels, e.g. ['a', 'b', 'c'].
+            - A slice object with labels, e.g. 'a':'f'.
+            - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above)
+        """
+        raise NotImplementedError
+
+    @property
+    def iloc(self) -> 'ViLocIndexer':
+        """
+        Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
+
+        Allowed inputs are:
+            - An integer, e.g. 5.
+            - A list or array of integers, e.g. [4, 3, 0].
+            - A slice object with ints, e.g. 1:7.
+            - A boolean array.
+            - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
+            for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
+            calling object, but would like to base your selection on some value.
+        """
+        raise NotImplementedError
 
     @check_can_read
     def write(self,
