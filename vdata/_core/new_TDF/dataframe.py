@@ -272,6 +272,18 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
+    def _get_index_positions(self,
+                             index_: np.ndarray) -> np.ndarray:
+        indices = []
+        cumulated_length = 0
+
+        for tp in self.timepoints:
+            itp = self.index_at(tp)
+            indices.append(npi.indices(itp, index_[np.in1d(index_, itp)]) + cumulated_length)
+            cumulated_length += len(itp)
+
+        return np.concatenate(indices)
+
     @check_can_write
     def __setitem__(self,
                     slicer: Union[SLICER,
@@ -281,20 +293,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         Set values in a subset.
         """
-        def get_index_positions(index_: np.ndarray) -> np.ndarray:
-            indices = []
-            cumulated_length = 0
-
-            for tp in self.timepoints:
-                itp = self.index_at(tp)
-                indices.append(npi.indices(itp, index_[np.in1d(index_, itp)]) + cumulated_length)
-                cumulated_length += len(itp)
-
-            return np.concatenate(indices)
-
         index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
 
-        index_positions = get_index_positions(index_slicer)
+        index_positions = self._get_index_positions(index_slicer)
 
         if values.shape != (li := len(index_positions),
                             (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):

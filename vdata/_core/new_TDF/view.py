@@ -121,7 +121,44 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Set values in a subset.
         """
-        raise NotImplementedError
+        index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
+
+        index_positions = self._parent._get_index_positions(index_slicer)
+
+        if values.shape != (li := len(index_positions),
+                            (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
+            raise ValueError(f"Can't set {li} x {lcn + lcs} values from {values.shape[0]} x {values.shape[1]} array.")
+
+        if not lcn + lcs:
+            return
+
+        if self._parent.is_backed:
+            values = values[np.argsort(index_positions)]
+            index_positions.sort()
+
+        if lcn:
+            if self._parent.is_backed:
+                for column_position, column_name in zip(npi.indices(self._parent.columns_num, column_num_slicer),
+                                                        column_num_slicer):
+                    self._parent._numerical_array[index_positions, column_position] = \
+                        values[:, np.where(columns_array == column_name)[0][0]].astype(float)
+
+            else:
+                self._parent.values_num[index_positions[:, None],
+                                        npi.indices(self._parent.columns_num, column_num_slicer)] = \
+                    values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
+
+        if lcs:
+            if self._parent.is_backed:
+                for column_position, column_name in zip(npi.indices(self._parent.columns_str, column_str_slicer),
+                                                        column_str_slicer):
+                    self._parent._string_array[index_positions, column_position] = \
+                        values[:, np.where(columns_array == column_name)[0][0]].astype(str)
+
+            else:
+                self._parent.values_str[index_positions[:, None],
+                                        npi.indices(self._parent.columns_str, column_str_slicer)] = \
+                    values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
 
     @check_can_read
     def __add__(self,

@@ -59,7 +59,12 @@ def parse_axis_slicer(axis_slicer: SLICER,
     elif isinstance(axis_slicer, slice):
         start = possible_values[0] if axis_slicer.start is None else cast_type(axis_slicer.start)
         stop = possible_values[-1] if axis_slicer.stop is None else cast_type(axis_slicer.stop)
-        step = cast_type(1, start.unit) if axis_slicer.step is None else cast_type(axis_slicer.step)
+
+        if axis_slicer.step is None:
+            step = cast_type(1, start.unit) if cast_type == TimePoint else cast_type(1)
+
+        else:
+            step = cast_type(axis_slicer.step)
 
         return np.array(list(iter(range_function(start, stop, step))))
 

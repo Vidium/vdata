@@ -6,6 +6,7 @@
 # imports
 import numpy as np
 import pandas as pd
+import numpy_indexed as npi
 from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
