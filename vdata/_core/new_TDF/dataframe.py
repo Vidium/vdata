@@ -269,7 +269,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]]) \
             -> ViewTemporalDataFrame:
-        index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
@@ -290,11 +290,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: Union[Number, np.number, str, np.ndarray]) -> None:
+                    values: Union[Number, np.number, str, Collection]) -> None:
         """
         Set values in a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
 
         index_positions = self._get_index_positions(index_slicer)
 
@@ -319,6 +319,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not lcn + lcs:
             return
 
+        # reorder values to match original index
+        if index_array is not None:
+            values = values[np.argsort(npi.indices(index_array, index_slicer))]
+
         if self.is_backed:
             values = values[np.argsort(index_positions)]
             index_positions.sort()
@@ -335,15 +339,18 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                     values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
 
         if lcs:
+            values_str = values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+            object.__setattr__(self, '_string_array', self._string_array.astype(values_str.dtype))
+
             if self.is_backed:
                 for column_position, column_name in zip(npi.indices(self.columns_str, column_str_slicer),
                                                         column_str_slicer):
                     self._string_array[index_positions, column_position] = \
-                        values[:, np.where(columns_array == column_name)[0][0]].astype(str)
+                        values_str[:, np.where(columns_array == column_name)[0][0]]
 
             else:
                 self.values_str[index_positions[:, None], npi.indices(self._columns_string, column_str_slicer)] = \
-                    values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+                    values_str
 
     @check_can_read
     def __add__(self,
@@ -861,7 +868,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
             for indexing (one of the above)
         """
-        raise NotImplementedError
+        return VLocIndexer(self)
 
     @property
     def iloc(self) -> 'ViLocIndexer':
@@ -877,7 +884,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
             calling object, but would like to base your selection on some value.
         """
-        raise NotImplementedError
+        return ViLocIndexer(self)
 
     @check_can_read
     def write(self,

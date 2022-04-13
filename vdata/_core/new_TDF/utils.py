@@ -78,7 +78,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
                  slicer: Union[SLICER,
                                tuple[SLICER, SLICER],
                                tuple[SLICER, SLICER, SLICER]]) \
-        -> tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray]]:
+        -> tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """TODO"""
     tp_slicer, index_slicer, column_slicer = _expand_slicer(slicer)
 
@@ -141,4 +141,4 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
         selected_columns_num = columns_array[np.in1d(columns_array, TDF.columns_num)]
         selected_columns_str = columns_array[np.in1d(columns_array, TDF.columns_str)]
 
-    return selected_index, selected_columns_num, selected_columns_str, columns_array
+    return selected_index, selected_columns_num, selected_columns_str, index_array, columns_array

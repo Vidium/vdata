@@ -11,7 +11,7 @@ from pathlib import Path
 from numbers import Number
 from h5py import Dataset, File
 
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Union, Optional, Collection
 
 from vdata.new_time_point import TimePoint
 from vdata.utils import repr_array, isCollection
@@ -109,7 +109,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self._parent, index_slicer, column_num_slicer, column_str_slicer)
 
@@ -118,11 +118,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: np.ndarray) -> None:
+                    values: Union[Number, np.number, str, Collection]) -> None:
         """
         Set values in a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, columns_array = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
 
         index_positions = self._parent._get_index_positions(index_slicer)
 
@@ -146,6 +146,10 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         if not lcn + lcs:
             return
+
+        # reorder values to match original index
+        if index_array is not None:
+            values = values[np.argsort(npi.indices(index_array, index_slicer))]
 
         if self._parent.is_backed:
             values = values[np.argsort(index_positions)]
@@ -595,7 +599,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
             for indexing (one of the above)
         """
-        raise NotImplementedError
+        return indexer.VLocIndexer(self)
 
     @property
     def iloc(self) -> 'indexer.ViLocIndexer':
@@ -611,7 +615,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
             calling object, but would like to base your selection on some value.
         """
-        raise NotImplementedError
+        return indexer.ViLocIndexer(self)
 
     @check_can_read
     def write(self,
