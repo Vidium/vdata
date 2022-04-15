@@ -1237,6 +1237,8 @@ def test_inplace_add_sub_mul_div():
     )))
     assert np.all(TDF.values_str == np.arange(100, 150).astype(str)[:, None])
 
+    cleanup([input_file])
+
 
 if __name__ == '__main__':
     test_delete()

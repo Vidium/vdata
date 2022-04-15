@@ -149,7 +149,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         # reorder values to match original index
         if index_array is not None:
-            values = values[np.argsort(npi.indices(index_array, index_slicer))]
+            original_positions = self._parent._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
+            values = values[np.argsort(npi.indices(index_positions, original_positions))]
 
         if self._parent.is_backed:
             values = values[np.argsort(index_positions)]
@@ -168,16 +169,20 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                     values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
 
         if lcs:
+            values_str = values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+            if values_str.dtype > self._parent._string_array.dtype:
+                object.__setattr__(self._parent, '_string_array', self._parent._string_array.astype(values_str.dtype))
+
             if self._parent.is_backed:
                 for column_position, column_name in zip(npi.indices(self._parent.columns_str, column_str_slicer),
                                                         column_str_slicer):
                     self._parent._string_array[index_positions, column_position] = \
-                        values[:, np.where(columns_array == column_name)[0][0]].astype(str)
+                        values_str[:, np.where(columns_array == column_name)[0][0] - lcn]
 
             else:
                 self._parent.values_str[index_positions[:, None],
                                         npi.indices(self._parent.columns_str, column_str_slicer)] = \
-                    values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+                    values_str
 
     @check_can_read
     def __add__(self,

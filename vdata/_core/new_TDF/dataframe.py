@@ -67,13 +67,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     """
 
     __slots__ = '_name', '_file', '_numerical_array', '_string_array', '_timepoints_array', '_index', \
-                '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
+                '_repeating_index', '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
 
     __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str')
 
     def __init__(self,
                  data: Union[None, dict, pd.DataFrame, H5Data] = None,
                  index: Optional[Collection] = None,
+                 repeating_index: bool = False,
                  columns_numerical: Optional[Collection] = None,
                  columns_string: Optional[Collection] = None,
                  time_list: Optional[Collection[Union[Number, str, TimePoint]]] = None,
@@ -88,6 +89,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 - a H5 File or Group containing numerical and string data.
             index: Optional collection of indices. Must match the total number of rows in this TemporalDataFrame,
                 over all time-points.
+            repeating_index: Is the index repeated at all time-points ?
+                If False, the index must contain unique values.
+                If True, the index must be exactly equal at all time-points.
             columns_numerical: Optional collection of column names for numerical columns. Must match the number of
                 numerical columns in this TemporalDataFrame.
             columns_string: Optional collection of column names for string columns. Must match the number of string
@@ -108,13 +112,15 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         #   columns (any type)
         _file, _numerical_array, _string_array, _timepoints_array, _index, _columns_numerical, _columns_string, \
             _lock, _timepoints_column_name, _name = \
-            parse_data(data, index, columns_numerical, columns_string, time_list, time_col_name, lock, name)
+            parse_data(data, index, repeating_index, columns_numerical, columns_string, time_list, time_col_name, lock,
+                       name)
 
         object.__setattr__(self, '_file', _file)
         object.__setattr__(self, '_numerical_array', _numerical_array)
         object.__setattr__(self, '_string_array', _string_array)
         object.__setattr__(self, '_timepoints_array', _timepoints_array)
         object.__setattr__(self, '_index', _index)
+        object.__setattr__(self, '_repeating_index', repeating_index)
         object.__setattr__(self, '_columns_numerical', _columns_numerical)
         object.__setattr__(self, '_columns_string', _columns_string)
         object.__setattr__(self, '_lock', _lock)
@@ -275,15 +281,20 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     def _get_index_positions(self,
                              index_: np.ndarray) -> np.ndarray:
-        indices = []
-        cumulated_length = 0
+        if self._repeating_index:
+            index_len_count = 0
 
-        for tp in self.timepoints:
-            itp = self.index_at(tp)
-            indices.append(npi.indices(itp, index_[np.in1d(index_, itp)]) + cumulated_length)
-            cumulated_length += len(itp)
+            total_index = np.zeros((self.n_timepoints, len(index_)), dtype=int)
 
-        return np.concatenate(indices)
+            for tpi, tp in enumerate(self.timepoints):
+                i_at_tp = self.index_at(tp)
+                total_index[tpi] = npi.indices(i_at_tp, index_) + index_len_count
+
+                index_len_count += len(i_at_tp)
+
+            return np.concatenate(total_index)
+
+        return npi.indices(self.index, index_)
 
     @check_can_write
     def __setitem__(self,
@@ -321,7 +332,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         # reorder values to match original index
         if index_array is not None:
-            values = values[np.argsort(npi.indices(index_array, index_slicer))]
+            original_positions = self._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
+            values = values[np.argsort(npi.indices(index_positions, original_positions))]
 
         if self.is_backed:
             values = values[np.argsort(index_positions)]
@@ -340,13 +352,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         if lcs:
             values_str = values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
-            object.__setattr__(self, '_string_array', self._string_array.astype(values_str.dtype))
+            if values_str.dtype > self._string_array.dtype:
+                object.__setattr__(self, '_string_array', self._string_array.astype(values_str.dtype))
 
             if self.is_backed:
                 for column_position, column_name in zip(npi.indices(self.columns_str, column_str_slicer),
                                                         column_str_slicer):
                     self._string_array[index_positions, column_position] = \
-                        values_str[:, np.where(columns_array == column_name)[0][0]]
+                        values_str[:, np.where(columns_array == column_name)[0][0] - lcn]
 
             else:
                 self.values_str[index_positions[:, None], npi.indices(self._columns_string, column_str_slicer)] = \
@@ -667,6 +680,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return unique_timepoints
 
+    @property
+    @check_can_read
+    def n_timepoints(self) -> int:
+        return len(self.timepoints)
+
     @check_can_read
     def get_timepoint_mask(self,
                            timepoint: Union[str, TimePoint]) -> np.ndarray:
@@ -724,14 +742,42 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return self._index[()].copy()
 
+    def _check_valid_index(self,
+                           values: np.ndarray,
+                           repeating_index: bool) -> None:
+        if not (vs := values.shape) == (s := self._index.shape):
+            raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
+
+        if repeating_index:
+            first_index = values[self.timepoints_column == self.timepoints[0]]
+
+            for tp in self.timepoints[1:]:
+                index_tp = values[self.timepoints_column == tp]
+
+                if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
+                    raise ValueError(f"Index at time-point {tp} is not equal to index at time-point "
+                                     f"{self.timepoints[0]}.")
+
+        else:
+            if not self.n_index == len(np.unique(values)):
+                raise ValueError("Index values must be all unique.")
+
     @index.setter
     @check_can_write
     def index(self,
               values: np.ndarray) -> None:
-        if not (vs := values.shape) == (s := self._index.shape):
-            raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
+        self._check_valid_index(values, self._repeating_index)
 
         object.__setattr__(self, '_index', values)
+
+    @check_can_write
+    def set_index(self,
+                  values: np.ndarray,
+                  repeating_index: bool = False) -> None:
+        self._check_valid_index(values, repeating_index)
+
+        object.__setattr__(self, '_index', values)
+        object.__setattr__(self, '_repeating_index', repeating_index)
 
     @property
     @check_can_read

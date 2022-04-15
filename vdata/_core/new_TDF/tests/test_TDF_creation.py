@@ -144,7 +144,8 @@ def test_TDF_creation():
 
         #       index is a Collection of values, divides data
         _TDF = TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'], name=11)
+                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'],
+                                 repeating_index=True, name=11)
         assert repr(_TDF) == "TemporalDataFrame '11'\n" \
                              "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
@@ -247,7 +248,8 @@ def test_TDF_creation():
 
         #       index is a Collection of values, divides data
         _TDF = TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'], name=16)
+                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'],
+                                 repeating_index=True, name=16)
         assert repr(_TDF) == "TemporalDataFrame '16'\n" \
                              "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1\n" \
@@ -350,7 +352,8 @@ def test_TDF_creation():
 
         #       index is a Collection of values, divides data
         _TDF = TemporalDataFrame(data=data, time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
-                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'], name=21)
+                                 time_col_name=None, index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'],
+                                 repeating_index=True, name=21)
         assert repr(_TDF) == "TemporalDataFrame '21'\n" \
                              "\033[4mTime point : 0.0 hours\033[0m\n" \
                              "  Time-point    col1    col2\n" \

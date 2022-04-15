@@ -20,6 +20,7 @@ from .name_utils import H5Data
 # code
 def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
                index: Optional[Collection],
+               repeating_index: bool,
                columns_numerical: Optional[Collection],
                columns_string: Optional[Collection],
                time_list: Optional[Collection[Union[Number, str, TimePoint]]],
@@ -38,6 +39,9 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
             - a pandas DataFrame
             - a H5 File or Group containing numerical and string data.
         index: Optional indices to set or to substitute to indices defined in data if data is a pandas DataFrame.
+        repeating_index: Is the index repeated at all time-points ?
+            If False, the index must contain unique values.
+            If True, the index must be exactly equal at all time-points.
         columns_numerical: Optional numerical column names to set or to substitute to numerical columns defined in
             data if data is a pandas DataFrame.
         columns_string: Optional string column names to set or to substitute to string columns defined in data if data
@@ -78,6 +82,22 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
         numerical_array, string_array, timepoints_array, index, columns_numerical, columns_string, time_col_name = \
             parse_data_df(data.copy(), index, columns_numerical, columns_string, time_list, time_col_name)
 
+        if repeating_index:
+            unique_timepoints = np.unique(timepoints_array)
+
+            first_index = index[timepoints_array == unique_timepoints[0]]
+
+            for tp in unique_timepoints[1:]:
+                index_tp = index[timepoints_array == tp]
+
+                if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
+                    raise ValueError(f"Index at time-point {tp} is not equal to index at time-point "
+                                     f"{unique_timepoints[0]}.")
+
+        else:
+            if not len(index) == len(np.unique(index)):
+                raise ValueError("Index values must be all unique.")
+
         return None, numerical_array, string_array, timepoints_array, index, columns_numerical, columns_string, \
             (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), time_col_name, str(name)
 
@@ -87,6 +107,9 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
 
         if time_col_name is not None:
             warn("Data loaded from a H5 file, 'time_col_name' parameter is ignored.")
+
+        if repeating_index is not None:
+            warn("Data loaded from a H5 file, 'repeating_index' parameter is ignored.")
 
         return parse_data_h5(data, index, columns_numerical, columns_string, lock, name)
 

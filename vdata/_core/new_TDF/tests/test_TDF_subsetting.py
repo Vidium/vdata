@@ -347,7 +347,8 @@ def test_sub_getting():
     ]))
 
     # subset rows, same index at multiple time points
-    TDF.index = np.concatenate((np.arange(0, 50), np.arange(0, 50)))
+    TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
+                  repeating_index=True)
 
     assert repr(TDF[:, [4, 0, 2]]) == "View of TemporalDataFrame '1'\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
@@ -640,7 +641,8 @@ def test_sub_setting():
     assert str(exc_info.value) == "Some columns were not found in this TemporalDataFrame (['col5'] (1 value long))"
 
     # set values in TDF with same index at multiple time-points
-    TDF.index = np.concatenate((np.arange(0, 50), np.arange(0, 50)))
+    TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
+                  repeating_index=True)
 
     TDF[:, [4, 0, 2]] = np.array([[-100, -101, 'A', 'AA'],
                                   [-200, -201, 'B', 'BB'],
@@ -1010,7 +1012,8 @@ def test_sub_setting():
                                   "(1 value long))"
 
     # set values in TDF with same index at multiple time-points
-    TDF.index = np.concatenate((np.arange(0, 25), np.arange(0, 25)))
+    TDF.set_index(np.concatenate((np.arange(0, 25), np.arange(0, 25))),
+                  repeating_index=True)
 
     TDF[:, [4, 0, 2]] = np.array([[-100, -101, 'A'],
                                   [-200, -201, 'B'],
@@ -1448,7 +1451,8 @@ def test_view_sub_getting():
     ]))
 
     # subset rows, same index at multiple time points
-    TDF.index = np.concatenate((np.arange(0, 50), np.arange(0, 50)))
+    TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
+                  repeating_index=True)
 
     assert repr(TDF[:, :, ['col2', 'col1']][:, [4, 0, 2]]) == "View of TemporalDataFrame '2'\n" \
                                                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
@@ -1735,7 +1739,8 @@ def test_view_sub_setting():
     assert str(exc_info.value) == "Some columns were not found in this ViewTemporalDataFrame (['col5'] (1 value long))"
 
     # set values in TDF with same index at multiple time-points
-    TDF.index = np.concatenate((np.arange(0, 50), np.arange(0, 50)))
+    TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
+                  repeating_index=True)
 
     view[:, [14, 10, 12]] = np.array([[-100, 'A'],
                                       [-200, 'B'],
@@ -2092,7 +2097,8 @@ def test_view_sub_setting():
                                   "(1 value long))"
 
     # set values in TDF with same index at multiple time-points
-    TDF.index = np.concatenate((np.arange(0, 25), np.arange(0, 25)))
+    TDF.set_index(np.concatenate((np.arange(0, 25), np.arange(0, 25))),
+                  repeating_index=True)
 
     view[:, [14, 10, 12]] = np.array([[-100, 'A'],
                                       [-200, 'B'],
