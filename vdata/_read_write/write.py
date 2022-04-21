@@ -19,11 +19,13 @@ from functools import singledispatch
 from typing import Union, Optional
 
 import vdata
+from vdata.name_utils import H5Mode
 from .utils import parse_path, H5GroupReader
 from ..vdataframe import VDataFrame
 from ..IO import generalLogger, VPathError, VValueError
 from .._core import TemporalDataFrame
-from .._core.TDF.views import ViewTemporalDataFrame
+from .._core.TDF import ViewTemporalDataFrame
+from .._core.TDF.name_utils import DEFAULT_TIME_POINTS_COL_NAME
 from ..h5pickle import H5Group, File
 
 
@@ -62,23 +64,28 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
 
-        with File(str(file), 'w') as save_file:
-            # save layers
-            write_data(obj.layers.data, save_file, 'layers')
-            # save obs
-            write_data(obj.obs, save_file, 'obs')
-            write_data(obj.obsm.data, save_file, 'obsm')
-            write_data(obj.obsp.data, save_file, 'obsp')
-            # save var
-            write_data(obj.var, save_file, 'var')
-            write_data(obj.varm.data, save_file, 'varm')
-            write_data(obj.varp.data, save_file, 'varp')
-            # save time points
-            write_data(obj.time_points, save_file, 'time_points')
-            # save uns
-            write_data(obj.uns, save_file, 'uns')
+        # TODO : better handling of already existing files
+        if file.exists():
+            os.remove(file)
 
-        obj.file = H5GroupReader(File(str(file), 'r+'))
+        save_file = File(str(file), mode=H5Mode.READ_WRITE_CREATE)
+
+        # save layers
+        write_data(obj.layers.data, save_file, 'layers')
+        # save obs
+        write_data(obj.obs, save_file, 'obs')
+        write_data(obj.obsm.data, save_file, 'obsm')
+        write_data(obj.obsp.data, save_file, 'obsp')
+        # save var
+        write_data(obj.var, save_file, 'var')
+        write_data(obj.varm.data, save_file, 'varm')
+        write_data(obj.varp.data, save_file, 'varp')
+        # save time points
+        write_data(obj.timepoints, save_file, 'timepoints')
+        # save uns
+        write_data(obj.uns, save_file, 'uns')
+
+        obj.file = H5GroupReader(save_file)
 
 
 def update_vdata(obj: 'vdata.VData') -> None:
@@ -146,9 +153,9 @@ def update_vdata(obj: 'vdata.VData') -> None:
     write_data(obj.varp.data, obj.file.group, 'varp')
 
     # update time points ------------------------------------------------------
-    del obj.file.group['time_points']
+    del obj.file.group['timepoints']
     obj.file.group.flush()
-    write_data(obj.time_points, obj.file.group, 'time_points')
+    write_data(obj.timepoints, obj.file.group, 'timepoints')
 
     # update uns --------------------------------------------------------------
     del obj.file.group['uns']
@@ -186,14 +193,14 @@ def write_vdata_to_csv(obj: Union['vdata.VData', 'vdata.ViewVData'],
 
     # save metadata
     with open(directory / ".metadata.json", 'w') as metadata:
-        json.dump({"obs": {"time_points_column_name": obj.obs.time_points_column_name},
+        json.dump({"obs": {"timepoints_column_name": obj.obs.timepoints_column_name},
                    "obsm": {obsm_TDF_name:
-                            {"time_points_column_name": obsm_TDF.time_points_column_name if
-                                obsm_TDF.time_points_column_name is not None else 'Time_Point'}
+                            {"timepoints_column_name": obsm_TDF.timepoints_column_name if
+                                obsm_TDF.timepoints_column_name is not None else DEFAULT_TIME_POINTS_COL_NAME}
                             for obsm_TDF_name, obsm_TDF in obj.obsm.items()},
                    "layers": {layer_TDF_name:
-                              {"time_points_column_name": layer_TDF.time_points_column_name if
-                                  layer_TDF.time_points_column_name is not None else 'Time_Point'}
+                              {"timepoints_column_name": layer_TDF.timepoints_column_name if
+                                  layer_TDF.timepoints_column_name is not None else DEFAULT_TIME_POINTS_COL_NAME}
                               for layer_TDF_name, layer_TDF in obj.layers.items()}}, metadata)
 
     # save matrices
@@ -201,8 +208,8 @@ def write_vdata_to_csv(obj: Union['vdata.VData', 'vdata.ViewVData'],
     obj.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
     generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame var")
     obj.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
-    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame time_points")
-    obj.time_points.to_csv(directory / "time_points.csv", sep, na_rep, index=index, header=header)
+    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame time-points")
+    obj.timepoints.to_csv(directory / "timepoints.csv", sep, na_rep, index=index, header=header)
 
     for dataset in (obj.layers, obj.obsm, obj.obsp, obj.varm, obj.varp):
         generalLogger.info(f"{spacer(1)}Saving {dataset.name}")
@@ -267,7 +274,7 @@ def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
     """
     Function for writing VDataFrames to the h5 file. Each VDataFrame is stored in a group, containing the index and the
     columns as Series.
-    Used for obs, var, time_points.
+    Used for obs, var, time-points.
     """
     generalLogger.info(f"{spacer(key_level)}Saving VDataFrame {key}")
 
@@ -299,127 +306,14 @@ def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
         write_data(data_str.values.astype(str), df_data_str_group, 'data', key_level=key_level + 2)
 
 
-def write_TDF(data: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
-              group: H5Group,
-              key: str,
-              key_level: int = 0) -> None:
-    """
-    Function for writing TemporalDataFrames to the h5 file. Each TemporalDataFrame is stored in a group, containing the
-    index and the columns as Series.
-    Used for layers, obs, obsm.
-    """
-    generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
-
-    if str(key) in group:
-        for _key in group[key].keys():
-            del group[key][_key]
-
-        df_group = group[key]
-
-    else:
-        df_group = group.create_group(str(key))
-
-    # save index
-    write_data(data.index, df_group, 'index', key_level=key_level + 1)
-
-    # save time_col_name
-    write_data(data.time_points_column_name, df_group, 'time_col_name', key_level=key_level + 1)
-
-    # create group for storing the data
-    data_group = df_group.create_group('data', track_order=True)
-
-    # -----------------------------------------------------
-    if data.dtype == object:
-        # regular TDF storage (per column)
-        df_group.attrs['type'] = 'TDF'
-
-        write_data(data.time_points_column, df_group, 'time_list', key_level=key_level + 1, data_type=vdata.TimePoint)
-
-        # save data, per column, in arrays
-        for dt, col in zip(data.dtypes, data.columns):
-            values = data[:, :, col].values.flatten()
-
-            if dt == object:
-                values = values.astype(str)
-
-            else:
-                values = values.astype(dt)
-
-            write_data(values, data_group, col, key_level=key_level + 1)
-
-    # -----------------------------------------------------
-    else:
-        # chunked TDF storage
-        df_group.attrs['type'] = 'CHUNKED_TDF'
-
-        # save column order
-        write_data(data.columns, df_group, 'columns', key_level=key_level + 1)
-
-        # save data, per time point, in DataSets
-        for time_point in data.time_points:
-            generalLogger.info(f"{spacer(key_level + 1)}Saving time point {time_point}")
-            data_group.create_dataset(str(time_point), data=data[time_point].values, chunks=True, maxshape=(None, None))
-
-
-@write_data.register
-def write_TemporalDataFrame(data: 'TemporalDataFrame',
+@write_data.register(TemporalDataFrame)
+@write_data.register(ViewTemporalDataFrame)
+def write_TemporalDataFrame(data: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
                             group: H5Group,
                             key: str,
                             key_level: int = 0) -> None:
-    write_TDF(data, group, key, key_level)
-
-
-@write_data.register
-def write_ViewTemporalDataFrame(data: 'ViewTemporalDataFrame',
-                                group: H5Group,
-                                key: str,
-                                key_level: int = 0) -> None:
-    write_TDF(data, group, key, key_level)
-
-
-def quick_delete_TDF_column(group: H5Group,
-                            column_name: str) -> None:
-    """
-    Function for quickly removing a column from a TDF's group in a H5 file.
-
-    Args:
-        group: TDF's file group.
-        column_name: name of the column to delete.
-    """
-    if group.attrs['type'] == 'TDF':
-        if column_name not in group['data'].keys():
-            raise VValueError(f"Column '{column_name}' not found in this TemporalDataFrame.")
-
-        del group['data'][column_name]
-
-    else:
-        raise NotImplementedError
-
-
-def quick_insert_TDF_column(group: H5Group,
-                            column_name: str,
-                            values: np.ndarray,
-                            position: int) -> None:
-    """
-    Function for quickly inserting a column into a TDF's group in a H5 file.
-
-    Args:
-        group: TDF's file group.
-        column_name: name of the column to insert.
-        values: values to insert.
-        position: index at which to insert the column. # TODO : not working right now
-    """
-    if group.attrs['type'] == 'TDF':
-        if (l := len(values)) != group['index'].shape[0]:
-            raise VValueError(f"'values' parameter has wrong length ({l}), expected {group['index'].shape[0]}.")
-
-        if values.dtype == object:
-            values = values.astype(str)
-
-        write_data(values, group['data'], column_name, key_level=0)
-
-    else:
-        raise NotImplementedError
+    generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
+    data.write(group.create_group(str(key)))
 
 
 @write_data.register(pd.Series)

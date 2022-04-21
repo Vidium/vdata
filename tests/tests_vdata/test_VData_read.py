@@ -26,9 +26,9 @@ def test_VData_read():
     assert repr(v) == "Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
                       "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
-                      "obs: 'Cell_Type', 'Day'\n\t" \
+                      "obs: 'Time_hour', 'Cell_Type', 'Day'\n\t" \
                       "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
-                      "time_points: 'value'\n\t" \
+                      "timepoints: 'value'\n\t" \
                       "uns: 'colors', 'date'", repr(v)
 
     v.file.close()
@@ -38,9 +38,9 @@ def test_VData_read():
     assert repr(v) == "VData '2' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
-                      "obs: 'Cell_Type', 'Day'\n\t" \
+                      "obs: 'Time_hour', 'Cell_Type', 'Day'\n\t" \
                       "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
-                      "time_points: 'value'", repr(v)
+                      "timepoints: 'value'", repr(v)
 
     # load from a dictionary
     obs = pd.DataFrame({'id_cells': range(20)})
@@ -49,7 +49,7 @@ def test_VData_read():
     assert repr(v) == "VData '3' with n_obs x n_var = [7, 3, 10] x 4 over 3 time points.\n\t" \
                       "layers: 'RNA', 'Protein'\n\t" \
                       "obs: 'id_cells'\n\t" \
-                      "time_points: 'value'", repr(v)
+                      "timepoints: 'value'", repr(v)
 
 
 if __name__ == "__main__":

@@ -1,1111 +1,1021 @@
 # coding: utf-8
-# Created on 12/9/20 9:17 AM
+# Created on 28/03/2022 11:22
 # Author : matteo
 
 # ====================================================
 # imports
-import pandas as pd
 import numpy as np
+import pandas as pd
+import numpy_indexed as npi
+from h5py import File, Dataset
 from pathlib import Path
-from collections import Counter
-from typing import Union, Optional, Collection, Any, Literal
+from numbers import Number
 
-from .name_utils import TemporalDataFrame_internal_attributes, TemporalDataFrame_reserved_keys
-from .utils import unique_in_list, trim_time_points
-from .base import BaseTemporalDataFrame
-from .copy import copy_TemporalDataFrame
-from .indexers import _VAtIndexer, _ViAtIndexer, _VLocIndexer, _ViLocIndexer
-from .views import ViewTemporalDataFrame
-from ..name_utils import TimePointList, PreSlicer
-from ..utils import match_time_points, to_tp_list, to_list, reformat_index, repr_index
-from vdata.name_utils import DType
-from vdata.utils import repr_array, isCollection
+from typing import Union, Optional, Collection, Any, Iterable
+
 from vdata.time_point import TimePoint
-from ...IO import generalLogger, VValueError, VTypeError, ShapeError, VLockError
-from ...h5pickle import Group, File
-
-# TODO : remove match_time_points
+from vdata.name_utils import H5Mode
+from vdata.utils import repr_array, isCollection
+from vdata.IO import VLockError
+from .name_utils import H5Data, SLICER, DEFAULT_TIME_POINTS_COL_NAME
+from .utils import parse_slicer
+from .base import BaseTemporalDataFrame
+from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
+from .view import ViewTemporalDataFrame
+from ._parse import parse_data
+from ._write import write_TDF
 
 
 # ====================================================
 # code
-def parse_index_and_time_points(_index: Optional[Collection],
-                                _data: Optional[Union[dict, pd.DataFrame]],
-                                _time_list: 'TimePointList',
-                                _time_col_name: Optional[str],
-                                _time_points: Optional[list],
-                                _columns: Collection[str]) \
-        -> tuple[
-            dict['TimePoint', np.ndarray],
-            list['TimePoint'],
-            Optional[str],
-            dict['TimePoint', pd.Index],
-            pd.Index
-        ]:
-    """
-    Given the index, data, time list, time points and columns parameters from a TemporalDataFrame, infer correct
-    data DataFrames, get the list of time points, the optional column where time points can be found and the columns
-    of the data DataFrames.
+def check_can_read(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
 
-    :param _index: index for the dataframe's rows.
-    :param _data: data to store as a dataframe.
-    :param _time_list: time points for the dataframe's rows.
-    :param _time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can be
-        given.
-    :param _time_points: a list of time points that should exist.
-    :param _columns: column labels.
+        file = object.__getattribute__(self, '_file')
 
-    :return: data, time_points, time_points_col_name, time_points_col, index and columns
-    """
-    generalLogger.debug("\t\u23BE Parse index and time points : begin ---------------------------------------- ")
+        # if TDF is backed but file is closed : can't read
+        if file is not None and not file:
+            raise ValueError("Can't read TemporalDataFrame backed on closed file.")
 
-    tp_col_name = None
+        return func(*args, **kwargs)
 
-    if _data is None:
-        generalLogger.debug("\t'data' was not found.")
+    return wrapper
 
-        if _time_col_name is not None:
-            generalLogger.warning("\t'time_col' parameter was set but no data was provided, 'time_col' will be "
-                                  "ignored.")
 
-        if _index is None:
-            generalLogger.debug("\t\t'index' was not found.")
+def check_can_write(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
 
-            if _time_list is None:
-                generalLogger.debug("\t\t\t'time_list' was not found.")
+        file = object.__getattribute__(self, '_file')
 
-                if _time_points is None:
-                    # nothing provided
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
+        # if TDF is backed but file is closed or file mode is not a or r+ : can't write
+        if file is not None:
+            if not file:
+                raise ValueError("Can't write to TemporalDataFrame backed on closed file.")
 
-                    _time_points = []
+            if (m := file.mode) not in (H5Mode.READ_WRITE_CREATE, H5Mode.READ_WRITE):
+                raise ValueError(f"Can't write to TemporalDataFrame backed on file with mode='{m}'.")
 
-                else:
-                    # only list of time points was provided
-                    generalLogger.debug(f"\t\t\t\t'time points' is : {repr_array(_time_points)}.")
+        return func(*args, **kwargs)
 
-                _index = {tp: pd.Index([]) for tp in _time_points}
-                _data = {tp: np.array([]) for tp in _time_points}
-
-            else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
-
-                if _time_points is None:
-                    # only a time_list was provided
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    _time_points = sorted(list(unique_in_list(_time_list)))
-
-                else:
-                    # time_list and time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
-                    if len(excluded_elements):
-                        generalLogger.warning(f"\tTime points {excluded_elements} were found in 'time_list'"
-                                              f"parameter but not in 'time_points'. They will be ignored.")
-
-                _index = {tp: [] for tp in _time_points}
-                current_index = 0
-
-                for item in _time_list:
-                    if isCollection(item):
-                        for sub_item in item:
-                            _index[sub_item].append(current_index)
-
-                    else:
-                        _index[item].append(current_index)
-
-                    current_index += 1
-
-                _index = {tp: pd.Index(_index[tp]) for tp in _index}
-
-                if _columns is not None:
-                    _data = {tp: np.empty((len(_index[tp]), len(pd.Index(_columns)))) for tp in _time_points}
-                    for tp in _time_points:
-                        _data[tp][:] = np.nan
-
-                else:
-                    _data = {tp: np.array([]) for tp in _time_points}
-
-        else:
-            generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
-
-            if _time_list is None:
-                generalLogger.debug("\t\t\t'time_list' was not found.")
-
-                if _time_points is None:
-                    # only the index was provided
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
-
-                    _time_points = [TimePoint('0')]
-
-                else:
-                    # index and time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                _index = {tp: pd.Index(_index) for tp in _time_points}
-                _data = {tp: np.array([]) for tp in _time_points}
-
-            else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
-
-                if _time_points is None:
-                    # index and _time_list were provided
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    if not len(_index) == len(_time_list):
-                        raise ShapeError(f"Lengths of 'index' ({repr_array(_index)}) and 'time_list' "
-                                         f"({repr_array(_time_list)}) parameters do not match.")
-
-                    _time_points = list(unique_in_list(_time_list))
-
-                else:
-                    # index, _time_list and _time_points were provided
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                    _time_list, excluded_elements = trim_time_points(_time_list, _time_points)
-                    if len(excluded_elements):
-                        generalLogger.warning(f"\tTime points {repr_array(excluded_elements)} were found in "
-                                              f"'time_list' parameter but not in 'time_points'. They will be ignored.")
-
-                    if not len(_index) == len(_time_list):
-                        raise ShapeError("Lengths of 'index' and 'time_list' parameters do not match.")
-
-                _time_list = np.array(_time_list)
-
-                _data = {tp: pd.DataFrame(index=np.array(_index)[match_time_points(_time_list, [tp])],
-                                          columns=_columns).values for tp in _time_points}
-                _index = {tp: pd.Index(_index)[match_time_points(_time_list, [tp])] for tp in _time_points}
-
-        if _columns is not None:
-            _columns = pd.Index(_columns)
-
-        else:
-            _columns = pd.Index([])
-
-        _data_df = _data
-
-    else:
-        # First, get data length
-
-        # ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
-        # if data is a dict, check that the dict can be converted to a DataFrame
-        if isinstance(_data, dict):
-            # get number of rows in data
-            data_len = 1
-            for value in _data.values():
-                value_len = len(value) if isCollection(value) else 1
-
-                if value_len != data_len and data_len != 1 and value_len != 1:
-                    raise ShapeError("All items in 'data' must have the same length "
-                                     "(or be a unique value to set for all rows).")
-
-                if data_len == 1:
-                    data_len = value_len
-
-            generalLogger.debug(f"\tFound data in a dictionary with {data_len} rows.")
-
-        # ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
-        # data is a pandas DataFrame
-        else:
-            data_len = len(_data)
-
-            generalLogger.debug(f"\tFound data in a DataFrame with {data_len} rows and {len(_data.columns)} columns.")
-
-        _data_df = pd.DataFrame(_data, columns=_columns)
-
-        # check column names are valid
-        for key in TemporalDataFrame_reserved_keys:
-            if key in _data_df.columns:
-                raise VValueError(f"'{key}' column is reserved and cannot be used in 'data'.")
-
-        # get time list from time_col if possible
-        if _time_col_name is not None:
-            if _time_list is None:
-                if _time_col_name in _data.columns:
-                    generalLogger.info(f"\tUsing '{_time_col_name}' as time points data.")
-
-                    if _time_points is not None:
-                        ref = _time_points
-
-                    else:
-                        ref = to_tp_list(unique_in_list(_data[_time_col_name]) - {'*'})
-
-                    _time_list = to_tp_list(_data[_time_col_name], ref)
-
-                    if _time_col_name in _data_df.columns:
-                        del _data_df[_time_col_name]
-
-                    tp_col_name = _time_col_name
-
-                else:
-                    raise VValueError(f"'{_time_col_name}' could not be found in 'data'.")
-
-            else:
-                generalLogger.warning("\tBoth 'time_list' and 'time_col' parameters were set, 'time_col' will be "
-                                      "ignored.")
-
-        _columns = _data_df.columns
-
-        # -----------------------------------------------------------------------------------
-        # Then, parse data
-        if _index is None:
-            generalLogger.debug("\t\t'index' was not found.")
-
-            if _time_list is None:
-                generalLogger.debug("\t\t\t'time_list' was not found.")
-
-                if _time_points is None:
-                    # only data provided
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
-
-                    _time_points = [TimePoint('0')]
-                    _index = {TimePoint('0'): _data_df.index}
-                    _data_df = {TimePoint('0'): _data_df.values}
-
-                else:
-                    # data and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                    _index = {tp: _data_df.index for tp in _time_points}
-                    _data_df = {tp: _data_df.values for tp in _time_points}
-
-            else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
-
-                if _time_points is None:
-                    # data and time list
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    _time_points = list(unique_in_list(_time_list))
-
-                else:
-                    # data, time list and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                    new_time_list, excluded_elements = trim_time_points(_time_list, _time_points)
-                    if len(excluded_elements):
-                        generalLogger.warning(f"\tTime points {list(excluded_elements)} were found in 'time_list' "
-                                              f"parameter but not in 'time_points'. They will be ignored.")
-
-                        # remove undesired time points from the data
-                        _data_df = _data_df[match_time_points(_time_list, _time_points)]
-
-                        generalLogger.debug(f"\tNew data has {len(_data_df)} rows.")
-
-                    _time_list = new_time_list
-
-                if len(_data_df) != len(_time_list):
-                    if len(_data_df) * len(_time_points) == len(_time_list):
-                        _index = {tp: _data_df.index for tp in _time_points}
-                        _data_df = {tp: _data_df.values for tp in _time_points}
-
-                    else:
-                        raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
-
-                else:
-                    _data_df = {tp: _data_df.loc[match_time_points(_time_list, [tp])] for tp in _time_points}
-
-                    _index = {tp: _data_df[tp].index for tp in _time_points}
-                    _data_df = {k: v.values for k, v in _data_df.items()}
-
-        else:
-            generalLogger.debug(f"\t\t'index' is : {repr_array(_index)}.")
-
-            if _time_list is None:
-                generalLogger.debug("\t\t\t'time_list' was not found.")
-
-                if _time_points is None:
-                    # data and index
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    generalLogger.info(f"\tSetting all time points to default value '{TimePoint('0')}'.")
-
-                    _time_points = [TimePoint('0')]
-
-                else:
-                    # data, index and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                len_index = len(_index)
-
-                if len_index != data_len:
-                    if len_index * len(_time_points) == data_len:
-                        _data_df = {tp: _data_df[tp_index * len_index: (tp_index + 1) * len_index]
-                                    for tp_index, tp in enumerate(_time_points)}
-
-                        for tp in _time_points:
-                            _data_df[tp].index = _index
-
-                        _index = {tp: pd.Index(_index) for tp in _time_points}
-                        _data_df = {k: v.values for k, v in _data_df.items()}
-
-                    else:
-                        raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")
-
-                else:
-                    _data_df = {tp: _data_df.values for tp in _time_points}
-                    _index = {tp: pd.Index(_index) for tp in _time_points}
-
-            else:
-                generalLogger.debug(f"\t\t\t'time_list' is : {repr_array(_time_list)}.")
-
-                if _time_points is None:
-                    # data, index and time list
-                    generalLogger.debug("\t\t\t\t'time_points' was not found.")
-
-                    _time_points = list(unique_in_list(_time_list))
-
-                else:
-                    # data, index, time list and time points
-                    generalLogger.debug(f"\t\t\t\t'time_points' is : {repr_array(_time_points)}.")
-
-                _time_points = sorted(_time_points)
-
-                if data_len != len(_time_list):
-                    if data_len * len(_time_points) == len(_time_list):
-                        _data_df = pd.concat([_data_df for _ in range(len(_time_points))])
-                        generalLogger.debug(f"Refactored data by concatenating {len(_time_points)} times.")
-
-                    else:
-                        raise ShapeError("Length of 'time_list' and number of rows in 'data' do not match.")
-
-                if len(_index) != len(_data_df):
-                    if len(_index) * len(_time_points) == len(_data_df):
-                        _index = pd.Index(np.concatenate([_index for _ in _time_points]))
-                        generalLogger.debug(f"Refactored index by concatenating {len(_time_points)} times.")
-
-                    else:
-                        raise ShapeError("Length of 'index' and number of rows in 'data' do not match.")
-
-                _tmp_columns = _columns if _columns is not None else _data_df.columns
-                _expanded_time_list = []
-
-                for tp_i, tp in enumerate(_time_list):
-                    if isCollection(tp):
-                        _data_df = pd.concat([_data_df.iloc[:tp_i]] +
-                                             [pd.DataFrame(_data_df.iloc[tp_i]).T for _ in range(len(set(tp))-1)] +
-                                             [_data_df.iloc[tp_i:]], sort=False)
-
-                        for tp_bis in tp:
-                            _expanded_time_list.append(tp_bis)
-
-                    else:
-                        _expanded_time_list.append(tp)
-
-                _data_df.index = _index
-
-                if _expanded_time_list == sorted(_expanded_time_list):
-                    tp_occurrences = Counter(_expanded_time_list)
-                    tp_cumulative_occurrences = [0] + list(np.cumsum([tp_occurrences[tp] for tp in _time_points]))
-
-                    _data_df = {tp: pd.DataFrame(
-                        _data_df.iloc[tp_cumulative_occurrences[tp_i]:tp_cumulative_occurrences[tp_i + 1]],
-                        columns=_tmp_columns) for tp_i, tp in enumerate(_time_points)}
-
-                else:
-                    _data_df['__tmp_time__'] = _expanded_time_list
-                    _data_df.sort_values(by='__tmp_time__', inplace=True)
-
-                    _data_df = {tp: pd.DataFrame(_data_df[_data_df['__tmp_time__'] == tp], columns=_tmp_columns)
-                                for tp in _time_points}
-
-                _index = {tp: _data_df[tp].index for tp in _time_points}
-                _data_df = {k: v.values for k, v in _data_df.items()}
-
-    generalLogger.debug(f"\tSet 'time_points' to : {repr_array(_time_points)}.")
-    generalLogger.debug(f"\tSet 'time_points_column' to : {tp_col_name}.")
-    generalLogger.debug(f"\tSet 'columns' to : {repr_array(_columns)}.")
-
-    generalLogger.debug("\t\u23BF Parse index and time points : end ------------------------------------------ ")
-    return _data_df, _time_points, tp_col_name, _index, _columns
+    return wrapper
 
 
 class TemporalDataFrame(BaseTemporalDataFrame):
     """
-    An equivalent to pandas DataFrames to include a notion of time on the rows.
-    This class implements a modified sub-setting mechanism to subset on time points and on the regular conditional
-    selection.
+    An equivalent to pandas DataFrames that includes the notion of time on the rows.
+    This class implements a modified sub-setting mechanism to subset on time points, rows and columns
     """
+
+    __slots__ = '_name', '_file', '_numerical_array', '_string_array', '_timepoints_array', '_index', \
+                '_repeating_index', '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
+
+    __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str')
+
     def __init__(self,
-                 data: Optional[Union[dict, pd.DataFrame, Group, File]] = None,
-                 time_list: Optional[Union[Collection, 'DType', Literal['*'], 'TimePoint']] = None,
-                 time_col_name: Optional[str] = None,
-                 time_points: Optional[Collection[Union['DType', 'TimePoint']]] = None,
+                 data: Union[None, dict, pd.DataFrame, H5Data] = None,
                  index: Optional[Collection] = None,
-                 columns: Optional[Collection] = None,
-                 dtype: Optional['DType'] = None,
-                 name: Optional[Any] = None,
-                 file: Optional[File] = None,
-                 no_check: bool = False):
+                 repeating_index: bool = False,
+                 columns_numerical: Optional[Collection] = None,
+                 columns_string: Optional[Collection] = None,
+                 time_list: Optional[Collection[Union[Number, str, TimePoint]]] = None,
+                 time_col_name: Optional[str] = None,
+                 lock: Optional[tuple[bool, bool]] = None,
+                 name: Any = 'No_Name'):
         """
         Args:
-            data: data to store as a dataframe.
-            time_list: time points for the dataframe's rows. The value indicates at which time point a given row
-                exists in the dataframe.
-                It can be :
-                    - a collection of values of the same length as the number of rows.
-                    - a single value to set for all rows.
-
-                In any case, the values can be :
-                    - a single time point (indicating that the row only exists at that given time point)
-                    - a collection of time points (indicating that the row exists at all those time points)
-                    - the character '*' (indicating that the row exists at all time points)
-
-            time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can
-                be given. This column will be used as the time data.
-            time_points: a list of time points that should exist. This is useful when using the '*' character to
-                specify the list of time points that the TemporalDataFrame should cover.
-            index: index for the dataframe's rows.
-            columns: column labels.
-            dtype: data type to force.
-            name: optional TemporalDataFrame's name.
-            file: optional TemporalDataFrame's h5 file for backing.
-            no_check: skip checks (only use if you guaranty the data passed to create this TemporalDataFrame is valid !)
+            data: Optional object containing the data to store in this TemporalDataFrame. It can be :
+                - a dictionary of ['column_name': [values]], where [values] has always the same length
+                - a pandas DataFrame
+                - a H5 File or Group containing numerical and string data.
+            index: Optional collection of indices. Must match the total number of rows in this TemporalDataFrame,
+                over all time-points.
+            repeating_index: Is the index repeated at all time-points ?
+                If False, the index must contain unique values.
+                If True, the index must be exactly equal at all time-points.
+            columns_numerical: Optional collection of column names for numerical columns. Must match the number of
+                numerical columns in this TemporalDataFrame.
+            columns_string: Optional collection of column names for string columns. Must match the number of string
+                columns in this TemporalDataFrame.
+            time_list: Optional list of time values of the same length as the index, indicating for each row at which
+                time point it exists.
+            time_col_name: Optional column name in data (if data is a dictionary or a pandas DataFrame) to use as
+                time list. This parameter will be ignored if the 'time_list' parameter was set.
+            lock: Optional 2-tuple of booleans indicating which axes (index, columns) are locked.
+                If 'index' is locked, .index.setter() and .reindex() cannot be used.
+                If 'columns' is locked, .__delattr__(), .columns.setter() and .insert() cannot be used.
+            name: a name for this TemporalDataFrame.
         """
-        self._name = str(name) if name is not None else 'No_Name'
+        # (potentially) backed data :
+        #   numerical data (assumed float or int)
+        #   string data (objects which are not numbers, assumed strings)
+        #   index (any type)
+        #   columns (any type)
+        _file, _numerical_array, _string_array, _timepoints_array, _index, _columns_numerical, _columns_string, \
+            _lock, _timepoints_column_name, _name = \
+            parse_data(data, index, repeating_index, columns_numerical, columns_string, time_list, time_col_name, lock,
+                       name)
 
-        generalLogger.debug(f"\u23BE TemporalDataFrame '{self.name}' creation : begin "
-                            f"---------------------------------------- ")
+        object.__setattr__(self, '_file', _file)
+        object.__setattr__(self, '_numerical_array', _numerical_array)
+        object.__setattr__(self, '_string_array', _string_array)
+        object.__setattr__(self, '_timepoints_array', _timepoints_array)
+        object.__setattr__(self, '_index', _index)
+        object.__setattr__(self, '_repeating_index', repeating_index)
+        object.__setattr__(self, '_columns_numerical', _columns_numerical)
+        object.__setattr__(self, '_columns_string', _columns_string)
+        object.__setattr__(self, '_lock', _lock)
+        object.__setattr__(self, '_timepoints_column_name', _timepoints_column_name)
+        object.__setattr__(self, '_name', _name)
 
-        self._file = None
-        self._is_locked = (False, False)
-
-        self._time_points = sorted(
-            to_tp_list(unique_in_list(to_list(time_points)), [])) if time_points is not None else None
-
-        if self._time_points is not None:
-            generalLogger.debug(f"User has defined time points : {repr_array(self._time_points)}.")
-
-        if time_list is not None:
-            if self._time_points is not None:
-                ref = self._time_points
-
-            else:
-                ref = to_tp_list(unique_in_list(to_list(time_list)) - {'*'})
-
-            time_list = to_tp_list(time_list, ref)
-
-        # ---------------------------------------------------------------------
-        # no data given, empty DataFrame is created
-        if data is None or (isinstance(data, dict) and not len(data.keys())) or (isinstance(data, pd.DataFrame) and
-                                                                                 not len(data.columns)):
-            generalLogger.debug('Setting empty TemporalDataFrame.')
-
-            index = index if index is not None else data.index if data is not None and len(data.index) else None
-            columns = columns if columns is not None else data.columns if data is not None and len(
-                data.columns) else None
-
-            if no_check:
-                self._time_points_column_name = time_col_name
-                self._index = index
-                self._columns = columns
-
-            else:
-                data, self._time_points, self._time_points_column_name, self._index, self._columns = \
-                    parse_index_and_time_points(index, None, time_list, time_col_name, self._time_points, columns)
-
-            self._df = data
-
-        # ---------------------------------------------------------------------
-        # data given
-        elif isinstance(data, (dict, pd.DataFrame)):
-
-            if isinstance(data, pd.DataFrame):
-                # work on a copy of the data to avoid undesired modifications
-                data = data.copy()
-
-            if no_check:
-                self._time_points_column_name = time_col_name
-                self._index = index
-                self._columns = columns
-
-            else:
-                data, self._time_points, self._time_points_column_name, self._index, self._columns = \
-                    parse_index_and_time_points(index, data, time_list, time_col_name, self._time_points, columns)
-
-            generalLogger.debug("Storing data in TemporalDataFrame.")
-            self._df = data
-
-            if file is not None:
-                self._file = file
-
-        # ---------------------------------------------------------------------
-        # data from hdf5 file
-        elif isinstance(data, (Group, File)):
-
-            assert index is not None, "'index' parameter must be set when reading an h5 file."
-            assert columns is not None, "'columns' parameter must be set when reading an h5 file."
-
-            self._columns = pd.Index(columns)
-            self._time_points_column_name = str(time_col_name) if time_col_name is not None else None
-
-            self._time_points = []
-            self._index = {}
-            self._df = {}
-
-            self.__load_from_file(data, index)
-
-        # ---------------------------------------------------------------------
-        # invalid data
-        else:
-            raise VTypeError(f"Type {type(data)} is not handled for 'data' parameter.")
-
-        # ---------------------------------------------------------------------
-        # cast to correct dtype
-        self.astype(dtype)
-
-        # get list of time points that can be found in the DataFrame
-        self._time_points = sorted(self._time_points)
-
-        generalLogger.debug(f"Found time points {repr_array(self._time_points)} from stored DataFrame.")
-
-        generalLogger.debug(f"Shape is : {self.shape}.")
-
-        generalLogger.debug(f"\u23BF TemporalDataFrame '{self.name}' creation : end "
-                            f"------------------------------------------ ")
-
+    @check_can_read
     def __repr__(self) -> str:
+        if self.is_backed and not self._file:
+            return f"Backed TemporalDataFrame on closed file."
+
+        if self.empty:
+            return f"Empty {'backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
+
+        return f"{'Backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
+
+    @check_can_read
+    def __dir__(self) -> Iterable[str]:
+        return dir(TemporalDataFrame) + list(self.columns)
+
+    @check_can_read
+    def __getattr__(self,
+                    column_name: str) -> ViewTemporalDataFrame:
         """
-        Description for this TemporalDataFrame object to print.
-        :return: a description of this TemporalDataFrame object
+        Get a single column from this TemporalDataFrame.
         """
-        if not self.empty:
-            repr_str = f"{'Backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n"
+        if column_name in self.columns_num:
+            return ViewTemporalDataFrame(self, self.index, np.array([column_name]), np.array([]))
+
+        elif column_name in self.columns_str:
+            return ViewTemporalDataFrame(self, self.index, np.array([]), np.array([column_name]))
+
+        raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
+
+    @check_can_write
+    def __setattr__(self,
+                    name: str,
+                    values: np.ndarray) -> None:
+        """
+        Set values of a single column. If the column does not already exist in this TemporalDataFrame, it is created
+            at the end.
+        """
+        if name in TemporalDataFrame.__attributes or name in TemporalDataFrame.__slots__:
+            object.__setattr__(self, name, values)
+            return
+
+        values = np.array(values)
+
+        if (l := len(values)) != (n := self.n_index):
+            raise ValueError(f"Wrong number of values ({l}) for column '{name}', expected {n}.")
+
+        if name in self.columns_num:
+            # set values for numerical column
+            self._numerical_array[:, np.where(self.columns_num == name)[0][0]] = \
+                values.astype(self._numerical_array.dtype)
+
+        elif name in self.columns_str:
+            # set values for string column
+            self._string_array[:, np.where(self.columns_str == name)[0][0]] = values.astype(str)
 
         else:
-            repr_str = f"Empty {'backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n"
+            if np.issubdtype(values.dtype, np.number):
+                # create numerical column
+                if self.is_backed:
+                    self._numerical_array.resize((self.n_index, self.n_columns_num + 1))
+                    self._numerical_array[:, -1] = values.astype(self._numerical_array.dtype)
 
-        repr_str += self._head()
+                    self._columns_numerical.resize((self.n_columns_num + 1,))
+                    self._columns_numerical[-1] = name
 
-        return repr_str
+                else:
+                    object.__setattr__(self, '_numerical_array',
+                                       np.append(self._numerical_array,
+                                                 values.astype(self._numerical_array.dtype)[:, None], axis=1))
 
-    def __getitem__(self, index: Union['PreSlicer',
-                                       tuple['PreSlicer'],
-                                       tuple['PreSlicer', 'PreSlicer'],
-                                       tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
-            -> 'ViewTemporalDataFrame':
-        """
-        Get a view from this TemporalDataFrame using an index with the usual sub-setting mechanics.
-
-        Args:
-            index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
-                An index can be a string, an int, a float, a sequence of those, a range, a slice or an ellipsis ('...').
-                Indexes are converted to a 3-tuple :
-                    * TDF[index]            --> (index, :, :)
-                    * TDF[index1, index2]   --> (index1, index2, :)
-
-                The first element in the 3-tuple is the list of time points to select, the second element is a
-                collection of rows to select, the third element is a collection of columns to select.
-
-                The values ':' or '...' are shortcuts for 'take all values'.
-
-                Example:
-                    * TemporalDataFrame[:] or TemporalDataFrame[...]    --> select all data
-                    * TemporalDataFrame[0]                              --> select all data from time point 0
-                    * TemporalDataFrame[[0, 1], [1, 2, 3], 'col1']      --> select data from timepoints 0 and 1 for rows
-                                                                        with index in [1, 2, 3] and column 'col1'
-        Returns:
-            A view on a sub-set of a TemporalDataFrame
-        """
-        generalLogger.debug(f"TemporalDataFrame '{self.name}' sub-setting - - - - - - - - - - - - - - ")
-        generalLogger.debug(f'  Got index \n{repr_index(index)}.')
-
-        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
-                and not isinstance(index[2], slice) and index[2] is not ... \
-                and (index[0] is ... or (isinstance(index[0], slice) and index[0] == slice(None)))\
-                and (index[1] is ... or index[1] == slice(None)):
-            return self.__getattr__(index[2])
-
-        else:
-            formatted_index = reformat_index(index, self.time_points, self.index, self.columns)
-
-            generalLogger.debug(f'  Refactored index to \n{repr_index(index)}.')
-
-            if not len(formatted_index[0]):
-                raise VValueError("Time points not found in this TemporalDataFrame.")
-
-            if not len(formatted_index[1]) and isinstance(index, tuple) and len(index) >= 2 \
-                    and index[1] not in (..., slice(None)):
-                raise VValueError("Indices not found in this TemporalDataFrame.")
-
-            if not len(formatted_index[2]) and isinstance(index, tuple) and len(index) == 3 \
-                    and index[2] not in (..., slice(None)):
-                raise VValueError("Columns not found in this TemporalDataFrame.")
-
-            return ViewTemporalDataFrame(self, self._df,
-                                         formatted_index[0], formatted_index[1], formatted_index[2], self._is_locked[0])
-
-    def __getattr__(self, attr: str) -> Any:
-        """
-        Get columns in the DataFrame (this is done for maintaining the pandas DataFrame behavior).
-        :param attr: an attribute's name
-        :return: a column with name <attr> from the DataFrame
-        """
-        try:
-            return object.__getattribute__(self, str(attr))
-
-        except AttributeError:
-            try:
-                return object.__getattribute__(self, 'loc')[:, attr]
-
-            except KeyError:
-                raise AttributeError(f"'TemporalDataFrame' object has no attribute '{attr}'")
-
-    def __setattr__(self, attr: str, value: Any) -> None:
-        """
-        Set value for a regular attribute of for a column in the DataFrame.
-        :param attr: an attribute's name
-        :param value: a value to be set into the attribute
-        """
-        if attr in TemporalDataFrame_internal_attributes:
-            object.__setattr__(self, attr, value)
-
-        elif attr in self.columns:
-            self.loc[:, attr] = value
-
-            if self.is_backed and self._file.file.mode == 'r+':
-                self.write()
-
-        else:
-            self.insert(self.n_columns, attr, value)
-
-    def __delitem__(self,
-                    index: Union['PreSlicer',
-                                 tuple['PreSlicer'],
-                                 tuple['PreSlicer', 'PreSlicer'],
-                                 tuple['PreSlicer', 'PreSlicer', 'PreSlicer']]) \
-            -> None:
-        """
-        Delete a column from this TemporalDataFrame using an index.
-
-        Args:
-            index: A sub-setting index. It must be 3-tuple with the first two elements being ':' or '...' and the
-            third element being the name of a column to delete.
-        """
-        # TODO : here check for read only or file closed
-        if isinstance(index, tuple) and len(index) == 3 and not isCollection(index[2]) \
-                and not isinstance(index[2], slice) and index[2] is not ... \
-                and (index[0] is ... or (isinstance(index[0], slice) and index[0] == slice(None)))\
-                and (index[1] is ... or index[1] == slice(None)):
-            self.__delattr__(index[2])
-
-        else:
-            raise VValueError("Can only delete a column !")
-
-    def __delattr__(self, col: str) -> None:
-        from ..._read_write.write import quick_delete_TDF_column
-
-        if self.is_locked[1]:
-            raise VLockError("Cannot use 'delattr' functionality on a locked TemporalDataFrame.")
-
-        else:
-            if col in self.columns:
-                col_index = np.where(self.columns == col)[0][0]
-
-                for time_point in self.time_points:
-                    self._df[time_point] = np.delete(self._df[time_point], col_index, 1)
-
-                self._columns = self._columns.delete(col_index)
-
-                if self.is_backed and self._file.file.mode == 'r+':
-                    quick_delete_TDF_column(self.file, col)
+                    self._columns_numerical.resize((self.n_columns_num + 1,), refcheck=False)
+                    self._columns_numerical[-1] = name
 
             else:
-                raise VValueError(f"Column '{col}' not found in TemporalDataFrame '{self.name}'.")
+                # create string column
+                if self.is_backed:
+                    self._string_array.resize((self.n_index, self.n_columns_str + 1))
+                    self._string_array[:, -1] = values.astype(str)
 
-    def __add__(self, value: Union[int, float]) -> 'TemporalDataFrame':
-        """
-        Add an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
-        :param value: an int or a float to add to values.
-        :return: a TemporalDataFrame with new values.
-        """
-        return self._asmd_func('__add__', value)
+                    self._columns_string.resize((self.n_columns_str + 1,))
+                    self._columns_string[-1] = name
 
-    def __sub__(self, value: Union[int, float]) -> 'TemporalDataFrame':
-        """
-        Subtract an int or a float to all values in this TemporalDataFrame and return a new TemporalDataFrame.
-        :param value: an int or a float to subtract to values.
-        :return: a TemporalDataFrame with new values.
-        """
-        return self._asmd_func('__sub__', value)
+                else:
+                    object.__setattr__(self, '_string_array',
+                                       np.append(self._string_array, values.astype(str)[:, None], axis=1))
 
-    def __mul__(self, value: Union[int, float]) -> 'TemporalDataFrame':
-        """
-        Multiply all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
-        :param value: an int or a float to multiply all values by.
-        :return: a TemporalDataFrame with new values.
-        """
-        return self._asmd_func('__mul__', value)
+                    self._columns_string.resize((self.n_columns_str + 1,), refcheck=False)
+                    self._columns_string[-1] = name
 
-    def __truediv__(self, value: Union[int, float]) -> 'TemporalDataFrame':
-        """
-        Divide all values in this TemporalDataFrame by an int or a float and return a new TemporalDataFrame.
-        :param value: an int or a float to divide all values by.
-        :return: a TemporalDataFrame with new values.
-        """
-        return self._asmd_func('__truediv__', value)
+    @check_can_write
+    def __delattr__(self,
+                    column_name: str) -> None:
+        def drop_column_np(array_: np.ndarray,
+                           columns_: np.ndarray,
+                           index_: int) -> tuple[np.ndarray, np.ndarray]:
+            # delete column from the data array
+            array_ = np.delete(array_, index_, 1)
 
-    def __eq__(self, other):
-        if isinstance(other, (TemporalDataFrame, ViewTemporalDataFrame)):
-            return self.time_points == other.time_points and self.index == other.index and self.columns == \
-                   other.columns and all([self._df[tp] == other._df[tp] for tp in self.time_points])
+            # delete column from the column names
+            columns_ = np.delete(columns_, index_)
 
-        elif self.n_columns == 1:
-            return self.eq(other).values.flatten()
+            return array_, columns_
+
+        def drop_column_h5(array_: np.ndarray,
+                           columns_: np.ndarray,
+                           index_: int) -> None:
+            # transfer data one row to the left, starting from the column after the one to delete
+            # matrix | 0 1 2 3 4 | with index of the column to delete = 2
+            #   ==>  | 0 1 3 4 . |
+            array_[:, index_:len(columns_) - 1] = array_[:, index_ + 1:len(columns_)]
+
+            # delete column from the column names as above
+            columns_[index_:len(columns_) - 1] = columns_[index_ + 1:len(columns_)]
+
+            # resize the arrays to drop the extra column at the end
+            columns_.resize((len(columns_) - 1,))
+            array_.resize((array_.shape[0], array_.shape[1] - 1))
+
+        if self.has_locked_columns:
+            raise VLockError("Cannot delete column from TDF with locked columns.")
+
+        if column_name in self.columns_num:
+            item_index = np.where(self.columns_num == column_name)[0][0]
+
+            if self.is_backed:
+                drop_column_h5(self._numerical_array, self._columns_numerical, item_index)
+
+            else:
+                self._numerical_array, self._columns_numerical = \
+                    drop_column_np(self._numerical_array, self._columns_numerical, item_index)
+
+        elif column_name in self.columns_str:
+            item_index = np.where(self.columns_str == column_name)[0][0]
+
+            if self.is_backed:
+                drop_column_h5(self._string_array, self._columns_string, item_index)
+
+            else:
+                self._string_array, self._columns_string = \
+                    drop_column_np(self._string_array, self._columns_string, item_index)
 
         else:
-            return self.eq(other)
+            raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
-    def __getstate__(self) -> dict:
-        return self.__dict__
+    @check_can_read
+    def __getitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]]) \
+            -> ViewTemporalDataFrame:
+        index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
-    def __setstate__(self, state) -> None:
-        self.__dict__ = state
+        return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
-    def __load_from_file(self,
-                         file: Union[Group, File],
-                         index: Collection) -> None:
+    def _get_index_positions(self,
+                             index_: np.ndarray,
+                             repeating_values: bool = False) -> np.ndarray:
+        if self._repeating_index:
+            if repeating_values:
+                index_positions = np.zeros(len(index_), dtype=int)
+
+                index_0 = self.index_at(self.timepoints[0])
+
+                first_positions = npi.indices(index_0, index_[:len(index_0)])
+                index_offset = 0
+
+                for tpi in range(self.n_timepoints):
+                    index_positions[tpi*len(index_0):(tpi+1)*len(index_0)] = \
+                        first_positions + index_offset
+                    index_offset += len(index_0)
+
+                return index_positions
+
+            index_len_count = 0
+
+            total_index = np.zeros((self.n_timepoints, len(index_)), dtype=int)
+
+            for tpi, tp in enumerate(self.timepoints):
+                i_at_tp = self.index_at(tp)
+                total_index[tpi] = npi.indices(i_at_tp, index_) + index_len_count
+
+                index_len_count += len(i_at_tp)
+
+            return np.concatenate(total_index)
+
+        return npi.indices(self.index, index_)
+
+    @check_can_write
+    def __setitem__(self,
+                    slicer: Union[SLICER,
+                                  tuple[SLICER, SLICER],
+                                  tuple[SLICER, SLICER, SLICER]],
+                    values: Union[Number, np.number, str, Collection]) -> None:
         """
-
+        Set values in a subset.
         """
-        self._time_points = sorted([TimePoint(tp) for tp in file['data'].keys()])
-        self._df = {}
-        _index = {}
+        index_slicer, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
 
-        for time_point in self._time_points:
-            self._df[time_point] = file['data'][str(time_point)]
+        index_positions = self._get_index_positions(index_slicer)
 
-            _index[time_point] = pd.Index(index[:len(self._df[time_point])])
-            index = index[len(self._df[time_point]):]
+        # parse values, in case 'values' is not a numpy array
+        if not isinstance(values, np.ndarray):
+            if isCollection(values):
+                # collection of values : make 2D array of shape (1, len(values)) if only 1 index was selected ...
+                values = np.array([values])
 
-        self._index = _index
+                # ... or make 2D array of shape (len(values), 1)
+                if len(index_positions) != 1:
+                    values = values.T
+
+            # single value : make 2D array of shape (1, 1)
+            else:
+                values = np.array([[values]])
+
+        if values.shape != (li := len(index_positions),
+                            (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
+            raise ValueError(f"Can't set {li} x {lcn + lcs} values from {values.shape[0]} x {values.shape[1]} array.")
+
+        if not lcn + lcs:
+            return
+
+        # reorder values to match original index
+        if index_array is not None:
+            original_positions = self._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
+            values = values[np.argsort(npi.indices(index_positions, original_positions))]
+
+        if self.is_backed:
+            values = values[np.argsort(index_positions)]
+            index_positions.sort()
+
+        if lcn:
+            if self.is_backed:
+                for column_position, column_name in zip(npi.indices(self.columns_num, column_num_slicer),
+                                                        column_num_slicer):
+                    self._numerical_array[index_positions, column_position] = \
+                        values[:, np.where(columns_array == column_name)[0][0]].astype(float)
+
+            else:
+                self.values_num[index_positions[:, None], npi.indices(self._columns_numerical, column_num_slicer)] = \
+                    values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
+
+        if lcs:
+            values_str = values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+            if values_str.dtype > self._string_array.dtype:
+                object.__setattr__(self, '_string_array', self._string_array.astype(values_str.dtype))
+
+            if self.is_backed:
+                for column_position, column_name in zip(npi.indices(self.columns_str, column_str_slicer),
+                                                        column_str_slicer):
+                    self._string_array[index_positions, column_position] = \
+                        values_str[:, np.where(columns_array == column_name)[0][0] - lcn]
+
+            else:
+                self.values_str[index_positions[:, None], npi.indices(self._columns_string, column_str_slicer)] = \
+                    values_str
+
+    def __setstate__(self, state):
+        for key, value in state[1].items():
+            object.__setattr__(self, key, value)
+
+    @check_can_read
+    def __add__(self,
+                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values incremented by <value> if <value> is a number
+            - <value> appended to string values if <value> is a string
+        """
+        return self._add_core(value)
+
+    @check_can_write
+    def __iadd__(self,
+                 value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Modify inplace the values :
+            - numerical values incremented by <value> if <value> is a number.
+            - <value> appended to string values if <value> is a string.
+        """
+        if isinstance(value, (Number, np.number)):
+            if self.values_num.size == 0:
+                raise ValueError("No numerical data to add.")
+
+            self.values_num += value
+            return self
+
+        else:
+            if self.values_str.size == 0:
+                raise ValueError("No string data to add to.")
+
+            # TODO : does not work for backed TDFs, we need to split the class for managing backed TDFs
+            if self.is_backed:
+                raise NotImplementedError
+
+            self.values_str = np.char.add(self.values_str, value)
+            return self
+
+    @check_can_read
+    def __sub__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values decremented by <value>.
+        """
+        return self._op_core(value, 'sub')
+
+    @check_can_write
+    def __isub__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Modify inplace the values :
+            - numerical values decremented by <value>.
+        """
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to subtract.")
+
+        self.values_num -= value
+        return self
+
+    @check_can_read
+    def __mul__(self,
+                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values multiplied by <value>.
+        """
+        return self._op_core(value, 'mul')
+
+    @check_can_write
+    def __imul__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Modify inplace the values :
+            - numerical values multiplied by <value>.
+        """
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to multiply.")
+
+        self.values_num *= value
+        return self
+
+    @check_can_read
+    def __truediv__(self,
+                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values divided by <value>.
+        """
+        return self._op_core(value, 'div')
+
+    @check_can_write
+    def __itruediv__(self,
+                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Modify inplace the values :
+            - numerical values divided by <value>.
+        """
+        if self.values_num.size == 0:
+            raise ValueError("No numerical data to divide.")
+
+        self.values_num /= value
+        return self
+
+    def __reload_from_file(self,
+                           file: H5Data) -> None:
+        """
+        Reload data from a H5 file into this TemporalDataFrame. This function is called after a .write() on a TDF that
+            was not backed.
+
+        Args:
+            file: H5 file to load data from.
+        """
+        self._name = file.attrs['name']
+        self._lock = (file.attrs['locked_indices'], file.attrs['locked_columns'])
+        self._timepoints_column_name = None if file.attrs['timepoints_column_name'] == '__TDF_None__' else \
+            file.attrs['timepoints_column_name']
+
+        self._index = file['index']
+        self._columns_numerical = file['columns_numerical']
+        self._columns_string = file['columns_string']
+        self._timepoints_array = file['timepoints']
+        self._numerical_array = file['values_numerical']
+        self._string_array = file['values_string']
+
         self._file = file
 
     @property
-    def is_backed(self) -> bool:
-        """
-        Is this TemporalDataFrame backed on an h5 file ?
-        :return: Is this TemporalDataFrame backed on an h5 file ?
-        """
-        return object.__getattribute__(self, '_file') is not None
-
-    @property
-    def file(self) -> Union[File, Group]:
-        """
-        Get the h5 file this TemporalDataFrame is backed on.
-        :return: the h5 file this TemporalDataFrame is backed on.
-        """
-        return object.__getattribute__(self, '_file')
-
-    @file.setter
-    def file(self, new_file: Union[File, Group]):
-        """
-        Set the h5 file this TemporalDataFrame is backed on.
-        :param new_file: an h5 file to back this TemporalDataFrame.
-        """
-        if not isinstance(new_file, (File, Group)):
-            raise VTypeError(f"Cannot back TemporalDataFrame '{self.name}' with an object of type '{type(new_file)}'.")
-
-        self._file = new_file
-
-    @property
-    def is_locked(self) -> tuple[bool, bool]:
-        """
-        Get this TemporalDataFrame's lock.
-        This controls what can be modified with 2 boolean values :
-            1. True --> cannot use self.index.setter() and self.reindex()
-            2. True --> cannot use self.__delattr__(), self.columns.setter() and self.insert()
-        """
-        return object.__getattribute__(self, '_is_locked')
-
-    def lock(self, values: tuple[bool, bool]) -> None:
-        """
-        Set this TemporalDataFrame's lock.
-        This controls what can be modified with 2 boolean values :
-            1. True --> cannot use self.index.setter() and self.reindex()
-            2. True --> cannot use self.__delattr__(), self.columns.setter() and self.insert()
-        """
-        if not isinstance(values, tuple) or len(values) != 2 or not isinstance(values[0], bool) or not isinstance(
-                values[1], bool):
-            raise VValueError("'values' must be a 2-tuple of boolean values.")
-
-        self._is_locked = values
-
-    def to_pandas(self, with_time_points: bool = False) -> pd.DataFrame:
-        """
-        Get the data in a pandas format.
-        :param with_time_points: add a column with time points data ?
-        :return: the data in a pandas format.
-        """
-        if object.__getattribute__(self, 'is_backed'):
-            data = pd.concat([pd.DataFrame(self._df[time_point][()],
-                                           index=self.index_at(time_point),
-                                           columns=self.columns)
-                              for time_point in self.time_points])
-
-        else:
-            data = pd.concat([pd.DataFrame(self._df[time_point],
-                                           index=self.index_at(time_point),
-                                           columns=self.columns)
-                              for time_point in self.time_points])
-
-        if with_time_points:
-            if self.time_points_column_name is not None:
-                data.insert(0, self.time_points_column_name, self.time_points_column)
-
-            else:
-                data.insert(0, 'Time_Point', self.time_points_column)
-
-        return data
-
-    @property
-    def time_points(self) -> list['TimePoint']:
-        """
-        Get the list of time points in this TemporalDataFrame.
-        :return: the list of time points in this TemporalDataFrame.
-        """
-        return object.__getattribute__(self, '_time_points')
-
-    @property
-    def time_points_column_name(self) -> Optional[str]:
-        """
-        Get the name of the column with time points data. Returns None if no column is used.
-        :return: the name of the column with time points data.
-        """
-        return object.__getattribute__(self, '_time_points_column_name')
-
-    @time_points_column_name.setter
-    def time_points_column_name(self, value: Optional[str]) -> None:
-        """
-        Set the name of the column with time points data.
-        :param value: a new name for the column with time points data.
-        """
-        value = str(value) if value is not None else None
-
-        self._time_points_column_name = value
-
-        if self.is_backed and self.file.file.mode == 'r+':
-            self.file['time_col_name'][()] = value
-            self.file.file.flush()
-
-    def index_at(self, time_point: Union['TimePoint', str]) -> pd.Index:
-        """
-        Get the index of this TemporalDataFrame.
-        :param time_point: a time point in this TemporalDataFrame.
-        :return: the index of this TemporalDataFrame
-        """
-        if not isinstance(time_point, TimePoint):
-            time_point = TimePoint(time_point)
-
-        if time_point not in self.time_points:
-            raise VValueError(f"TimePoint '{time_point}' cannot be found in this TemporalDataFrame.")
-
-        return self._index[time_point]
-
-    @property
-    def index(self) -> pd.Index:
-        """
-        Get the full index of this TemporalDataFrame (concatenated over all time points).
-        :return: the full index of this TemporalDataFrame.
-        """
-        _index = pd.Index([])
-
-        for time_point in self.time_points:
-            _index = _index.append(self.index_at(time_point))
-
-        return _index
-
-    @index.setter
-    def index(self, values: Collection) -> None:
-        """
-        Set a new index for observations.
-        :param values: collection of new index values.
-        """
-        if self.is_locked[0]:
-            raise VLockError("Cannot use 'index.setter' functionality on a locked TemporalDataFrame.")
-
-        else:
-            if not isCollection(values):
-                raise VTypeError('New index should be an array of values.')
-
-            len_index = self.n_index_total
-
-            if not len(values) == len_index:
-                raise VValueError(f"Cannot reindex from an array of length {len(values)}, should be {len_index}.")
-
-            cnt = 0
-            for tp in self.time_points:
-                self._index[tp] = pd.Index(values[cnt:cnt+self.n_index_at(tp)])
-                cnt += self.n_index_at(tp)
-
-            if self.is_backed and self._file.file.mode == 'r+':
-                self._file['index'][()] = self.index
-                self._file.file.flush()
-
-    def reindex(self, index: Collection) -> None:
-        """
-        Conform the index of this TemporalDataFrame to the new index.
-        :param index: a new index with same elements as in the current index but the order can be different.
-        """
-        if self.is_locked[0]:
-            raise VLockError("Cannot use 'reindex' functionality on a locked TemporalDataFrame.")
-
-        else:
-            if not isCollection(index):
-                raise VTypeError('New index should be an array of values.')
-
-            index = pd.Index(index)
-            len_index = self.n_index_total
-
-            if not len(index) == len_index:
-                raise VValueError(f"Cannot reindex from an array of length {len(index)}, should be {len_index}.")
-
-            cnt = 0
-            for tp in self.time_points:
-                index_for_tp = index[cnt:cnt + self.n_index_at(tp)]
-
-                if not all(self.index_at(tp).isin(index_for_tp)):
-                    raise VValueError(f"Some values in the new index are not present in the current index "
-                                      f"at time point '{tp}'.")
-
-                index_loc = [self.index_at(tp).get_loc(e) for e in index_for_tp]
-
-                # change row order based on new index
-                self._df[tp] = self._df[tp][index_loc]
-
-                # modify index
-                self._index[tp] = index_for_tp
-
-                cnt += self.n_index_at(tp)
-
-            if self.is_backed and self._file.file.mode == 'r+':
-                self._file['index'][()] = self.index
-                self._file.file.flush()
-
-    @property
-    def columns(self) -> pd.Index:
-        """
-        Get the columns of this TemporalDataFrame.
-        :return: the column names of this TemporalDataFrame
-        """
-        return self._columns
-
-    @columns.setter
-    def columns(self, values: pd.Index) -> None:
-        """
-        Set the columns of this TemporalDataFrame (except for __TPID).
-        :param values: the new column names for this TemporalDataFrame.
-        """
-        if self.is_locked[1]:
-            raise VLockError("Cannot use 'columns.setter' functionality on a locked TemporalDataFrame.")
-
-        else:
-            values = pd.Index(values)
-            if not len(values) == len(self._columns):
-                raise VValueError(f"Expected an Index of len {len(self._columns)} for 'values' parameter.")
-
-            self._columns = values
-
-            if self.is_backed and self._file.file.mode == 'r+':
-                self.write()
-
-    @property
+    @check_can_read
     def name(self) -> str:
-        """
-        Get the name of this TemporalDataFrame.
-        :return: the name of this TemporalDataFrame.
-        """
         return self._name
 
     @name.setter
-    def name(self, value: str) -> None:
-        """
-        Set a new name for this TemporalDataFrame.
-        :param value: the new name for this TemporalDataFrame.
-        """
-        self._name = value
+    @check_can_write
+    def name(self,
+             name: str) -> None:
+        object.__setattr__(self, '_name', str(name))
+
+        if self.is_backed:
+            self._file.attrs['name'] = name
 
     @property
-    def dtype(self) -> Optional[np.dtype]:
+    @check_can_read
+    def file(self) -> Union[None, H5Data]:
         """
-        Return the dtype of this TemporalDataFrame.
-        :return: the dtype of this TemporalDataFrame.
+        Get the file this TemporalDataFrame is backed on.
+        It is None if this TemporalDataFrame is not backed on any file.
         """
-        if self.n_time_points:
-            return self._df[self.time_points[0]].dtype
-
-        else:
-            return None
+        return self._file
 
     @property
-    def dtypes(self) -> Optional[list[np.dtype]]:
+    @check_can_read
+    def is_backed(self) -> bool:
         """
-        Get the dtypes of each column in this TemporalDataFrame.
+        Whether this TemporalDataFrame is backed on a file or not.
         """
-        if self.n_time_points:
-            if self.dtype != object:
-                return [self.dtype for _ in range(self.n_columns)]
+        return self._file is not None
 
-            dtypes = []
-            for column in self.columns:
-                col_array = self[:, :, column].values
-                dt = type(col_array[0, 0])
+    @property
+    @check_can_read
+    def has_locked_indices(self) -> bool:
+        return bool(self._lock[0])
 
-                if np.dtype(dt) == object:
-                    dtypes.append(object)
+    def lock_indices(self) -> None:
+        object.__setattr__(self, '_lock', (True, self.has_locked_columns))
 
-                else:
-                    try:
-                        col_array.astype(dt)
-                        dtypes.append(dt)
+    def unlock_indices(self) -> None:
+        object.__setattr__(self, '_lock', (False, self.has_locked_columns))
 
-                    except ValueError:
-                        dtypes.append(object)
+    @property
+    @check_can_read
+    def has_locked_columns(self) -> bool:
+        return bool(self._lock[1])
 
-            return [type(self[:, :, column].values[0, 0]) for column in self.columns]
+    def lock_columns(self) -> None:
+        object.__setattr__(self, '_lock', (self.has_locked_indices, True))
 
-        else:
-            return None
+    def unlock_columns(self) -> None:
+        object.__setattr__(self, '_lock', (self.has_locked_indices, False))
 
-    def astype(self, dtype: Optional['DType']) -> None:
+    @property
+    @check_can_read
+    def lock(self) -> tuple[bool, bool]:
+        return self.has_locked_indices, self.has_locked_columns
+
+    def _empty_numerical(self) -> bool:
+        return self._numerical_array.size == 0
+
+    def _empty_string(self) -> bool:
+        return self._string_array.size == 0
+
+    @property
+    @check_can_read
+    def empty(self) -> bool:
         """
-        Cast this TemporalDataFrame to a specified data type.
-        :param dtype: a data type.
+        Whether this TemporalDataFrame is empty (no numerical data and no string data).
         """
-        if dtype is not None and dtype != self.dtype:
-            if self.is_backed:
-                generalLogger.warning("Cannot set data type for a backed TemporalDataFrame.\n"
-                                      "If you really want to modify the data type, create a copy of this "
-                                      "TemporalDataFrame before doing so.")
+        return self._empty_numerical() and self._empty_string()
+
+    @property
+    @check_can_read
+    def shape(self) -> tuple[int, list[int], int]:
+        """
+        Get the shape of this TemporalDataFrame as a 3-tuple of :
+            - number of time-points
+            - number of rows per time-point
+            - number of columns
+        """
+        return self.n_timepoints, \
+            [self.n_index_at(tp) for tp in self.timepoints], \
+            self.n_columns_num + self.n_columns_str
+
+    def _head_tail(self,
+                   n: int) -> str:
+        """
+        Common function for getting a head or tail representation of this TemporalDataFrame.
+
+        Args:
+            n: number of rows to print.
+
+        Returns:
+            A short string representation of the first/last n rows in this TemporalDataFrame.
+        """
+        def repr_single_array(array: np.ndarray, columns_: np.ndarray) -> tuple[pd.DataFrame, tuple[int, ...]]:
+            tp_data_array_ = array[self.get_timepoint_mask(tp)]
+
+            tp_array_ = np.array([[tp] for _ in range(min(n, tp_data_array_.shape[0]))])
+
+            spacer_ = np.array([['|'] for _ in range(min(n, tp_data_array_.shape[0]))])
+
+            columns_ = np.concatenate(([self._timepoints_column_name, ''], columns_)) if \
+                self._timepoints_column_name is not None else np.concatenate(([DEFAULT_TIME_POINTS_COL_NAME, ''],
+                                                                              columns_))
+
+            tp_df_ = pd.DataFrame(np.concatenate((tp_array_,
+                                                 spacer_,
+                                                 tp_data_array_[:n]), axis=1),
+                                  index=self.index_at(tp)[:n],
+                                  columns=columns_)
+
+            return tp_df_, tp_data_array_.shape
+
+        if not len(timepoints_list := self.timepoints):
+            return f"Time points: []\n" \
+                   f"Columns: {[col for col in self.columns]}\n" \
+                   f"Index: {[idx for idx in self._index]}"
+
+        repr_string = ""
+
+        for tp in timepoints_list[:5]:
+            # display the first n rows of the first 5 timepoints in this TemporalDataFrame
+            repr_string += f"\033[4mTime point : {repr(tp)}\033[0m\n"
+
+            if not self._empty_numerical() and not self._empty_string():
+                tp_mask = self.get_timepoint_mask(tp)
+
+                tp_numerical_array = self._numerical_array[
+                    np.repeat(tp_mask[:, None], self.n_columns_num, axis=1)
+                ]
+                tp_numerical_array = tp_numerical_array.reshape((len(tp_numerical_array) // self.n_columns_num,
+                                                                 self.n_columns_num))
+
+                tp_string_array = self.values_str[
+                    np.repeat(tp_mask[:, None], self.n_columns_str, axis=1)
+                ]
+                tp_string_array = tp_string_array.reshape((len(tp_string_array) // self.n_columns_str,
+                                                           self.n_columns_str))
+
+                tp_array = np.array([[tp] for _ in range(min(n, tp_numerical_array.shape[0]))])
+
+                spacer = np.array([['|'] for _ in range(min(n, tp_numerical_array.shape[0]))])
+
+                tp_col_name = DEFAULT_TIME_POINTS_COL_NAME if self._timepoints_column_name is None else self._timepoints_column_name
+                columns = np.concatenate(([tp_col_name, ''], self.columns_num, [''], self.columns_str))
+
+                tp_df = pd.DataFrame(np.concatenate((tp_array,
+                                                     spacer,
+                                                     tp_numerical_array[:n],
+                                                     spacer,
+                                                     tp_string_array[:n]), axis=1),
+                                     index=self.index_at(tp)[:n],
+                                     columns=columns)
+                tp_shape = (tp_numerical_array.shape[0], tp_numerical_array.shape[1] + tp_string_array.shape[1])
+
+            elif not self._empty_numerical():
+                tp_df, tp_shape = repr_single_array(self.values_num, self.columns_num)
+
+            elif not self._empty_string():
+                tp_df, tp_shape = repr_single_array(self.values_str, self.columns_str)
 
             else:
-                for tp in self._time_points:
-                    self._df[tp] = self._df[tp].astype(dtype)
+                nb_rows_at_tp = int(np.sum(self.get_timepoint_mask(tp)))
+
+                tp_array_ = np.array([[tp] for _ in range(min(n, nb_rows_at_tp))])
+
+                spacer_ = np.array([['|'] for _ in range(min(n, nb_rows_at_tp))])
+
+                columns_ = [self._timepoints_column_name, ''] if self._timepoints_column_name is not None \
+                    else [DEFAULT_TIME_POINTS_COL_NAME, '']
+
+                tp_df = pd.DataFrame(np.concatenate((tp_array_, spacer_), axis=1),
+                                     index=self.index_at(tp)[:n],
+                                     columns=columns_)
+
+                tp_shape = (tp_df.shape[0], 0)
+
+            repr_string += repr(tp_df) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
+
+        # then display only the list of remaining timepoints
+        if len(timepoints_list) > 5:
+            repr_string += f"\nSkipped time points {repr_array(timepoints_list[5:])} ...\n\n\n"
+
+        return repr_string
+
+    @check_can_read
+    def head(self,
+             n: int = 5) -> str:
+        """
+        Get a short representation of the first n rows in this TemporalDataFrame.
+
+        Args:
+            n: number of rows to print.
+
+        Returns:
+            A short string representation of the first n rows in this TemporalDataFrame.
+        """
+        return self._head_tail(n)
+
+    @check_can_read
+    def tail(self,
+             n: int = 5) -> str:
+        """
+        Get a short representation of the last n rows in this TemporalDataFrame.
+
+        Args:
+            n: number of rows to print.
+
+        Returns:
+            A short string representation of the last n rows in this TemporalDataFrame.
+        """
+        # TODO : negative n not handled
+        return self._head_tail(-n)
 
     @property
-    def at(self) -> '_VAtIndexer':
+    @check_can_read
+    def timepoints(self) -> np.ndarray:
         """
-        Access a single value from a row/column label pair.
-        :return: a single value from a row/column label pair.
+        Get the list of unique time points in this TemporalDataFrame.
         """
-        return _VAtIndexer(self, self._df)
+        unique_timepoints_idx = np.unique(self._timepoints_array, return_index=True)[1]
+
+        if isinstance(self._timepoints_array, Dataset):
+            return np.array([TimePoint(tp.decode()) for tp in self._timepoints_array[sorted(unique_timepoints_idx)]])
+
+        return self._timepoints_array[sorted(unique_timepoints_idx)]
 
     @property
-    def iat(self) -> '_ViAtIndexer':
+    @check_can_read
+    def n_timepoints(self) -> int:
+        return len(self.timepoints)
+
+    @check_can_read
+    def get_timepoint_mask(self,
+                           timepoint: Union[str, TimePoint]) -> np.ndarray:
         """
-        Access a single value from a row/column pair by integer position.
-        :return: a single value from a row/column pair by integer position.
+        Get a boolean mask indicating where in this TemporalDataFrame's the rows' time-point are equal to <timepoint>.
+
+        Args:
+            timepoint: A time-point (str or TimePoint object) to get a mask for.
+
+        Returns:
+            A boolean mask for rows matching the time-point.
         """
-        return _ViAtIndexer(self, self._df)
+        if isinstance(self._timepoints_array, Dataset):
+            return np.equal(self._timepoints_array, str(TimePoint(timepoint)).encode())
+
+        return self._timepoints_array == TimePoint(timepoint)
 
     @property
-    def loc(self) -> '_VLocIndexer':
+    @check_can_read
+    def timepoints_column(self) -> np.ndarray:
+        """
+        Get the column of time-point values.
+        """
+        if isinstance(self._timepoints_array, Dataset):
+            return self._timepoints_array.asstr()[()]
+
+        return self._timepoints_array.copy()
+
+    @property
+    @check_can_read
+    def timepoints_column_str(self) -> np.ndarray:
+        """
+        Get the column of time-point values cast as strings.
+        """
+        return np.array(list(map(str, self.timepoints_column)))
+
+    @property
+    @check_can_read
+    def timepoints_column_name(self) -> Optional[str]:
+        return self._timepoints_column_name
+
+    @timepoints_column_name.setter
+    @check_can_write
+    def timepoints_column_name(self, name) -> None:
+        object.__setattr__(self, '_timepoints_column_name', str(name))
+
+        if self.is_backed:
+            self._file.attrs['timepoints_column_name'] = str(name)
+
+    @property
+    @check_can_read
+    def index(self) -> np.ndarray:
+        if isinstance(self._index, Dataset) and self._index.dtype == np.dtype('O'):
+            return self._index.asstr()[()]
+
+        return self._index[()].copy()
+
+    def _check_valid_index(self,
+                           values: np.ndarray,
+                           repeating_index: bool) -> None:
+        if not (vs := values.shape) == (s := self._index.shape):
+            raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
+
+        if repeating_index:
+            first_index = values[self.timepoints_column == self.timepoints[0]]
+
+            for tp in self.timepoints[1:]:
+                index_tp = values[self.timepoints_column == tp]
+
+                if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
+                    raise ValueError(f"Index at time-point {tp} is not equal to index at time-point "
+                                     f"{self.timepoints[0]}.")
+
+        else:
+            if not self.n_index == len(np.unique(values)):
+                raise ValueError("Index values must be all unique.")
+
+    @index.setter
+    @check_can_write
+    def index(self,
+              values: np.ndarray) -> None:
+        if self.has_locked_indices:
+            raise VLockError("Cannot set index in TDF with locked index.")
+
+        self._check_valid_index(values, self._repeating_index)
+
+        object.__setattr__(self, '_index', values)
+
+    @check_can_write
+    def set_index(self,
+                  values: np.ndarray,
+                  repeating_index: bool = False) -> None:
+        if self.has_locked_indices:
+            raise VLockError("Cannot set index in TDF with locked index.")
+
+        self._check_valid_index(values, repeating_index)
+
+        object.__setattr__(self, '_index', values)
+        object.__setattr__(self, '_repeating_index', repeating_index)
+
+    @check_can_write
+    def reindex(self,
+                values: np.ndarray,
+                repeating_index: bool = False) -> None:
+        if self.has_locked_indices:
+            raise VLockError("Cannot set index in TDF with locked index.")
+
+        # check all values in index
+        self._check_valid_index(values, repeating_index)
+
+        if not np.all(np.isin(values, self.index)):
+            raise ValueError("New index contains values which are not in the current index.")
+
+        if repeating_index and not self._repeating_index:
+            raise ValueError("Cannot set repeating index on TDF with non-repeating index.")
+
+        elif not repeating_index and self._repeating_index:
+            raise ValueError("Cannot set non-repeating index on TDF with repeating index.")
+
+        # re-arrange rows to conform to new index
+        index_positions = self._get_index_positions(values, repeating_values=True)
+
+        self._numerical_array[:] = self._numerical_array[index_positions]
+        self._string_array[:] = self._string_array[index_positions]
+
+        # set index
+        object.__setattr__(self, '_index', values)
+        object.__setattr__(self, '_repeating_index', repeating_index)
+
+    @property
+    @check_can_read
+    def n_index(self) -> int:
+        return len(self.index)
+
+    @check_can_read
+    def index_at(self,
+                 timepoint: Union[str, TimePoint]) -> np.ndarray:
+        """
+        Get the index of rows existing at the given time-point.
+
+        Args:
+            timepoint: time_point for which to get the index.
+
+        Returns:
+            The index of rows existing at that time-point.
+        """
+        return self._index[self.get_timepoint_mask(timepoint)].copy()
+
+    @check_can_read
+    def n_index_at(self,
+                   timepoint: Union[str, TimePoint]) -> int:
+        return len(self.index_at(timepoint))
+
+    @property
+    @check_can_read
+    def columns(self) -> np.ndarray:
+        return np.concatenate((self.columns_num, self.columns_str))
+
+    @check_can_read
+    def keys(self) -> np.ndarray:
+        return self.columns
+
+    @property
+    @check_can_read
+    def columns_num(self) -> np.ndarray:
+        if isinstance(self._columns_numerical, Dataset) and self._columns_numerical.dtype == np.dtype('O'):
+            return self._columns_numerical.asstr()[()]
+
+        return self._columns_numerical[()].copy()
+
+    @columns_num.setter
+    @check_can_write
+    def columns_num(self, values: np.ndarray) -> None:
+        if self.has_locked_columns:
+            raise VLockError("Cannot set columns in TDF with locked columns.")
+
+        if not (vs := values.shape) == (s := self._columns_numerical.shape):
+            raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
+
+        object.__setattr__(self, '_columns_numerical', values)
+
+    @property
+    @check_can_read
+    def n_columns_num(self) -> int:
+        return len(self.columns_num)
+
+    @property
+    @check_can_read
+    def columns_str(self) -> np.ndarray:
+        if isinstance(self._columns_string, Dataset) and self._columns_string.dtype == np.dtype('O'):
+            return self._columns_string.asstr()[()]
+
+        return self._columns_string[()].copy()
+
+    @columns_str.setter
+    @check_can_write
+    def columns_str(self,
+                    values: np.ndarray) -> None:
+        if self.has_locked_columns:
+            raise VLockError("Cannot set columns in TDF with locked columns.")
+
+        if not (vs := values.shape) == (s := self._columns_string.shape):
+            raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
+
+        object.__setattr__(self, '_columns_string', values)
+
+    @property
+    @check_can_read
+    def n_columns_str(self) -> int:
+        return len(self.columns_str)
+
+    @property
+    @check_can_read
+    def values_num(self) -> np.ndarray:
+        return self._numerical_array[()]
+
+    @values_num.setter
+    @check_can_write
+    def values_num(self,
+                   values: np.ndarray) -> None:
+        self._numerical_array[()] = values
+
+    @property
+    @check_can_read
+    def values_str(self) -> np.ndarray:
+        # TODO : avoid loading entire dataset in RAM ??
+        #  Maybe create another TDF class specific to backed TDFs
+        if isinstance(self._string_array, Dataset):
+            return self._string_array.asstr()[()].astype(str)
+
+        return self._string_array
+
+    @values_str.setter
+    @check_can_write
+    def values_str(self,
+                   values: np.ndarray) -> None:
+        object.__setattr__(self, '_string_array', self._string_array.astype(values.dtype))
+        self._string_array[()] = values
+
+    @check_can_read
+    def to_pandas(self,
+                  with_timepoints: Optional[str] = None,
+                  str_index: bool = False) -> pd.DataFrame:
+        """
+        Convert this TemporalDataFrame to a pandas DataFrame.
+
+        Args:
+            with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
+                no column is created.
+            str_index: cast index as string ?
+        """
+        return self._convert_to_pandas(with_timepoints=with_timepoints, str_index=str_index)
+
+    @property
+    def at(self) -> 'VAtIndexer':
+        """
+        Access a single value from a pair of row and column labels.
+        """
+        return VAtIndexer(self)
+
+    @property
+    def iat(self) -> 'ViAtIndexer':
+        """
+        Access a single value from a pair of row and column indices.
+        """
+        return ViAtIndexer(self)
+
+    @property
+    def loc(self) -> 'VLocIndexer':
         """
         Access a group of rows and columns by label(s) or a boolean array.
 
@@ -1117,13 +1027,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             - A boolean array of the same length as the axis being sliced, e.g. [True, False, True].
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
             for indexing (one of the above)
-
-        :return: a group of rows and columns
         """
-        return _VLocIndexer(self, self._df)
+        return VLocIndexer(self)
 
     @property
-    def iloc(self) -> '_ViLocIndexer':
+    def iloc(self) -> 'ViLocIndexer':
         """
         Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
 
@@ -1135,167 +1043,157 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             - A callable function with one argument (the calling Series or DataFrame) and that returns valid output
             for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
             calling object, but would like to base your selection on some value.
-
-        :return: a group of rows and columns
         """
-        return _ViLocIndexer(self, self._df)
+        return ViLocIndexer(self)
 
-    def insert(self, loc: int, column: str, values: Any) -> None:
+    @check_can_read
+    def write(self,
+              file: Optional[Union[str, Path, H5Data]] = None) -> None:
         """
-        Insert column into TemporalDataFrame at specified location.
-        :param loc: Insertion index. Must verify 0 <= loc <= len(columns).
-        :param column: str, number, or hashable object. Label of the inserted column.
-        :param values: int, Series, or array-like
+        Save this TemporalDataFrame in HDF5 file format.
+
+        Args:
+            file: path to save the TemporalDataFrame.
         """
-        from ..._read_write.write import quick_insert_TDF_column
+        if file is None:
+            if not self.is_backed or not self.file.mode == H5Mode.READ_WRITE:
+                raise ValueError("A file path must be supplied when write a TemporalDataFrame that is not "
+                                 "already backed on a file.")
 
-        def _insert(arr, _values):
-            try:
-                arr = np.insert(arr, loc, _values, axis=1)
+            file = self.file
 
-            except ValueError:
-                arr = arr.astype(object)
-                arr = np.insert(arr, loc, _values, axis=1)
+        elif isinstance(file, (str, Path)):
+            # open H5 file in 'a' mode: equivalent to r+ and creates the file if it does not exist
+            file = File(Path(file), 'a')
 
-            return arr
+        # avoid writing if already backed and writing to this TDF's file.
+        if not (self.is_backed and self.file.filename == file.filename):  # TODO this breaks for relative and ~ paths !
+            write_TDF(self, file)
 
-        if self.is_locked[1]:
-            raise VLockError("Cannot use 'insert' functionality on a locked TemporalDataFrame.")
+            self.__reload_from_file(file)
 
-        else:
-            if column in self.columns:
-                raise VValueError(f"Column '{column}' already in this TemporalDataFrame !")
-
-            if isCollection(values):
-                if self.n_index_total != len(values):
-                    raise VValueError("Length of values does not match length of index.")
-
-                cumul = 0
-                for time_point in self.time_points:
-                    values_to_insert = values[cumul:cumul + self.n_index_at(time_point)]
-
-                    # insert values into array
-                    self._df[time_point] = _insert(self._df[time_point], values_to_insert)
-
-                    cumul += self.n_index_at(time_point)
-
-                if self.is_backed and self._file.file.mode == 'r+':
-                    quick_insert_TDF_column(self.file,
-                                            column,
-                                            np.array(values),
-                                            loc)
-
-            else:
-                for time_point in self.time_points:
-                    # insert values into array
-                    self._df[time_point] = _insert(self._df[time_point], values)
-
-                if self.is_backed and self._file.file.mode == 'r+':
-                    quick_insert_TDF_column(self.file,
-                                            column,
-                                            np.array([values for _ in range(self.n_index_total)]),
-                                            loc)
-
-            # insert column name into column index
-            self._columns = self._columns.insert(loc, column)
-
-    def copy(self) -> 'TemporalDataFrame':
-        """
-        Create a new copy of this TemporalDataFrame.
-        :return: a copy of this TemporalDataFrame.
-        """
-        return copy_TemporalDataFrame(self)
-
-    def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True) -> None:
+    @check_can_read
+    def to_csv(self,
+               path: Union[str, Path],
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True) -> None:
         """
         Save this TemporalDataFrame in a csv file.
-        :param path: a path to the csv file.
-        :param sep: String of length 1. Field delimiter for the output file.
-        :param na_rep: Missing data representation.
-        :param index: Write row names (index) ?
-        :param header: Write out the column names ? If a list of strings is given it is
-            assumed to be aliases for the column names.
-        """
-        # save DataFrame to csv
-        self.to_pandas(with_time_points=True).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
-    def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'],
-                            axis: Literal[0, 1]) \
-            -> tuple[
-                dict[Literal['mean', 'min', 'max'], np.ndarray],
-                np.ndarray,
-                pd.Index
-            ]:
+        Args:
+            path: a path to the csv file.
+            sep: String of length 1. Field delimiter for the output file.
+            na_rep: Missing data representation.
+            index: Write row names (index) ?
+            header: Write out the column names ? If a list of strings is given it is assumed to be aliases for the
+                column names.
         """
-        Compute mean, min or max of the values over the requested axis.
-        """
-        if axis == 0:
-            _data = {func: np.concatenate([getattr(np.array(self._df[tp]), func)(axis=0) for tp in self.time_points])}
-            _time_list = np.repeat(self.time_points, self.n_columns)
-            _index = pd.Index(np.concatenate([self.columns for _ in range(self.n_time_points)]))
+        tp_col_name = self.timepoints_column_name if self.timepoints_column_name is not None else \
+            DEFAULT_TIME_POINTS_COL_NAME
 
-        elif axis == 1:
-            _data = {func: np.concatenate([getattr(np.array(self._df[tp]), func)(axis=1) for tp in self.time_points])}
-            _time_list = self.time_points_column
-            _index = self.index
+        self.to_pandas(with_timepoints=tp_col_name).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
+
+    @check_can_read
+    def copy(self) -> 'TemporalDataFrame':
+        """
+        Get a copy of this TemporalDataFrame.
+        """
+        return self._copy()
+
+    @check_can_write
+    def insert(self,
+               loc: int,
+               name: str,
+               values: np.ndarray) -> None:
+        """
+        Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
+            The column is inserted at position <loc> with name <name>.
+        """
+        def insert_column_np(array_: np.ndarray,
+                             columns_: np.ndarray,
+                             index_: int) -> tuple[np.ndarray, np.ndarray]:
+            # insert column in the data array the position index_.
+            array_ = np.insert(array_, index_, values, axis=1)
+
+            # insert column in the column names
+            columns_ = np.insert(columns_, index_, name)
+
+            return array_, columns_
+
+        def insert_column_h5(array_: np.ndarray,
+                             columns_: np.ndarray,
+                             index_: int) -> None:
+            # resize the arrays to insert an extra column at the end
+            columns_.resize((len(columns_) + 1,))
+            array_.resize((array_.shape[0], array_.shape[1] + 1))
+
+            # transfer data one row to the right, starting from the column after the index
+            # matrix | 0 1 2 3 4 | with index = 2
+            #   ==>  | 0 1 . 2 3 4 |
+            array_[:, index_ + 1:len(columns_)] = array_[:, index_:len(columns_) - 1]
+
+            # insert values at index
+            array_[:, index_] = values
+
+            # insert column from the column names as above
+            columns_[index_ + 1:len(columns_)] = columns_[index_:len(columns_) - 1]
+            columns_[index_] = name
+
+        if self.has_locked_columns:
+            raise VLockError("Cannot insert columns in TDF with locked columns.")
+
+        values = np.array(values)
+
+        if (l := len(values)) != (n := self.n_index):
+            raise ValueError(f"Wrong number of values ({l}), expected {n}.")
+
+        if name in self.columns:
+            raise ValueError(f"A column named '{name}' already exists.")
+
+        if np.issubdtype(values.dtype, np.number):
+            # create numerical column
+            if self.is_backed:
+                insert_column_h5(self._numerical_array, self._columns_numerical, loc)
+
+            else:
+                array, columns = insert_column_np(self._numerical_array, self._columns_numerical, loc)
+                object.__setattr__(self, '_numerical_array', array)
+                object.__setattr__(self, '_columns_numerical', columns)
 
         else:
-            raise VValueError(f"Invalid axis '{axis}', should be 0 (on columns) or 1 (on rows).")
+            # create string column
+            if self.is_backed:
+                insert_column_h5(self._string_array, self._columns_string, loc)
 
-        return _data, _time_list, _index
+            else:
+                array, columns = insert_column_np(self._string_array, self._columns_string, loc)
+                object.__setattr__(self, '_string_array', array)
+                object.__setattr__(self, '_columns_string', columns)
 
-    def mean(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
-        """
-        Return the mean of the values over the requested axis.
-
-        :param axis: compute mean over columns (0: default) or over rows (1).
-        :return: a TemporalDataFrame with mean values.
-        """
-        _data, _time_list, _index = self.__mean_min_max_func('mean', axis)
-
-        _name = f"Mean of {self.name}" if self.name != 'No_Name' else None
-        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
-
-    def min(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
-        """
-        Return the minimum of the values over the requested axis.
-
-        :param axis: compute minimum over columns (0: default) or over rows (1).
-        :return: a TemporalDataFrame with minimum values.
-        """
-        _data, _time_list, _index = self.__mean_min_max_func('min', axis)
-
-        _name = f"Minimum of {self.name}" if self.name != 'No_Name' else None
-        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
-
-    def max(self, axis: Literal[0, 1] = 0) -> 'TemporalDataFrame':
-        """
-        Return the maximum of the values over the requested axis.
-
-        :param axis: compute maximum over columns (0: default) or over rows (1).
-        :return: a TemporalDataFrame with maximum values.
-        """
-        _data, _time_list, _index = self.__mean_min_max_func('max', axis)
-
-        _name = f"Maximum of {self.name}" if self.name != 'No_Name' else None
-        return TemporalDataFrame(_data, time_list=_time_list, index=_index, name=_name)
-
-    def merge(self, other: 'TemporalDataFrame', name: Optional[str] = None) -> 'TemporalDataFrame':
+    @check_can_read
+    def merge(self,
+              other: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
+              name: Optional[str] = None) -> 'TemporalDataFrame':
         """
         Merge two TemporalDataFrames together, by rows. The column names and time points must match.
-        :param other: a TemporalDataFrame to merge with this one.
-        :param name: a name for the merged TemporalDataFrame.
-        :return: a new merged TemporalDataFrame.
+
+        Args:
+            other: a TemporalDataFrame to merge with this one.
+            name: a name for the merged TemporalDataFrame.
+
+        Returns:
+            A new merged TemporalDataFrame.
         """
-        if not self.time_points == other.time_points:
-            raise VValueError("Cannot merge TemporalDataFrames with different time points.")
+        if not np.all(self.timepoints == other.timepoints):
+            raise ValueError("Cannot merge TemporalDataFrames with different time points.")
 
-        if not self.columns.equals(other.columns):
-            raise VValueError("Cannot merge TemporalDataFrames with different columns.")
+        if not np.all(self.columns_num == other.columns_num) and not np.all(self.columns_str == other.columns_num):
+            raise ValueError("Cannot merge TemporalDataFrames with different columns.")
 
-        if not self.time_points_column_name == other.time_points_column_name:
-            raise VValueError("Cannot merge TemporalDataFrames with different 'time_col' parameter values.")
+        if not self.timepoints_column_name == other.timepoints_column_name:
+            raise ValueError("Cannot merge TemporalDataFrames with different 'timepoints_column_name'.")
 
         if self.empty:
             combined_index = np.array([])
@@ -1309,47 +1207,23 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         else:
             _data = pd.DataFrame(columns=self.columns)
 
-            for time_point in self.time_points:
-                if any(other.index_at(time_point).isin(self.index_at(time_point))):
-                    raise VValueError(f"TemporalDataFrames to merge have index values in common at time point "
-                                      f"'{time_point}'.")
+            for time_point in self.timepoints:
+                if np.any(np.isin(other.index_at(time_point), self.index_at(time_point))):
+                    raise ValueError(f"TemporalDataFrames to merge have index values in common at time point "
+                                     f"'{time_point}'.")
 
                 _data = pd.concat((_data, self[time_point].to_pandas(), other[time_point].to_pandas()))
 
             _data.columns = _data.columns.astype(self.columns.dtype)
 
-        if self.time_points_column_name is None:
-            _time_list = [time_point for time_point in self.time_points
+        if self.timepoints_column_name is None:
+            _time_list = [time_point for time_point in self.timepoints
                           for _ in range(self.n_index_at(time_point) + other.n_index_at(time_point))]
 
         else:
             _time_list = None
 
-        return TemporalDataFrame(data=_data, time_list=_time_list, time_col_name=self.time_points_column_name,
+        return TemporalDataFrame(data=_data,
+                                 time_list=_time_list,
+                                 time_col_name=self.timepoints_column_name,
                                  name=name)
-
-    def write(self, file: Optional[Union[str, Path, Group, File]] = None) -> None:
-        """
-        Save this TemporalDataFrame in HDF5 file format.
-
-        Args:
-            file: path to save the TemporalDataFrame.
-        """
-        from ..._read_write import write_TemporalDataFrame
-
-        if file is None:
-            save_file = self._file.parent
-            write_TemporalDataFrame(self, save_file, self.name)
-            self._file.file.flush()
-
-        elif isinstance(file, (Group, File)):
-            save_file = file
-            write_TemporalDataFrame(self, save_file, self.name)
-
-        else:
-            save_file = File(file, 'w')
-            write_TemporalDataFrame(self, save_file, self.name)
-
-        if not self.is_backed:
-            index = np.concatenate([i.values for i in self._index.values()])
-            self.__load_from_file(save_file[self.name], index)

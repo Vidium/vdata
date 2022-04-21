@@ -17,14 +17,16 @@ def test_VData_creation_from_AnnData():
 
     adata = sc.read(output_dir / 'sel_JB_scRNAseq.h5ad')
 
-    v = vdata.VData(adata, time_col_name='Time_hour')
+    adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
+
+    v = vdata.VData(adata, time_col_name='tp')
 
     assert repr(v) == "VData 'No_Name' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
-                      "obs: 'Cell_Type', 'Day'\n\t" \
+                      "obs: 'Time_hour', 'Cell_Type', 'Day'\n\t" \
                       "var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n\t" \
-                      "time_points: 'value'", repr(v)
+                      "timepoints: 'value'", repr(v)
 
 
 if __name__ == "__main__":

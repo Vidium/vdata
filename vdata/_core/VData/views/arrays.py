@@ -31,13 +31,13 @@ def _check_parent_has_not_changed(func):
         self = args[0]
 
         if isinstance(self, ViewVLayerArrayContainer):
-            if hash(tuple(self._array_container._parent.time_points.value.values)) != self._parent_time_points_hash or \
+            if hash(tuple(self._array_container._parent.timepoints.value.values)) != self._parent_timepoints_hash or \
                     hash(tuple(self._array_container._parent.obs.index)) != self._parent_obs_hash or \
                     hash(tuple(self._array_container._parent.var.index)) != self._parent_var_hash:
                 raise VValueError("View no longer valid since parent's VData has changed.")
 
         elif isinstance(self, ViewVObsmArrayContainer):
-            if hash(tuple(self._array_container._parent.time_points.value.values)) != self._parent_time_points_hash or \
+            if hash(tuple(self._array_container._parent.timepoints.value.values)) != self._parent_timepoints_hash or \
                     hash(tuple(self._array_container._parent.obs.index)) != self._parent_obs_hash:
                 raise VValueError("View no longer valid since parent's VData has changed.")
 
@@ -200,7 +200,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
     def __init__(self,
                  array_container: VBaseArrayContainer,
-                 time_points_slicer: np.ndarray,
+                 timepoints_slicer: np.ndarray,
                  obs_slicer: np.ndarray,
                  var_slicer: Union[np.ndarray, slice]):
         """
@@ -208,14 +208,14 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
             var_slicer: the list of variables to view.
-            time_points_slicer: the list of time points to view.
+            timepoints_slicer: the list of time points to view.
         """
         super().__init__(array_container)
 
-        self._data = {key: TDF[time_points_slicer, obs_slicer, var_slicer]
+        self._data = {key: TDF[timepoints_slicer, obs_slicer, var_slicer]
                       for key, TDF in array_container.items()}
 
-        self._parent_time_points_hash = hash(tuple(self._array_container._parent.time_points.value.values))
+        self._parent_timepoints_hash = hash(tuple(self._array_container._parent.timepoints.value.values))
         self._parent_obs_hash = hash(tuple(self._array_container._parent.obs.index))
 
     @_check_parent_has_not_changed
@@ -326,7 +326,7 @@ class ViewVLayerArrayContainer(ViewVTDFArrayContainer):
 
     def __init__(self,
                  array_container: VBaseArrayContainer,
-                 time_points_slicer: np.ndarray,
+                 timepoints_slicer: np.ndarray,
                  obs_slicer: np.ndarray,
                  var_slicer: Union[np.ndarray, slice]):
         """
@@ -334,9 +334,9 @@ class ViewVLayerArrayContainer(ViewVTDFArrayContainer):
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
             var_slicer: the list of variables to view.
-            time_points_slicer: the list of time points to view.
+            timepoints_slicer: the list of time points to view.
         """
-        super().__init__(array_container, time_points_slicer, obs_slicer, var_slicer)
+        super().__init__(array_container, timepoints_slicer, obs_slicer, var_slicer)
 
         self._parent_var_hash = hash(tuple(self._array_container._parent.var.index))
 
@@ -346,7 +346,7 @@ class ViewVObsmArrayContainer(ViewVTDFArrayContainer):
 
     def __init__(self,
                  array_container: VBaseArrayContainer,
-                 time_points_slicer: np.ndarray,
+                 timepoints_slicer: np.ndarray,
                  obs_slicer: np.ndarray,
                  var_slicer: Union[np.ndarray, slice]):
         """
@@ -354,9 +354,9 @@ class ViewVObsmArrayContainer(ViewVTDFArrayContainer):
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
             var_slicer: the list of variables to view.
-            time_points_slicer: the list of time points to view.
+            timepoints_slicer: the list of time points to view.
         """
-        super().__init__(array_container, time_points_slicer, obs_slicer, var_slicer)
+        super().__init__(array_container, timepoints_slicer, obs_slicer, var_slicer)
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --

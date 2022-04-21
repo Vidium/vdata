@@ -27,7 +27,7 @@ from ...._read_write.write import write_vdata, write_vdata_to_csv
 # code
 def _check_parent_has_not_changed(func):
     def wrapper(self, *args, **kwargs):
-        if hash(tuple(self._parent.time_points.value.values)) != self._time_points_hash or \
+        if hash(tuple(self._parent.timepoints.value.values)) != self._timepoints_hash or \
                 hash(tuple(self._parent.obs.index)) != self._obs_hash or \
                 hash(tuple(self._parent.var.index)) != self._var_hash:
             raise VValueError("View no longer valid since parent's VData has changed.")
@@ -44,7 +44,7 @@ class ViewVData:
 
     def __init__(self,
                  parent: 'vdata.VData',
-                 time_points_slicer: np.ndarray,
+                 timepoints_slicer: np.ndarray,
                  obs_slicer: np.ndarray,
                  var_slicer: np.ndarray):
         """
@@ -52,32 +52,32 @@ class ViewVData:
             parent: a VData object to build a view of
             obs_slicer: the list of observations to view
             var_slicer: the list of variables to view
-            time_points_slicer: the list of time points to view
+            timepoints_slicer: the list of time points to view
         """
         self.name = f"{parent.name}_view"
         generalLogger.debug(u'\u23BE ViewVData creation : start ----------------------------------------------------- ')
 
         self._parent = parent
 
-        self._time_points_hash = hash(tuple(parent.time_points.value.values))
+        self._timepoints_hash = hash(tuple(parent.timepoints.value.values))
         self._obs_hash = hash(tuple(parent.obs.index))
         self._var_hash = hash(tuple(parent.var.index))
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[time_points_slicer, obs_slicer]
+        self._obs = self._parent.obs[timepoints_slicer, obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
-        self._time_points_slicer = np.array([e for e in time_points_slicer if e in self._obs.time_points])
-        self._time_points = ViewVDataFrame(self._parent.time_points,
-                                           index_slicer=self._parent.time_points.value.isin(self._time_points_slicer))
+        self._timepoints_slicer = np.array([e for e in timepoints_slicer if e in self._obs.timepoints])
+        self._timepoints = ViewVDataFrame(self._parent.timepoints,
+                                           index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
 
-        generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._time_points_slicer)} "
-                            f"({len(self._time_points_slicer)} value{'' if len(self._time_points_slicer) == 1 else 's'}"
+        generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
+                            f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"
                             f" selected)")
 
         self._obs_slicer = [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
-                            for tp in self._obs.time_points]
+                            for tp in self._obs.timepoints]
         self._obs_slicer_flat = np.concatenate(self._obs_slicer)
 
         generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
@@ -94,9 +94,9 @@ class ViewVData:
 
         # subset and store arrays
         self._layers = ViewVLayerArrayContainer(self._parent.layers,
-                                                self._time_points_slicer, self._obs_slicer_flat, self._var_slicer)
+                                                self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
 
-        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._time_points_slicer, self._obs_slicer_flat,
+        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._timepoints_slicer, self._obs_slicer_flat,
                                              slice(None))
         self._obsp = ViewVObspArrayContainer(self._parent.obsp, np.array(self._obs.index))
         self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
@@ -119,13 +119,13 @@ class ViewVData:
 
         if self.is_empty:
             repr_str = f"Empty view of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over " \
-                       f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'})."
+                       f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
 
         else:
             repr_str = f"View of VData '{self._parent.name}' with n_obs x n_var = {_n_obs} x {self.n_var} over " \
-                       f"{self.n_time_points} time point{'' if self.n_time_points == 1 else 's'}"
+                       f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'}"
 
-        for attr_name in ["layers", "obs", "var", "time_points", "obsm", "varm", "obsp", "varp"]:
+        for attr_name in ["layers", "obs", "var", "timepoints", "obsm", "varm", "obsp", "varp"]:
             attr = getattr(self, attr_name)
             keys = attr.keys()
 
@@ -150,7 +150,7 @@ class ViewVData:
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
         # convert to a 3-tuple
-        index = reformat_index(index, self._time_points_slicer, self._obs_slicer_flat, self._var_slicer)
+        index = reformat_index(index, self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
 
         generalLogger.debug(f"  1. Refactored index to \n{repr_index(index)}")
 
@@ -186,20 +186,20 @@ class ViewVData:
         Returns:
             Is view empty ?
         """
-        if not len(self.layers) or not self.n_time_points or not self.n_obs_total or not self.n_var:
+        if not len(self.layers) or not self.n_timepoints or not self.n_obs_total or not self.n_var:
             return True
         return False
 
     @property
     @_check_parent_has_not_changed
-    def n_time_points(self) -> int:
+    def n_timepoints(self) -> int:
         """
         Number of time points in this view of a VData object.
 
         Returns:
             The number of time points in this view
         """
-        return len(self._time_points_slicer)
+        return len(self._timepoints_slicer)
 
     @property
     @_check_parent_has_not_changed
@@ -235,60 +235,60 @@ class ViewVData:
         Shape of this view of a VData object.
         :return: view's shape
         """
-        return len(self.layers), self.n_time_points, self.n_obs, self.n_var
+        return len(self.layers), self.n_timepoints, self.n_obs, self.n_var
 
     # DataFrames ---------------------------------------------------------
     @property
     @_check_parent_has_not_changed
-    def time_points(self) -> ViewVDataFrame:
+    def timepoints(self) -> ViewVDataFrame:
         """
         Get a view on the time points DataFrame in this ViewVData.
         :return: a view on the time points DataFrame.
         """
-        return self._time_points
+        return self._timepoints
 
     @property
-    def time_points_values(self) -> list['TimePoint']:
+    def timepoints_values(self) -> list['TimePoint']:
         """
         Get the list of time points values (with the unit if possible).
 
         :return: the list of time points values (with the unit if possible).
         """
-        return self.time_points.value.values
+        return self.timepoints.value.values
 
     @property
-    def time_points_strings(self) -> Iterator[str]:
+    def timepoints_strings(self) -> Iterator[str]:
         """
         Get the list of time points as strings.
 
         :return: the list of time points as strings.
         """
-        return map(str, self.time_points.value.values)
+        return map(str, self.timepoints.value.values)
 
     @property
-    def time_points_numerical(self) -> list[float]:
+    def timepoints_numerical(self) -> list[float]:
         """
         Get the list of bare values from the time points.
 
         :return: the list of bare values from the time points.
         """
-        return [tp.value for tp in self.time_points.value]
+        return [tp.value for tp in self.timepoints.value]
 
-    # @time_points.setter
-    # def time_points(self, df: pd.DataFrame) -> None:
+    # @timepoints.setter
+    # def timepoints(self, df: pd.DataFrame) -> None:
     #     if not isinstance(df, pd.DataFrame):
-    #         raise VTypeError("'time_points' must be a pandas DataFrame.")
+    #         raise VTypeError("'timepoints' must be a pandas DataFrame.")
     #
-    #     elif df.columns != self._parent.time_points.columns:
-    #         raise IncoherenceError("'time_points' must have the same column names as the original 'time_points' "
+    #     elif df.columns != self._parent.timepoints.columns:
+    #         raise IncoherenceError("'timepoints' must have the same column names as the original 'timepoints' "
     #                                "it replaces.")
     #
-    #     elif df.shape[0] != self.n_time_points:
-    #         raise ShapeError(f"'time_points' has {df.shape[0]} lines, it should have {self.n_time_points}.")
+    #     elif df.shape[0] != self.n_timepoints:
+    #         raise ShapeError(f"'timepoints' has {df.shape[0]} lines, it should have {self.n_timepoints}.")
     #
     #     else:
-    #         df.index = self._parent.time_points[self._time_points_slicer].index
-    #         self._parent.time_points[self._time_points_slicer] = df
+    #         df.index = self._parent.timepoints[self._timepoints_slicer].index
+    #         self._parent.timepoints[self._timepoints_slicer] = df
 
     @property
     @_check_parent_has_not_changed
@@ -428,12 +428,12 @@ class ViewVData:
         """
         if axis == 0:
             _data = {layer: getattr(self.layers[layer], func)(axis=axis).T for layer in self.layers}
-            _time_list = self.time_points_values
-            _index = pd.Index(['mean' for _ in range(self.n_time_points)])
+            _time_list = self.timepoints_values
+            _index = pd.Index(['mean' for _ in range(self.n_timepoints)])
 
         elif axis == 1:
             _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
-            _time_list = self.obs.time_points_column
+            _time_list = self.obs.timepoints_column
             _index = self.obs.index
 
         else:
@@ -500,7 +500,7 @@ class ViewVData:
                      index: bool = True,
                      header: bool = True) -> None:
         """
-        Save layers, time_points, obs, obsm, obsp, var, varm and varp to csv files in a directory.
+        Save layers, timepoints, obs, obsm, obsp, var, varm and varp to csv files in a directory.
 
         Args:
             directory: path to a directory for saving the matrices
@@ -522,7 +522,7 @@ class ViewVData:
                            obsm=self.obsm.dict_copy(), obsp=self.obsp.dict_copy(),
                            var=self.var.copy(),
                            varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
-                           time_points=self.time_points.copy(),
+                           timepoints=self.timepoints.copy(),
                            uns=self.uns,
                            dtype=self._parent.dtype,
                            name=f"{self.name}_copy",

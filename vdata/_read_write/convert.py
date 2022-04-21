@@ -66,11 +66,11 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         if time_column_name not in valid_columns:
             raise ValueError(f"Could not find column '{time_column_name}' in obs ({valid_columns}).")
 
-        time_points_in_data = set(h5_file['obs'][time_column_name][()])
-        time_points_masks = {tp: np.where(h5_file['obs'][time_column_name][()] == tp)[0] for tp in time_points_in_data}
+        timepoints_in_data = set(h5_file['obs'][time_column_name][()])
+        timepoints_masks = {tp: np.where(h5_file['obs'][time_column_name][()] == tp)[0] for tp in timepoints_in_data}
 
     else:
-        time_points_masks = {time_point: np.arange(h5_file['obs'][valid_columns[0]].shape[0])}
+        timepoints_masks = {time_point: np.arange(h5_file['obs'][valid_columns[0]].shape[0])}
 
     # -------------------------------------------------------------------------
     # 3. convert layers to chunked TDFs
@@ -108,11 +108,11 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         h5_file['layers'][layer]['columns'].attrs['type'] = 'array'
 
         # save data, per time point, in DataSets
-        for time_point in time_points_masks.keys():
+        for time_point in timepoints_masks.keys():
             # TODO : support for reading a sparse matrix
             data_group.create_dataset(
                 str(TimePoint(time_point)),
-                data=h5_file['layers'][f"{layer}_data"][time_points_masks[time_point]],
+                data=h5_file['layers'][f"{layer}_data"][timepoints_masks[time_point]],
                 chunks=True, maxshape=(None, None)
             )
 
@@ -135,8 +135,8 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     write_data(time_column_name, h5_file['obs'], 'time_col_name', key_level=1)
 
     # save time_list
-    write_data(list(np.repeat([TimePoint(tp) for tp in time_points_masks.keys()],
-                              [len(i) for i in time_points_masks.values()])),
+    write_data(list(np.repeat([TimePoint(tp) for tp in timepoints_masks.keys()],
+                              [len(i) for i in timepoints_masks.values()])),
                h5_file['obs'], 'time_list', key_level=1)
 
     # create group for storing the data
@@ -190,9 +190,9 @@ def convert_anndata_to_vdata(file: Union[Path, str],
                        key_level=1)
 
             # save data, per time point, in DataSets
-            for time_point in time_points_masks.keys():
+            for time_point in timepoints_masks.keys():
                 data_group.create_dataset(str(TimePoint(time_point)),
-                                          data=h5_file['obsm_data'][df_name][time_points_masks[time_point][:, None], :],
+                                          data=h5_file['obsm_data'][df_name][timepoints_masks[time_point][:, None], :],
                                           chunks=True, maxshape=(None, None))
 
         # remove old data
@@ -223,12 +223,12 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         #     # set group type
         #     h5_file['obsp'][df_name].attrs['type'] = 'dict'
         #
-        #     for tp in time_points_masks.keys():
+        #     for tp in timepoints_masks.keys():
         #         generalLogger.info(f"\t\tConverting for time point '{tp}'.")
         #         h5_file['obsp'][df_name].create_group(str(TimePoint(tp)))
         #
         #         # save index
-        #         write_data(h5_file['obs']['index'][time_points_masks[tp]],
+        #         write_data(h5_file['obs']['index'][timepoints_masks[tp]],
         #                    h5_file['obsp'][df_name][str(TimePoint(tp))], 'index', key_level=2)
         #
         #         # create group for storing the data
@@ -297,23 +297,23 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         set_type_to_dict(h5_file['uns'])
 
     # -------------------------------------------------------------------------
-    # 7. create time_points
-    generalLogger.info("Creating 'time_points'.")
+    # 7. create time-points
+    generalLogger.info("Creating 'time-points'.")
 
-    h5_file.create_group('time_points')
+    h5_file.create_group('timepoints')
 
     # set group type
-    h5_file['time_points'].attrs['type'] = 'VDF'
+    h5_file['timepoints'].attrs['type'] = 'VDF'
 
     # create index
-    write_data(np.arange(len(time_points_masks)), h5_file['time_points'], 'index', key_level=1)
+    write_data(np.arange(len(timepoints_masks)), h5_file['timepoints'], 'index', key_level=1)
 
     # create data
-    h5_file['time_points'].create_group('data')
+    h5_file['timepoints'].create_group('data')
 
-    values = [str(TimePoint(tp)) for tp in time_points_masks.keys()]
+    values = [str(TimePoint(tp)) for tp in timepoints_masks.keys()]
 
-    write_data(values, h5_file['time_points']['data'], 'value', key_level=1)
+    write_data(values, h5_file['timepoints']['data'], 'value', key_level=1)
 
     # -------------------------------------------------------------------------
     h5_file.close()

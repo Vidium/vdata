@@ -13,7 +13,7 @@ from . import expr_data_simple
 
 # ====================================================
 # code
-time_points = pd.DataFrame({"value": ["0h"]})
+timepoints = pd.DataFrame({"value": ["0h"]})
 var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
 obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
                                'data_bis': np.random.randint(0, 20, 6)},
@@ -23,7 +23,7 @@ uns = {"colors": ['blue', 'red', 'yellow'],
 
 data = pd.DataFrame(expr_data_simple)
 
-v = vdata.VData(data, time_points=time_points, obs=obs, var=var, uns=uns, name=1)
+v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name=1)
 
 
 def test_VData_copy():
@@ -34,7 +34,7 @@ def test_VData_copy():
                       "layers: 'data'\n\t" \
                       "obs: 'data', 'data_bis'\n\t" \
                       "var: 'gene_name'\n\t" \
-                      "time_points: 'value'\n\t" \
+                      "timepoints: 'value'\n\t" \
                       "uns: 'colors', 'date'", repr(v)
 
 
@@ -47,7 +47,7 @@ def test_VData_copy_subset():
                        "layers: 'data'\n\t" \
                        "obs: 'data', 'data_bis'\n\t" \
                        "var: 'gene_name'\n\t" \
-                       "time_points: 'value'\n\t" \
+                       "timepoints: 'value'\n\t" \
                        "uns: 'colors', 'date'", repr(v2)
 
 

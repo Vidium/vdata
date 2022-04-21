@@ -4,6 +4,8 @@
 
 # ====================================================
 # imports
+import numpy as np
+
 from typing import Optional, Sequence
 
 from .vdata import VData
@@ -46,7 +48,7 @@ def concatenate(arr: Sequence['VData'],
     _var = first_VData.var
     _varm = first_VData.varm.dict_copy()
     _varp = first_VData.varp.dict_copy()
-    _time_points = first_VData.time_points
+    _timepoints = first_VData.timepoints
     _uns = first_VData.uns
 
     # concatenate with data in other VData objects
@@ -67,17 +69,17 @@ def concatenate(arr: Sequence['VData'],
                 _var[column] = next_VData.var[column]
 
         # check time points ---------------------------------------------------
-        generalLogger.info("  '\u21B3' merging 'time_points' DataFrame.")
-        if not _time_points.index.equals(next_VData.time_points.index):
+        generalLogger.info("  '\u21B3' merging 'time-points' DataFrame.")
+        if not _timepoints.index.equals(next_VData.timepoints.index):
             raise VValueError("Cannot concatenate VData objects if 'time_point' indexes are different.")
 
-        for column in next_VData.time_points.columns:
-            if column in _time_points.columns:
-                if not _time_points[column].equals(next_VData.time_points[column]):
-                    raise VValueError(f"Values found in 'time_points' column '{column}' do not match.")
+        for column in next_VData.timepoints.columns:
+            if column in _timepoints.columns:
+                if not _timepoints[column].equals(next_VData.timepoints[column]):
+                    raise VValueError(f"Values found in 'time-points' column '{column}' do not match.")
 
             else:
-                _time_points[column] = next_VData.time_points[column]
+                _timepoints[column] = next_VData.timepoints[column]
 
         # check layers keys ---------------------------------------------------
         generalLogger.info("  '\u21B3' merging layers.")
@@ -91,7 +93,7 @@ def concatenate(arr: Sequence['VData'],
         # concat other data =============================================================
         # obs -----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging 'obs' TemporalDataFrame.")
-        if any(_obs.index.isin(next_VData.obs.index)):
+        if np.any(np.isin(_obs.index, next_VData.obs.index)):
             raise VValueError("Cannot merge VData objects with common obs index values.")
 
         _obs = _obs.merge(next_VData.obs)
@@ -166,7 +168,7 @@ def concatenate(arr: Sequence['VData'],
 
     concatenated_VData = VData(data=_data, obs=_obs, obsm=_obsm, obsp=_obsp,
                                var=_var, varm=_varm, varp=_varp,
-                               time_points=_time_points, uns=_uns,
+                               timepoints=_timepoints, uns=_uns,
                                name=name)
 
     generalLogger.debug("\u23BF Concatenation of VDatas : end "

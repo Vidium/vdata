@@ -5,6 +5,8 @@
 # ====================================================
 # imports
 import numpy as np
+from numbers import Number
+
 from typing import Any, Optional, Collection, Union, Sequence, cast
 
 from .name_utils import TimePointList, PreSlicer
@@ -40,31 +42,37 @@ def list_to_tp_list_strict(item: Sequence[Any]) -> list[TimePoint]:
     return [TimePoint(e) for e in item]
 
 
-def to_tp_list(item: Any, reference_time_points: Optional[Sequence[TimePoint]] = None) -> 'TimePointList':
+def to_tp_list(item: Any, reference_timepoints: Optional[Sequence[TimePoint]] = None) -> 'TimePointList':
     """
     Converts a given object to a tuple of TimePoints (or tuple of tuple of TimePoints ...).
 
     :param item: an object to convert to tuple of TimePoints.
-    :param reference_time_points: an optional list of TimePoints that can exist. Used to parse the '*' character.
+    :param reference_timepoints: an optional list of TimePoints that can exist. Used to parse the '*' character.
 
     :return: a (nested) tuple of TimePoints.
     """
     new_tp_list: 'TimePointList' = []
 
-    if reference_time_points is None or not len(reference_time_points):
-        reference_time_points = [TimePoint('0')]
+    if reference_timepoints is None or not len(reference_timepoints):
+        reference_timepoints = [TimePoint('0h')]
 
     for v in to_list(item):
         if isCollection(v):
             new_tp_list.append(list_to_tp_list_strict(v))
 
-        elif not isinstance(v, TimePoint) and v == '*':
-            if len(reference_time_points):
-                if len(reference_time_points) == 1:
-                    new_tp_list.append(reference_time_points[0])
+        elif isinstance(v, TimePoint):
+            new_tp_list.append(v)
+
+        elif v == '*':
+            if len(reference_timepoints):
+                if len(reference_timepoints) == 1:
+                    new_tp_list.append(reference_timepoints[0])
 
                 else:
-                    new_tp_list.append(reference_time_points)
+                    new_tp_list.append(reference_timepoints)
+
+        elif isinstance(v, (Number, np.number)):
+            new_tp_list.append(TimePoint(str(v) + 'h'))
 
         else:
             new_tp_list.append(TimePoint(v))
@@ -169,7 +177,7 @@ def reformat_index(index: Union['PreSlicer',
                                 tuple['PreSlicer'],
                                 tuple['PreSlicer', 'PreSlicer'],
                                 tuple['PreSlicer', 'PreSlicer', 'PreSlicer']],
-                   time_points_reference: Collection[TimePoint],
+                   timepoints_reference: Collection[TimePoint],
                    obs_reference: Collection,
                    var_reference: Collection) \
         -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -177,28 +185,28 @@ def reformat_index(index: Union['PreSlicer',
     Format a sub-setting index into 3 arrays of selected (and allowed) values for time points, observations and
     variables. The reference collections are used to transform a PreSlicer into an array of selected values.
     :param index: an index to format.
-    :param time_points_reference: a collection of allowed values for the time points.
+    :param timepoints_reference: a collection of allowed values for the time points.
     :param obs_reference: a collection of allowed values for the observations.
     :param var_reference: a collection of allowed values for the variables.
     :return: 3 arrays of selected (and allowed) values for time points, observations and variables.
     """
     if not isinstance(index, tuple):
-        return slicer_to_array(index, time_points_reference, on_time_point=True), \
+        return slicer_to_array(index, timepoints_reference, on_time_point=True), \
                slicer_to_array(..., obs_reference), \
                slicer_to_array(..., var_reference)
 
     elif isinstance(index, tuple) and len(index) == 1:
-        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
+        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
                slicer_to_array(..., obs_reference), \
                slicer_to_array(..., var_reference)
 
     elif isinstance(index, tuple) and len(index) == 2:
-        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
+        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
                slicer_to_array(index[1], obs_reference), \
                slicer_to_array(..., var_reference)
 
     else:
-        return slicer_to_array(index[0], time_points_reference, on_time_point=True), \
+        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
                slicer_to_array(index[1], obs_reference), \
                slicer_to_array(index[2], var_reference)
 
@@ -250,7 +258,7 @@ def smart_isin(element: Any, target_collection: Collection) -> Union[bool, np.nd
     return result if len(result) > 1 else result[0]
 
 
-def match_time_points(tp_list: Collection, tp_index: Collection[TimePoint]) -> np.ndarray:
+def match_timepoints(tp_list: Collection, tp_index: Collection[TimePoint]) -> np.ndarray:
     """
     Find where in the tp_list the values in tp_index are present. This function parses the tp_list to understand the
         '*' character (meaning the all values in tp_index match) and tuples of time points.

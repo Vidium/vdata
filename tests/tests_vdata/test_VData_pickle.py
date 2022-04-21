@@ -29,9 +29,9 @@ def test_VData_pickle_load():
     assert repr(v2) == "Backed VData '1' with n_obs x n_var = " \
                        "[179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 over 10 time points.\n" \
                        "\tlayers: 'data'\n" \
-                       "\tobs: 'Cell_Type', 'Day'\n" \
+                       "\tobs: 'Time_hour', 'Cell_Type', 'Day'\n" \
                        "\tvar: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n" \
-                       "\ttime_points: 'value'\n" \
+                       "\ttimepoints: 'value'\n" \
                        "\tuns: 'colors', 'date'", repr(v2)
 
     v2.file.close()

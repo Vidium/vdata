@@ -28,7 +28,9 @@ def out_test_VData_write():
 
     adata = sc.read(source_vdata_path)
 
-    v = vdata.VData(adata, time_col_name='Time_hour')
+    adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
+
+    v = vdata.VData(adata, time_col_name='tp')
 
     uns = {"colors": ['blue', 'red', 'yellow'],
            "date": '25/01/2021'}
@@ -55,7 +57,9 @@ def test_VData_view_write():
 
     adata = sc.read(source_vdata_path)
 
-    v = vdata.VData(adata, time_col_name='Time_hour')
+    adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
+
+    v = vdata.VData(adata, time_col_name='tp')
 
     list_cells = ['plate2_H12_G01_G10', 'plate1_A09_A09_A12', 'plate2_H12_D01_H10', 'plate1_A01_A01_B01']
     list_genes = ['ENSG00000260919.1', 'ENSG00000267586.6', 'ENSG00000268595.1', 'ENSG00000255794.7']
@@ -73,3 +77,4 @@ if __name__ == "__main__":
     vdata.setLoggingLevel('DEBUG')
 
     out_test_VData_write()
+    test_VData_view_write()

@@ -44,3 +44,11 @@ StrDType = Union[Literal["int", "int8", "int16", "int32", "int64", "float", "flo
 
 LoggingLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LoggingLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+
+class H5Mode(str):
+    READ = 'r'
+    READ_WRITE = 'r+'
+    WRITE_TRUNCATE = 'w'
+    WRITE = 'w-'
+    READ_WRITE_CREATE = 'a'

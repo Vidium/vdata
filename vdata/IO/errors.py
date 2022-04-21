@@ -86,3 +86,12 @@ class VReadOnlyError(VBaseError):
 
     def __init__(self, msg: str = ""):
         self.msg = "Read-only file !"
+
+
+class VDeprecatedError(VBaseError):
+    """
+    Custom error for deprecated features that should no longer be used.
+    """
+
+    def __init__(self, msg: str = ""):
+        self.msg = "Deprecated feature !"

@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import os
+import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -334,10 +335,10 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not self._parent.time_points.value.equals(pd.Series(value.time_points)):
+        if not self._parent.timepoints.value.equals(pd.Series(value.timepoints)):
             raise VValueError("Time points do not match.")
 
-        if not self._parent.obs.index.equals(value.index):
+        if not np.all(self._parent.obs.index == value.index):
             raise VValueError("Index does not match.")
 
         self._data[key] = value
@@ -348,7 +349,8 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         Whether this ArrayContainer is empty or not.
         :return: is this ArrayContainer empty ?
         """
-        return all([TDF.empty for TDF in self.values()])
+        # return all([TDF.empty for TDF in self.values()])
+        return len(self.keys()) == 0
 
     def update_dtype(self, type_: 'DType') -> None:
         """
@@ -382,8 +384,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         """
         return {k: v.copy() for k, v in self.items()}
 
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True, spacer: str = '') -> None:
+    def to_csv(self,
+               directory: Path,
+               sep: str = ",",
+               na_rep: str = "",
+               index: bool = True,
+               header: bool = True,
+               spacer: str = '') -> None:
         """
         Save the ArrayContainer in CSV file format.
 
@@ -428,7 +435,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
 class VLayerArrayContainer(VBase3DArrayContainer):
     """
     Class for layers.
-    This object contains any number of TemporalDataFrames, with shapes (n_time_points, n_obs, n_var).
+    This object contains any number of TemporalDataFrames, with shapes (n_timepoints, n_obs, n_var).
     The arrays-like objects can be accessed from the parent VData object by :
         VData.layers[<array_name>]
     """
@@ -447,7 +454,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
             - the index of the TemporalDataFrames in 'data' match the index of the parent VData's obs TemporalDataFrame.
             - the column names of the TemporalDataFrames in 'data' match the index of the parent VData's var DataFrame.
-            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
+            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time-points
             DataFrame.
 
         Args:
@@ -458,18 +465,18 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         """
         if data is None or not len(data):
             generalLogger.debug("  No data was given.")
-            return {'data': TemporalDataFrame(index=self._parent.obs.index, columns=self._parent.var.index,
-                                              time_list=self._parent.obs.time_points_column,
-                                              time_points=self._parent.time_points.value,
+            return {'data': TemporalDataFrame(index=self._parent.obs.index, columns_numerical=self._parent.var.index,
+                                              time_list=self._parent.obs.timepoints_column,
+                                              # timepoints=self._parent.timepoints.value,
                                               name='data')}
 
         else:
             generalLogger.debug("  Data was found.")
             _data = {}
-            _shape = (self._parent.time_points.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
+            _shape = (self._parent.timepoints.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
             _index = self._parent.obs.index
             _columns = self._parent.var.index
-            _time_points: pd.Series = self._parent.time_points['value']
+            _timepoints: pd.Series = self._parent.timepoints['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -487,7 +494,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                                                f"should have {_shape[0]}.")
 
                     elif _shape[1] != TDF_shape[1]:
-                        for i in range(len(TDF.time_points)):
+                        for i in range(len(TDF.timepoints)):
                             if _shape[1][i] != TDF_shape[1][i]:
                                 raise IncoherenceError(f"Layer '{TDF_index}' at time point {i} has"
                                                        f" {TDF_shape[1][i]} observations, "
@@ -498,20 +505,21 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                                                f"should have {_shape[2]}.")
 
                 # check that indexes match
-                if not _index.equals(TDF.index):
+                if not np.all(_index == TDF.index):
                     raise IncoherenceError(f"Index of layer '{TDF_index}' ({TDF.index}) does not match obs' index. ("
                                            f"{_index})")
 
-                if not _columns.equals(TDF.columns):
+                if not np.all(_columns == TDF.columns):
                     raise IncoherenceError(f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
                                            f"index. ({_columns})")
 
-                if not list(TDF.time_points) == list(_time_points):
-                    raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.time_points}) do not match "
-                                           f"time_point's index. ({_time_points})")
+                if not np.all(_timepoints == TDF.timepoints):
+                    raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.timepoints}) do not match "
+                                           f"time_point's index. ({_timepoints})")
 
                 # checks passed, store the TemporalDataFrame
-                TDF.lock((True, True))
+                TDF.lock_indices()
+                TDF.lock_columns()
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")
@@ -528,16 +536,17 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
-        elif not self.shape[1:] == value.shape:
+        if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
-        elif not self._parent.var.index.equals(value.columns):
+        if not self._parent.var.index.equals(value.columns):
             raise VValueError("Column names do not match.")
 
         value_copy = value.copy()
         value_copy.name = key
 
-        value_copy.lock((True, True))
+        value_copy.lock_indices()
+        value_copy.lock_columns()
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
@@ -555,7 +564,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 class VObsmArrayContainer(VBase3DArrayContainer):
     """
     Class for obsm.
-    This object contains any number of TemporalDataFrames, with shape (n_time_points, n_obs, any).
+    This object contains any number of TemporalDataFrames, with shape (n_timepoints, n_obs, any).
     The TemporalDataFrames can be accessed from the parent VData object by :
         VData.obsm[<array_name>])
     """
@@ -574,7 +583,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
             number of columns).
             - the index of the TemporalDataFrames in 'data' match the index of the parent VData's obs TemporalDataFrame.
-            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's time_points
+            - the time points of the TemporalDataFrames in 'data' match the index of the parent VData's timepoints
             DataFrame.
 
         Args:
@@ -590,11 +599,11 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         else:
             generalLogger.debug("  Data was found.")
             _data = {}
-            _shape = (self._parent.time_points.shape[0],
+            _shape = (self._parent.timepoints.shape[0],
                       self._parent.obs.shape[1],
                       'Any')
             _index = self._parent.obs.index
-            _time_points: pd.Series = self._parent.time_points['value']
+            _timepoints: pd.Series = self._parent.timepoints['value']
 
             generalLogger.debug(f"  Reference shape is {_shape}.")
 
@@ -612,7 +621,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                                                f"should have {_shape[0]}.")
 
                     elif _shape[1] != TDF_shape[1]:
-                        for i in range(len(TDF.time_points)):
+                        for i in range(len(TDF.timepoints)):
                             if _shape[1][i] != TDF_shape[1][i]:
                                 raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' at time point {i} has"
                                                        f" {TDF_shape[1][i]} rows, "
@@ -622,16 +631,16 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                         pass
 
                 # check that indexes match
-                if not _index.equals(TDF.index):
+                if not np.all(_index == TDF.index):
                     raise IncoherenceError(f"Index of TemporalDataFrame '{TDF_index}' ({TDF.index}) does not match "
                                            f"obs' index. ({_index})")
 
-                if not all(_time_points == TDF.time_points):
-                    raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.time_points}) "
-                                           f"do not match time_point's index. ({_time_points})")
+                if not all(_timepoints == TDF.timepoints):
+                    raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.timepoints}) "
+                                           f"do not match time_point's index. ({_timepoints})")
 
                 # checks passed, store the TemporalDataFrame
-                TDF.lock((True, False))
+                TDF.lock_indices()
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")
@@ -648,13 +657,13 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         if not isinstance(value, TemporalDataFrame):
             raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
 
-        elif not self.shape[1:3] == value.shape[:2]:
+        if not self.shape[1:3] == value.shape[:2]:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
         value_copy = value.copy()
         value_copy.name = key
 
-        value_copy.lock((True, False))
+        value_copy.lock_indices()
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
@@ -669,10 +678,10 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         Returns:
             The shape of this ArrayContainer.
         """
-        n_time_points = self._parent.shape[1]
+        n_timepoints = self._parent.shape[1]
         n_obs = self._parent.shape[2]
 
-        return len(self._data), n_time_points, n_obs, [d.shape[2] for d in self._data.values()]
+        return len(self._data), n_timepoints, n_obs, [d.shape[2] for d in self._data.values()]
 
     @property
     def name(self) -> Literal['obsm']:
@@ -713,7 +722,7 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             - the index and columns names of the DataFrames in 'data' match the index of the parent VData's obs
             TemporalDataFrame.
             - the time points of the dictionaries of DataFrames in 'data' match the index of the parent VData's
-            time_points DataFrame.
+            time-points DataFrame.
 
         Args:
             data: dictionary of dictionaries (TimePoint: DataFrame (n_obs x n_obs))
@@ -740,11 +749,11 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
                     raise ShapeError(f"DataFrame at key '{key}' should be square.")
 
                 # check that indexes match
-                if not _index.equals(df.index):
+                if not np.all(_index == df.index):
                     raise IncoherenceError(f"Index of DataFrame at key '{key}' ({df.index}) does not "
                                            f"match obs' index. ({_index})")
 
-                if not _index.equals(df.columns):
+                if not np.all(_index == df.columns):
                     raise IncoherenceError(f"Column names of DataFrame at key '{key}' ({df.columns}) "
                                            f"do not match obs' index. ({_index})")
 
@@ -801,10 +810,10 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         if not value.shape == (len(_index), len(_index)):
             raise ShapeError(f"DataFrame should have shape ({len(_index)}, {len(_index)}).")
 
-        if not value.index.equals(_index):
+        if not np.all(value.index == _index):
             raise VValueError("The index of the DataFrame does not match the index of the parent VData.")
 
-        if not value.columns.equals(_index):
+        if not np.all(value.columns == _index):
             raise VValueError("The column names the DataFrame do not match the index of the parent VData.")
 
         self._data[key] = value

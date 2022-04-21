@@ -1,0 +1,233 @@
+# coding: utf-8
+# Created on 05/03/2021 16:10
+# Author : matteo
+
+"""
+TimePoint class for storing a time point's value and unit.
+"""
+
+# ====================================================
+# imports
+from typing import Optional, Union, cast, TYPE_CHECKING, Literal
+
+import numpy as np
+
+from .utils import get_value
+from .IO import VValueError, VTypeError
+
+if TYPE_CHECKING:
+    from .name_utils import DType
+
+# ====================================================
+# code
+time_point_units = {None: '(no unit)',
+                    's': 'seconds',
+                    'm': 'minutes',
+                    'h': 'hours',
+                    'D': 'days',
+                    'M': 'months',
+                    'Y': 'years'}
+
+time_point_units_seconds = {None: 1,
+                            's': 1,
+                            'm': 60,
+                            'h': 3600,
+                            'D': 86400,
+                            'M': 2592000,
+                            'Y': 31104000}
+
+_units = (None, 's', 'm', 'h', 'D', 'M', 'Y', 'N')
+
+
+class Unit:
+    """
+    Simple class for storing a time point's unit.
+    """
+    _units_order = {None: 0,
+                    's': 1,
+                    'm': 2,
+                    'h': 3,
+                    'D': 4,
+                    'M': 5,
+                    'Y': 6}
+
+    def __init__(self, value: Optional[str]):
+        """
+        :param value: a string representing the unit, in [None, 's', 'm', 'h', 'D', 'M', 'Y'].
+        """
+        if value == 'N':
+            value = None
+
+        if value not in _units:
+            raise VValueError(f"Invalid unit '{value}', should be in {_units}.")
+
+        self.value = value
+
+    def __repr__(self) -> str:
+        """
+        A string representation of the unit as a full word.
+        :return: a string representation of the unit as a full word.
+        """
+        return time_point_units[self.value]
+
+    def __gt__(self, other: 'Unit') -> bool:
+        """
+        Compare units with 'greater than'.
+        """
+        return Unit._units_order[self.value] > Unit._units_order[other.value]
+
+    def __lt__(self, other: 'Unit') -> bool:
+        """
+        Compare units with 'lesser than'.
+        """
+        return Unit._units_order[self.value] < Unit._units_order[other.value]
+
+    def __ge__(self, other: 'Unit') -> bool:
+        """
+        Compare units with 'greater or equal'.
+        """
+        return Unit._units_order[self.value] >= Unit._units_order[other.value]
+
+    def __le__(self, other: 'Unit') -> bool:
+        """
+        Compare units with 'lesser or equal'.
+        """
+        return Unit._units_order[self.value] <= Unit._units_order[other.value]
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare units with 'equal'.
+        """
+        if not isinstance(other, Unit):
+            raise VValueError('Not a Unit.')
+
+        return self.value == other.value
+
+
+class TimePoint:
+    """
+    Simple class for storing a single time point, with its value and unit.
+    """
+
+    def __init__(self,
+                 time_point: Union['DType', 'TimePoint'],
+                 no_check: bool = False):
+        """
+        Args:
+            time_point: a time point's value. It can be an int or a float, or a string with format "<value><unit>"
+                where <unit> is a single letter in s, m, h, D, M, Y (seconds, minutes, hours, Days, Months, Years).
+            no_check: skip checks (only use if you guaranty the data passed to create this TimePoint is valid !)
+        """
+        if isinstance(time_point, TimePoint):
+            self.value: 'DType' = time_point.value
+            self.unit: Unit = time_point.unit
+
+        elif no_check:
+            self.value = float(time_point[:-1])
+            self.unit = Unit(time_point[-1])
+
+        else:
+            self.value, self.unit = self.__parse(time_point)
+
+    @staticmethod
+    def __parse(time_point: Union[str, 'DType']) -> tuple[float, Unit]:
+        """
+        Get time point's value and unit.
+
+        :param time_point: a time point's value given by the user.
+        :return: tuple of value and unit.
+        """
+        _type_time_point = type(time_point)
+
+        if len(set(_type_time_point.__mro__).intersection((int, float, np.integer, np.floating))):
+            return float(time_point), Unit(None)
+
+        elif _type_time_point in (str, np.str_):
+            time_point = cast(str, time_point)
+            if time_point.endswith(_units[1:]) and len(time_point) > 1:
+                # try to get unit
+                value_, unit_ = get_value(time_point[:-1]), time_point[-1]
+
+                if not isinstance(value_, (int, float, np.integer, np.floating)):
+                    raise VValueError(f"Invalid time point value '{time_point}'")
+
+                else:
+                    return float(value_), Unit(unit_)
+
+            else:
+                value_ = get_value(time_point)
+                if isinstance(value_, str):
+                    raise VValueError(f"Invalid time point value '{time_point}'")
+
+                else:
+                    return float(value_), Unit(None)
+
+        else:
+            raise VTypeError(f"Invalid type '{type(time_point)}' for TimePoint.")
+
+    def __repr__(self) -> str:
+        """
+        A string representation of this time point.
+        :return: a string representation of this time point.
+        """
+        return f"{self.value} {self.unit}"
+
+    def __str__(self) -> str:
+        """
+        A short string representation where the unit is represented by a single character.
+        """
+        return f"{self.value}" \
+               f"{self.unit.value if self.unit.value is not None else 'N'}"
+
+    def round(self, decimals=0):
+        """
+        Round this time point's value to a given number of decimals.
+        """
+        self.value = np.round(self.value, decimals=decimals)
+
+    def get_unit_value(self, unit: Literal['s', 'm', 'h', 'D', 'M', 'Y']) -> float:
+        """
+        Get this TimePoint has a number of <unit>.
+        """
+        return self.value * time_point_units_seconds[self.unit.value] / time_point_units_seconds[unit]
+
+    def __gt__(self, other: 'TimePoint') -> bool:
+        """
+        Compare units with 'greater than'.
+        """
+        value_self = self.get_unit_value('s')
+        value_other = other.get_unit_value('s')
+        return value_self > value_other or (value_self == value_other and _units.index(self.unit.value) >
+                                            _units.index(other.unit.value))
+
+    def __lt__(self, other: 'TimePoint') -> bool:
+        """
+        Compare units with 'lesser than'.
+        """
+        value_self = self.get_unit_value('s')
+        value_other = other.get_unit_value('s')
+        return value_self < value_other or (value_self == value_other and _units.index(self.unit.value) <
+                                            _units.index(other.unit.value))
+
+    def __ge__(self, other: 'TimePoint') -> bool:
+        """
+        Compare units with 'greater or equal'.
+        """
+        return self > other or self == other
+
+    def __le__(self, other: 'TimePoint') -> bool:
+        """
+        Compare units with 'lesser or equal'.
+        """
+        return self < other or self == other
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare units with 'equal'.
+        """
+        if not isinstance(other, TimePoint):
+            return False
+        return self.get_unit_value('s') == other.get_unit_value('s')
+
+    def __hash__(self) -> int:
+        return hash(repr(self))
