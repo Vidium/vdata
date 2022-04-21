@@ -70,7 +70,7 @@ class ViewVData:
         # recompute time points and obs slicers since there could be empty subsets
         self._timepoints_slicer = np.array([e for e in timepoints_slicer if e in self._obs.timepoints])
         self._timepoints = ViewVDataFrame(self._parent.timepoints,
-                                           index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
+                                          index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
 
         generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
                             f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"

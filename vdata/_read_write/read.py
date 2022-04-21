@@ -22,7 +22,7 @@ from ..name_utils import DType
 from ..utils import get_value, repr_array
 from ..vdataframe import VDataFrame
 from ..time_point import TimePoint
-from ..IO import generalLogger, VValueError, VTypeError, ShapeError, VDeprecatedError
+from ..IO import generalLogger, VValueError, VTypeError, ShapeError
 from .._core import TemporalDataFrame
 from ..h5pickle import File, Dataset, Group
 

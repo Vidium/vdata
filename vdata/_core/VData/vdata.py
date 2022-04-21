@@ -138,7 +138,7 @@ class VData:
         if _var is None:
             generalLogger.debug("Default empty DataFrame for vars.")
             self._var = VDataFrame(index=(range(ref_TDF.shape[2]) if ref_TDF is not None else None) if
-            var_index is None else var_index,
+                                   var_index is None else var_index,
                                    file=self._file.group['var'] if self._file is not None else None)
 
         else:
@@ -188,8 +188,8 @@ class VData:
                            f"{'' if self.n_timepoints == 1 else 's'})."
 
             else:
-                repr_str = f"{'Backed ' if self.is_backed else ''}VData '{self.name}' with n_obs x n_var = {_n_obs} x " \
-                           f"{self.n_var} over {self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'}."
+                repr_str = f"{'Backed ' if self.is_backed else ''}VData '{self.name}' with n_obs x n_var = {_n_obs} x" \
+                           f" {self.n_var} over {self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'}."
 
             for attr in ["layers", "obs", "var", "timepoints", "obsm", "varm", "obsp", "varp"]:
                 obj = getattr(self, attr)

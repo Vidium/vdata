@@ -132,7 +132,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def __repr__(self) -> str:
         if self.is_backed and not self._file:
-            return f"Backed TemporalDataFrame on closed file."
+            return "Backed TemporalDataFrame on closed file."
 
         if self.empty:
             return f"Empty {'backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
@@ -658,7 +658,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 spacer = np.array([['|'] for _ in range(min(n, tp_numerical_array.shape[0]))])
 
-                tp_col_name = DEFAULT_TIME_POINTS_COL_NAME if self._timepoints_column_name is None else self._timepoints_column_name
+                tp_col_name = DEFAULT_TIME_POINTS_COL_NAME if self._timepoints_column_name is None else \
+                    self._timepoints_column_name
                 columns = np.concatenate(([tp_col_name, ''], self.columns_num, [''], self.columns_str))
 
                 tp_df = pd.DataFrame(np.concatenate((tp_array,

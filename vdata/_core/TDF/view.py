@@ -343,7 +343,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             spacer_ = np.array([['|'] for _ in range(min(n, tp_data_array_.shape[0]))])
 
             columns_ = np.concatenate(([self.timepoints_column_name, ''], columns_)) if \
-                self.timepoints_column_name is not None else np.concatenate(([DEFAULT_TIME_POINTS_COL_NAME, ''], columns_))
+                self.timepoints_column_name is not None else np.concatenate(([DEFAULT_TIME_POINTS_COL_NAME, ''],
+                                                                             columns_))
 
             tp_df_ = pd.DataFrame(np.concatenate((tp_array_,
                                                   spacer_,
@@ -383,7 +384,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
                 spacer = np.array([['|'] for _ in range(min(n, tp_numerical_array.shape[0]))])
 
-                tp_col_name = DEFAULT_TIME_POINTS_COL_NAME if self.timepoints_column_name is None else self.timepoints_column_name
+                tp_col_name = DEFAULT_TIME_POINTS_COL_NAME if self.timepoints_column_name is None else \
+                    self.timepoints_column_name
                 columns = np.concatenate(([tp_col_name, ''], self.columns_num, [''], self.columns_str))
 
                 tp_df = pd.DataFrame(np.concatenate((tp_array,
