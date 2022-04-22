@@ -517,11 +517,13 @@ class BaseTemporalDataFrame(ABC):
 
         if self.timepoints_column_name is None:
             return TemporalDataFrame(self.to_pandas(),
+                                     repeating_index=self._repeating_index,
                                      time_list=self.timepoints_column,
                                      lock=self.lock,
                                      name=f"copy of {self.name}")
 
         return TemporalDataFrame(self.to_pandas(with_timepoints=self.timepoints_column_name),
+                                 repeating_index=self._repeating_index,
                                  time_col_name=self.timepoints_column_name,
                                  lock=self.lock,
                                  name=f"copy of {self.name}")

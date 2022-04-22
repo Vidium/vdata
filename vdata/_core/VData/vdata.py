@@ -866,6 +866,7 @@ class VData:
 
         _timepoints_VDF: Optional[VDataFrame] = None
         obs_index: Optional[np.ndarray] = None
+        repeating_obs_index = False
         var_index: Optional[np.ndarray] = None
         layers: Optional[dict[str, TemporalDataFrame]] = None
 
@@ -1038,6 +1039,7 @@ class VData:
                         nb_timepoints = data.n_timepoints
 
                     obs_index = data.index
+                    repeating_obs_index = data.has_repeating_index
                     var_index = data.columns
 
                     if obs is not None and not isinstance(obs, TemporalDataFrame) and verified_time_list is None:
@@ -1079,6 +1081,7 @@ class VData:
 
                             if obs_index is None:
                                 obs_index = value.index
+                                repeating_obs_index = value.has_repeating_index
                                 var_index = value.columns
 
                                 if _timepoints_VDF is not None:
@@ -1144,7 +1147,7 @@ class VData:
                                               "TemporalDataFrame.")
 
                 if obs_index is not None and all(np.isin(obs.index, obs_index)):
-                    obs.reindex(obs_index)
+                    obs.reindex(obs_index, repeating_index=repeating_obs_index)
 
                 else:
                     obs_index = obs.index

@@ -482,6 +482,26 @@ def test_VData_creation_from_dict():
                       "timepoints: 'value'"
 
 
+def test_VData_creation_repeating_index():
+    obs = vdata.TemporalDataFrame(data={'col1': np.arange(9)},
+                                  time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
+                                  index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'],
+                                  repeating_index=True)
+
+    data = vdata.TemporalDataFrame(data={'G1': [1., 2., 3., 4., 5., 6., 7., 8., 9.],
+                                         'G2': [1., 2., 3., 4., 5., 6., 7., 8., 9.],
+                                         'G3': [1., 2., 3., 4., 5., 6., 7., 8., 9.]},
+                                   time_list=['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h'],
+                                   index=['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'],
+                                   repeating_index=True)
+
+    v = vdata.VData(data, obs=obs)
+    assert repr(v) == "VData 'No_Name' with n_obs x n_var = [3, 3, 3] x 3 over 3 time points.\n"\
+                      "\tlayers: 'data'\n"\
+                      "\tobs: 'col1'\n"\
+                      "\ttimepoints: 'value'"
+
+
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')
 

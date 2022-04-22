@@ -836,6 +836,13 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         object.__setattr__(self, '_index', values)
 
+    @property
+    def has_repeating_index(self) -> bool:
+        """
+        Is the index repeated at each time-point ?
+        """
+        return self._repeating_index
+
     @check_can_write
     def set_index(self,
                   values: np.ndarray,
