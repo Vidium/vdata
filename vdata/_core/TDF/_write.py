@@ -81,6 +81,7 @@ def write_TDF(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
     file.attrs['name'] = TDF.name
     file.attrs['locked_indices'] = TDF.has_locked_indices
     file.attrs['locked_columns'] = TDF.has_locked_columns
+    file.attrs['repeating_index'] = TDF.has_repeating_index
     file.attrs['timepoints_column_name'] = "__TDF_None__" if TDF.timepoints_column_name is None else \
         TDF.timepoints_column_name
 

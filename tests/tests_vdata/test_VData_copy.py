@@ -37,6 +37,32 @@ def test_VData_copy():
                       "timepoints: 'value'\n\t" \
                       "uns: 'colors', 'date'", repr(v)
 
+    # repeating index
+    timepoints = pd.DataFrame({"value": ["0h", "1h"]})
+    var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
+    obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
+                                   'data_bis': np.random.randint(0, 20, 6)},
+                                  index=['a', 'b', 'c', 'a', 'b', 'c'],
+                                  repeating_index=True,
+                                  time_list=["0h", "0h", "0h", "1h", "1h", "1h"])
+    uns = {"colors": ['blue', 'red', 'yellow'],
+           "date": '25/01/2021'}
+
+    data = vdata.TemporalDataFrame(pd.DataFrame(expr_data_simple),
+                                   index=['a', 'b', 'c', 'a', 'b', 'c'],
+                                   repeating_index=True,
+                                   time_list=["0h", "0h", "0h", "1h", "1h", "1h"])
+
+    v3 = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name=3)
+
+    v4 = v3.copy()
+    assert repr(v4) == "VData '3_copy' with n_obs x n_var = [3, 3] x 3 over 2 time points.\n" \
+                       "\tlayers: 'data'\n" \
+                       "\tobs: 'data', 'data_bis'\n" \
+                       "\tvar: 'gene_name'\n" \
+                       "\ttimepoints: 'value'\n" \
+                       "\tuns: 'colors', 'date'"
+
 
 def test_VData_copy_subset():
     v_subset = v[:, 0:4, 0:2]

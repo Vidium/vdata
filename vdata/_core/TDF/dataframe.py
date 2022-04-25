@@ -113,7 +113,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         #   index (any type)
         #   columns (any type)
         _file, _numerical_array, _string_array, _timepoints_array, _index, _columns_numerical, _columns_string, \
-            _lock, _timepoints_column_name, _name = \
+            _lock, _timepoints_column_name, _name, repeating_index = \
             parse_data(data, index, repeating_index, columns_numerical, columns_string, time_list, time_col_name, lock,
                        name)
 

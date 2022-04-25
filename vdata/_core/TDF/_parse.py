@@ -29,8 +29,9 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
                lock: Optional[tuple[bool, bool]],
                name: str) \
         -> Union[tuple[None, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, tuple[bool, bool],
-                       Optional[str], str],
-                 tuple[H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, tuple[bool, bool], Optional[str], str]]:
+                       Optional[str], str, bool],
+                 tuple[H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, tuple[bool, bool], Optional[str],
+                       str], bool]:
     """
     Parse the user-given data to create a TemporalDataFrame.
 
@@ -60,7 +61,8 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
         the numerical column names, the string column names
         the lock
         the time_col_name
-        and the name.
+        the name
+        whether the index is repeating
     """
     if time_list is not None:
         if not isCollection(time_list):
@@ -88,7 +90,8 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
             np.empty(0) if columns_string is None else np.array(columns_string),\
             (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), \
             None, \
-            str(name)
+            str(name), \
+            False
 
     if isinstance(data, dict):
         data = pd.DataFrame(data)
@@ -114,7 +117,8 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
                 raise ValueError("Index values must be all unique.")
 
         return None, numerical_array, string_array, timepoints_array, index, columns_numerical, columns_string, \
-            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), time_col_name, str(name)
+            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), time_col_name, str(name), \
+            repeating_index
 
     if isinstance(data, (File, Group)):
         if time_list is not None:
@@ -226,7 +230,7 @@ def parse_data_h5(data: H5Data,
                   columns_string: Optional[Collection],
                   lock: Optional[tuple[bool, bool]],
                   name: str) \
-        -> tuple[H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, tuple[bool, bool], Optional[str], str]:
+        -> tuple[H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, tuple[bool, bool], Optional[str], str, bool]:
     numerical_array_file = data['values_numerical']
     string_array_file = data['values_string']
     timepoints_array_file = data['timepoints']
@@ -265,4 +269,4 @@ def parse_data_h5(data: H5Data,
 
     return data, numerical_array_file, string_array_file, timepoints_array_file, index_file, columns_num_file, \
         columns_str_file, (data.attrs['locked_indices'], data.attrs['locked_columns']), timepoints_columns_name, \
-        data.attrs['name']
+        data.attrs['name'], data.attrs['repeating_index']
