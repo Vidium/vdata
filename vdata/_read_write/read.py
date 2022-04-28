@@ -291,7 +291,7 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
 
         if key in ('obs', 'var', 'timepoints', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
             type_ = importFile[key].attrs('type')
-            data[key] = func_[type_](importFile[key])
+            data[key] = func_[type_](importFile[key], 1, mode)
 
         else:
             generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
@@ -315,12 +315,14 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
 
 
 # from HDF5 groups --------------------------------------------------------------------------------
-def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
+def read_h5_dict(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') -> dict:
     """
     Function for reading a dictionary from an h5 file.
 
-    :param group: a H5GroupReader from which to read a dictionary.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    Args:
+        group: a H5GroupReader from which to read a dictionary.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
+        mode:  mode for reading the TDF.
     """
     generalLogger.info(f"{spacer(level)}Reading dict {group.name}.")
 
@@ -330,7 +332,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
     for dataset_key in group.keys():
         dataset_type = cast(H5GroupReader, group[dataset_key]).attrs("type")
 
-        data[get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1)
+        data[get_value(dataset_key)] = func_[dataset_type](group[dataset_key], level=level+1, mode=mode)
 
     end = time()
 
@@ -338,7 +340,7 @@ def read_h5_dict(group: H5GroupReader, level: int = 1) -> dict:
     return data
 
 
-def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
+def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) -> VDataFrame:
     """
     Function for reading a pandas DataFrame from an h5 file.
 
@@ -391,19 +393,20 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1) -> VDataFrame:
     return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1) -> 'TemporalDataFrame':
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') -> 'TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from an h5 file.
 
     Args:
         group: a H5GroupReader from which to read a TemporalDataFrame.
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
+        mode: mode for reading the TDF.
     """
-    return read_TDF(group.group)
+    return read_TDF(group.group, mode=mode)
 
 
 def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: int = 1,
-                   log_func: Literal['debug', 'info'] = 'info') -> pd.Series:
+                   log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> pd.Series:
     """
     Function for reading a pandas Series from an h5 file.
 
@@ -449,7 +452,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
 
 
 def read_h5_array(group: H5GroupReader, level: int = 1,
-                  log_func: Literal['debug', 'info'] = 'info') -> np.ndarray:
+                  log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> np.ndarray:
     """
     Function for reading a numpy array from an h5 file.
     If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
@@ -487,7 +490,7 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         raise VTypeError(f"Group is not an array (type is '{type(arr)}').")
 
 
-def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float, bool, type]:
+def read_h5_value(group: H5GroupReader, level: int = 1, *args, **kwargs) -> Union[str, int, float, bool, type]:
     """
     Function for reading a value from an h5 file.
 
@@ -502,7 +505,7 @@ def read_h5_value(group: H5GroupReader, level: int = 1) -> Union[str, int, float
     return get_value(group[()])
 
 
-def read_h5_path(group: H5GroupReader, level: int = 1) -> Path:
+def read_h5_path(group: H5GroupReader, level: int = 1, *args, **kwargs) -> Path:
     """
     Function for reading a Path from an h5 file.
 
@@ -514,7 +517,7 @@ def read_h5_path(group: H5GroupReader, level: int = 1) -> Path:
     return Path(group.as_string())
 
 
-def read_h5_None(_: H5GroupReader, level: int = 1) -> None:
+def read_h5_None(_: H5GroupReader, level: int = 1, *args, **kwargs) -> None:
     """
     Function for reading 'None' from an h5 file.
 

@@ -29,7 +29,7 @@ def write_array(array: np.ndarray,
 
     else:
         dtype = string_dtype()
-        array = array.astype('O')
+        array = array.astype(str).astype('O')
 
     if key in file.keys():
         file[key].resize((len(array),))
@@ -51,7 +51,7 @@ def write_array_chunked(array: np.ndarray,
 
     else:
         dtype = string_dtype()
-        array = array.astype('O')
+        array = array.astype(str).astype('O')
 
     if key in file.keys():
         if file[key].chunks is None:
