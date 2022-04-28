@@ -54,7 +54,7 @@ def check_can_write(func):
             if not file:
                 raise ValueError("Can't write to TemporalDataFrame backed on closed file.")
 
-            if (m := file.mode) not in (H5Mode.READ_WRITE_CREATE, H5Mode.READ_WRITE):
+            if (m := file.file.mode) not in (H5Mode.READ_WRITE_CREATE, H5Mode.READ_WRITE):
                 raise ValueError(f"Can't write to TemporalDataFrame backed on file with mode='{m}'.")
 
         return func(*args, **kwargs)
