@@ -631,7 +631,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not len(timepoints_list := self.timepoints):
             return f"Time points: []\n" \
                    f"Columns: {[col for col in self.columns]}\n" \
-                   f"Index: {[idx for idx in self._index]}"
+                   f"Index: {[idx for idx in self.index]}"
 
         repr_string = ""
 
@@ -901,7 +901,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Returns:
             The index of rows existing at that time-point.
         """
-        return self._index[self.get_timepoint_mask(timepoint)].copy()
+        return self.index[self.get_timepoint_mask(timepoint)].copy()
 
     @check_can_read
     def n_index_at(self,
