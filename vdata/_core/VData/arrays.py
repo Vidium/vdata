@@ -539,7 +539,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
 
-        if not self._parent.var.index.equals(value.columns):
+        if not np.array_equal(self._parent.var.index, value.columns):
             raise VValueError("Column names do not match.")
 
         value_copy = value.copy()
