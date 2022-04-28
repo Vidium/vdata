@@ -79,7 +79,10 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
                                tuple[SLICER, SLICER],
                                tuple[SLICER, SLICER, SLICER]]) \
         -> tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
-    """TODO"""
+    """
+    Given a TemporalDataFrame and a slicer, get the list of indices, columns str and num and the sliced index and
+    columns.
+    """
     tp_slicer, index_slicer, column_slicer = _expand_slicer(slicer)
 
     # convert slicers to simple lists of values
@@ -88,7 +91,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
     columns_array = parse_axis_slicer(column_slicer, TDF.columns.dtype.type, range, TDF.columns)
 
     if tp_array is None and index_array is None:
-        selected_index = TDF.index
+        selected_index_pos = np.arange(len(TDF.index))
 
     elif tp_array is None:
         valid_index = np.in1d(index_array, TDF.index)
@@ -99,7 +102,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
 
         uniq, indices = np.unique(np.concatenate([index_array[np.in1d(index_array, TDF.index_at(tp))]
                                                   for tp in TDF.timepoints]), return_index=True)
-        selected_index = uniq[indices.argsort()]
+        selected_index_pos = npi.indices(uniq[indices.argsort()], TDF.index)
 
     elif index_array is None:
         valid_tp = np.in1d(tp_array, TDF.timepoints)
@@ -108,7 +111,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
             raise ValueError(f"Some time-points were not found in this {TDF.__class__.__name__} "
                              f"({repr_array(tp_array[~valid_tp])})")
 
-        selected_index = TDF.index[np.in1d(TDF.timepoints_column, tp_array)]
+        selected_index_pos = np.where([np.in1d(TDF.timepoints_column, tp_array)])[0]
 
     else:
         valid_tp = np.in1d(tp_array, TDF.timepoints)
@@ -125,6 +128,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
 
         selected_index = np.concatenate([index_array[np.in1d(index_array, TDF.index_at(tp))]
                                          for tp in tp_array])
+        selected_index_pos = npi.indices(selected_index, TDF.index)
 
     if columns_array is None:
         selected_columns_num = TDF.columns_num
@@ -141,4 +145,4 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
         selected_columns_num = columns_array[np.in1d(columns_array, TDF.columns_num)]
         selected_columns_str = columns_array[np.in1d(columns_array, TDF.columns_str)]
 
-    return selected_index, selected_columns_num, selected_columns_str, index_array, columns_array
+    return selected_index_pos, selected_columns_num, selected_columns_str, index_array, columns_array

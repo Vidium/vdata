@@ -59,15 +59,15 @@ def check_can_write(func):
 
 
 class ViewTemporalDataFrame(BaseTemporalDataFrame):
-    __slots__ = '_parent', '_index', '_columns_numerical', '_columns_string'
+    __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string'
 
     def __init__(self,
                  parent: 'TemporalDataFrame',
-                 index: np.ndarray,
+                 index_positions: np.ndarray,
                  columns_numerical: np.ndarray,
                  columns_string: np.ndarray):
         self._parent = parent
-        self._index = index
+        self._index_positions = index_positions
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
 
@@ -357,7 +357,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         if not len(timepoints_list := self.timepoints):
             return f"Time points: []\n" \
                    f"Columns: {[col for col in self.columns]}\n" \
-                   f"Index: {[idx for idx in self._index]}"
+                   f"Index: {[idx for idx in self.index]}"
 
         repr_string = ""
 
@@ -504,12 +504,13 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property
     @check_can_read
     def index(self) -> np.ndarray:
-        return self._index.copy()
+        return self._parent.index[self._index_positions].copy()
+        # return self._index.copy()
 
     @property
     @check_can_read
     def n_index(self) -> int:
-        return len(self._index)
+        return len(self._index_positions)
 
     @check_can_read
     def index_at(self, timepoint: Union[str, TimePoint]) -> np.ndarray:
@@ -525,15 +526,17 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def index_positions(self) -> np.ndarray:
         """TODO"""
-        indices = []
-        cumulated_length = 0
+        return self._index_positions
 
-        for tp in self._parent.timepoints:
-            pitp = self._parent.index_at(tp)
-            indices.append(npi.indices(pitp, self._index[np.in1d(self._index, pitp)]) + cumulated_length)
-            cumulated_length += len(pitp)
-
-        return np.concatenate(indices)
+        # indices = []
+        # cumulated_length = 0
+        #
+        # for tp in self._parent.timepoints:
+        #     pitp = self._parent.index_at(tp)
+        #     indices.append(npi.indices(pitp, self._index[np.in1d(self._index, pitp)]) + cumulated_length)
+        #     cumulated_length += len(pitp)
+        #
+        # return np.concatenate(indices)
 
     @property
     @check_can_read
