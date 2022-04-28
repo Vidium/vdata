@@ -667,7 +667,8 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
-            value_copy.write(self._parent.file['obsm'].group)
+            self._parent.file['obsm'].create_group(key)
+            value_copy.write(self._parent.file['obsm'][key].group)
 
     @property
     def shape(self) -> tuple[int, int, list[int], list[int]]:
