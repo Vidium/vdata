@@ -7,7 +7,7 @@
 import numpy as np
 from numbers import Number
 from collections import Collection
-
+import  numpy_indexed as npi
 from typing import Any, Union, Type, Optional, TYPE_CHECKING
 
 from .name_utils import SLICER
