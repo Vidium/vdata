@@ -550,7 +550,8 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
-            value_copy.write(self._parent.file['layers'].group)
+            self._parent.file['layers'].create_group(key)
+            value_copy.write(self._parent.file['layers'][key].group)
 
     @property
     def name(self) -> Literal['layers']:
