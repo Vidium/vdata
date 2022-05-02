@@ -104,7 +104,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
 
         uniq, indices = np.unique(np.concatenate([index_array[np.in1d(index_array, TDF.index_at(tp))]
                                                   for tp in TDF.timepoints]), return_index=True)
-        selected_index_pos = npi.indices(uniq[indices.argsort()], TDF.index)
+        selected_index_pos = npi.indices(TDF.index, uniq[indices.argsort()])
 
     elif index_array is None:
         valid_tp = np.in1d(tp_array, TDF.timepoints)
