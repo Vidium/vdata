@@ -13,6 +13,7 @@ from typing import Union, KeysView, ValuesView, ItemsView, Iterator, Mapping, Ty
 
 from ..arrays import VBaseArrayContainer
 from ...TDF import TemporalDataFrame, ViewTemporalDataFrame
+from ...TDF.utils import parse_slicer
 from ....IO import generalLogger, VTypeError, VValueError, ShapeError
 from vdata.time_point import TimePoint
 from vdata.vdataframe import VDataFrame
@@ -212,7 +213,12 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         super().__init__(array_container)
 
-        self._data = {key: TDF[timepoints_slicer, obs_slicer, var_slicer]
+        # get slicers for each axis only once
+        index_slicer, column_num_slicer, column_str_slicer, *_ = \
+            parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
+
+        # then create view directly
+        self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
                       for key, TDF in array_container.items()}
 
         self._parent_timepoints_hash = hash(tuple(self._array_container._parent.timepoints.value.values))
