@@ -324,9 +324,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         Set values in a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
+        index_positions, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
 
-        index_positions = self._get_index_positions(index_slicer)
+        if values.ndim == 1:
+            values = values.reshape((len(values), 1))
+
+        # index_positions = self._get_index_positions(index_slicer)
 
         # parse values, in case 'values' is not a numpy array
         if not isinstance(values, np.ndarray):
@@ -351,11 +354,15 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         # reorder values to match original index
         if index_array is not None:
-            original_positions = self._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
-            values = values[np.argsort(npi.indices(index_positions, original_positions))]
+            # TODO :
+            # original_positions = self._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
+            # values = values[np.argsort(npi.indices(index_positions, original_positions))]
+            values = values[index_positions]
 
         if self.is_backed:
-            values = values[np.argsort(index_positions)]
+            # TODO :
+            # values = values[np.argsort(index_positions)]
+            values = values[index_positions]
             index_positions.sort()
 
         if lcn:
