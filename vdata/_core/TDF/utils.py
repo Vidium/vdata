@@ -7,6 +7,7 @@
 import numpy as np
 from numbers import Number
 from collections import Collection
+import numpy_indexed as npi
 
 from typing import Any, Union, Type, Optional, TYPE_CHECKING
 
@@ -128,7 +129,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
 
         selected_index = np.concatenate([index_array[np.in1d(index_array, TDF.index_at(tp))]
                                          for tp in tp_array])
-        selected_index_pos = npi.indices(selected_index, TDF.index)
+        selected_index_pos = npi.indices(TDF.index, selected_index)
 
     if columns_array is None:
         selected_columns_num = TDF.columns_num
