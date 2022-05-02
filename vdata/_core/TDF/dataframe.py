@@ -1075,7 +1075,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             file = File(Path(file), 'a')
 
         # avoid writing if already backed and writing to this TDF's file.
-        if not (self.is_backed and self.file.filename == file.filename):  # TODO this breaks for relative and ~ paths !
+        if not (self.is_backed and self.file.file.filename == file.file.filename):  # TODO this breaks for relative and ~ paths !
             write_TDF(self, file)
 
             self.__reload_from_file(file)
