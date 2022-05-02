@@ -109,11 +109,25 @@ class ViewVData:
         self._layers = ViewVLayerArrayContainer(self._parent.layers,
                                                 self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
 
-        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._timepoints_slicer, self._obs_slicer_flat,
+        if self._parent.obsm.empty:
+            self._obsm = self._parent.obsm
+        else:
+            self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._timepoints_slicer, self._obs_slicer_flat,
                                              slice(None))
-        self._obsp = ViewVObspArrayContainer(self._parent.obsp, np.array(self._obs.index))
-        self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
-        self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
+        if self._parent.obsp.empty:
+            self._obsp = self._parent.obsp
+        else:
+            self._obsp = ViewVObspArrayContainer(self._parent.obsp, np.array(self._obs.index))
+
+        if self._parent.varm.empty:
+            self._varm = self._parent.varm
+        else:
+            self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
+
+        if self._parent.varp.empty:
+            self._varp = self._parent.varp
+        else:
+            self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
 
         # uns is not subset
         self._uns = self._parent.uns
