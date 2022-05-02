@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import numpy as np
+import numpy_indexed as npi
 from numbers import Number
 from collections import Collection
 import numpy_indexed as npi
