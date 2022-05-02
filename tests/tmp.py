@@ -3,7 +3,7 @@ import vdata
 import cProfile
 from pathlib import Path
 
-current_file_name = Path('/home/matteo/git/Real_platform/storage/mbouvier/EI52/uploads/combinedData_filtered.vd')
+current_file_name = Path('/home/matteo/')
 current_path = Path(current_file_name)
 data = vdata.read(current_path, mode='r+')
 

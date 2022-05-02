@@ -249,7 +249,6 @@ class VData:
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
-        # TODO : if all values of an axis are selected, set slicer to None
         formatted_index = reformat_index(index, self.timepoints.value.values, self.obs.index, self.var.index)
 
         generalLogger.debug(f"  Refactored index to \n{repr_index(formatted_index)}")

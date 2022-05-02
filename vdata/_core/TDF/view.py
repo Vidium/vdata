@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Union, Optional, Collection
 
 from vdata.time_point import TimePoint
 from vdata.name_utils import H5Mode
-from vdata.utils import repr_array, isCollection
+from vdata.utils import repr_array
 from .name_utils import H5Data, SLICER, DEFAULT_TIME_POINTS_COL_NAME
-from .utils import parse_slicer
+from .utils import parse_slicer, parse_values
 from .base import BaseTemporalDataFrame
 from . import indexer
 from ._write import write_TDF
@@ -59,7 +59,7 @@ def check_can_write(func):
 
 
 class ViewTemporalDataFrame(BaseTemporalDataFrame):
-    __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string'
+    __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string', '_repeating_index'
 
     def __init__(self,
                  parent: 'TemporalDataFrame',
@@ -70,6 +70,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         self._index_positions = index_positions
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
+        self._repeating_index = parent.has_repeating_index
 
     @check_can_read
     def __repr__(self) -> str:
@@ -94,10 +95,10 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         Get a single column from this view of a TemporalDataFrame.
         """
         if column_name in self.columns_num:
-            return ViewTemporalDataFrame(self._parent, self.index, np.array([column_name]), np.array([]))
+            return ViewTemporalDataFrame(self._parent, self._index_positions, np.array([column_name]), np.array([]))
 
         elif column_name in self.columns_str:
-            return ViewTemporalDataFrame(self._parent, self.index, np.array([]), np.array([column_name]))
+            return ViewTemporalDataFrame(self._parent, self._index_positions, np.array([]), np.array([column_name]))
 
         raise AttributeError(f"'{column_name}' not found in this view of a TemporalDataFrame.")
 
@@ -112,7 +113,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
-        return ViewTemporalDataFrame(self._parent, index_slicer, column_num_slicer, column_str_slicer)
+        return ViewTemporalDataFrame(self._parent, self._index_positions[index_slicer], column_num_slicer, column_str_slicer)
 
     @check_can_write
     def __setitem__(self,
@@ -123,39 +124,24 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Set values in a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
+        index_positions, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
+        index_positions = self._index_positions[index_positions]
 
-        index_positions = self._parent._get_index_positions(index_slicer)
+        # parse values
+        lcn, lcs = len(column_num_slicer), len(column_str_slicer)
 
-        # parse values, in case 'values' is not a numpy array
-        if not isinstance(values, np.ndarray):
-            if isCollection(values):
-                # collection of values : make 2D array of shape (1, len(values)) if only 1 index was selected ...
-                values = np.array([values])
-
-                # ... or make 2D array of shape (len(values), 1)
-                if len(index_positions) != 1:
-                    values = values.T
-
-            # single value : make 2D array of shape (1, 1)
-            else:
-                values = np.array([[values]])
-
-        if values.shape != (li := len(index_positions),
-                            (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
-            raise ValueError(f"Can't set {li} x {lcn + lcs} values from {values.shape[0]} x {values.shape[1]} array.")
+        values = parse_values(values, len(index_positions), lcn + lcs)
 
         if not lcn + lcs:
             return
 
         # reorder values to match original index
-        if index_array is not None:
-            original_positions = self._parent._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
-            values = values[np.argsort(npi.indices(index_positions, original_positions))]
-
-        if self._parent.is_backed:
-            values = values[np.argsort(index_positions)]
+        if self._parent.is_backed or index_array is not None:
             index_positions.sort()
+
+            original_positions = self._parent._get_index_positions(index_array)
+            values = values[np.argsort(npi.indices(index_positions,
+                                                   original_positions[np.isin(original_positions, index_positions)]))]
 
         if lcn:
             if self._parent.is_backed:
@@ -297,6 +283,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def has_locked_columns(self) -> bool:
         return self._parent.has_locked_columns
+
+    @property
+    @check_can_read
+    def has_repeating_index(self) -> bool:
+        return self._repeating_index
 
     @property
     @check_can_read

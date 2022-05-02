@@ -8,7 +8,7 @@ import builtins
 
 import numpy as np
 import pandas as pd
-from collections import abc
+from collections import abc, Collection
 
 from typing import Union, Any, Sequence, MutableMapping, cast
 
@@ -84,7 +84,7 @@ def isCollection(obj: Any) -> bool:
     :param obj: an object to test.
     :return: whether an object is a collection.
     """
-    return True if hasattr(obj, '__iter__') and not issubclass(type(obj), str) else False
+    return isinstance(obj, Collection) and not isinstance(obj, (str, bytes, bytearray))
 
 
 # Representation --------------------------------------------------------------

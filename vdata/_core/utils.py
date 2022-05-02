@@ -134,14 +134,20 @@ def slice_or_range_to_list(s: Union[slice, range], _c: Collection[Any]) -> list[
     return sliced_list
 
 
-def slicer_to_array(slicer: 'PreSlicer', reference_index: Collection, on_time_point: bool = False) -> \
-        np.ndarray:
+def slicer_to_array(slicer: 'PreSlicer',
+                    reference_index: Collection,
+                    on_time_point: bool = False) -> \
+        Optional[np.ndarray]:
     """
     Format a slicer into an array of allowed values given in the 'reference_index' parameter.
-    :param slicer: a PreSlicer object to format.
-    :param reference_index: a collection of allowed values for the slicer.
-    :param on_time_point: slicing on time points ?
-    :return: an array of allowed values in the slicer.
+
+    Args:
+        slicer: a PreSlicer object to format.
+        reference_index: a collection of allowed values for the slicer.
+        on_time_point: slicing on time points ?
+
+    Returns:
+        An array of allowed values in the slicer.
     """
     if not isinstance(slicer, (slice, type(Ellipsis))):
         if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
@@ -160,7 +166,8 @@ def slicer_to_array(slicer: 'PreSlicer', reference_index: Collection, on_time_po
 
     elif slicer == slice(None, None, None) or isinstance(slicer, type(Ellipsis)):
         # slice from start to end : take all values in reference_index
-        return np.array(reference_index)
+        # return np.array(reference_index)
+        return None
 
     elif isinstance(slicer, (slice, range)):
         # slice from specific start to end : get list of sliced values
@@ -169,17 +176,16 @@ def slicer_to_array(slicer: 'PreSlicer', reference_index: Collection, on_time_po
             slicer.stop = TimePoint(slicer.stop)
         return np.array(slice_or_range_to_list(slicer, reference_index))
 
-    else:
-        raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
+    raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
 
 def reformat_index(index: Union['PreSlicer',
                                 tuple['PreSlicer'],
                                 tuple['PreSlicer', 'PreSlicer'],
                                 tuple['PreSlicer', 'PreSlicer', 'PreSlicer']],
-                   timepoints_reference: Collection[TimePoint],
-                   obs_reference: Collection,
-                   var_reference: Collection) \
+                   timepoints_reference: Optional[Collection[TimePoint]],
+                   obs_reference: Optional[Collection],
+                   var_reference: Optional[Collection]) \
         -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Format a sub-setting index into 3 arrays of selected (and allowed) values for time points, observations and

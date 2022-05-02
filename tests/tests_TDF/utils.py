@@ -21,6 +21,7 @@ reference_backed_data = {
     'locked_columns': True,
     'timepoints_column_name': '__TDF_None__',
     'index': np.array(range(50)),
+    'repeating_index': False,
     'columns_numerical': np.array(['col1', 'col2'], dtype=np.dtype('O')),
     'columns_string': np.array(['col3'], dtype=np.dtype('O')),
     'timepoints': np.array(['0.0h' for _ in range(25)] + ['1.0h' for _ in range(25)], dtype=np.dtype('O')),
@@ -48,6 +49,7 @@ def get_backed_TDF(input_file: Path,
         h5_file.attrs['locked_indices'] = reference_backed_data['locked_indices']
         h5_file.attrs['locked_columns'] = reference_backed_data['locked_columns']
         h5_file.attrs['timepoints_column_name'] = reference_backed_data['timepoints_column_name']
+        h5_file.attrs['repeating_index'] = reference_backed_data['repeating_index']
 
         h5_file.create_dataset('index', data=reference_backed_data['index'])
         h5_file.create_dataset('columns_numerical', data=reference_backed_data['columns_numerical'],

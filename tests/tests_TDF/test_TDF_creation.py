@@ -478,6 +478,7 @@ def test_TDF_creation():
     h5_data.attrs['locked_indices'] = reference_backed_data['locked_indices']
     h5_data.attrs['locked_columns'] = reference_backed_data['locked_columns']
     h5_data.attrs['timepoints_column_name'] = reference_backed_data['timepoints_column_name']
+    h5_data.attrs['repeating_index'] = reference_backed_data['repeating_index']
 
     h5_data.create_dataset('index', data=reference_backed_data['index'])
     h5_data.create_dataset('columns_numerical', data=reference_backed_data['columns_numerical'],

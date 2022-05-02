@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from typing import Union, Iterator, Literal
+from typing import Union, Iterator, Literal, Optional
 
 import vdata
 from .arrays import ViewVLayerArrayContainer, ViewVObsmArrayContainer, ViewVObspArrayContainer, \
@@ -44,9 +44,9 @@ class ViewVData:
 
     def __init__(self,
                  parent: 'vdata.VData',
-                 timepoints_slicer: np.ndarray,
-                 obs_slicer: np.ndarray,
-                 var_slicer: np.ndarray):
+                 timepoints_slicer: Optional[np.ndarray],
+                 obs_slicer: Optional[np.ndarray],
+                 var_slicer: Optional[np.ndarray]):
         """
         Args:
             parent: a VData object to build a view of
@@ -65,10 +65,13 @@ class ViewVData:
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[timepoints_slicer, obs_slicer]
+        _tp_slicer = slice(None) if timepoints_slicer is None else timepoints_slicer
+        _obs_slicer = slice(None) if obs_slicer is None else obs_slicer
+        self._obs = self._parent.obs[_tp_slicer, _obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
-        self._timepoints_slicer = np.array([e for e in timepoints_slicer if e in self._obs.timepoints])
+        _tp_slicer = parent.timepoints.value.values if timepoints_slicer is None else timepoints_slicer
+        self._timepoints_slicer = np.array([e for e in _tp_slicer if e in self._obs.timepoints])
         self._timepoints = ViewVDataFrame(self._parent.timepoints,
                                           index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
 
@@ -76,8 +79,13 @@ class ViewVData:
                             f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"
                             f" selected)")
 
-        self._obs_slicer = [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
-                            for tp in self._obs.timepoints]
+        if obs_slicer is None:
+            self._obs_slicer = [self._obs.index_at(tp) for tp in self._obs.timepoints]
+
+        else:
+            self._obs_slicer = [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
+                                for tp in self._obs.timepoints]
+
         self._obs_slicer_flat = np.concatenate(self._obs_slicer)
 
         generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
@@ -86,11 +94,16 @@ class ViewVData:
 
         # then store var : we get a sub-set of the parent's var VDataFrame
         # this is needed to recompute the var slicer
-        self._var = ViewVDataFrame(self._parent.var, index_slicer=var_slicer)
+        _var_slicer = slice(None) if var_slicer is None else var_slicer
+        self._var = ViewVDataFrame(self._parent.var, index_slicer=_var_slicer)
 
         # recompute var slicer
         # TODO : check the order is maintained
-        self._var_slicer = np.array(var_slicer)[np.isin(var_slicer, self._var.index)]
+        if var_slicer is None:
+            self._var_slicer = self._var.index
+
+        else:
+            self._var_slicer = np.array(var_slicer)[np.isin(var_slicer, self._var.index)]
 
         # subset and store arrays
         self._layers = ViewVLayerArrayContainer(self._parent.layers,

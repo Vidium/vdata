@@ -5,15 +5,15 @@
 # ====================================================
 # imports
 import numpy as np
-import numpy_indexed as npi
 from numbers import Number
-from collections import Collection
 import numpy_indexed as npi
 
 from typing import Any, Union, Type, Optional, TYPE_CHECKING
 
+import pandas as pd
+
 from .name_utils import SLICER
-from vdata.utils import repr_array
+from vdata.utils import repr_array, isCollection
 from vdata.time_point import TimePoint, TimePointRange
 
 if TYPE_CHECKING:
@@ -23,10 +23,6 @@ if TYPE_CHECKING:
 
 # ====================================================
 # code
-def is_collection(obj: Any) -> bool:
-    return isinstance(obj, Collection) and not isinstance(obj, (str, bytes, bytearray))
-
-
 def _expand_slicer(s: Union[SLICER,
                             tuple[SLICER, SLICER],
                             tuple[SLICER, SLICER, SLICER]]) \
@@ -43,7 +39,7 @@ def _expand_slicer(s: Union[SLICER,
 
     elif isinstance(s, (Number, np.number, str, TimePoint, range, slice)) \
             or s is Ellipsis \
-            or is_collection(s) and all([isinstance(e, (Number, np.number, str, TimePoint)) for e in s]):
+            or isCollection(s) and all([isinstance(e, (Number, np.number, str, TimePoint)) for e in s]):
         return s, slice(None), slice(None)
 
     else:
@@ -70,7 +66,7 @@ def parse_axis_slicer(axis_slicer: SLICER,
 
         return np.array(list(iter(range_function(start, stop, step))))
 
-    elif isinstance(axis_slicer, range) or is_collection(axis_slicer):
+    elif isinstance(axis_slicer, range) or isCollection(axis_slicer):
         return np.array(list(map(cast_type, axis_slicer)))
 
     return np.array([cast_type(axis_slicer)])
@@ -102,9 +98,15 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
             raise ValueError(f"Some indices were not found in this {TDF.__class__.__name__} "
                              f"({repr_array(index_array[~valid_index])})")
 
-        uniq, indices = np.unique(np.concatenate([index_array[np.in1d(index_array, TDF.index_at(tp))]
-                                                  for tp in TDF.timepoints]), return_index=True)
-        selected_index_pos = npi.indices(TDF.index, uniq[indices.argsort()])
+        indices = []
+        cumulated_length = 0
+
+        for tp in TDF.timepoints:
+            itp = TDF.index_at(tp)
+            indices.append(npi.indices(itp, index_array[np.isin(index_array, itp)]) + cumulated_length)
+            cumulated_length += len(itp)
+
+        selected_index_pos = np.concatenate(indices)
 
     elif index_array is None:
         valid_tp = np.in1d(tp_array, TDF.timepoints)
@@ -113,7 +115,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
             raise ValueError(f"Some time-points were not found in this {TDF.__class__.__name__} "
                              f"({repr_array(tp_array[~valid_tp])})")
 
-        selected_index_pos = np.where([np.in1d(TDF.timepoints_column, tp_array)])[0]
+        selected_index_pos = np.where(np.in1d(TDF.timepoints_column, tp_array))[0]
 
     else:
         valid_tp = np.in1d(tp_array, TDF.timepoints)
@@ -148,3 +150,44 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
         selected_columns_str = columns_array[np.in1d(columns_array, TDF.columns_str)]
 
     return selected_index_pos, selected_columns_num, selected_columns_str, index_array, columns_array
+
+
+def parse_values(values: Any,
+                 len_index: int,
+                 len_columns: int) -> np.ndarray:
+    """TODO"""
+    if not isCollection(values):
+        return np.array([[values]])
+
+    if isinstance(values, pd.Series):
+        if len_index == 1 and len_columns == len(values):
+            return values.values.reshape((1, len(values)))
+
+        if len_index == len(values) and len_columns == 1:
+            return values.values.reshape((len(values), 1))
+
+        raise ValueError(f"Can't set {len_index} x {len_columns} values from 1 x {len(values)} array.")
+
+    if isinstance(values, list):
+        if len_index == 1 and len_columns == len(values):
+            return np.array(values).reshape((1, len(values)))
+
+        if len_index == len(values) and len_columns == 1:
+            return np.array(values).reshape((len(values), 1))
+
+        raise ValueError(f"Can't set {len_index} x {len_columns} values from 1 x {len(values)} array.")
+
+    if values.ndim == 1:
+        if len_index == 1 and len_columns == len(values):
+            return values.reshape((1, len(values)))
+
+        if len_index == len(values) and len_columns == 1:
+            return values.reshape((len(values), 1))
+
+        raise ValueError(f"Can't set {len_index} x {len_columns} values from 1 x {len(values)} array.")
+
+    if values.shape != (len_index, len_columns):
+        raise ValueError(f"Can't set {len_index} x {len_columns} values from "
+                         f"{values.shape[0]} x {values.shape[1]} array.")
+
+    return values

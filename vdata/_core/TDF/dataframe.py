@@ -15,10 +15,10 @@ from typing import Union, Optional, Collection, Any, Iterable
 
 from vdata.time_point import TimePoint
 from vdata.name_utils import H5Mode
-from vdata.utils import repr_array, isCollection
+from vdata.utils import repr_array
 from vdata.IO import VLockError
 from .name_utils import H5Data, SLICER, DEFAULT_TIME_POINTS_COL_NAME
-from .utils import parse_slicer
+from .utils import parse_slicer, parse_values
 from .base import BaseTemporalDataFrame
 from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
 from .view import ViewTemporalDataFrame
@@ -150,10 +150,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Get a single column from this TemporalDataFrame.
         """
         if column_name in self.columns_num:
-            return ViewTemporalDataFrame(self, self.index, np.array([column_name]), np.array([]))
+            return ViewTemporalDataFrame(self, np.arange(len(self.index)), np.array([column_name]), np.array([]))
 
         elif column_name in self.columns_str:
-            return ViewTemporalDataFrame(self, self.index, np.array([]), np.array([column_name]))
+            return ViewTemporalDataFrame(self, np.arange(len(self.index)), np.array([]), np.array([column_name]))
 
         raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
@@ -326,44 +326,21 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         index_positions, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
 
-        if values.ndim == 1:
-            values = values.reshape((len(values), 1))
+        # parse values
+        lcn, lcs = len(column_num_slicer), len(column_str_slicer)
 
-        # index_positions = self._get_index_positions(index_slicer)
-
-        # parse values, in case 'values' is not a numpy array
-        if not isinstance(values, np.ndarray):
-            if isCollection(values):
-                # collection of values : make 2D array of shape (1, len(values)) if only 1 index was selected ...
-                values = np.array([values])
-
-                # ... or make 2D array of shape (len(values), 1)
-                if len(index_positions) != 1:
-                    values = values.T
-
-            # single value : make 2D array of shape (1, 1)
-            else:
-                values = np.array([[values]])
-
-        if values.shape != (li := len(index_positions),
-                            (lcn := len(column_num_slicer)) + (lcs := len(column_str_slicer))):
-            raise ValueError(f"Can't set {li} x {lcn + lcs} values from {values.shape[0]} x {values.shape[1]} array.")
+        values = parse_values(values, len(index_positions), lcn + lcs)
 
         if not lcn + lcs:
             return
 
         # reorder values to match original index
-        if index_array is not None:
-            # TODO :
-            # original_positions = self._get_index_positions(index_array[np.in1d(index_array, index_slicer)])
-            # values = values[np.argsort(npi.indices(index_positions, original_positions))]
-            values = values[index_positions]
-
-        if self.is_backed:
-            # TODO :
-            # values = values[np.argsort(index_positions)]
-            values = values[index_positions]
+        if self.is_backed or index_array is not None:
             index_positions.sort()
+
+            original_positions = self._get_index_positions(index_array)
+            values = values[np.argsort(npi.indices(index_positions,
+                                                   original_positions[np.isin(original_positions, index_positions)]))]
 
         if lcn:
             if self.is_backed:
