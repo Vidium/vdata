@@ -113,7 +113,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
-        return ViewTemporalDataFrame(self._parent, self._index_positions[index_slicer], column_num_slicer, column_str_slicer)
+        return ViewTemporalDataFrame(self._parent, self._index_positions[index_slicer],
+                                     column_num_slicer, column_str_slicer)
 
     @check_can_write
     def __setitem__(self,

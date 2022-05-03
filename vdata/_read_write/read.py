@@ -393,7 +393,8 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) ->
     return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') -> 'TemporalDataFrame':
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') \
+        -> 'TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from an h5 file.
 
