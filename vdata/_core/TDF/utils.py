@@ -157,7 +157,7 @@ def parse_values(values: Any,
                  len_columns: int) -> np.ndarray:
     """TODO"""
     if not isCollection(values):
-        return np.array([[values]])
+        return np.full((len_index, len_columns), values)
 
     if isinstance(values, pd.Series):
         if len_index == 1 and len_columns == len(values):
