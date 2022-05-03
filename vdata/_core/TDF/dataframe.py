@@ -295,8 +295,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 index_offset = 0
 
                 for tpi in range(self.n_timepoints):
-                    index_positions[tpi*len(index_0):(tpi+1)*len(index_0)] = \
-                        first_positions + index_offset
+                    index_positions[tpi*len(index_0):(tpi+1)*len(index_0)] = first_positions + index_offset
                     index_offset += len(index_0)
 
                 return index_positions
@@ -336,6 +335,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         # reorder values to match original index
         if self.is_backed or index_array is not None:
+            if index_array is None:
+                index_array = self.index_at(self.timepoints[0]) if self.has_repeating_index else self.index
+
             index_positions.sort()
 
             original_positions = self._get_index_positions(index_array)

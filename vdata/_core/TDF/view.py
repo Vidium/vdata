@@ -138,6 +138,9 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         # reorder values to match original index
         if self._parent.is_backed or index_array is not None:
+            if index_array is None:
+                index_array = self.index_at(self.timepoints[0]) if self.has_repeating_index else self.index
+
             index_positions.sort()
 
             original_positions = self._parent._get_index_positions(index_array)
