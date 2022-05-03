@@ -11,13 +11,13 @@ from pathlib import Path
 from numbers import Number
 from h5py import Dataset, File
 
-from typing import TYPE_CHECKING, Union, Optional, Collection
+from typing import TYPE_CHECKING, Union, Optional, Collection, Any
 
 from vdata.time_point import TimePoint
 from vdata.name_utils import H5Mode
 from vdata.utils import repr_array
 from .name_utils import H5Data, SLICER, DEFAULT_TIME_POINTS_COL_NAME
-from .utils import parse_slicer, parse_values
+from .utils import parse_slicer, parse_values, are_equal
 from .base import BaseTemporalDataFrame
 from . import indexer
 from ._write import write_TDF
@@ -269,6 +269,16 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         self.values_num /= value
         return self
+
+    @check_can_read
+    def __eq__(self,
+               other: Any) -> Union[bool, np.ndarray]:
+        """
+        Test for equality with :
+            - another TemporalDataFrame or view of a TemporalDataFrame
+            - a single value (either numerical or string)
+        """
+        return self._is_equal(other)
 
     @property
     @check_can_read

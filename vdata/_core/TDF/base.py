@@ -10,11 +10,12 @@ from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
 
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Union, Optional, Any
 from typing_extensions import Literal
 
 from vdata.time_point import TimePoint
 from .name_utils import SLICER, H5Data
+from .utils import are_equal
 
 if TYPE_CHECKING:
     from .dataframe import TemporalDataFrame
@@ -216,6 +217,38 @@ class BaseTemporalDataFrame(ABC):
         """
         Modify inplace the values :
             - numerical values divided by <value>.
+        """
+
+    def _is_equal(self,
+                  other: Any) -> Union[bool, np.ndarray]:
+        """
+        Internal function for testing the equality with another object.
+        Do not use directly, it is called by '__eq__()'.
+        """
+        if isinstance(other, BaseTemporalDataFrame):
+            for attr in ['timepoints_column_name', 'has_locked_indices', 'has_locked_columns', 'columns',
+                         'timepoints_column', 'index', 'values_num', 'values_str']:
+                if not are_equal(getattr(self, attr), getattr(other, attr)):
+                    return False
+
+            return True
+
+        if isinstance(other, (Number, np.number)):
+            return self.values_num == other
+
+        elif isinstance(other, str):
+            return self.values_str == other
+
+        raise ValueError(f"Cannot compare {self.__class__.__name__} object with object of class "
+                         f"{other.__class__.__name__}.")
+
+    @abstractmethod
+    def __eq__(self,
+               other: Any) -> Union[bool, np.ndarray]:
+        """
+        Test for equality with :
+            - another TemporalDataFrame or view of a TemporalDataFrame
+            - a single value (either numerical or string)
         """
 
     @property

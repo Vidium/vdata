@@ -191,3 +191,14 @@ def parse_values(values: Any,
                          f"{values.shape[0]} x {values.shape[1]} array.")
 
     return values
+
+
+def are_equal(obj1: Any,
+              obj2: Any) -> bool:
+    if isinstance(obj1, np.ndarray):
+        if isinstance(obj2, np.ndarray):
+            return np.array_equal(obj1, obj2)
+
+        return False
+
+    return obj1 == obj2
