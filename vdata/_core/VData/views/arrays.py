@@ -213,13 +213,17 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         super().__init__(array_container)
 
-        # get slicers for each axis only once
-        index_slicer, column_num_slicer, column_str_slicer, *_ = \
-            parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
+        if len(array_container):
+            # get slicers for each axis only once
+            index_slicer, column_num_slicer, column_str_slicer, *_ = \
+                parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
 
-        # then create view directly
-        self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
-                      for key, TDF in array_container.items()}
+            # then create view directly
+            self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
+                          for key, TDF in array_container.items()}
+
+        else:
+            self._data = {}
 
         self._parent_timepoints_hash = hash(tuple(self._array_container._parent.timepoints.value.values))
         self._parent_obs_hash = hash(tuple(self._array_container._parent.obs.index))

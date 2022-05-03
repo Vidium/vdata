@@ -253,7 +253,7 @@ class VData:
 
         generalLogger.debug(f"  Refactored index to \n{repr_index(formatted_index)}")
 
-        if not len(formatted_index[0]):
+        if formatted_index[0] is not None and not len(formatted_index[0]):
             raise VValueError("Time points not found in this VData.")
 
         return ViewVData(self, formatted_index[0], formatted_index[1], formatted_index[2])
