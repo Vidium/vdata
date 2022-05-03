@@ -21,7 +21,7 @@ from typing import Union, Optional
 import vdata
 from vdata.name_utils import H5Mode
 from .utils import parse_path, H5GroupReader
-from ..vdataframe import VDataFrame
+from ..vdataframe import VDataFrame, ViewVDataFrame
 from ..IO import generalLogger, VPathError, VValueError
 from .._core import TemporalDataFrame
 from .._core.TDF import ViewTemporalDataFrame
@@ -304,6 +304,15 @@ def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
         df_data_str_group = df_group.create_group('data_str')
         write_data(data_str.columns, df_data_str_group, 'columns', key_level=key_level + 2)
         write_data(data_str.values.astype(str), df_data_str_group, 'data', key_level=key_level + 2)
+
+
+@write_data.register(ViewVDataFrame)
+def write_ViewVDataFrame(data: ViewVDataFrame,
+                         group: H5Group,
+                         key: str,
+                         key_level: int = 0) -> None:
+    generalLogger.info(f"{spacer(key_level)}Converting ViewVDataFrame {key} to VDataFrame")
+    write_VDataFrame(data.to_pandas(), group, key, key_level)
 
 
 @write_data.register(TemporalDataFrame)

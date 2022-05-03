@@ -157,6 +157,9 @@ class ViewVDataFrame:
 
         object.__setattr__(self, '_DataFrame', parent.loc[index_slicer, column_slicer])
 
+    def __repr__(self) -> str:
+        return repr(self._DataFrame)
+
     @property
     def is_backed(self) -> False:
         """
