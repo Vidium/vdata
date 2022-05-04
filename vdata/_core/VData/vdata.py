@@ -938,8 +938,6 @@ class VData:
             # import and cast obs to a TemporalDataFrame
             obs = TemporalDataFrame(data.obs,
                                     time_list=verified_time_list,
-                                    # timepoints=_timepoints_VDF["value"].values if _timepoints_VDF is not None else
-                                    # None,
                                     time_col_name=time_col_name,
                                     name='obs',
                                     lock=(True, False))
@@ -1064,7 +1062,6 @@ class VData:
 
                             layers[str(key)] = TemporalDataFrame(
                                 value, time_list=verified_time_list,
-                                # timepoints=_timepoints_VDF.value.values if _timepoints_VDF is not None else None,
                                 name=str(key))
 
                             if obs is not None and not isinstance(obs, TemporalDataFrame) \
@@ -1123,10 +1120,12 @@ class VData:
                     raise VTypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
                 elif isinstance(obs, (pd.DataFrame, VDataFrame)):
-                    obs = TemporalDataFrame(
-                        obs, time_list=verified_time_list, time_col_name=time_col_name,
-                        # timepoints=_timepoints_VDF.value.values if _timepoints_VDF is not None else None,
-                        name='obs', index=obs.index)
+                    obs = TemporalDataFrame(obs,
+                                            time_list=verified_time_list,
+                                            time_col_name=time_col_name,
+                                            name='obs',
+                                            index=obs.index,
+                                            repeating_index=repeating_obs_index)
 
                 else:
                     obs.unlock_indices()

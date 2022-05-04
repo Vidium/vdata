@@ -169,16 +169,21 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
         - M : months
         - Y : years
 
-    :param data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to
-        matrices of cells x genes.
-    :param obs: a pandas DataFrame describing the observations (cells).
-    :param var: a pandas DataFrame describing the variables (genes).
-    :param timepoints: a pandas DataFrame describing the time points.
-    :param dtype: the data type for the matrices in VData.
-    :param name: an optional name for the loaded VData object.
+    Args:
+        data: a dictionary of data types (RNA, Proteins, etc.) linked to dictionaries of time points linked to
+            matrices of cells x genes.
+        obs: a pandas DataFrame describing the observations (cells).
+        var: a pandas DataFrame describing the variables (genes).
+        timepoints: a pandas DataFrame describing the time points.
+        dtype: the data type for the matrices in VData.
+        name: an optional name for the loaded VData object.
 
-    :return: a VData object containing the simulation's data
+    Returns:
+        A VData object containing the simulation's data
     """
+    if not isinstance(data, dict):
+        raise VTypeError("Data should be a dictionary with format : {data type: {time point: matrix}}")
+
     _data = {}
     _timepoints: list[TimePoint] = []
     check_tp = False
@@ -189,56 +194,94 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
     _columns = var.index if isinstance(var, pd.DataFrame) else None
     generalLogger.debug(f"Found columns is : {repr_array(_columns)}.")
 
-    if not isinstance(data, dict):
-        raise VTypeError("Data should be a dictionary with format : {data type: {time point: matrix}}")
+    _repeating_index = None
+    _time_list = None
 
-    else:
-        for data_index, (data_type, TP_matrices) in enumerate(data.items()):
-            if not isinstance(TP_matrices, dict):
-                raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
+    for data_index, (data_type, TP_matrices) in enumerate(data.items()):
+        if not isinstance(TP_matrices, dict):
+            raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
 
-            # ---------------------------------------------------------------------------
-            generalLogger.debug(f"Loading layer '{data_type}'.")
+        # ---------------------------------------------------------------------------
+        generalLogger.debug(f"Loading layer '{data_type}'.")
 
-            for matrix_index, matrix in TP_matrices.items():
-                matrix_TP = TimePoint(matrix_index)
+        for matrix_index, matrix in TP_matrices.items():
+            matrix_TP = TimePoint(matrix_index)
 
-                if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
-                    raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
-                                     f"(numpy ndarray, pandas DatFrame).")
+            if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
+                raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
+                                 f"(numpy ndarray, pandas DatFrame).")
 
-                elif check_tp:
-                    if matrix_TP not in _timepoints:
-                        raise VValueError("Time points do not match for all data types.")
-                else:
-                    _timepoints.append(matrix_TP)
+            elif check_tp:
+                if matrix_TP not in _timepoints:
+                    raise VValueError("Time points do not match for all data types.")
+            else:
+                _timepoints.append(matrix_TP)
 
-            check_tp = True
+        check_tp = True
 
-            _layer_data = np.vstack(list(TP_matrices.values()))
-            # check data matches columns shape
-            if _columns is not None and _layer_data.shape[1] != len(_columns):
-                raise ShapeError(f"Layer '{data_type}' has {_layer_data.shape[1]} columns , should have "
-                                 f"{len(_columns)}.")
+        _layer_data = np.vstack(list(TP_matrices.values()))
+        # check data matches columns shape
+        if _columns is not None and _layer_data.shape[1] != len(_columns):
+            raise ShapeError(f"Layer '{data_type}' has {_layer_data.shape[1]} columns , should have "
+                             f"{len(_columns)}.")
 
-            _loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=_columns)
+        _loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=_columns)
 
-            _time_list = [_timepoints[matrix_index] for matrix_index, matrix in enumerate(TP_matrices.values())
-                          for _ in range(len(matrix))]
-            generalLogger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
+        if (li := len(_index)) != (ld := len(_loaded_data)):
+            if ld % li == 0:
+                if _repeating_index is not None and not _repeating_index:
+                    raise VValueError(f"Inconsistency in repeating index.")
 
-            _data[data_type] = TemporalDataFrame(data=_loaded_data,
-                                                 # timepoints=_timepoints,
-                                                 time_list=_time_list,
-                                                 index=_index)
+                _repeating_index = True
+                _data_index = np.concatenate([_index for _ in range(ld // li)])
 
-            generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
+            else:
+                raise VValueError(f"Index of length {li} is incompatible with data '{data_type}' of shape"
+                                  f" {_loaded_data.shape}.")
 
-        # if time points is not given, build a DataFrame from time points found in 'data'
-        if timepoints is None:
-            timepoints = pd.DataFrame({"value": _timepoints})
+        else:
+            if _repeating_index is not None and _repeating_index:
+                raise VValueError(f"Inconsistency in repeating index.")
 
-        return vdata.VData(_data, obs=obs, var=var, timepoints=timepoints, dtype=dtype, name=name)
+            _repeating_index = False
+            _data_index = _index
+
+        if _time_list is None:
+            _time_list = np.concatenate([np.repeat(_timepoints[matrix_index], len(matrix))
+                                         for matrix_index, matrix in enumerate(TP_matrices.values())])
+
+        generalLogger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
+
+        _data[data_type] = TemporalDataFrame(data=_loaded_data,
+                                             time_list=_time_list,
+                                             index=_data_index,
+                                             repeating_index=_repeating_index,
+                                             name=data_type)
+
+        generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
+
+    if not isinstance(obs, TemporalDataFrame):
+        if (lt := len(_time_list)) != (lo := len(obs)):
+            if lt % lo:
+                raise VValueError(f"Index of length {lt} is incompatible with 'obs' DataFrame of shape {obs.shape}.")
+
+            obs = pd.concat([obs for _ in range(lt // lo)])
+
+        obs = TemporalDataFrame(data=obs,
+                                time_list=_time_list,
+                                repeating_index=_repeating_index,
+                                name='obs')
+
+    # if time points is not given, build a DataFrame from time points found in 'data'
+    if timepoints is None:
+        timepoints = pd.DataFrame({"value": _timepoints})
+
+    return vdata.VData(_data,
+                       obs=obs,
+                       var=var,
+                       timepoints=timepoints,
+                       dtype=dtype,
+                       name=name)
 
 
 # HDF5 file format --------------------------------------------------------------------------------
