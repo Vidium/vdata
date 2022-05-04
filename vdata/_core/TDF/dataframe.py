@@ -18,7 +18,7 @@ from vdata.name_utils import H5Mode
 from vdata.utils import repr_array
 from vdata.IO import VLockError
 from .name_utils import H5Data, SLICER, DEFAULT_TIME_POINTS_COL_NAME
-from .utils import parse_slicer, parse_values, are_equal
+from .utils import parse_slicer, parse_values
 from .base import BaseTemporalDataFrame
 from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
 from .view import ViewTemporalDataFrame

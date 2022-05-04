@@ -227,10 +227,10 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
 
         _loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=_columns)
 
-        if (li := len(_index)) != (ld := len(_loaded_data)):
+        if _index is not None and (li := len(_index)) != (ld := len(_loaded_data)):
             if ld % li == 0:
                 if _repeating_index is not None and not _repeating_index:
-                    raise VValueError(f"Inconsistency in repeating index.")
+                    raise VValueError("Inconsistency in repeating index.")
 
                 _repeating_index = True
                 _data_index = np.concatenate([_index for _ in range(ld // li)])
@@ -241,7 +241,7 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
 
         else:
             if _repeating_index is not None and _repeating_index:
-                raise VValueError(f"Inconsistency in repeating index.")
+                raise VValueError("Inconsistency in repeating index.")
 
             _repeating_index = False
             _data_index = _index
@@ -260,8 +260,8 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
 
         generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
 
-    if not isinstance(obs, TemporalDataFrame):
-        if (lt := len(_time_list)) != (lo := len(obs)):
+    if obs is not None and not isinstance(obs, TemporalDataFrame):
+        if _time_list is not None and (lt := len(_time_list)) != (lo := len(obs)):
             if lt % lo:
                 raise VValueError(f"Index of length {lt} is incompatible with 'obs' DataFrame of shape {obs.shape}.")
 

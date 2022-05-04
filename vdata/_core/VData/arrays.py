@@ -550,7 +550,8 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
-            self._parent.file['layers'].create_group(key)
+            if key not in self._parent.file['layers'].keys():
+                self._parent.file['layers'].create_group(key)
             value_copy.write(self._parent.file['layers'][key].group)
 
     @property
@@ -668,7 +669,9 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
-            self._parent.file['obsm'].create_group(key)
+            if key not in self._parent.file['obsm'].keys():
+                self._parent.file['obsm'].create_group(key)
+
             value_copy.write(self._parent.file['obsm'][key].group)
 
     @property
