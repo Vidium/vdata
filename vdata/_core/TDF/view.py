@@ -91,7 +91,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __dir__(self):
-        return dir(ViewTemporalDataFrame) + list(self.columns)
+        return dir(ViewTemporalDataFrame) + list(map(str, self.columns))
 
     @check_can_read
     def __getattr__(self,
@@ -107,6 +107,33 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         raise AttributeError(f"'{column_name}' not found in this view of a TemporalDataFrame.")
 
+    def __parse_inverted(self,
+                         index_slicer: np.ndarray,
+                         column_num_slicer: np.ndarray,
+                         column_str_slicer: np.ndarray,
+                         arrays: tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]) \
+            -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        tp_array, index_array, columns_array = arrays
+
+        if self._inverted:
+            if tp_array is None and index_array is None:
+                _index_positions = self._index_positions[index_slicer]
+
+            else:
+                _index_positions = self._index_positions[~np.isin(self._index_positions, index_slicer)]
+
+            if columns_array is None:
+                _columns_numerical = column_num_slicer
+                _columns_string = column_str_slicer
+
+            else:
+                _columns_numerical = self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)]
+                _columns_string = self._columns_string[~np.isin(self._columns_string, column_str_slicer)]
+
+            return _index_positions, _columns_numerical, _columns_string
+
+        return self._index_positions[index_slicer], column_num_slicer, column_str_slicer
+
     @check_can_read
     def __getitem__(self,
                     slicer: Union[SLICER,
@@ -116,35 +143,40 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         Get a subset.
         """
-        index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
+        _index_positions, _columns_numerical, _columns_string = self.__parse_inverted(*parse_slicer(self, slicer))
 
-        if self._inverted:
-            return ViewTemporalDataFrame(self._parent,
-                                         self._index_positions[~np.isin(self._index_positions, index_slicer)],
-                                         self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)],
-                                         self._columns_string[~np.isin(self._columns_string, column_str_slicer)],
-                                         inverted=True)
-
-        return ViewTemporalDataFrame(self._parent, self._index_positions[index_slicer],
-                                     column_num_slicer, column_str_slicer,
-                                     inverted=False)
+        return ViewTemporalDataFrame(self._parent, _index_positions, _columns_numerical, _columns_string,
+                                     inverted=self._inverted)
 
     @check_can_write
     def __setitem__(self,
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: Union[Number, np.number, str, Collection]) -> None:
+                    values: Union[Number, np.number, str, Collection, 'TemporalDataFrame', 'ViewTemporalDataFrame']) \
+            -> None:
         """
         Set values in a subset.
         """
-        index_positions, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
-        index_positions = self._index_positions[index_positions]
+        index_positions, column_num_slicer, column_str_slicer, (tp_array, index_array, columns_array) = \
+            parse_slicer(self, slicer)
+
+        _index_positions, _columns_numerical, _columns_string = \
+            self.__parse_inverted(index_positions,
+                                  column_num_slicer,
+                                  column_str_slicer,
+                                  (tp_array, index_array, columns_array))
+
+        if self._inverted:
+            columns_array = columns_array = np.concatenate((_columns_numerical, _columns_string))
+
+        elif columns_array is None:
+            columns_array = self.columns
 
         # parse values
-        lcn, lcs = len(column_num_slicer), len(column_str_slicer)
+        lcn, lcs = len(_columns_numerical), len(_columns_string)
 
-        values = parse_values(values, len(index_positions), lcn + lcs)
+        values = parse_values(values, len(_index_positions), lcn + lcs)
 
         if not lcn + lcs:
             return
@@ -154,38 +186,38 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             if index_array is None:
                 index_array = self.index_at(self.timepoints[0]) if self.has_repeating_index else self.index
 
-            index_positions.sort()
+            _index_positions.sort()
 
             original_positions = self._parent._get_index_positions(index_array)
-            values = values[np.argsort(npi.indices(index_positions,
-                                                   original_positions[np.isin(original_positions, index_positions)]))]
+            values = values[np.argsort(npi.indices(_index_positions,
+                                                   original_positions[np.isin(original_positions, _index_positions)]))]
 
         if lcn:
             if self._parent.is_backed:
-                for column_position, column_name in zip(npi.indices(self._parent.columns_num, column_num_slicer),
-                                                        column_num_slicer):
-                    self._parent._numerical_array[index_positions, column_position] = \
+                for column_position, column_name in zip(npi.indices(self._parent.columns_num, _columns_numerical),
+                                                        _columns_numerical):
+                    self._parent._numerical_array[_index_positions, column_position] = \
                         values[:, np.where(columns_array == column_name)[0][0]].astype(float)
 
             else:
-                self._parent.values_num[index_positions[:, None],
-                                        npi.indices(self._parent.columns_num, column_num_slicer)] = \
-                    values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
+                self._parent.values_num[_index_positions[:, None],
+                                        npi.indices(self._parent.columns_num, _columns_numerical)] = \
+                    values[:, npi.indices(columns_array, _columns_numerical)].astype(float)
 
         if lcs:
-            values_str = values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
+            values_str = values[:, npi.indices(columns_array, _columns_string)].astype(str)
             if values_str.dtype > self._parent._string_array.dtype:
                 object.__setattr__(self._parent, '_string_array', self._parent._string_array.astype(values_str.dtype))
 
             if self._parent.is_backed:
-                for column_position, column_name in zip(npi.indices(self._parent.columns_str, column_str_slicer),
-                                                        column_str_slicer):
-                    self._parent._string_array[index_positions, column_position] = \
+                for column_position, column_name in zip(npi.indices(self._parent.columns_str, _columns_string),
+                                                        _columns_string):
+                    self._parent._string_array[_index_positions, column_position] = \
                         values_str[:, np.where(columns_array == column_name)[0][0] - lcn]
 
             else:
-                self._parent.values_str[index_positions[:, None],
-                                        npi.indices(self._parent.columns_str, column_str_slicer)] = \
+                self._parent.values_str[_index_positions[:, None],
+                                        npi.indices(self._parent.columns_str, _columns_string)] = \
                     values_str
 
     @check_can_read
@@ -197,6 +229,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             - <value> appended to string values if <value> is a string
         """
         return self._add_core(value)
+
+    @check_can_read
+    def __radd__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__add__(value)
 
     @check_can_write
     def __iadd__(self,
@@ -229,6 +266,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._op_core(value, 'sub')
 
+    @check_can_read
+    def __rsub__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__sub__(value)
+
     @check_can_write
     def __isub__(self,
                  value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
@@ -251,6 +293,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._op_core(value, 'mul')
 
+    @check_can_read
+    def __rmul__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__mul__(value)
+
     @check_can_write
     def __imul__(self,
                  value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
@@ -272,6 +319,11 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             - numerical values divided by <value>.
         """
         return self._op_core(value, 'div')
+
+    @check_can_read
+    def __rtruediv__(self,
+                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__truediv__(value)
 
     @check_can_write
     def __itruediv__(self,

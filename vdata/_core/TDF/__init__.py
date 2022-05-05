@@ -4,7 +4,8 @@
 
 # ====================================================
 # imports
-from .dataframe import TemporalDataFrame, ViewTemporalDataFrame
+from .dataframe import TemporalDataFrame
+from .view import ViewTemporalDataFrame
 from ._read import read_TDF, read_TemporalDataFrame, read_TemporalDataFrame_from_csv
 
 # ====================================================

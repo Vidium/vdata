@@ -10,12 +10,12 @@ from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
 
-from typing import TYPE_CHECKING, Union, Optional, Any
+from typing import TYPE_CHECKING, Union, Optional, Any, Collection
 from typing_extensions import Literal
 
+from vdata.utils import are_equal
 from vdata.time_point import TimePoint
 from .name_utils import SLICER, H5Data
-from .utils import are_equal
 
 if TYPE_CHECKING:
     from .dataframe import TemporalDataFrame
@@ -53,7 +53,8 @@ class BaseTemporalDataFrame(ABC):
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: np.ndarray) -> None:
+                    values: Union[Number, np.number, str, Collection, 'TemporalDataFrame', 'ViewTemporalDataFrame']) \
+            -> None:
         """
         Set values in a subset.
         """
@@ -104,6 +105,15 @@ class BaseTemporalDataFrame(ABC):
     @abstractmethod
     def __add__(self,
                 value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values incremented by <value> if <value> is a number
+            - <value> appended to string values if <value> is a string
+        """
+
+    @abstractmethod
+    def __radd__(self,
+                 value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -180,6 +190,14 @@ class BaseTemporalDataFrame(ABC):
         """
 
     @abstractmethod
+    def __rsub__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values decremented by <value>.
+        """
+
+    @abstractmethod
     def __isub__(self,
                  value: Union[Number, np.number]) -> None:
         """
@@ -196,6 +214,14 @@ class BaseTemporalDataFrame(ABC):
         """
 
     @abstractmethod
+    def __rmul__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values multiplied by <value>.
+        """
+
+    @abstractmethod
     def __imul__(self,
                  value: Union[Number, np.number]) -> None:
         """
@@ -206,6 +232,14 @@ class BaseTemporalDataFrame(ABC):
     @abstractmethod
     def __truediv__(self,
                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        """
+        Get a copy with :
+            - numerical values divided by <value>.
+        """
+
+    @abstractmethod
+    def __rtruediv__(self,
+                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values divided by <value>.

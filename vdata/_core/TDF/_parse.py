@@ -31,7 +31,7 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
         -> Union[tuple[None, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, tuple[bool, bool],
                        Optional[str], str, bool],
                  tuple[H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, H5Data, tuple[bool, bool], Optional[str],
-                       str], bool]:
+                       str, bool]]:
     """
     Parse the user-given data to create a TemporalDataFrame.
 

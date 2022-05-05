@@ -13,6 +13,7 @@ from typing import Any, Union, Type, Optional, TYPE_CHECKING
 import pandas as pd
 
 from .name_utils import SLICER
+from .base import BaseTemporalDataFrame
 from vdata.utils import repr_array, isCollection
 from vdata.time_point import TimePoint, TimePointRange
 
@@ -76,7 +77,8 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
                  slicer: Union[SLICER,
                                tuple[SLICER, SLICER],
                                tuple[SLICER, SLICER, SLICER]]) \
-        -> tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+        -> tuple[np.ndarray, np.ndarray, np.ndarray,
+                 tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]]:
     """
     Given a TemporalDataFrame and a slicer, get the list of indices, columns str and num and the sliced index and
     columns.
@@ -137,7 +139,7 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
     if columns_array is None:
         selected_columns_num = TDF.columns_num
         selected_columns_str = TDF.columns_str
-        columns_array = TDF.columns
+        # columns_array = TDF.columns
 
     else:
         valid_columns = np.in1d(columns_array, TDF.columns)
@@ -149,13 +151,27 @@ def parse_slicer(TDF: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
         selected_columns_num = columns_array[np.in1d(columns_array, TDF.columns_num)]
         selected_columns_str = columns_array[np.in1d(columns_array, TDF.columns_str)]
 
-    return selected_index_pos, selected_columns_num, selected_columns_str, index_array, columns_array
+    return selected_index_pos, selected_columns_num, selected_columns_str, (tp_array, index_array, columns_array)
 
 
 def parse_values(values: Any,
                  len_index: int,
                  len_columns: int) -> np.ndarray:
     """TODO"""
+    if isinstance(values, BaseTemporalDataFrame):
+        if values.n_columns_num:
+            if values.n_columns_str:
+                values = np.concatenate((values.values_num, values.values_str), axis=1)
+
+            else:
+                values = values.values_num
+
+        elif values.n_columns_str:
+            values = values.values_str
+
+        else:
+            values = []
+
     if not isCollection(values):
         return np.full((len_index, len_columns), values)
 
@@ -191,14 +207,3 @@ def parse_values(values: Any,
                          f"{values.shape[0]} x {values.shape[1]} array.")
 
     return values
-
-
-def are_equal(obj1: Any,
-              obj2: Any) -> bool:
-    if isinstance(obj1, np.ndarray):
-        if isinstance(obj2, np.ndarray):
-            return np.array_equal(obj1, obj2)
-
-        return False
-
-    return obj1 == obj2

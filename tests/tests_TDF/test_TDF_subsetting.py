@@ -10,10 +10,33 @@ from pathlib import Path
 
 from .utils import get_TDF, get_backed_TDF, cleanup
 from vdata.name_utils import H5Mode
+from vdata.time_point import TimePoint
 
 
 # ====================================================
 # code
+@pytest.fixture
+def provide_TDFs(request):
+    view, filename, name, mode = request.param
+
+    # setup
+    input_file = Path(__file__).parent / filename
+    cleanup([input_file])
+
+    TDF, backed_TDF = get_TDF(str(name)), get_backed_TDF(input_file, str(name + 1), mode)
+
+    if view:
+        yield TDF[:], backed_TDF[:]
+
+    else:
+        yield TDF, backed_TDF
+
+    backed_TDF.file.close()
+
+    # cleanup
+    cleanup([input_file])
+
+
 def test_sub_getting():
     TDF = get_TDF('1')
 
@@ -2564,14 +2587,95 @@ def test_reindex():
                                                np.arange(399, 299, -1))).T.astype(str))
 
 
-def test_reversed_sub_getting():
-    # TDF is not backed
-    TDF = get_TDF('1')
+@pytest.mark.parametrize('provide_TDFs', [(False, 'test_sub_getting_inverted_TDF', 1, 'r'),
+                                          (True, 'test_sub_getting_inverted_TDF', 3, 'r')],
+                         indirect=True)
+def test_reversed_sub_getting(provide_TDFs):
+    TDF, backed_TDF = provide_TDFs
 
-    # ~TDF['0h']
+    # TDF is not backed -------------------------------------------------------
+    # subset only on time-points
+    inverted_view = (~TDF)['0h']
 
-    # TDF is backed
-    # TDF = get_backed_TDF('2')
+    assert np.array_equal(inverted_view.timepoints, [TimePoint('1h')])
+    assert np.array_equal(inverted_view.index, np.arange(50))
+    assert np.array_equal(inverted_view.columns, TDF.columns)
+
+    # subset only on columns
+    inverted_view = (~TDF)[:, :, ['col3', 'col2']]
+
+    assert np.array_equal(inverted_view.timepoints, TDF.timepoints)
+    assert np.array_equal(inverted_view.index, TDF.index)
+    assert np.array_equal(inverted_view.columns, ['col1', 'col4'])
+
+    # TDF is backed -----------------------------------------------------------
+    # subset only on time-points
+    inverted_view = (~backed_TDF)['0h']
+
+    assert np.array_equal(inverted_view.timepoints, [TimePoint('1h')])
+    assert np.array_equal(inverted_view.index, np.arange(25, 50))
+    assert np.array_equal(inverted_view.columns, backed_TDF.columns)
+
+    # subset only on columns
+    inverted_view = (~backed_TDF)[:, :, ['col3', 'col2']]
+
+    assert np.array_equal(inverted_view.timepoints, backed_TDF.timepoints)
+    assert np.array_equal(inverted_view.index, backed_TDF.index)
+    assert np.array_equal(inverted_view.columns, ['col1'])
+
+
+@pytest.mark.parametrize('provide_TDFs', [(False, 'test_sub_getting_inverted_TDF', 1, 'r+'),
+                                          (True, 'test_sub_getting_inverted_TDF', 3, 'r+')],
+                         indirect=True)
+def test_reversed_sub_setting(provide_TDFs):
+    TDF, backed_TDF = provide_TDFs
+
+    # TDF is not backed -------------------------------------------------------
+    # subset only on time-points
+    (~TDF)['0h'] = np.concatenate((
+        -1 * (~TDF)['0h'].values_num,
+        -1 * (~TDF)['0h'].values_str.astype(int)
+    ), axis=1)
+
+    assert np.array_equal(TDF.values_num, np.vstack((
+        np.concatenate((np.arange(50, 100), -1 * np.arange(50))),
+        np.concatenate((np.arange(150, 200), -1 * np.arange(100, 150)))
+    )).T)
+    assert np.array_equal(TDF.values_str, np.vstack((
+        np.concatenate((np.arange(250, 300).astype(str), (-1 * np.arange(200., 250.)).astype(str))),
+        np.concatenate((np.arange(350, 400).astype(str), (-1 * np.arange(300., 350.)).astype(str)))
+    )).T)
+
+    # subset only on columns
+    (~TDF)[:, :, ['col3', 'col4', 'col2']] = 2 * TDF.col1
+
+    assert np.array_equal(TDF.values_num, np.vstack((
+        np.concatenate((np.arange(100, 200, 2), -1 * np.arange(0, 100, 2))),
+        np.concatenate((np.arange(150, 200), -1 * np.arange(100, 150)))
+    )).T)
+    assert np.array_equal(TDF.values_str, np.vstack((
+        np.concatenate((np.arange(250, 300).astype(str), (-1 * np.arange(200., 250.)).astype(str))),
+        np.concatenate((np.arange(350, 400).astype(str), (-1 * np.arange(300., 350.)).astype(str)))
+    )).T)
+
+    # TDF is backed -----------------------------------------------------------
+    # subset only on time-points
+    (~backed_TDF)['0h'] = -1 * (~backed_TDF)['0h']
+
+    assert np.array_equal(backed_TDF.values_num, np.vstack((
+        np.concatenate((np.arange(0, 50, 2), -1 * np.arange(50, 100, 2))),
+        np.concatenate((np.arange(1, 51, 2), -1 * np.arange(51, 101, 2)))
+    )).T)
+    assert np.array_equal(backed_TDF.values_str, np.arange(100, 150).astype(str)[:, None])
+
+    # subset only on columns
+    (~backed_TDF)[:, :, ['col3', 'col2']] = np.arange(100, 150)
+
+    assert np.array_equal(backed_TDF.values_num, np.vstack((
+        np.arange(100, 150),
+        np.concatenate((np.arange(1, 51, 2), -1 * np.arange(51, 101, 2)))
+    )).T)
+    assert np.array_equal(backed_TDF.values_str, np.arange(100, 150).astype(str)[:, None])
 
 
 if __name__ == '__main__':
@@ -2579,3 +2683,6 @@ if __name__ == '__main__':
     test_sub_setting()
     test_view_sub_getting()
     test_view_sub_setting()
+    test_reindex()
+    test_reversed_sub_getting()
+    test_reversed_sub_setting()

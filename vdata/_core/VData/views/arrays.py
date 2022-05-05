@@ -215,7 +215,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
         if len(array_container):
             # get slicers for each axis only once
-            index_slicer, column_num_slicer, column_str_slicer, *_ = \
+            index_slicer, column_num_slicer, column_str_slicer, _ = \
                 parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
 
             # then create view directly

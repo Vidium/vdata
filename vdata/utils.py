@@ -87,6 +87,17 @@ def isCollection(obj: Any) -> bool:
     return isinstance(obj, Collection) and not isinstance(obj, (str, bytes, bytearray))
 
 
+def are_equal(obj1: Any,
+              obj2: Any) -> bool:
+    if isinstance(obj1, np.ndarray):
+        if isinstance(obj2, np.ndarray):
+            return np.array_equal(obj1, obj2)
+
+        return False
+
+    return obj1 == obj2
+
+
 # Representation --------------------------------------------------------------
 def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis']) -> str:
     """

@@ -542,7 +542,7 @@ def test_inverted_TDF_creation():
                          "[50 x 4]\n\n"
 
     # TDF is backed
-    input_file = Path(__file__).parent / 'test_convert_TDF'
+    input_file = Path(__file__).parent / 'test_creation_inverted_TDF'
     cleanup([input_file])
 
     TDF = get_backed_TDF(input_file, '2')

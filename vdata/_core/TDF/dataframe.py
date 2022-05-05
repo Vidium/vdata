@@ -142,7 +142,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __dir__(self) -> Iterable[str]:
-        return dir(TemporalDataFrame) + list(self.columns)
+        return dir(TemporalDataFrame) + list(map(str, self.columns))
 
     @check_can_read
     def __getattr__(self,
@@ -279,7 +279,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]]) \
             -> ViewTemporalDataFrame:
-        index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
 
         return ViewTemporalDataFrame(self, index_slicer, column_num_slicer, column_str_slicer)
 
@@ -320,11 +320,16 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                     slicer: Union[SLICER,
                                   tuple[SLICER, SLICER],
                                   tuple[SLICER, SLICER, SLICER]],
-                    values: Union[Number, np.number, str, Collection]) -> None:
+                    values: Union[Number, np.number, str, Collection, 'TemporalDataFrame', 'ViewTemporalDataFrame']) \
+            -> None:
         """
         Set values in a subset.
         """
-        index_positions, column_num_slicer, column_str_slicer, index_array, columns_array = parse_slicer(self, slicer)
+        index_positions, column_num_slicer, column_str_slicer, (_, index_array, columns_array) = \
+            parse_slicer(self, slicer)
+
+        if columns_array is None:
+            columns_array = self.columns
 
         # parse values
         lcn, lcs = len(column_num_slicer), len(column_str_slicer)
@@ -385,6 +390,10 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._add_core(value)
 
+    @check_can_read
+    def __radd__(self, value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+        return self.__add__(value)
+
     @check_can_write
     def __iadd__(self,
                  value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
@@ -420,6 +429,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._op_core(value, 'sub')
 
+    @check_can_read
+    def __rsub__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__sub__(value)
+
     @check_can_write
     def __isub__(self,
                  value: Union[Number, np.number]) -> 'TemporalDataFrame':
@@ -442,6 +456,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._op_core(value, 'mul')
 
+    @check_can_read
+    def __rmul__(self,
+                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__mul__(value)
+
     @check_can_write
     def __imul__(self,
                  value: Union[Number, np.number]) -> 'TemporalDataFrame':
@@ -463,6 +482,11 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             - numerical values divided by <value>.
         """
         return self._op_core(value, 'div')
+
+    @check_can_read
+    def __rtruediv__(self,
+                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+        return self.__truediv__(value)
 
     @check_can_write
     def __itruediv__(self,
