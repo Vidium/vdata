@@ -251,6 +251,12 @@ class BaseTemporalDataFrame(ABC):
             - a single value (either numerical or string)
         """
 
+    @abstractmethod
+    def __invert__(self) -> 'ViewTemporalDataFrame':
+        """
+        Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
+        """
+
     @property
     @abstractmethod
     def name(self) -> str:

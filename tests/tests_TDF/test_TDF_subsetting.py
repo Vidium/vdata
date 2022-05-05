@@ -2564,6 +2564,16 @@ def test_reindex():
                                                np.arange(399, 299, -1))).T.astype(str))
 
 
+def test_reversed_sub_getting():
+    # TDF is not backed
+    TDF = get_TDF('1')
+
+    # ~TDF['0h']
+
+    # TDF is backed
+    # TDF = get_backed_TDF('2')
+
+
 if __name__ == '__main__':
     test_sub_getting()
     test_sub_setting()

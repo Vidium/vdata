@@ -155,6 +155,8 @@ def parse_data_df(data: pd.DataFrame,
 
         return time_values_
 
+    col_type = data.columns.dtype
+
     # parse INDEX -------------------------------------------------------------
     if index is not None:
         if (l := len(index)) != (s := data.shape[0]):
@@ -195,20 +197,20 @@ def parse_data_df(data: pd.DataFrame,
         if (l := len(columns_numerical)) != (s := numerical_df.shape[1]):
             raise ValueError(f"'columns_numerical' parameter has incorrect length {l}, expected {s}.")
 
-        columns_numerical_ = np.array(columns_numerical)
+        columns_numerical_ = np.array(columns_numerical, dtype=col_type)
 
     else:
-        columns_numerical_ = np.array(numerical_df.columns.values)
+        columns_numerical_ = np.array(numerical_df.columns.values, dtype=col_type)
 
     # parse COLUMNS STR -------------------------------------------------------
     if columns_string is not None:
         if (l := len(columns_string)) != (s := string_df.shape[1]):
             raise ValueError(f"'columns_string' parameter has incorrect length {l}, expected {s}.")
 
-        columns_string_ = np.array(columns_string)
+        columns_string_ = np.array(columns_string, dtype=col_type)
 
     else:
-        columns_string_ = np.array(string_df.columns.values)
+        columns_string_ = np.array(string_df.columns.values, dtype=col_type)
 
     # parse ARRAY NUM ---------------------------------------------------------
     numerical_array = numerical_df.values.copy()

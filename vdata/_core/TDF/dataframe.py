@@ -135,7 +135,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             return "Backed TemporalDataFrame on closed file."
 
         if self.empty:
-            return f"Empty {'backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
+            return f"Empty {'backed ' if self.is_backed else ''}" \
+                   f"TemporalDataFrame '{self.name}'\n" + self.head()
 
         return f"{'Backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
 
@@ -485,6 +486,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             - a single value (either numerical or string)
         """
         return self._is_equal(other)
+
+    @check_can_read
+    def __invert__(self) -> ViewTemporalDataFrame:
+        """
+        Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
+        """
+        return ViewTemporalDataFrame(self, np.arange(0, self.n_index), self.columns_num, self.columns_str,
+                                     inverted=True)
 
     def __reload_from_file(self,
                            file: H5Data) -> None:

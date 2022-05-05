@@ -9,7 +9,7 @@ import pandas as pd
 from h5py import File, string_dtype
 from pathlib import Path
 
-from .utils import get_TDF, reference_backed_data, cleanup
+from .utils import get_TDF, get_backed_TDF, reference_backed_data, cleanup
 from vdata.name_utils import H5Mode
 from vdata._core.TDF.dataframe import TemporalDataFrame
 
@@ -515,6 +515,60 @@ def test_TDF_creation():
                         "[25 x 3]\n\n"
 
     TDF.file.close()
+    cleanup([input_file])
+
+
+def test_inverted_TDF_creation():
+    # TDF is not backed
+    TDF = get_TDF('1')
+
+    assert repr(~TDF) == "Inverted view of TemporalDataFrame '1'\n" \
+                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                         "   Time-point     col1   col2    col3 col4\n" \
+                         "50       0.0h  |  50.0  150.0  |  250  350\n" \
+                         "51       0.0h  |  51.0  151.0  |  251  351\n" \
+                         "52       0.0h  |  52.0  152.0  |  252  352\n" \
+                         "53       0.0h  |  53.0  153.0  |  253  353\n" \
+                         "54       0.0h  |  54.0  154.0  |  254  354\n" \
+                         "[50 x 4]\n" \
+                         "\n" \
+                         "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                         "  Time-point    col1   col2    col3 col4\n" \
+                         "0       1.0h  |  0.0  100.0  |  200  300\n" \
+                         "1       1.0h  |  1.0  101.0  |  201  301\n" \
+                         "2       1.0h  |  2.0  102.0  |  202  302\n" \
+                         "3       1.0h  |  3.0  103.0  |  203  303\n" \
+                         "4       1.0h  |  4.0  104.0  |  204  304\n" \
+                         "[50 x 4]\n\n"
+
+    # TDF is backed
+    input_file = Path(__file__).parent / 'test_convert_TDF'
+    cleanup([input_file])
+
+    TDF = get_backed_TDF(input_file, '2')
+
+    assert repr(~TDF) == "Inverted view of backed TemporalDataFrame '2'\n" \
+                         "\x1b[4mTime point : '0.0h'\x1b[0m\n" \
+                         "  Time-point    col1 col2    col3\n" \
+                         "0       0.0h  |  0.0  1.0  |  100\n" \
+                         "1       0.0h  |  2.0  3.0  |  101\n" \
+                         "2       0.0h  |  4.0  5.0  |  102\n" \
+                         "3       0.0h  |  6.0  7.0  |  103\n" \
+                         "4       0.0h  |  8.0  9.0  |  104\n" \
+                         "[25 x 3]\n" \
+                         "\n" \
+                         "\x1b[4mTime point : '1.0h'\x1b[0m\n" \
+                         "   Time-point     col1  col2    col3\n" \
+                         "25       1.0h  |  50.0  51.0  |  125\n" \
+                         "26       1.0h  |  52.0  53.0  |  126\n" \
+                         "27       1.0h  |  54.0  55.0  |  127\n" \
+                         "28       1.0h  |  56.0  57.0  |  128\n" \
+                         "29       1.0h  |  58.0  59.0  |  129\n" \
+                         "[25 x 3]\n" \
+                         "\n"
+
+    TDF.file.close()
+
     cleanup([input_file])
 
 

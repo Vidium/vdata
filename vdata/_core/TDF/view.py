@@ -59,18 +59,21 @@ def check_can_write(func):
 
 
 class ViewTemporalDataFrame(BaseTemporalDataFrame):
-    __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string', '_repeating_index'
+    __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string', '_repeating_index', '_inverted'
 
     def __init__(self,
                  parent: 'TemporalDataFrame',
                  index_positions: np.ndarray,
                  columns_numerical: np.ndarray,
-                 columns_string: np.ndarray):
+                 columns_string: np.ndarray,
+                 inverted: bool = False):
         self._parent = parent
         self._index_positions = index_positions
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
         self._repeating_index = parent.has_repeating_index
+
+        self._inverted = inverted
 
     @check_can_read
     def __repr__(self) -> str:
@@ -78,10 +81,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
             return "View of backed TemporalDataFrame with closed file."
 
         if self.empty:
-            return f"Empty view of {'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
+            return f"Empty {'inverted ' if self.is_inverted else ''}view of " \
+                   f"{'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
                    f"{self._parent.name}'\n" + self.head()
 
-        return f"View of {'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
+        return f"{'Inverted view' if self.is_inverted else 'View'} of" \
+               f" {'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
                f"{self._parent.name}'\n" + self.head()
 
     @check_can_read
@@ -113,8 +118,16 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         index_slicer, column_num_slicer, column_str_slicer, *_ = parse_slicer(self, slicer)
 
+        if self._inverted:
+            return ViewTemporalDataFrame(self._parent,
+                                         self._index_positions[~np.isin(self._index_positions, index_slicer)],
+                                         self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)],
+                                         self._columns_string[~np.isin(self._columns_string, column_str_slicer)],
+                                         inverted=True)
+
         return ViewTemporalDataFrame(self._parent, self._index_positions[index_slicer],
-                                     column_num_slicer, column_str_slicer)
+                                     column_num_slicer, column_str_slicer,
+                                     inverted=False)
 
     @check_can_write
     def __setitem__(self,
@@ -283,10 +296,27 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._is_equal(other)
 
+    @check_can_read
+    def __invert__(self) -> 'ViewTemporalDataFrame':
+        """
+        Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
+        """
+        return ViewTemporalDataFrame(self._parent, self._index_positions, self._columns_numerical,
+                                     self._columns_string,
+                                     inverted=not self._inverted)
+
     @property
     @check_can_read
     def name(self) -> str:
         return f"view of {self._parent.name}"
+
+    @property
+    @check_can_read
+    def is_inverted(self) -> bool:
+        """
+        Whether this view of a TemporalDataFrame is inverted or not.
+        """
+        return self._inverted
 
     @property
     @check_can_read
