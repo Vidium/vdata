@@ -4,6 +4,7 @@
 
 # ====================================================
 # imports
+import re
 import numpy as np
 import pandas as pd
 import numpy_indexed as npi
@@ -722,7 +723,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
                 tp_shape = (tp_df.shape[0], 0)
 
-            repr_string += repr(tp_df) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
+            # remove unwanted shape display by pandas and replace it by our own
+            repr_string += re.sub('\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
 
         # then display only the list of remaining timepoints
         if len(timepoints_list) > 5:

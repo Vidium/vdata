@@ -352,6 +352,13 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         # return all([TDF.empty for TDF in self.values()])
         return len(self.keys()) == 0
 
+    @property
+    def has_repeating_index(self) -> bool:
+        if self.empty:
+            return False
+
+        return list(self.values())[0].has_repeating_index
+
     def update_dtype(self, type_: 'DType') -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.

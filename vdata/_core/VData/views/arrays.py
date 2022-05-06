@@ -265,6 +265,14 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
     @property
     @_check_parent_has_not_changed
+    def has_repeating_index(self) -> bool:
+        if self.empty:
+            return False
+
+        return list(self.values())[0].has_repeating_index
+
+    @property
+    @_check_parent_has_not_changed
     def shape(self) -> tuple[int, int, list[int], int]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.

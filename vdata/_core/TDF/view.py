@@ -4,6 +4,7 @@
 
 # ====================================================
 # imports
+import re
 import numpy as np
 import pandas as pd
 import numpy_indexed as npi
@@ -506,7 +507,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
                 tp_shape = tp_df.shape
 
-            repr_string += repr(tp_df) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
+            # remove unwanted shape display by pandas and replace it by our own
+            repr_string += re.sub('\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
 
         # then display only the list of remaining timepoints
         if len(timepoints_list) > 5:
@@ -614,16 +616,6 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     def index_positions(self) -> np.ndarray:
         """TODO"""
         return self._index_positions
-
-        # indices = []
-        # cumulated_length = 0
-        #
-        # for tp in self._parent.timepoints:
-        #     pitp = self._parent.index_at(tp)
-        #     indices.append(npi.indices(pitp, self._index[np.in1d(self._index, pitp)]) + cumulated_length)
-        #     cumulated_length += len(pitp)
-        #
-        # return np.concatenate(indices)
 
     @property
     @check_can_read

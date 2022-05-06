@@ -208,13 +208,6 @@ class VData:
         """
         Close file on object delete.
         """
-        # print(f'\n\n'
-        #       f'========================================================\n'
-        #       f'DELETE {id(self)} !!!!!!\n'
-        #       f'{self.name}\n'
-        #       f'========================================================\n'
-        #       f'\n\n')
-
         if self._file is not None and not self.is_closed:
             self._file.close()
 
@@ -290,6 +283,16 @@ class VData:
         Is this VData's file open in read only mode ?
         """
         return self._file is not None and self._file.mode == 'r'
+
+    @property
+    def has_repeated_obs_index(self) -> bool:
+        if not self.obs.empty:
+            return self.obs.has_repeating_index
+
+        elif not self.layers.empty:
+            return self.layers.has_repeating_index
+
+        return False
 
     @property
     def file(self) -> Optional[H5GroupReader]:

@@ -106,11 +106,12 @@ class ViewVData:
             self._var_slicer = np.array(var_slicer)[np.isin(var_slicer, self._var.index)]
 
         # subset and store arrays
-        self._layers = ViewVLayerArrayContainer(self._parent.layers,
-                                                self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
+        _obs_slicer_flat = self._obs_slicer[0] if self.has_repeated_obs_index else self._obs_slicer_flat
 
-        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._timepoints_slicer, self._obs_slicer_flat,
-                                             slice(None))
+        self._layers = ViewVLayerArrayContainer(self._parent.layers,
+                                                self._timepoints_slicer, _obs_slicer_flat, self._var_slicer)
+
+        self._obsm = ViewVObsmArrayContainer(self._parent.obsm, self._timepoints_slicer, _obs_slicer_flat, slice(None))
         self._obsp = ViewVObspArrayContainer(self._parent.obsp, np.array(self._obs.index))
         self._varm = ViewVVarmArrayContainer(self._parent.varm, self._var_slicer)
         self._varp = ViewVVarpArrayContainer(self._parent.varp, self._var_slicer)
@@ -130,7 +131,7 @@ class ViewVData:
         """
         _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
 
-        if self.is_empty:
+        if self.empty:
             repr_str = f"Empty view of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over " \
                        f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
 
@@ -189,10 +190,15 @@ class ViewVData:
         """
         return False
 
+    @property
+    @_check_parent_has_not_changed
+    def has_repeated_obs_index(self) -> bool:
+        return self._parent.has_repeated_obs_index
+
     # Shapes -------------------------------------------------------------
     @property
     @_check_parent_has_not_changed
-    def is_empty(self) -> bool:
+    def empty(self) -> bool:
         """
         Is this view of a Vdata object empty ? (no obs or no vars)
 
