@@ -41,7 +41,7 @@ def test_sub_getting():
     TDF = get_TDF('1')
 
     # subset single TP
-    assert repr(TDF['0h']) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF['0h']) == "View of TemporalDataFrame 1\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "   Time-point     col1   col2    col3 col4\n" \
                               "50       0.0h  |  50.0  150.0  |  250  350\n" \
@@ -63,7 +63,7 @@ def test_sub_getting():
                                   "long))"
 
     # subset multiple TPs
-    assert repr(TDF[['0h', '1h']]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[['0h', '1h']]) == "View of TemporalDataFrame 1\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                       "   Time-point     col1   col2    col3 col4\n" \
                                       "50       0.0h  |  50.0  150.0  |  250  350\n" \
@@ -99,7 +99,7 @@ def test_sub_getting():
                                   "long))"
 
     # subset single row
-    assert repr(TDF[:, 10]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, 10]) == "View of TemporalDataFrame 1\n" \
                                "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
                                "   Time-point     col1   col2    col3 col4\n" \
                                "10       1.0h  |  10.0  110.0  |  210  310\n" \
@@ -115,7 +115,7 @@ def test_sub_getting():
     assert str(exc_info.value) == "Some indices were not found in this TemporalDataFrame ([500] (1 value long))"
 
     # subset multiple rows
-    assert repr(TDF[:, range(25, 75)]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, range(25, 75)]) == "View of TemporalDataFrame 1\n" \
                                           "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                           "   Time-point     col1   col2    col3 col4\n" \
                                           "50       0.0h  |  50.0  150.0  |  250  350\n" \
@@ -151,7 +151,7 @@ def test_sub_getting():
                                   "values long))"
 
     # subset multiple rows, not in order
-    assert repr(TDF[:, [30, 10, 20, 80, 60, 70]]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, [30, 10, 20, 80, 60, 70]]) == "View of TemporalDataFrame 1\n" \
                                                      "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                      "   Time-point     col1   col2    col3 col4\n" \
                                                      "80       0.0h  |  80.0  180.0  |  280  380\n" \
@@ -181,7 +181,7 @@ def test_sub_getting():
 
     # subset single column
     #   getitem
-    assert repr(TDF[:, :, 'col3']) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, :, 'col3']) == "View of TemporalDataFrame 1\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                       "   Time-point    col3\n" \
                                       "50       0.0h  |  250\n" \
@@ -205,7 +205,7 @@ def test_sub_getting():
                   np.concatenate((np.arange(250, 300), np.arange(200, 250))).astype(str)[:, None])
 
     #   getattr
-    assert repr(TDF.col2) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF.col2) == "View of TemporalDataFrame 1\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                              "   Time-point      col2\n" \
                              "50       0.0h  |  150.0\n" \
@@ -241,7 +241,7 @@ def test_sub_getting():
     assert str(exc_info.value) == "'col5' not found in this TemporalDataFrame."
 
     # subset multiple columns
-    assert repr(TDF[:, :, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, :, ['col1', 'col3']]) == "View of TemporalDataFrame 1\n" \
                                                 "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                 "   Time-point     col1    col3\n" \
                                                 "50       0.0h  |  50.0  |  250\n" \
@@ -272,7 +272,7 @@ def test_sub_getting():
     assert str(exc_info.value) == "Some columns were not found in this TemporalDataFrame (['col5'] (1 value long))"
 
     # subset multiple columns, not in order
-    assert repr(TDF[:, :, ['col4', 'col2', 'col1']]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, :, ['col4', 'col2', 'col1']]) == "View of TemporalDataFrame 1\n" \
                                                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                         "   Time-point      col2  col1    col4\n" \
                                                         "50       0.0h  |  150.0  50.0  |  350\n" \
@@ -300,7 +300,7 @@ def test_sub_getting():
         np.arange(350, 400), np.arange(300, 350))).astype(str)[:, None])
 
     # subset TP, rows, columns
-    assert repr(TDF['1h', 10:40:5, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF['1h', 10:40:5, ['col1', 'col3']]) == "View of TemporalDataFrame 1\n" \
                                                          "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
                                                          "   Time-point     col1    col3\n" \
                                                          "10       1.0h  |  10.0  |  210\n" \
@@ -315,7 +315,7 @@ def test_sub_getting():
                                                                                ]).astype(str)[:, None])
 
     # subset TPs, rows, columns
-    assert repr(TDF[['0h'], 10:70:5, ['col1', 'col3']]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[['0h'], 10:70:5, ['col1', 'col3']]) == "View of TemporalDataFrame 1\n" \
                                                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                            "   Time-point     col1    col3\n" \
                                                            "50       0.0h  |  50.0  |  250\n" \
@@ -347,7 +347,7 @@ def test_sub_getting():
 
     # subset TPs, rows, columns, not in order
     assert repr(TDF[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col2', 'col1', 'col3']]) == \
-           "View of TemporalDataFrame '1'\n" \
+           "View of TemporalDataFrame 1\n" \
            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
            "   Time-point      col2  col1    col3\n" \
            "80       0.0h  |  180.0  80.0  |  280\n" \
@@ -373,7 +373,7 @@ def test_sub_getting():
     TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
                   repeating_index=True)
 
-    assert repr(TDF[:, [4, 0, 2]]) == "View of TemporalDataFrame '1'\n" \
+    assert repr(TDF[:, [4, 0, 2]]) == "View of TemporalDataFrame 1\n" \
                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                       "  Time-point     col1   col2    col3 col4\n" \
                                       "4       0.0h  |  54.0  154.0  |  254  354\n" \
@@ -1462,7 +1462,7 @@ def test_view_sub_getting():
     view = TDF[:, range(10, 90), ['col1', 'col4']]
 
     # subset single TP
-    assert repr(view['0h']) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view['0h']) == "View of TemporalDataFrame 2\n" \
                                "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                "   Time-point     col1    col4\n" \
                                "50       0.0h  |  50.0  |  350\n" \
@@ -1483,7 +1483,7 @@ def test_view_sub_getting():
                                   "value long))"
 
     # subset multiple TPs
-    assert repr(view[['0h', '1h']]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[['0h', '1h']]) == "View of TemporalDataFrame 2\n" \
                                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                        "   Time-point     col1    col4\n" \
                                        "50       0.0h  |  50.0  |  350\n" \
@@ -1514,7 +1514,7 @@ def test_view_sub_getting():
                                   "value long))"
 
     # subset single row
-    assert repr(view[:, 10]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[:, 10]) == "View of TemporalDataFrame 2\n" \
                                 "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
                                 "   Time-point     col1    col4\n" \
                                 "10       1.0h  |  10.0  |  310\n" \
@@ -1530,7 +1530,7 @@ def test_view_sub_getting():
     assert str(exc_info.value) == "Some indices were not found in this ViewTemporalDataFrame ([500] (1 value long))"
 
     # subset multiple rows
-    assert repr(view[:, range(25, 75)]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[:, range(25, 75)]) == "View of TemporalDataFrame 2\n" \
                                            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                            "   Time-point     col1    col4\n" \
                                            "50       0.0h  |  50.0  |  350\n" \
@@ -1561,7 +1561,7 @@ def test_view_sub_getting():
                                   "205 values long))"
 
     # subset multiple rows, not in order
-    assert repr(view[:, [30, 10, 20, 80, 60, 70]]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[:, [30, 10, 20, 80, 60, 70]]) == "View of TemporalDataFrame 2\n" \
                                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                       "   Time-point     col1    col4\n" \
                                                       "80       0.0h  |  80.0  |  380\n" \
@@ -1591,7 +1591,7 @@ def test_view_sub_getting():
 
     # subset single column
     #   getitem
-    assert repr(view[:, :, 'col4']) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[:, :, 'col4']) == "View of TemporalDataFrame 2\n" \
                                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                        "   Time-point    col4\n" \
                                        "50       0.0h  |  350\n" \
@@ -1615,7 +1615,7 @@ def test_view_sub_getting():
                   np.concatenate((np.arange(350, 390), np.arange(310, 350))).astype(str)[:, None])
 
     #   getattr
-    assert repr(view.col1) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view.col1) == "View of TemporalDataFrame 2\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "   Time-point     col1\n" \
                               "50       0.0h  |  50.0\n" \
@@ -1651,7 +1651,7 @@ def test_view_sub_getting():
     assert str(exc_info.value) == "'col5' not found in this view of a TemporalDataFrame."
 
     # subset multiple columns
-    assert repr(view[:, :, ['col1', 'col4']]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[:, :, ['col1', 'col4']]) == "View of TemporalDataFrame 2\n" \
                                                  "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                  "   Time-point     col1    col4\n" \
                                                  "50       0.0h  |  50.0  |  350\n" \
@@ -1684,7 +1684,7 @@ def test_view_sub_getting():
 
     # subset multiple columns, not in order
     assert repr(TDF[:, range(10, 90), ['col1', 'col2', 'col4']][:, :, ['col4', 'col2', 'col1']]) == \
-           "View of TemporalDataFrame '2'\n" \
+           "View of TemporalDataFrame 2\n" \
            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
            "   Time-point      col2  col1    col4\n" \
            "50       0.0h  |  150.0  50.0  |  350\n" \
@@ -1713,7 +1713,7 @@ def test_view_sub_getting():
                   np.concatenate((np.arange(350, 390), np.arange(310, 350))).astype(str)[:, None])
 
     # subset TP, rows, columns
-    assert repr(view['1h', 20:40:5, ['col1']]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view['1h', 20:40:5, ['col1']]) == "View of TemporalDataFrame 2\n" \
                                                   "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
                                                   "   Time-point     col1\n" \
                                                   "20       1.0h  |  20.0\n" \
@@ -1726,7 +1726,7 @@ def test_view_sub_getting():
     assert view['1h', 20:40:5, ['col1']].values_str.size == 0
 
     # subset TPs, rows, columns
-    assert repr(view[['0h'], 20:70:5, ['col1', 'col4']]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(view[['0h'], 20:70:5, ['col1', 'col4']]) == "View of TemporalDataFrame 2\n" \
                                                             "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                             "   Time-point     col1    col4\n" \
                                                             "50       0.0h  |  50.0  |  350\n" \
@@ -1759,7 +1759,7 @@ def test_view_sub_getting():
 
     # subset TPs, rows, columns, not in order
     assert repr(view[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col1', 'col4']]) == \
-           "View of TemporalDataFrame '2'\n" \
+           "View of TemporalDataFrame 2\n" \
            "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
            "   Time-point     col1    col4\n" \
            "80       0.0h  |  80.0  |  380\n" \
@@ -1785,7 +1785,7 @@ def test_view_sub_getting():
     TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
                   repeating_index=True)
 
-    assert repr(TDF[:, :, ['col2', 'col1']][:, [4, 0, 2]]) == "View of TemporalDataFrame '2'\n" \
+    assert repr(TDF[:, :, ['col2', 'col1']][:, [4, 0, 2]]) == "View of TemporalDataFrame 2\n" \
                                                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                                                               "  Time-point      col2  col1\n" \
                                                               "4       0.0h  |  154.0  54.0\n" \

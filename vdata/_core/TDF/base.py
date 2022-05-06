@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Union, Optional, Any, Collection
 from typing_extensions import Literal
 
+from . import dataframe
 from vdata.utils import are_equal
 from vdata.time_point import TimePoint
 from .name_utils import SLICER, H5Data
@@ -59,19 +60,35 @@ class BaseTemporalDataFrame(ABC):
         Set values in a subset.
         """
 
+    def _check_compatibility(self,
+                             value: 'BaseTemporalDataFrame') -> None:
+        # time-points column and nb of columns must be identical
+        if not np.array_equal(self.timepoints_column, value.timepoints_column):
+            raise ValueError("Time-points do not match.")
+        if not np.array_equal(self.n_columns_num, value.n_columns_num):
+            raise ValueError("Columns numerical do not match.")
+        if not np.array_equal(self.n_columns_str, value.n_columns_str):
+            raise ValueError("Columns string do not match.")
+
     def _add_core(self,
-                  value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+                  value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Internal function for adding a value, called from __add__. Do not use directly.
         """
-        from .dataframe import TemporalDataFrame
-
         if isinstance(value, (Number, np.number)):
             if self.values_num.size == 0:
                 raise ValueError("No numerical data to add.")
 
             values_num = self.values_num + value
             values_str = self.values_str
+            value_name = value
+
+        elif isinstance(value, BaseTemporalDataFrame):
+            self._check_compatibility(value)
+
+            values_num = self.values_num + value.values_num
+            values_str = np.char.add(self.values_str, value.values_str)
+            value_name = value.full_name
 
         else:
             if self.values_str.size == 0:
@@ -79,16 +96,17 @@ class BaseTemporalDataFrame(ABC):
 
             values_num = self.values_num
             values_str = np.char.add(self.values_str, value)
+            value_name = value
 
         if self.timepoints_column_name is None:
             df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
                                  pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
-            return TemporalDataFrame(df_data,
-                                     time_list=self.timepoints_column,
-                                     lock=self.lock,
-                                     name=f"{self.name} + {value}")
+            return dataframe.TemporalDataFrame(df_data,
+                                               time_list=self.timepoints_column,
+                                               lock=self.lock,
+                                               name=f"{self.full_name} + {value_name}")
 
         else:
             df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
@@ -97,14 +115,14 @@ class BaseTemporalDataFrame(ABC):
                                  pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
-            return TemporalDataFrame(df_data,
-                                     time_col_name=self.timepoints_column_name,
-                                     lock=self.lock,
-                                     name=f"{self.name} + {value}")
+            return dataframe.TemporalDataFrame(df_data,
+                                               time_col_name=self.timepoints_column_name,
+                                               lock=self.lock,
+                                               name=f"{self.full_name} + {value_name}")
 
     @abstractmethod
     def __add__(self,
-                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -122,7 +140,8 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> Union['TemporalDataFrame', 'ViewTemporalDataFrame']:
+                 value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) \
+            -> Union['TemporalDataFrame', 'ViewTemporalDataFrame']:
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -130,31 +149,56 @@ class BaseTemporalDataFrame(ABC):
         """
 
     def _op_core(self,
-                 value: Union[Number, np.number],
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame'],
                  operation: Literal['sub', 'mul', 'div']) -> 'TemporalDataFrame':
         """
         Internal function for subtracting, multiplying by and dividing by a value, called from __add__. Do not use
         directly.
         """
-        from .dataframe import TemporalDataFrame
-
         if operation == 'sub':
             if self.values_num.size == 0:
                 raise ValueError("No numerical data to subtract.")
             op = '-'
-            values_num = self.values_num - value
+
+            if isinstance(value, BaseTemporalDataFrame):
+                self._check_compatibility(value)
+
+                values_num = self.values_num - value.values_num
+                value_name = value.full_name
+
+            else:
+                values_num = self.values_num - value
+                value_name = value
 
         elif operation == 'mul':
             if self.values_num.size == 0:
                 raise ValueError("No numerical data to multiply.")
             op = '*'
-            values_num = self.values_num * value
+
+            if isinstance(value, BaseTemporalDataFrame):
+                self._check_compatibility(value)
+
+                values_num = self.values_num * value.values_num
+                value_name = value.full_name
+
+            else:
+                values_num = self.values_num * value
+                value_name = value
 
         elif operation == 'div':
             if self.values_num.size == 0:
                 raise ValueError("No numerical data to divide.")
             op = '/'
-            values_num = self.values_num / value
+
+            if isinstance(value, BaseTemporalDataFrame):
+                self._check_compatibility(value)
+
+                values_num = self.values_num / value.values_num
+                value_name = value.full_name
+
+            else:
+                values_num = self.values_num / value
+                value_name = value
 
         else:
             raise ValueError(f"Unknown operation '{operation}'.")
@@ -164,10 +208,10 @@ class BaseTemporalDataFrame(ABC):
                                  pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
-            return TemporalDataFrame(df_data,
-                                     time_list=self.timepoints_column,
-                                     lock=self.lock,
-                                     name=f"{self.name} {op} {value}")
+            return dataframe.TemporalDataFrame(df_data,
+                                               time_list=self.timepoints_column,
+                                               lock=self.lock,
+                                               name=f"{self.full_name} {op} {value_name}")
 
         else:
             df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
@@ -176,14 +220,14 @@ class BaseTemporalDataFrame(ABC):
                                  pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
-            return TemporalDataFrame(df_data,
-                                     time_col_name=self.timepoints_column_name,
-                                     lock=self.lock,
-                                     name=f"{self.name} {op} {value}")
+            return dataframe.TemporalDataFrame(df_data,
+                                               time_col_name=self.timepoints_column_name,
+                                               lock=self.lock,
+                                               name=f"{self.full_name} {op} {value_name}")
 
     @abstractmethod
     def __sub__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -199,7 +243,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __isub__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> None:
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -207,7 +251,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __mul__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -223,7 +267,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __imul__(self,
-                 value: Union[Number, np.number]) -> None:
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> None:
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -231,7 +275,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __truediv__(self,
-                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                    value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -247,7 +291,7 @@ class BaseTemporalDataFrame(ABC):
 
     @abstractmethod
     def __itruediv__(self,
-                     value: Union[Number, np.number]) -> None:
+                     value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> None:
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -296,6 +340,13 @@ class BaseTemporalDataFrame(ABC):
     def name(self) -> str:
         """
         Get the name.
+        """
+
+    @property
+    @abstractmethod
+    def full_name(self) -> str:
+        """
+        Get the full name.
         """
 
     @property

@@ -79,16 +79,9 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def __repr__(self) -> str:
         if self._parent.is_backed and not self._parent.file:
-            return "View of backed TemporalDataFrame with closed file."
+            return self.full_name
 
-        if self.empty:
-            return f"Empty {'inverted ' if self.is_inverted else ''}view of " \
-                   f"{'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
-                   f"{self._parent.name}'\n" + self.head()
-
-        return f"{'Inverted view' if self.is_inverted else 'View'} of" \
-               f" {'backed ' if self._parent.is_backed else ''}TemporalDataFrame '" \
-               f"{self._parent.name}'\n" + self.head()
+        return f"{self.full_name}\n{self.head()}"
 
     @check_can_read
     def __dir__(self):
@@ -223,7 +216,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __add__(self,
-                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -238,7 +231,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> 'ViewTemporalDataFrame':
+                 value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -260,7 +253,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __sub__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -274,7 +267,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __isub__(self,
-                 value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -287,7 +280,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __mul__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -301,7 +294,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __imul__(self,
-                 value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -314,7 +307,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __truediv__(self,
-                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                    value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -328,7 +321,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __itruediv__(self,
-                     value: Union[Number, np.number]) -> 'ViewTemporalDataFrame':
+                     value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -362,6 +355,31 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def name(self) -> str:
         return f"view of {self._parent.name}"
+
+    @property
+    def full_name(self) -> str:
+        """
+        Get the full name.
+        """
+        if self._parent.is_backed and not self._parent.file:
+            return f"View of {self._parent.__class__.__name__} backed on closed file."
+
+        parts = []
+        if self.empty:
+            parts.append('empty')
+
+        if self.is_inverted:
+            parts.append('inverted')
+
+        parent_full_name = self._parent.full_name
+        if not parent_full_name.startswith(self._parent.__class__.__name__):
+            parent_full_name = parent_full_name[0].lower() + parent_full_name[1:]
+
+        parts += ['view of', parent_full_name]
+
+        parts[0] = parts[0].capitalize()
+
+        return ' '.join(parts)
 
     @property
     @check_can_read
@@ -508,7 +526,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                 tp_shape = tp_df.shape
 
             # remove unwanted shape display by pandas and replace it by our own
-            repr_string += re.sub('\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
+            repr_string += re.sub(r'\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
 
         # then display only the list of remaining timepoints
         if len(timepoints_list) > 5:

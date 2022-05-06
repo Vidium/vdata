@@ -133,13 +133,9 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     @check_can_read
     def __repr__(self) -> str:
         if self.is_backed and not self._file:
-            return "Backed TemporalDataFrame on closed file."
+            return self.full_name
 
-        if self.empty:
-            return f"Empty {'backed ' if self.is_backed else ''}" \
-                   f"TemporalDataFrame '{self.name}'\n" + self.head()
-
-        return f"{'Backed ' if self.is_backed else ''}TemporalDataFrame '{self.name}'\n" + self.head()
+        return f"{self.full_name}\n{self.head()}"
 
     @check_can_read
     def __dir__(self) -> Iterable[str]:
@@ -383,7 +379,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __add__(self,
-                value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -397,7 +393,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __iadd__(self,
-                 value: Union[Number, np.number, str]) -> 'TemporalDataFrame':
+                 value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -423,7 +419,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __sub__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -437,7 +433,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __isub__(self,
-                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -450,7 +446,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __mul__(self,
-                value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -464,7 +460,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __imul__(self,
-                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -477,7 +473,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __truediv__(self,
-                    value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                    value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -491,7 +487,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __itruediv__(self,
-                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                     value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -556,6 +552,28 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         if self.is_backed:
             self._file.attrs['name'] = name
+
+    @property
+    def full_name(self) -> str:
+        """
+        Get the full name.
+        """
+        if self.is_backed and not self._file:
+            return f"{self.__class__.__name__} backed on closed file"
+
+        parts = []
+        if self.empty:
+            parts.append('empty')
+
+        if self.is_backed:
+            parts.append('backed')
+
+        if len(parts):
+            parts[0] = parts[0].capitalize()
+
+        parts += [self.__class__.__name__, self.name]
+
+        return ' '.join(parts)
 
     @property
     @check_can_read
@@ -724,7 +742,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 tp_shape = (tp_df.shape[0], 0)
 
             # remove unwanted shape display by pandas and replace it by our own
-            repr_string += re.sub('\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
+            repr_string += re.sub(r'\\n\[.*$', '', repr(tp_df)) + '\n' + f'[{tp_shape[0]} x {tp_shape[1]}]\n\n'
 
         # then display only the list of remaining timepoints
         if len(timepoints_list) > 5:

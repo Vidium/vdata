@@ -42,7 +42,7 @@ def test_read():
     assert TDF.file.mode == H5Mode.READ
     check_TDF(TDF, '1')
 
-    assert repr(TDF) == "Backed TemporalDataFrame '1'\n" \
+    assert repr(TDF) == "Backed TemporalDataFrame 1\n" \
                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                         "  Time-point    col1 col2    col3\n" \
                         "0       0.0h  |  0.0  1.0  |  100\n" \

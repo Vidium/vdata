@@ -114,7 +114,7 @@ def test_copy():
     #   time-points column name is None
     TDF_copy = TDF.copy()
 
-    assert repr(TDF_copy) == "TemporalDataFrame 'copy of 1'\n" \
+    assert repr(TDF_copy) == "TemporalDataFrame copy of 1\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                              "   Time-point     col1   col2    col3 col4\n" \
                              "50       0.0h  |  50.0  150.0  |  250  350\n" \
@@ -140,7 +140,7 @@ def test_copy():
     TDF.timepoints_column_name = 'Time'
     TDF_copy = TDF.copy()
 
-    assert repr(TDF_copy) == "TemporalDataFrame 'copy of 1'\n" \
+    assert repr(TDF_copy) == "TemporalDataFrame copy of 1\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                              "    Time     col1   col2    col3 col4\n" \
                              "50  0.0h  |  50.0  150.0  |  250  350\n" \
@@ -171,7 +171,7 @@ def test_copy():
     #   time-points column name is None
     TDF_copy = TDF.copy()
 
-    assert repr(TDF_copy) == "TemporalDataFrame 'copy of 2'\n" \
+    assert repr(TDF_copy) == "TemporalDataFrame copy of 2\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                              "  Time-point    col1 col2    col3\n" \
                              "0       0.0h  |  0.0  1.0  |  100\n" \
@@ -197,7 +197,7 @@ def test_copy():
     TDF.timepoints_column_name = 'Time'
     TDF_copy = TDF.copy()
 
-    assert repr(TDF_copy) == "TemporalDataFrame 'copy of 2'\n" \
+    assert repr(TDF_copy) == "TemporalDataFrame copy of 2\n" \
                              "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                              "   Time    col1 col2    col3\n" \
                              "0  0.0h  |  0.0  1.0  |  100\n" \
@@ -231,7 +231,7 @@ def test_copy():
     #   time-points column name is None
     view_copy = view.copy()
 
-    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 3'\n" \
+    assert repr(view_copy) == "TemporalDataFrame copy of view of 3\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "   Time-point     col1    col4\n" \
                               "50       0.0h  |  50.0  |  350\n" \
@@ -260,7 +260,7 @@ def test_copy():
 
     view_copy = view.copy()
 
-    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 3'\n" \
+    assert repr(view_copy) == "TemporalDataFrame copy of view of 3\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "    Time     col1    col4\n" \
                               "50  0.0h  |  50.0  |  350\n" \
@@ -293,7 +293,7 @@ def test_copy():
     #   time-points column name is None
     view_copy = view.copy()
 
-    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 4'\n" \
+    assert repr(view_copy) == "TemporalDataFrame copy of view of 4\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "   Time-point     col1    col3\n" \
                               "10       0.0h  |  20.0  |  110\n" \
@@ -322,7 +322,7 @@ def test_copy():
 
     view_copy = view.copy()
 
-    assert repr(view_copy) == "TemporalDataFrame 'copy of view of 4'\n" \
+    assert repr(view_copy) == "TemporalDataFrame copy of view of 4\n" \
                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
                               "    Time     col1    col3\n" \
                               "10  0.0h  |  20.0  |  110\n" \
