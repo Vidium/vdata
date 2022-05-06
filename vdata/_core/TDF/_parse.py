@@ -127,9 +127,6 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
         if time_col_name is not None:
             warn("Data loaded from a H5 file, 'time_col_name' parameter is ignored.")
 
-        if repeating_index is not None:
-            warn("Data loaded from a H5 file, 'repeating_index' parameter is ignored.")
-
         return parse_data_h5(data, index, columns_numerical, columns_string, lock, name)
 
     raise ValueError("Invalid 'data' supplied for creating a TemporalDataFrame. 'data' can be :\n"
