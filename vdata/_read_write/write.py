@@ -12,6 +12,7 @@ import anndata.compat
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+from tqdm import tqdm
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
@@ -70,20 +71,24 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
 
         save_file = File(str(file), mode=H5Mode.READ_WRITE_CREATE)
 
+        # TODO : make better
+        nb_items_to_write = len(obj.layers) + 1 + len(obj.obsm) + len(obj.obsp) + 1 + len(obj.varm) + len(obj.varp) + 1
+        progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {obj.name}')
+
         # save layers
-        write_data(obj.layers.data, save_file, 'layers')
+        write_data(obj.layers.data, save_file, 'layers', progress=progressBar)
         # save obs
-        write_data(obj.obs, save_file, 'obs')
-        write_data(obj.obsm.data, save_file, 'obsm')
-        write_data(obj.obsp.data, save_file, 'obsp')
+        write_data(obj.obs, save_file, 'obs', progress=progressBar)
+        write_data(obj.obsm.data, save_file, 'obsm', progress=progressBar)
+        write_data(obj.obsp.data, save_file, 'obsp', progress=progressBar)
         # save var
-        write_data(obj.var, save_file, 'var')
-        write_data(obj.varm.data, save_file, 'varm')
-        write_data(obj.varp.data, save_file, 'varp')
+        write_data(obj.var, save_file, 'var', progress=progressBar)
+        write_data(obj.varm.data, save_file, 'varm', progress=progressBar)
+        write_data(obj.varp.data, save_file, 'varp', progress=progressBar)
         # save time points
-        write_data(obj.timepoints, save_file, 'timepoints')
+        write_data(obj.timepoints, save_file, 'timepoints', progress=progressBar)
         # save uns
-        write_data(obj.uns, save_file, 'uns')
+        write_data(obj.uns, save_file, 'uns', progress=progressBar)
 
         obj.file = H5GroupReader(save_file)
 
@@ -246,7 +251,8 @@ def write_data(data,
 def write_Dict(data: Union[dict, anndata.compat.OverloadedDict],
                group: H5Group,
                key: str,
-               key_level: int = 0) -> None:
+               key_level: int = 0,
+               progress: Optional[tqdm] = None) -> None:
     """
     Function for writing dictionaries to the h5 file.
     It creates a group for storing the keys and recursively calls write_data to store them.
@@ -262,7 +268,7 @@ def write_Dict(data: Union[dict, anndata.compat.OverloadedDict],
     grp.attrs['type'] = 'dict'
 
     for dict_key, value in data_dict.items():
-        write_data(value, grp, dict_key, key_level=key_level+1)
+        write_data(value, grp, dict_key, key_level=key_level+1, progress=progress)
 
 
 @write_data.register(VDataFrame)
@@ -270,7 +276,8 @@ def write_Dict(data: Union[dict, anndata.compat.OverloadedDict],
 def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
                      group: H5Group,
                      key: str,
-                     key_level: int = 0) -> None:
+                     key_level: int = 0,
+                     progress: Optional[tqdm] = None) -> None:
     """
     Function for writing VDataFrames to the h5 file. Each VDataFrame is stored in a group, containing the index and the
     columns as Series.
@@ -305,14 +312,21 @@ def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
         write_data(data_str.columns, df_data_str_group, 'columns', key_level=key_level + 2)
         write_data(data_str.values.astype(str), df_data_str_group, 'data', key_level=key_level + 2)
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register(ViewVDataFrame)
 def write_ViewVDataFrame(data: ViewVDataFrame,
                          group: H5Group,
                          key: str,
-                         key_level: int = 0) -> None:
+                         key_level: int = 0,
+                         progress: Optional[tqdm] = None) -> None:
     generalLogger.info(f"{spacer(key_level)}Converting ViewVDataFrame {key} to VDataFrame")
     write_VDataFrame(data.to_pandas(), group, key, key_level)
+
+    if progress is not None:
+        progress.update()
 
 
 @write_data.register(TemporalDataFrame)
@@ -320,9 +334,13 @@ def write_ViewVDataFrame(data: ViewVDataFrame,
 def write_TemporalDataFrame(data: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
                             group: H5Group,
                             key: str,
-                            key_level: int = 0) -> None:
+                            key_level: int = 0,
+                            progress: Optional[tqdm] = None) -> None:
     generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
     data.write(group.create_group(str(key)))
+
+    if progress is not None:
+        progress.update()
 
 
 @write_data.register(pd.Series)
@@ -376,7 +394,8 @@ def write_series(series: Union[pd.Series, pd.Index],
 def write_array(data: np.ndarray,
                 group: H5Group,
                 key: str,
-                key_level: int = 0) -> None:
+                key_level: int = 0,
+                **kwargs) -> None:
     """
     Function for writing np.arrays to the h5 file.
     """
@@ -394,7 +413,8 @@ def write_array(data: np.ndarray,
 def write_sparse_matrix(data: sp.spmatrix,
                         group: H5Group,
                         key: str,
-                        key_level: int = 0) -> None:
+                        key_level: int = 0,
+                        **kwargs) -> None:
     """
     Function for writing scipy sparse matrices to the h5 file.
     """
@@ -409,7 +429,8 @@ def write_sparse_matrix(data: sp.spmatrix,
 def write_list(data: list,
                group: H5Group,
                key: str,
-               key_level: int = 0) -> None:
+               key_level: int = 0,
+               **kwargs) -> None:
     """
     Function for writing lists to the h5 file.
     """
@@ -428,7 +449,8 @@ def write_list(data: list,
 def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floating, bool, np.bool_],
                        group: H5Group,
                        key: str,
-                       key_level: int = 0) -> None:
+                       key_level: int = 0,
+                       **kwargs) -> None:
     """
     Function for writing a single value to the h5 file.
     """
@@ -441,7 +463,8 @@ def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floa
 def write_Type(data: type,
                group: H5Group,
                key: str,
-               key_level: int = 0) -> None:
+               key_level: int = 0,
+               **kwargs) -> None:
     """
     Function for writing a type to the h5 file.
     """
@@ -454,7 +477,8 @@ def write_Type(data: type,
 def write_Path(data: Path,
                group: H5Group,
                key: str,
-               key_level: int = 0) -> None:
+               key_level: int = 0,
+               **kwargs) -> None:
     """
     Function for writing a Path to the h5 file.
     """
@@ -467,7 +491,8 @@ def write_Path(data: Path,
 def write_None(_: None,
                group: H5Group,
                key: str,
-               key_level: int = 0) -> None:
+               key_level: int = 0,
+               **kwargs) -> None:
     """
     Function for writing None to the h5 file.
     """
