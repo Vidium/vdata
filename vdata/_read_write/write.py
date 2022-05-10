@@ -37,7 +37,8 @@ def spacer(nb: int) -> str:
 
 
 def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
-                file: Optional[Union[str, Path]]) -> None:
+                file: Optional[Union[str, Path]],
+                show_progress: bool = True) -> None:
     """
     Save this VData object in HDF5 file format.
 
@@ -71,9 +72,10 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
 
         save_file = File(str(file), mode=H5Mode.READ_WRITE_CREATE)
 
-        # TODO : make better
-        nb_items_to_write = len(obj.layers) + 1 + len(obj.obsm) + len(obj.obsp) + 1 + len(obj.varm) + len(obj.varp) + 1
-        progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {obj.name}')
+        nb_items_to_write = len(obj.layers) + 1 + len(obj.obsm) + len(obj.obsp) + 1 + len(obj.varm) + len(obj.varp) + \
+            1 + len(obj.uns)
+        progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {obj.name}', unit='object') if show_progress \
+            else None
 
         # save layers
         write_data(obj.layers.data, save_file, 'layers', progress=progressBar)
@@ -91,6 +93,9 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
         write_data(obj.uns, save_file, 'uns', progress=progressBar)
 
         obj.file = H5GroupReader(save_file)
+
+        if show_progress:
+            progressBar.clear()
 
 
 def update_vdata(obj: 'vdata.VData') -> None:
@@ -349,6 +354,7 @@ def write_series(series: Union[pd.Series, pd.Index],
                  group: H5Group,
                  key: str,
                  key_level: int = 0,
+                 progress: Optional[tqdm] = None,
                  **kwargs) -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).
@@ -389,13 +395,16 @@ def write_series(series: Union[pd.Series, pd.Index],
     else:
         group[str(key)].attrs['dtype'] = str(series.dtype)
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register
 def write_array(data: np.ndarray,
                 group: H5Group,
                 key: str,
                 key_level: int = 0,
-                **kwargs) -> None:
+                progress: Optional[tqdm] = None) -> None:
     """
     Function for writing np.arrays to the h5 file.
     """
@@ -408,13 +417,16 @@ def write_array(data: np.ndarray,
 
     group[str(key)].attrs['type'] = 'array'
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register
 def write_sparse_matrix(data: sp.spmatrix,
                         group: H5Group,
                         key: str,
                         key_level: int = 0,
-                        **kwargs) -> None:
+                        progress: Optional[tqdm] = None) -> None:
     """
     Function for writing scipy sparse matrices to the h5 file.
     """
@@ -424,18 +436,24 @@ def write_sparse_matrix(data: sp.spmatrix,
 
     write_data(data_dense, group, key, key_level=key_level)
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register(list)
 def write_list(data: list,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               **kwargs) -> None:
+               progress: Optional[tqdm] = None) -> None:
     """
     Function for writing lists to the h5 file.
     """
     generalLogger.info(f"{spacer(key_level)}Saving list {key}")
     write_data(np.array(data), group, key, key_level=key_level+1)
+
+    if progress is not None:
+        progress.update()
 
 
 @write_data.register(str)
@@ -450,7 +468,7 @@ def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floa
                        group: H5Group,
                        key: str,
                        key_level: int = 0,
-                       **kwargs) -> None:
+                       progress: Optional[tqdm] = None) -> None:
     """
     Function for writing a single value to the h5 file.
     """
@@ -458,13 +476,16 @@ def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floa
     group[str(key)] = data
     group[str(key)].attrs['type'] = 'value'
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register
 def write_Type(data: type,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               **kwargs) -> None:
+               progress: Optional[tqdm] = None) -> None:
     """
     Function for writing a type to the h5 file.
     """
@@ -472,13 +493,16 @@ def write_Type(data: type,
     group[str(key)] = data.__name__
     group[str(key)].attrs['type'] = 'type'
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register
 def write_Path(data: Path,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               **kwargs) -> None:
+               progress: Optional[tqdm] = None) -> None:
     """
     Function for writing a Path to the h5 file.
     """
@@ -486,16 +510,22 @@ def write_Path(data: Path,
     group[str(key)] = str(data)
     group[str(key)].attrs['type'] = 'path'
 
+    if progress is not None:
+        progress.update()
+
 
 @write_data.register
 def write_None(_: None,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               **kwargs) -> None:
+               progress: Optional[tqdm] = None) -> None:
     """
     Function for writing None to the h5 file.
     """
     generalLogger.info(f"{spacer(key_level)}Saving None value for {key}")
     _ = group.create_group(str(key))
     group[str(key)].attrs['type'] = 'None'
+
+    if progress is not None:
+        progress.update()

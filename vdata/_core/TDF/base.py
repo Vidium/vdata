@@ -15,7 +15,7 @@ from typing_extensions import Literal
 
 from . import dataframe
 from vdata.utils import are_equal
-from vdata.time_point import TimePoint
+from vdata.time_point import TimePoint, mean as tp_mean
 from .name_utils import SLICER, H5Data
 
 if TYPE_CHECKING:
@@ -523,6 +523,10 @@ class BaseTemporalDataFrame(ABC):
         Get the string data.
         """
 
+    @property
+    def tp0(self) -> TimePoint:
+        return self.timepoints[0]
+
     def _convert_to_pandas(self,
                            with_timepoints: Optional[str] = None,
                            str_index: bool = False) -> pd.DataFrame:
@@ -607,6 +611,83 @@ class BaseTemporalDataFrame(ABC):
             for indexing (one of the above). This is useful in method chains, when you don’t have a reference to the
             calling object, but would like to base your selection on some value.
         """
+
+    def _min_max_mean_core(self,
+                           axis: Optional[int],
+                           func: Literal['min', 'max', 'mean']) -> Union[float, 'TemporalDataFrame']:
+        if axis is None:
+            return getattr(self.values_num, func)()
+
+        elif axis == 0:
+            # only valid if index is the same at all time-points
+            i0 = self.index_at(self.tp0)
+            for tp in self.timepoints[1:]:
+                if not np.array_equal(i0, self.index_at(tp)):
+                    raise ValueError(f"Can't take '{func}' along axis 0 if indices are not the same at all "
+                                     f"time-points.")
+
+            mmm_tp = {'min': min,
+                      'max': max,
+                      'mean': tp_mean}[func](self.timepoints)
+
+            return dataframe.TemporalDataFrame(data=pd.DataFrame(
+                getattr(np, func)([self.values_num[self.get_timepoint_mask(tp)] for tp in self.timepoints], axis=0),
+                index=i0,
+                columns=self.columns_num,
+            ),
+                time_list=[mmm_tp for _ in enumerate(i0)],
+                time_col_name=self.timepoints_column_name)
+
+        elif axis == 1:
+            return dataframe.TemporalDataFrame(data=pd.DataFrame(
+                getattr(np, func)([self.values_num[self.get_timepoint_mask(tp)] for tp in self.timepoints], axis=1),
+                index=[func for _ in enumerate(self.timepoints)],
+                columns=self.columns_num
+            ),
+                repeating_index=True,
+                time_list=self.timepoints,
+                time_col_name=self.timepoints_column_name)
+
+        elif axis == 2:
+            return dataframe.TemporalDataFrame(data=pd.DataFrame(
+                getattr(np, func)(self.values_num, axis=1),
+                index=self.index,
+                columns=[func],
+            ),
+                time_list=self.timepoints_column,
+                time_col_name=self.timepoints_column_name)
+
+        raise ValueError(f"Invalid axis '{axis}', should be in [0, 1, 2].")
+
+    def min(self,
+            axis: Optional[int] = None) -> Union[float, 'TemporalDataFrame']:
+        """
+        Get the min value along the specified axis.
+
+        Args:
+            axis: Can be 0 (time-points), 1 (rows), 2 (columns) or None (global min). (default: None)
+        """
+        return self._min_max_mean_core(axis, 'min')
+
+    def max(self,
+            axis: Optional[int] = None) -> Union[float, 'TemporalDataFrame']:
+        """
+        Get the max value along the specified axis.
+
+        Args:
+            axis: Can be 0 (time-points), 1 (rows), 2 (columns) or None (global max). (default: None)
+        """
+        return self._min_max_mean_core(axis, 'max')
+
+    def mean(self,
+             axis: Optional[int] = None) -> Union[float, 'TemporalDataFrame']:
+        """
+        Get the mean value along the specified axis.
+
+        Args:
+            axis: Can be 0 (time-points), 1 (rows), 2 (columns) or None (global mean). (default: None)
+        """
+        return self._min_max_mean_core(axis, 'mean')
 
     @abstractmethod
     def write(self,

@@ -6,11 +6,13 @@
 # imports
 import pytest
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 from .utils import get_TDF, get_backed_TDF, cleanup
+from vdata import TemporalDataFrame, TimePoint
 from vdata.name_utils import H5Mode
-from vdata.time_point import TimePoint
+from vdata.time_point import mean as tp_mean
 
 
 # ====================================================
@@ -2676,6 +2678,52 @@ def test_reversed_sub_setting(provide_TDFs):
         np.concatenate((np.arange(1, 51, 2), -1 * np.arange(51, 101, 2)))
     )).T)
     assert np.array_equal(backed_TDF.values_str, np.arange(100, 150).astype(str)[:, None])
+
+
+@pytest.mark.parametrize('params', [('min', 0, np.array([[50, 150], [0,  100]])),
+                                    ('max', 199, np.array([[99, 199], [49,  149]])),
+                                    ('mean', 99.5, np.array([[74.5, 174.5], [24.5,  124.5]]))])
+def test_min_max_mean(params):
+    TDF = get_TDF('1')
+
+    func, expected_global, expected_rows = params
+
+    # global
+    assert getattr(TDF, func)() == expected_global
+
+    # on rows
+    assert getattr(TDF, func)(axis=1) == TemporalDataFrame(data=pd.DataFrame(expected_rows,
+                                                                             index=[func, func],
+                                                                             columns=['col1', 'col2']),
+                                                           repeating_index=True,
+                                                           time_list=TDF.timepoints,
+                                                           time_col_name=TDF.timepoints_column_name)
+
+    # on columns
+    assert getattr(TDF, func)(axis=2) == TemporalDataFrame(data=pd.DataFrame(
+        getattr(np, func)(TDF.values_num, axis=1)[:, None],
+        index=TDF.index,
+        columns=[func]
+    ),
+        time_list=TDF.timepoints_column,
+        time_col_name=TDF.timepoints_column_name)
+
+    # on time-points
+    TDF.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))),
+                  repeating_index=True)
+
+    mmm_tp = {'min': min,
+              'max': max,
+              'mean': tp_mean}[func](TDF.timepoints)
+
+    assert getattr(TDF, func)(axis=0) == TemporalDataFrame(data=pd.DataFrame(
+        getattr(np, func)([TDF['0h'].values_num,
+                           TDF['1h'].values_num], axis=0),
+        index=TDF.index_at(TDF.tp0),
+        columns=TDF.columns_num
+    ),
+        time_list=[mmm_tp for _ in enumerate(TDF.index_at(TDF.tp0))],
+        time_col_name=TDF.timepoints_column_name)
 
 
 if __name__ == '__main__':

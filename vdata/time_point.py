@@ -7,7 +7,7 @@
 import numpy as np
 from numbers import Number
 
-from typing import Union, Literal, cast
+from typing import Union, Literal, cast, Sequence
 
 # ====================================================
 # code
@@ -271,3 +271,24 @@ class TimePointRange:
 
     def __iter__(self) -> TimePointRangeIterator:
         return TimePointRangeIterator(self._start, self._stop, self._step)
+
+
+def mean(timepoints: Sequence[TimePoint]):
+    mean_ = float(np.mean([tp.get_value_as('s') for tp in timepoints]))
+
+    if mean_ < 60:
+        return TimePoint(mean_, 's')
+
+    elif mean_ < 3600:                   # 60 * 60
+        return TimePoint(mean_, 'm')
+
+    elif mean_ < 86_400:                 # 60 * 60 * 24
+        return TimePoint(mean_, 'h')
+
+    elif mean_ < 2_592_000:              # 60 * 60 * 24 * 30
+        return TimePoint(mean_, 'D')
+
+    elif mean_ < 31_536_000:             # 60 * 60 * 24 * 365
+        return TimePoint(mean_, 'M')
+
+    return TimePoint(mean_, 'Y')
