@@ -45,6 +45,7 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
     Args:
         obj: VData object to save into an h5 file.
         file: path to save the VData.
+        show_progress: print a progress bar while saving objects in this VData ? (default: True)
     """
     file = parse_path(file)
     if file is not None and file.suffix != '.vd':

@@ -1567,17 +1567,19 @@ class VData:
 
     # writing ------------------------------------------------------------
     def write(self,
-              file: Optional[Union[str, Path]] = None) -> None:
+              file: Optional[Union[str, Path]] = None,
+              verbose: bool = True) -> None:
         """
         Save this VData object in HDF5 file format.
 
         Args:
             file: path to save the VData
+            verbose: print a progress bar while saving objects in this VData ? (default: True)
         """
         if not self.is_backed and file is None:
             raise VValueError("No file path was provided for writing this VData.")
 
-        write_vdata(self, file)
+        write_vdata(self, file, show_progress=verbose)
 
     def write_to_csv(self,
                      directory: Union[str, Path],
