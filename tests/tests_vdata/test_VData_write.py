@@ -30,7 +30,7 @@ def out_test_VData_write():
 
     adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
 
-    v = vdata.VData(adata, time_col_name='tp')
+    v = vdata.VData(adata, time_col_name='tp', name='1')
 
     uns = {"colors": ['blue', 'red', 'yellow'],
            "date": '25/01/2021'}

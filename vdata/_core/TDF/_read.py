@@ -27,7 +27,7 @@ def read_TemporalDataFrame(file: Union[str, Path, H5Data],
         file = File(file, mode=mode)
 
     if file.file.mode != mode:
-        raise ValueError(f"Can't set mode of H5 file to '{mode}'.")
+        raise ValueError(f"Can't set mode of H5 file in {file.file.mode} mode to '{mode}'.")
 
     return TemporalDataFrame(file)
 

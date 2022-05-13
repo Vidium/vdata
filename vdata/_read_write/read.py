@@ -286,18 +286,13 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
 
 # HDF5 file format --------------------------------------------------------------------------------
 def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
-         dtype: Optional['DType'] = None,
-         name: Optional[Any] = None,
          backup: bool = False) -> 'vdata.VData':
     """
     Function for reading data from an h5 file and building a VData object from it.
 
     Args:
-        file: path to an h5 file.
+        file: path to a h5 file.
         mode: reading mode : 'r' (read only) or 'r+' (read and write).
-        dtype: data type to force on the newly built VData object. If set to None, the dtype is inferred from
-            the h5 file.
-        name: an optional name for the loaded VData object.
         backup: create a backup copy of the read h5 file in case something goes wrong ?
     """
     generalLogger.debug("\u23BE read VData : begin -------------------------------------------------------- ")
@@ -341,16 +336,22 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
 
     data['timepoints']['value'] = [TimePoint(tp) for tp in data['timepoints']['value']]
 
-    new_VData = vdata.VData(data['layers'],
-                            data['obs'], data['obsm'], data['obsp'],
-                            data['var'], data['varm'], data['varp'],
-                            data['timepoints'], data['uns'], dtype=dtype,
-                            name=name, file=importFile,
-                            no_check=True)
+    name = importFile.attrs('name')
+    dtype = importFile.attrs('dtype')
 
-    # if data['obsp'] is not None:
-    #     for key, arr in data['obsp'].items():
-    #         new_VData.obsp[key] = arr
+    new_VData = vdata.VData(data['layers'],
+                            data['obs'],
+                            data['obsm'],
+                            data['obsp'],
+                            data['var'],
+                            data['varm'],
+                            data['varp'],
+                            data['timepoints'],
+                            data['uns'],
+                            dtype=dtype if dtype != 'None' else None,
+                            name=name,
+                            file=importFile,
+                            no_check=True)
 
     generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
 

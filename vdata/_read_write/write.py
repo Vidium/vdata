@@ -78,6 +78,9 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
         progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {obj.name}', unit='object') if show_progress \
             else None
 
+        save_file.attrs['name'] = obj.name
+        save_file.attrs['dtype'] = str(obj.dtype)
+
         # save layers
         write_data(obj.layers.data, save_file, 'layers', progress=progressBar)
         # save obs
@@ -93,7 +96,8 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
         # save uns
         write_data(obj.uns, save_file, 'uns', progress=progressBar)
 
-        obj.file = H5GroupReader(save_file)
+        if isinstance(obj, vdata.VData):
+            obj.file = H5GroupReader(save_file)
 
         if show_progress:
             progressBar.clear()

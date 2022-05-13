@@ -23,7 +23,7 @@ from ..name_utils import PreSlicer
 from ..utils import reformat_index, to_tp_list, match_timepoints, repr_index, list_to_tp_list_strict
 from ..TDF import TemporalDataFrame
 from ..TDF.name_utils import DEFAULT_TIME_POINTS_COL_NAME
-from vdata.name_utils import DType, StrDType, DTypes
+from vdata.name_utils import DType, StrDType
 from vdata.utils import repr_array, deep_dict_convert
 from vdata.time_point import TimePoint
 from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError, VReadOnlyError
@@ -41,6 +41,9 @@ class VData:
     A VData object stores data points in matrices of observations x variables in the same way as the AnnData object,
     but also accounts for the time information. The 2D matrices in AnnData are replaced by 3D matrices here.
     """
+
+    __slots__ = 'name', '_file', '_dtype', '_obs', '_obsm', '_obsp', '_var', '_varm', '_varp', '_timepoints', '_uns',\
+                '_layers'
 
     def __init__(self,
                  data: Optional[Union[AnnData, 'DataFrame', dict[Any, 'DataFrame']]] = None,
@@ -87,14 +90,8 @@ class VData:
 
         self._file = file
 
-        # first, check dtype is correct because it will be needed right away
-        if dtype is not None:
-            if dtype not in DTypes.keys():
-                raise VTypeError(f"Incorrect data-type '{dtype}', should be in {list(DTypes.keys())}")
-            else:
-                self._dtype: 'DType' = DTypes[dtype]
-        else:
-            self._dtype = None
+        # first, check dtype is correct
+        self._dtype = np.dtype(dtype)
         generalLogger.debug(f'Set data-type to {self._dtype}')
 
         self._uns: dict[str, Any] = {}
@@ -527,12 +524,15 @@ class VData:
         self._obs = df
         self._obs.lock_indices()
 
-    def set_obs_index(self, values: Collection) -> None:
+    def set_obs_index(self,
+                      values: Collection,
+                      repeating_index: bool = False) -> None:
         """
         Set a new index for observations.
 
         Args:
             values: collection of new index values.
+            repeating_index: does the index repeat itself at all time-points ? (default: False)
         """
         if self.is_read_only:
             raise VReadOnlyError
@@ -541,16 +541,16 @@ class VData:
 
         for layer in self.layers.values():
             layer.unlock_indices()
-            layer.index = values
+            layer.set_index(values, repeating_index)
             layer.lock_indices()
 
         self.obs.unlock_indices()
-        self.obs.index = values
+        self.obs.set_index(values, repeating_index)
         self.obs.lock_indices()
 
         for TDF in self.obsm.values():
             TDF.unlock_indices()
-            TDF.index = values
+            TDF.set_index(values, repeating_index)
             TDF.lock_indices()
 
         self.obsp.set_index(values)
@@ -665,7 +665,7 @@ class VData:
 
     # Special ------------------------------------------------------------
     @property
-    def dtype(self) -> 'DType':
+    def dtype(self) -> np.dtype:
         """
         Get the data type of this VData object.
         :return: the data type of this VData object.
@@ -673,29 +673,27 @@ class VData:
         return self._dtype
 
     @dtype.setter
-    def dtype(self, type_: Union['DType', 'StrDType']) -> None:
+    def dtype(self,
+              dtype: Union['DType', 'StrDType']) -> None:
         """
         Set the data type of this VData object.
         Args:
-            type_: a data type.
+            dtype: a data type.
         """
         if self.is_read_only:
             raise VReadOnlyError
 
-        if type_ not in DTypes.keys():
-            raise VTypeError(f"Incorrect data-type '{type_}', should be in {list(DTypes.keys())}")
-        else:
-            self._dtype = DTypes[type_]
+        self._dtype = np.dtype(dtype)
 
         # update dtype of linked Arrays
-        self.layers.update_dtype(type_)
+        self.layers.update_dtype(dtype)
 
-        self.obsm.update_dtype(type_)
-        self.obsp.update_dtype(type_)
-        self.varm.update_dtype(type_)
-        self.varp.update_dtype(type_)
+        self.obsm.update_dtype(dtype)
+        self.obsp.update_dtype(dtype)
+        self.varm.update_dtype(dtype)
+        self.varp.update_dtype(dtype)
 
-        generalLogger.info(f"Set type {type_} for VData object.")
+        generalLogger.info(f"Set type {dtype} for VData object.")
 
     # Aliases ------------------------------------------------------------
     @property

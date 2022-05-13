@@ -42,6 +42,10 @@ class ViewVData:
     A view of a VData object.
     """
 
+    __slots__ = 'name', '_parent', '_timepoints_hash', '_obs_hash', '_var_hash', \
+                '_timepoints', '_timepoints_slicer', '_obs', '_obs_slicer', '_obs_slicer_flat', '_var', '_var_slicer',\
+                '_layers', '_obsm', '_obsp', '_varm', '_varp', '_uns'
+
     def __init__(self,
                  parent: 'vdata.VData',
                  timepoints_slicer: Optional[np.ndarray],
@@ -413,6 +417,14 @@ class ViewVData:
         :return: a view on the varp.
         """
         return self._varp
+
+    # Special ------------------------------------------------------------
+    @property
+    def dtype(self) -> np.dtype:
+        """
+        Get the data type of this ViewVData object.
+        """
+        return self._parent.dtype
 
     # Aliases ------------------------------------------------------------
     @property

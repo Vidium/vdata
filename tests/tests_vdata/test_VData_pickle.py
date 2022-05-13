@@ -16,9 +16,10 @@ REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
 def test_VData_pickle_dump():
-    v1 = vdata.read(REF_DIR / "vdata.vd", name=1)
+    v1 = vdata.read(REF_DIR / "vdata.vd")
 
-    pickle.dump(v1, open(REF_DIR / 'pickled_vdata.pkl', 'wb'))
+    with open(REF_DIR / 'pickled_vdata.pkl', 'wb') as save_file:
+        pickle.dump(v1, save_file, pickle.HIGHEST_PROTOCOL)
 
     v1.file.close()
 

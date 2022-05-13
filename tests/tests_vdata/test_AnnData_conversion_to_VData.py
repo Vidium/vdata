@@ -23,6 +23,8 @@ def out_test_AnnData_conversion_to_VData():
 
     print(v)
 
+    v.file.close()
+
 
 if __name__ == '__main__':
     vdata.setLoggingLevel('DEBUG')

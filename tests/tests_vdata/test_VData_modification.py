@@ -16,7 +16,7 @@ REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
 def test_VData_modification():
-    v1 = vdata.read(REF_DIR / "vdata.vd", name=1, mode='r+')
+    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
 
     # set once
     v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': range(v1.n_obs_total)}),
@@ -34,5 +34,47 @@ def test_VData_modification():
     v1.file.close()
 
 
+def test_VData_set_index():
+    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
+
+    # not repeating ==> not repeating
+    v1.set_obs_index(values=range(v1.n_obs_total))
+
+    assert np.array_equal(v1.obs.index, range(v1.n_obs_total))
+    assert np.array_equal(v1.layers['data'].index, range(v1.n_obs_total))
+
+    # subset first 10 indices of each time-point
+    index = np.concatenate([v1.obs.index_at(tp)[:10] for tp in v1.timepoints.value])
+    v2 = v1[:, index].copy()
+    v1.file.close()
+
+    # not repeating ==> repeating
+    new_index = np.concatenate([range(10) for _ in range(v2.n_timepoints)])
+
+    v2.set_obs_index(values=new_index,
+                     repeating_index=True)
+
+    assert np.array_equal(v2.obs.index, new_index)
+    assert np.array_equal(v2.layers['data'].index, new_index)
+
+    # repeating ==> repeating
+    new_index = np.concatenate([range(10) for _ in range(v2.n_timepoints)]) * 2
+
+    v2.set_obs_index(values=new_index,
+                     repeating_index=True)
+
+    assert np.array_equal(v2.obs.index, new_index)
+    assert np.array_equal(v2.layers['data'].index, new_index)
+
+    # repeating ==> not repeating
+    new_index = range(10 * v2.n_timepoints)
+
+    v2.set_obs_index(values=new_index)
+
+    assert np.array_equal(v2.obs.index, new_index)
+    assert np.array_equal(v2.layers['data'].index, new_index)
+
+
 if __name__ == '__main__':
     test_VData_modification()
+    test_VData_set_index()

@@ -22,7 +22,7 @@ def test_VData_read():
 
     # then load data
     # load from .vd file
-    v = vdata.read(output_dir / "vdata.vd", name=1)
+    v = vdata.read(output_dir / "vdata.vd")
     assert repr(v) == "Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
                       "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
@@ -34,6 +34,7 @@ def test_VData_read():
     v.file.close()
 
     # load from csv files
+    # TODO : save name and dtype in metadata
     v = vdata.read_from_csv(output_dir / "vdata", name=2)
     assert repr(v) == "VData '2' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
