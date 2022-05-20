@@ -1188,7 +1188,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def insert(self,
                loc: int,
                name: str,
-               values: np.ndarray) -> None:
+               values: Union[np.ndarray, Iterable, int, float]) -> None:
         """
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.
