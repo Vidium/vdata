@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 from pandas._typing import Axes, Dtype
 
+from typing_extensions import Literal
+
 from .IO import VTypeError, VValueError
 from .h5pickle import File, Group
 
@@ -161,7 +163,7 @@ class ViewVDataFrame:
         return repr(self._DataFrame)
 
     @property
-    def is_backed(self) -> False:
+    def is_backed(self) -> Literal[False]:
         """
         Is this view of a VDataFrame backed on a h5 file ?
 

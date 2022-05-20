@@ -70,7 +70,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     """
 
     __slots__ = '_name', '_file', '_numerical_array', '_string_array', '_timepoints_array', '_index', \
-                '_repeating_index', '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name'
+                '_repeating_index', '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name', \
+                '_timepoint_masks'
 
     __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str')
 
@@ -129,6 +130,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         object.__setattr__(self, '_lock', _lock)
         object.__setattr__(self, '_timepoints_column_name', _timepoints_column_name)
         object.__setattr__(self, '_name', _name)
+        object.__setattr__(self, '_timepoint_masks', dict())
 
     @check_can_read
     def __repr__(self) -> str:
@@ -539,12 +541,14 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._file = file
 
-    @property
+        self._timepoint_masks = dict()
+
+    @property                                                                           # type: ignore
     @check_can_read
     def name(self) -> str:
         return self._name
 
-    @name.setter
+    @name.setter                                                                        # type: ignore
     @check_can_write
     def name(self,
              name: str) -> None:
@@ -553,7 +557,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if self.is_backed:
             self._file.attrs['name'] = name
 
-    @property
+    @property                                                                           # type: ignore
     def full_name(self) -> str:
         """
         Get the full name.
@@ -575,7 +579,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return ' '.join(parts)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def file(self) -> Union[None, H5Data]:
         """
@@ -584,7 +588,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._file
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def is_backed(self) -> bool:
         """
@@ -592,7 +596,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._file is not None
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def has_locked_indices(self) -> bool:
         return bool(self._lock[0])
@@ -603,7 +607,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def unlock_indices(self) -> None:
         object.__setattr__(self, '_lock', (False, self.has_locked_columns))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def has_locked_columns(self) -> bool:
         return bool(self._lock[1])
@@ -614,7 +618,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def unlock_columns(self) -> None:
         object.__setattr__(self, '_lock', (self.has_locked_indices, False))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def lock(self) -> tuple[bool, bool]:
         return self.has_locked_indices, self.has_locked_columns
@@ -625,7 +629,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def _empty_string(self) -> bool:
         return self._string_array.size == 0
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def empty(self) -> bool:
         """
@@ -633,7 +637,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._empty_numerical() and self._empty_string()
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def shape(self) -> tuple[int, list[int], int]:
         """
@@ -779,7 +783,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         # TODO : negative n not handled
         return self._head_tail(-n)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints(self) -> np.ndarray:
         """
@@ -792,10 +796,26 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return self._timepoints_array[sorted(unique_timepoints_idx)]
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_timepoints(self) -> int:
         return len(self.timepoints)
+
+    def __fast_compare(self,
+                       comparison_tp: Union[TimePoint, str]) -> np.ndarray:
+        if not (ltpm := len(self._timepoint_masks)):
+            return np.equal(self._timepoints_array, comparison_tp)
+
+        tp_mask = np.zeros(len(self._timepoints_array), dtype=bool)
+
+        if ltpm == 1:
+            not_already_computed = ~next(iter(self._timepoint_masks.values()))
+
+        else:
+            not_already_computed = np.logical_and.reduce([~mask for mask in self._timepoint_masks.values()])
+
+        tp_mask[not_already_computed] = np.equal(self._timepoints_array[not_already_computed], comparison_tp)
+        return tp_mask
 
     @check_can_read
     def get_timepoint_mask(self,
@@ -809,12 +829,16 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Returns:
             A boolean mask for rows matching the time-point.
         """
-        if isinstance(self._timepoints_array, Dataset):
-            return np.equal(self._timepoints_array, str(TimePoint(timepoint)).encode())
+        # cache masks for performance, cache is reinitialized when _timepoints_array changes
+        if timepoint not in self._timepoint_masks.keys():
+            comparison_tp = str(TimePoint(timepoint)).encode() if isinstance(self._timepoints_array, Dataset) else \
+                TimePoint(timepoint)
 
-        return self._timepoints_array == TimePoint(timepoint)
+            self._timepoint_masks[timepoint] = self.__fast_compare(comparison_tp)
 
-    @property
+        return self._timepoint_masks[timepoint]
+
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column(self) -> np.ndarray:
         """
@@ -825,7 +849,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         return self._timepoints_array.copy()
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column_str(self) -> np.ndarray:
         """
@@ -833,7 +857,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         return np.array(list(map(str, self.timepoints_column)))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column_name(self) -> Optional[str]:
         return self._timepoints_column_name
@@ -846,7 +870,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if self.is_backed:
             self._file.attrs['timepoints_column_name'] = str(name)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def index(self) -> np.ndarray:
         if isinstance(self._index, Dataset) and self._index.dtype == np.dtype('O'):
@@ -874,7 +898,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             if not self.n_index == len(np.unique(values)):
                 raise ValueError("Index values must be all unique.")
 
-    @index.setter
+    @index.setter                                                                       # type: ignore
     @check_can_write
     def index(self,
               values: np.ndarray) -> None:
@@ -933,7 +957,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         object.__setattr__(self, '_index', values)
         object.__setattr__(self, '_repeating_index', repeating_index)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_index(self) -> int:
         return len(self.index)
@@ -957,7 +981,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                    timepoint: Union[str, TimePoint]) -> int:
         return len(self.index_at(timepoint))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns(self) -> np.ndarray:
         return np.concatenate((self.columns_num, self.columns_str))
@@ -966,7 +990,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def keys(self) -> np.ndarray:
         return self.columns
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_num(self) -> np.ndarray:
         if isinstance(self._columns_numerical, Dataset) and self._columns_numerical.dtype == np.dtype('O'):
@@ -985,12 +1009,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         object.__setattr__(self, '_columns_numerical', values)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_columns_num(self) -> int:
         return len(self.columns_num)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_str(self) -> np.ndarray:
         if isinstance(self._columns_string, Dataset) and self._columns_string.dtype == np.dtype('O'):
@@ -1010,12 +1034,12 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         object.__setattr__(self, '_columns_string', values)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_columns_str(self) -> int:
         return len(self.columns_str)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def values_num(self) -> np.ndarray:
         return self._numerical_array[()]
@@ -1026,7 +1050,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                    values: np.ndarray) -> None:
         self._numerical_array[()] = values
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def values_str(self) -> np.ndarray:
         # TODO : avoid loading entire dataset in RAM ??

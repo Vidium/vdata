@@ -252,7 +252,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         self._data[key] = value
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def empty(self) -> bool:
         """
@@ -263,7 +263,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         return all([VTDF.empty for VTDF in self.values()])
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def has_repeating_index(self) -> bool:
         if self.empty:
@@ -271,7 +271,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
 
         return list(self.values())[0].has_repeating_index
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def shape(self) -> tuple[int, int, list[int], int]:
         """
@@ -289,7 +289,7 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         else:
             return 0, 0, [], 0
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def data(self) -> dict[str, D_VTDF]:
         """

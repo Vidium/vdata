@@ -351,12 +351,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                                      self._columns_string,
                                      inverted=not self._inverted)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def name(self) -> str:
         return f"view of {self._parent.name}"
 
-    @property
+    @property                                                                           # type: ignore
     def full_name(self) -> str:
         """
         Get the full name.
@@ -381,7 +381,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         return ' '.join(parts)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def is_inverted(self) -> bool:
         """
@@ -389,22 +389,22 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._inverted
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def has_locked_indices(self) -> bool:
         return self._parent.has_locked_indices
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def has_locked_columns(self) -> bool:
         return self._parent.has_locked_columns
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def has_repeating_index(self) -> bool:
         return self._repeating_index
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def lock(self) -> tuple[bool, bool]:
         """
@@ -412,12 +412,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self.has_locked_indices, self.has_locked_columns
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def empty(self) -> bool:
         return not self.n_index or not self.n_columns
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def shape(self) -> tuple[int, list[int], int]:
         """
@@ -561,7 +561,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         # TODO : negative n not handled
         return self._head_tail(-n)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints(self) -> np.ndarray:
         """
@@ -574,7 +574,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         return unique_timepoints
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_timepoints(self) -> int:
         return len(self.timepoints)
@@ -587,7 +587,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
         return self._parent.timepoints_column[self.index_positions] == TimePoint(timepoint)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column(self) -> np.ndarray:
         """
@@ -595,7 +595,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return self._parent.timepoints_column[self.index_positions]
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column_str(self) -> np.ndarray:
         """
@@ -603,18 +603,18 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return np.array(list(map(str, self.timepoints_column)))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def timepoints_column_name(self) -> Optional[str]:
         return self._parent.timepoints_column_name
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def index(self) -> np.ndarray:
         return self._parent.index[self._index_positions].copy()
         # return self._index.copy()
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_index(self) -> int:
         return len(self._index_positions)
@@ -629,43 +629,43 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                    timepoint: Union[str, TimePoint]) -> int:
         return len(self.index_at(timepoint))
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def index_positions(self) -> np.ndarray:
         """TODO"""
         return self._index_positions
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_num(self) -> np.ndarray:
         return self._columns_numerical.copy()
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_columns_num(self) -> int:
         return len(self._columns_numerical)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_num_positions(self) -> np.ndarray:
         return npi.indices(self._parent.columns_num, self._columns_numerical)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_str(self) -> np.ndarray:
         return self._columns_string.copy()
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_columns_str(self) -> int:
         return len(self._columns_string)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns_str_positions(self) -> np.ndarray:
         return npi.indices(self._parent.columns_str, self._columns_string)
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def columns(self) -> np.ndarray:
         return np.concatenate((self._columns_numerical, self._columns_string))
@@ -674,12 +674,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     def keys(self) -> np.ndarray:
         return self.columns
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def n_columns(self) -> int:
         return self.n_columns_num + self.n_columns_str
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def values_num(self) -> np.ndarray:
         return self._parent.values_num[self.index_positions[:, None], self.columns_num_positions]
@@ -695,7 +695,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         else:
             self._parent._numerical_array[self.index_positions[:, None], self.columns_num_positions] = values
 
-    @property
+    @property                                                                           # type: ignore
     @check_can_read
     def values_str(self) -> np.ndarray:
         return self._parent.values_str[self.index_positions[:, None], self.columns_str_positions]

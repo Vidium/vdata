@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import pandas as pd
+from time import perf_counter
 from pathlib import Path
 
 import vdata
@@ -34,7 +35,6 @@ def test_VData_read():
     v.file.close()
 
     # load from csv files
-    # TODO : save name and dtype in metadata
     v = vdata.read_from_csv(output_dir / "vdata", name=2)
     assert repr(v) == "VData '2' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 " \
                       "over 10 time points.\n\t" \
@@ -51,6 +51,21 @@ def test_VData_read():
                       "layers: 'RNA', 'Protein'\n\t" \
                       "obs: 'id_cells'\n\t" \
                       "timepoints: 'value'", repr(v)
+
+
+def test_VData_read_large():
+    import cProfile
+
+    output_dir = Path(__file__).parent.parent / 'ref'
+
+    with cProfile.Profile() as prof:
+        start = perf_counter()
+        _ = vdata.read(output_dir / 'simulation.vd')
+        elasped_time = perf_counter() - start
+
+    prof.dump_stats('/home/matteo/Desktop/vdata.prof')
+
+    assert elasped_time < 2
 
 
 if __name__ == "__main__":

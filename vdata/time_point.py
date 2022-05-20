@@ -118,7 +118,7 @@ class TimePoint:
 
     def __init__(self,
                  value: Union['TimePoint', Number, np.number, str],
-                 unit: Union[Unit, UNIT_TYPE] = None):
+                 unit: Union[None, Unit, UNIT_TYPE] = None):
         """
         Args:
             value: a time-point's value. It can be :
@@ -140,11 +140,11 @@ class TimePoint:
 
             else:
                 self.value = float(value)
-                self.unit = Unit(unit)
+                self.unit = Unit(unit) if unit is not None else Unit('h')
 
         elif isinstance(value, (Number, np.number)):
-            self.value = float(value)
-            self.unit = Unit(unit)
+            self.value = float(value)                                                        # type: ignore
+            self.unit = Unit(unit) if unit is not None else Unit('h')
 
         else:
             raise ValueError(f"Invalid value '{value}' with type '{type(value)}'.")
@@ -277,18 +277,18 @@ def mean(timepoints: Sequence[TimePoint]):
     mean_ = float(np.mean([tp.get_value_as('s') for tp in timepoints]))
 
     if mean_ < 60:
-        return TimePoint(mean_, 's')
+        return TimePoint(mean_, 's')                                                        # type: ignore
 
     elif mean_ < 3600:                   # 60 * 60
-        return TimePoint(mean_, 'm')
+        return TimePoint(mean_, 'm')                                                        # type: ignore
 
     elif mean_ < 86_400:                 # 60 * 60 * 24
-        return TimePoint(mean_, 'h')
+        return TimePoint(mean_, 'h')                                                        # type: ignore
 
     elif mean_ < 2_592_000:              # 60 * 60 * 24 * 30
-        return TimePoint(mean_, 'D')
+        return TimePoint(mean_, 'D')                                                        # type: ignore
 
     elif mean_ < 31_536_000:             # 60 * 60 * 24 * 365
-        return TimePoint(mean_, 'M')
+        return TimePoint(mean_, 'M')                                                        # type: ignore
 
-    return TimePoint(mean_, 'Y')
+    return TimePoint(mean_, 'Y')                                                            # type: ignore

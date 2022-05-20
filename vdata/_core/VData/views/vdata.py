@@ -174,8 +174,8 @@ class ViewVData:
 
         return ViewVData(self._parent, index[0], index[1], index[2])
 
-    @property
-    def is_backed(self) -> False:
+    @property                                                                           # type: ignore
+    def is_backed(self) -> Literal[False]:
         """
         For compliance with VData's API.
 
@@ -184,8 +184,8 @@ class ViewVData:
         """
         return False
 
-    @property
-    def is_backed_w(self) -> False:
+    @property                                                                           # type: ignore
+    def is_backed_w(self) -> Literal[False]:
         """
         For compliance with VData's API.
 
@@ -194,13 +194,13 @@ class ViewVData:
         """
         return False
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def has_repeated_obs_index(self) -> bool:
         return self._parent.has_repeated_obs_index
 
     # Shapes -------------------------------------------------------------
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def empty(self) -> bool:
         """
@@ -213,7 +213,7 @@ class ViewVData:
             return True
         return False
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def n_timepoints(self) -> int:
         """
@@ -224,7 +224,7 @@ class ViewVData:
         """
         return len(self._timepoints_slicer)
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def n_obs(self) -> list[int]:
         """
@@ -235,7 +235,7 @@ class ViewVData:
         """
         return [len(slicer) for slicer in self._obs_slicer]
 
-    @property
+    @property                                                                           # type: ignore
     def n_obs_total(self) -> int:
         """
         Get the total number of observations across all time points.
@@ -243,7 +243,7 @@ class ViewVData:
         """
         return sum(self.n_obs)
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def n_var(self) -> int:
         """
@@ -252,7 +252,7 @@ class ViewVData:
         """
         return len(self._var_slicer)
 
-    @property
+    @property                                                                           # type: ignore
     def shape(self) -> tuple[int, int, list[int], int]:
         """
         Shape of this view of a VData object.
@@ -261,7 +261,7 @@ class ViewVData:
         return len(self.layers), self.n_timepoints, self.n_obs, self.n_var
 
     # DataFrames ---------------------------------------------------------
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def timepoints(self) -> ViewVDataFrame:
         """
@@ -270,7 +270,7 @@ class ViewVData:
         """
         return self._timepoints
 
-    @property
+    @property                                                                           # type: ignore
     def timepoints_values(self) -> list['TimePoint']:
         """
         Get the list of time points values (with the unit if possible).
@@ -279,7 +279,7 @@ class ViewVData:
         """
         return self.timepoints.value.values
 
-    @property
+    @property                                                                           # type: ignore
     def timepoints_strings(self) -> Iterator[str]:
         """
         Get the list of time points as strings.
@@ -288,7 +288,7 @@ class ViewVData:
         """
         return map(str, self.timepoints.value.values)
 
-    @property
+    @property                                                                           # type: ignore
     def timepoints_numerical(self) -> list[float]:
         """
         Get the list of bare values from the time points.
@@ -313,7 +313,7 @@ class ViewVData:
     #         df.index = self._parent.timepoints[self._timepoints_slicer].index
     #         self._parent.timepoints[self._timepoints_slicer] = df
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def obs(self) -> ViewTemporalDataFrame:
         """
@@ -322,7 +322,7 @@ class ViewVData:
         """
         return self._obs
 
-    @obs.setter
+    @obs.setter                                                                           # type: ignore
     @_check_parent_has_not_changed
     def obs(self, df: Union['TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         if not isinstance(df, (TemporalDataFrame, ViewTemporalDataFrame)):
@@ -338,7 +338,7 @@ class ViewVData:
             df.index = self._parent.obs[self._obs_slicer_flat].index
             self._parent.obs[self._obs_slicer_flat] = df
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def var(self) -> ViewVDataFrame:
         """
@@ -347,7 +347,7 @@ class ViewVData:
         """
         return self._var
 
-    @var.setter
+    @var.setter                                                                           # type: ignore
     @_check_parent_has_not_changed
     def var(self, df: pd.DataFrame) -> None:
         if not isinstance(df, pd.DataFrame):
@@ -363,7 +363,7 @@ class ViewVData:
             df.index = self._parent.var[self._var_slicer].index
             self._parent.var[self._var_slicer] = df
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def uns(self) -> dict:
         """
@@ -373,7 +373,7 @@ class ViewVData:
         return self._uns
 
     # Array containers ---------------------------------------------------
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def layers(self) -> ViewVLayerArrayContainer:
         """
@@ -382,7 +382,7 @@ class ViewVData:
         """
         return self._layers
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def obsm(self) -> ViewVObsmArrayContainer:
         """
@@ -391,7 +391,7 @@ class ViewVData:
         """
         return self._obsm
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def obsp(self) -> ViewVObspArrayContainer:
         """
@@ -400,7 +400,7 @@ class ViewVData:
         """
         return self._obsp
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def varm(self) -> ViewVVarmArrayContainer:
         """
@@ -409,7 +409,7 @@ class ViewVData:
         """
         return self._varm
 
-    @property
+    @property                                                                           # type: ignore
     @_check_parent_has_not_changed
     def varp(self) -> ViewVVarpArrayContainer:
         """
@@ -419,7 +419,7 @@ class ViewVData:
         return self._varp
 
     # Special ------------------------------------------------------------
-    @property
+    @property                                                                           # type: ignore
     def dtype(self) -> np.dtype:
         """
         Get the data type of this ViewVData object.
@@ -427,7 +427,7 @@ class ViewVData:
         return self._parent.dtype
 
     # Aliases ------------------------------------------------------------
-    @property
+    @property                                                                           # type: ignore
     def cells(self) -> ViewTemporalDataFrame:
         """
         Alias for the obs attribute.
@@ -439,7 +439,7 @@ class ViewVData:
     def cells(self, df: Union['TemporalDataFrame', 'ViewTemporalDataFrame']) -> None:
         self.obs = df
 
-    @property
+    @property                                                                           # type: ignore
     def genes(self) -> ViewVDataFrame:
         """
         Alias for the var attribute.

@@ -1450,13 +1450,16 @@ class VData:
         """
         generalLogger.debug("Initialize the VData.")
 
+        # get shape once for performance
+        n_timepoints, n_obs, n_var = self.n_timepoints, self.n_obs, self.n_var
+
         # check coherence with number of time points in VData
         for attr in ('layers', 'obsm'):
             dataset = getattr(self, attr)
-            if not dataset.empty and len(self._timepoints) != dataset.shape[1]:
+            if not dataset.empty and n_timepoints != dataset.shape[1]:
                 raise IncoherenceError(f"{attr} has {dataset.shape[0]} time point"
-                                       f"{'' if dataset.shape[0] == 1 else 's'} but {len(self._timepoints)}"
-                                       f" {'was' if len(self._timepoints) == 1 else 'were'} given.")
+                                       f"{'' if dataset.shape[0] == 1 else 's'} but {n_timepoints}"
+                                       f" {'was' if n_timepoints == 1 else 'were'} given.")
 
         generalLogger.debug("Time points were coherent across arrays.")
 
@@ -1475,35 +1478,35 @@ class VData:
         # check coherence between layers, obs, var and time points
         if self._layers is not None:
             for layer_name, layer in self._layers.items():
-                if layer.shape != (self.n_timepoints, self.n_obs, self.n_var):
-                    if layer.shape[0] != self.n_timepoints:
+                if layer.shape != (n_timepoints, n_obs, n_var):
+                    if layer.shape[0] != n_timepoints:
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of time points "
-                                               f"{layer.shape[0]}, should be {self.n_timepoints}.")
+                                               f"{layer.shape[0]}, should be {n_timepoints}.")
 
-                    elif [layer[i].shape[0] for i in range(len(layer))] != self.n_obs:
+                    elif [layer[i].shape[0] for i in range(len(layer))] != n_obs:
                         for i in range(len(layer)):
-                            if layer[i].shape[0] != self.n_obs[i]:
+                            if layer[i].shape[0] != n_obs[i]:
                                 raise IncoherenceError(f"layer '{layer_name}' has incoherent number of observations "
-                                                       f"{layer[i].shape[0]}, should be {self.n_obs[i]}.")
+                                                       f"{layer[i].shape[0]}, should be {n_obs[i]}.")
 
                     else:
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables "
-                                               f"{layer[0].shape[1]}, should be {self.n_var}.")
+                                               f"{layer[0].shape[1]}, should be {n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
-        if not self.obsm.empty and self.n_obs != self.obsm.shape[2]:
-            raise IncoherenceError(f"'obs' and 'obsm' have different lengths ({self.n_obs} vs "
+        if not self.obsm.empty and n_obs != self.obsm.shape[2]:
+            raise IncoherenceError(f"'obs' and 'obsm' have different lengths ({n_obs} vs "
                                    f"{self.obsm.shape[2]})")
 
         if not self.obsp.empty and self.n_obs_total != self.obsp.shape[1]:
-            raise IncoherenceError(f"'obs' and 'obsp' have different lengths ({self.n_obs} vs "
+            raise IncoherenceError(f"'obs' and 'obsp' have different lengths ({n_obs} vs "
                                    f"{self.obsp.shape[1]})")
 
         # check coherence between var, varm, varp shapes
         for attr in ('varm', 'varp'):
             dataset = getattr(self, attr)
-            if not dataset.empty and self.n_var != dataset.shape[1]:
-                raise IncoherenceError(f"'var' and 'varm' have different lengths ({self.n_var} vs "
+            if not dataset.empty and n_var != dataset.shape[1]:
+                raise IncoherenceError(f"'var' and 'varm' have different lengths ({n_var} vs "
                                        f"{dataset.shape[1]})")
 
     # functions ----------------------------------------------------------

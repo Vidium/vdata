@@ -4,7 +4,6 @@
 
 # ====================================================
 # imports
-import os
 import json
 import shutil
 import pandas as pd
@@ -16,10 +15,10 @@ from typing import Union, Optional, Any, Callable, Collection, cast, Literal
 from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
 
 import vdata
+from vdata.name_utils import H5Mode, DType
+from vdata.utils import get_value, repr_array
 from .utils import parse_path, H5GroupReader
 from .._core.TDF import read_TDF, read_TemporalDataFrame_from_csv
-from ..name_utils import DType
-from ..utils import get_value, repr_array
 from ..vdataframe import VDataFrame
 from ..time_point import TimePoint
 from ..IO import generalLogger, VValueError, VTypeError, ShapeError
@@ -64,17 +63,17 @@ def read_from_csv(directory: Union[Path, str],
             given. This column will be used as the time data.
         name: an optional name for the loaded VData object.
     """
-    directory = parse_path(directory)
+    parsed_directory = parse_path(directory)
 
     # make sure the path exists
-    if not os.path.exists(directory):
-        raise VValueError(f"The path {directory} does not exist.")
+    if not parsed_directory.exists():
+        raise VValueError(f"The path {parsed_directory} does not exist.")
 
     # load metadata if possible
     metadata = None
 
-    if os.path.isfile(directory / ".metadata.json"):
-        with open(directory / ".metadata.json", 'r') as metadata_file:
+    if (parsed_directory / ".metadata.json").is_file():
+        with open(parsed_directory / ".metadata.json", 'r') as metadata_file:
             metadata = json.load(metadata_file)
 
     data = {'obs': None, 'var': None, 'timepoints': None,
@@ -83,14 +82,14 @@ def read_from_csv(directory: Union[Path, str],
             'varm': None, 'varp': None, 'dtype': dtype}
 
     # import the data
-    for f in os.listdir(directory):
+    for f in parsed_directory.iterdir():
         if f != ".metadata.json":
             generalLogger.info(f"Got key : '{f}'.")
 
-            if f.endswith('.csv'):
+            if f.suffix == '.csv':
                 if f in ('var.csv', 'timepoints.csv'):
                     generalLogger.info(f"{spacer(1)}Reading pandas DataFrame '{f[:-4]}'.")
-                    data[f[:-4]] = pd.read_csv(directory / f, index_col=0)
+                    data[f[:-4]] = pd.read_csv(parsed_directory / f, index_col=0)
 
                 elif f in ('obs.csv', ):
                     generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f[:-4]}'.")
@@ -102,7 +101,7 @@ def read_from_csv(directory: Union[Path, str],
                     else:
                         this_time_col = time_col
 
-                    data[f[:-4]] = read_TemporalDataFrame_from_csv(directory / f,
+                    data[f[:-4]] = read_TemporalDataFrame_from_csv(parsed_directory / f,
                                                                    time_list=time_list,
                                                                    time_col_name=this_time_col)
 
@@ -110,24 +109,26 @@ def read_from_csv(directory: Union[Path, str],
                 dataset_dict = {}
                 generalLogger.info(f"{spacer(1)}Reading group '{f}'.")
 
-                for dataset in os.listdir(directory / f):
+                for dataset in (parsed_directory / f).iterdir():
                     if f in ('layers', 'obsm'):
-                        generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {dataset[:-4]}")
+                        generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {str(dataset)[:-4]}")
                         if time_list is None and time_col is None:
                             if metadata is not None:
-                                this_time_col = metadata[f][dataset[:-4]]['timepoints_column_name']
+                                this_time_col = metadata[f][str(dataset)[:-4]]['timepoints_column_name']
                             else:
                                 this_time_col = None
                         else:
                             this_time_col = time_col
 
-                        dataset_dict[dataset[:-4]] = read_TemporalDataFrame_from_csv(directory / f / dataset,
-                                                                                     time_list=time_list,
-                                                                                     time_col_name=this_time_col)
+                        dataset_dict[str(dataset)[:-4]] = read_TemporalDataFrame_from_csv(
+                            parsed_directory / f / dataset,
+                            time_list=time_list,
+                            time_col_name=this_time_col
+                        )
 
                     elif f in ('varm', 'varp'):
                         generalLogger.info(f"{spacer(2)} Reading pandas DataFrame {dataset}")
-                        dataset_dict[dataset[:-4]] = pd.read_csv(directory / f, index_col=0)
+                        dataset_dict[str(dataset)[:-4]] = pd.read_csv(parsed_directory / f, index_col=0)
 
                     else:
                         raise NotImplementedError
@@ -247,7 +248,7 @@ def read_from_dict(data: dict[str, dict[Union['DType', str], Union[np.ndarray, p
             _data_index = _index
 
         if _time_list is None:
-            _time_list = np.concatenate([np.repeat(_timepoints[matrix_index], len(matrix))
+            _time_list = np.concatenate([np.repeat(_timepoints[matrix_index], len(matrix))              # type: ignore
                                          for matrix_index, matrix in enumerate(TP_matrices.values())])
 
         generalLogger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
@@ -302,14 +303,14 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
         raise VValueError("Cannot read file with suffix != '.vd'.")
 
     # make sure the path exists
-    if not os.path.exists(file):
+    if not file.exists():
         raise VValueError(f"The path {file} does not exist.")
 
     if backup:
         backup_file_suffix = '.backup'
         backup_nb = 0
 
-        while os.path.exists(str(file) + backup_file_suffix):
+        while Path(str(file) + backup_file_suffix).exists():
             backup_nb += 1
             backup_file_suffix = f"({backup_nb}).backup"
 
@@ -437,7 +438,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) ->
     return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') \
+def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode = 'r') \
         -> 'TemporalDataFrame':
     """
     Function for reading a TemporalDataFrame from an h5 file.
@@ -467,7 +468,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
     if group.isinstance(Dataset):
         data_type = get_dtype_from_string(group.attrs('dtype'))
         if data_type == TimePoint:
-            values = [TimePoint(tp, no_check=True) for tp in read_h5_array(group, level=level+1, log_func=log_func)]
+            values = [TimePoint(tp) for tp in read_h5_array(group, level=level+1, log_func=log_func)]
 
         else:
             values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))

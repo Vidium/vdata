@@ -172,8 +172,8 @@ def slicer_to_array(slicer: 'PreSlicer',
     elif isinstance(slicer, (slice, range)):
         # slice from specific start to end : get list of sliced values
         if on_time_point:
-            slicer.start = TimePoint(slicer.start)
-            slicer.stop = TimePoint(slicer.stop)
+            slicer.start = TimePoint(float(slicer.start))
+            slicer.stop = TimePoint(float(slicer.stop))
         return np.array(slice_or_range_to_list(slicer, reference_index))
 
     raise VTypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
