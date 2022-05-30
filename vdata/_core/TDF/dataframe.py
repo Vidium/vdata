@@ -986,6 +986,19 @@ class TemporalDataFrame(BaseTemporalDataFrame):
     def columns(self) -> np.ndarray:
         return np.concatenate((self.columns_num, self.columns_str))
 
+    @columns.setter
+    @check_can_write
+    def columns(self,
+                values: np.ndarray):
+        if self.has_locked_columns:
+            raise VLockError("Cannot set columns in TDF with locked columns.")
+
+        if not (vs := len(values)) == (s := self.n_columns_num + self.n_columns_str):
+            raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
+
+        object.__setattr__(self, '_columns_numerical', values[:self.n_columns_num])
+        object.__setattr__(self, '_columns_string', values[self.n_columns_num:])
+
     @check_can_read
     def keys(self) -> np.ndarray:
         return self.columns
