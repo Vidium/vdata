@@ -73,7 +73,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 '_repeating_index', '_columns_numerical', '_columns_string', '_lock', '_timepoints_column_name', \
                 '_timepoint_masks'
 
-    __attributes = ('name', 'timepoints_column_name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str')
+    __attributes = ('name', 'timepoints_column_name', 'index', 'columns', 'columns_num', 'columns_str', 'values_num',
+                    'values_str')
 
     def __init__(self,
                  data: Union[None, dict, pd.DataFrame, H5Data] = None,
