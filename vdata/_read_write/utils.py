@@ -4,10 +4,12 @@
 
 # ====================================================
 # imports
+from __future__ import annotations
+
 import os
 import numpy as np
 from pathlib import Path
-from typing import Union, AbstractSet, ValuesView, Any, Optional, Literal
+from typing import Union, AbstractSet, ValuesView, Any, Literal
 
 from vdata.h5pickle import H5Group
 
@@ -183,7 +185,7 @@ class H5GroupReader:
         self.group.create_group(name=name, track_order=track_order)
 
 
-def parse_path(path: Union[str, Path]) -> Path:
+def parse_path(path: None | str | Path) -> None | Path:
     """
     Convert a given path to a valid path. The '~' character is replaced by the $HOME variable.
 
@@ -193,6 +195,9 @@ def parse_path(path: Union[str, Path]) -> Path:
     Returns:
         A valid path.
     """
+    if path is None:
+        return None
+
     # make sure directory is a path
     if not isinstance(path, Path):
         path = Path(path)
