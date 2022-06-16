@@ -1301,7 +1301,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
         else:
-            _data = pd.DataFrame(columns=self.columns)
+            _data = None
 
             for time_point in self.timepoints:
                 if np.any(np.isin(other.index_at(time_point), self.index_at(time_point))):
