@@ -1320,6 +1320,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
             _time_list = None
 
         return TemporalDataFrame(data=_data,
+                                 columns_numerical=self.columns_num,
+                                 columns_string=self.columns_str,
                                  time_list=_time_list,
                                  time_col_name=self.timepoints_column_name,
                                  name=name)
