@@ -555,6 +555,12 @@ class VData:
 
         self.obsp.set_index(values)
 
+    def make_unique_obs_index(self) -> None:
+        """
+        Concatenates the obs index with the time-point to make all index values unique.
+        """
+        self.set_obs_index(np.char.add(np.char.add(self.obs.index.astype(str), '_'), self.obs.timepoints_column_str))
+
     @property
     def var(self) -> VDataFrame:
         """

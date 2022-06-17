@@ -908,7 +908,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._check_valid_index(values, self._repeating_index)
 
-        object.__setattr__(self, '_index', values)
+        self._index[()] = values
 
     @property
     def has_repeating_index(self) -> bool:
@@ -926,7 +926,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._check_valid_index(values, repeating_index)
 
-        object.__setattr__(self, '_index', values)
+        self._index[()] = values
         object.__setattr__(self, '_repeating_index', repeating_index)
 
     @check_can_write
@@ -997,8 +997,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not (vs := len(values)) == (s := self.n_columns_num + self.n_columns_str):
             raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
 
-        object.__setattr__(self, '_columns_numerical', values[:self.n_columns_num])
-        object.__setattr__(self, '_columns_string', values[self.n_columns_num:])
+        self._columns_numerical[()] = values[:self.n_columns_num]
+        self._columns_string[()] = values[self.n_columns_num:]
 
     @check_can_read
     def keys(self) -> np.ndarray:
@@ -1021,7 +1021,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not (vs := values.shape) == (s := self._columns_numerical.shape):
             raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
 
-        object.__setattr__(self, '_columns_numerical', values)
+        self._columns_numerical[()] = values
 
     @property                                                                           # type: ignore
     @check_can_read
@@ -1046,7 +1046,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         if not (vs := values.shape) == (s := self._columns_string.shape):
             raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
 
-        object.__setattr__(self, '_columns_string', values)
+        self._columns_string[()] = values
 
     @property                                                                           # type: ignore
     @check_can_read
