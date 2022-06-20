@@ -24,7 +24,7 @@ from .base import BaseTemporalDataFrame
 from .indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
 from .view import ViewTemporalDataFrame
 from ._parse import parse_data
-from ._write import write_TDF
+from ._write import write_TDF, write_array
 
 
 # ====================================================
@@ -926,7 +926,13 @@ class TemporalDataFrame(BaseTemporalDataFrame):
 
         self._check_valid_index(values, repeating_index)
 
-        self._index[()] = values
+        if self.is_backed and values.dtype != self._index.dtype:
+            del self.file['index']
+            write_array(values, self.file, 'index')
+
+        else:
+            self._index[()] = values
+
         object.__setattr__(self, '_repeating_index', repeating_index)
 
     @check_can_write
