@@ -32,12 +32,15 @@ def write_array(array: np.ndarray,
         array = array.astype(str).astype('O')
 
     if key in file.keys():
-        file[key].resize((len(array),))
-        file[key].astype(dtype)
-        file[key][()] = array
+        if file[key].dtype == dtype:
+            file[key].resize((len(array),))
+            file[key].astype(dtype)
+            file[key][()] = array
+            return
 
-    else:
-        file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None,))
+        del file[key]
+
+    file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None,))
 
 
 def write_array_chunked(array: np.ndarray,

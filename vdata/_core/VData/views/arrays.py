@@ -213,18 +213,6 @@ class ViewVTDFArrayContainer(ViewVBaseArrayContainer, Mapping[str, D_VTDF]):
         """
         super().__init__(array_container)
 
-        if len(array_container):
-            # get slicers for each axis only once
-            index_slicer, column_num_slicer, column_str_slicer, _ = \
-                parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
-
-            # then create view directly
-            self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
-                          for key, TDF in array_container.items()}
-
-        else:
-            self._data = {}
-
         self._parent_timepoints_hash = hash(tuple(self._array_container._parent.timepoints.value.values))
         self._parent_obs_hash = hash(tuple(self._array_container._parent.obs.index))
 
@@ -356,6 +344,18 @@ class ViewVLayerArrayContainer(ViewVTDFArrayContainer):
         """
         super().__init__(array_container, timepoints_slicer, obs_slicer, var_slicer)
 
+        if len(array_container):
+            # get slicers for each axis only once
+            index_slicer, column_num_slicer, column_str_slicer, _ = \
+                parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
+
+            # then create view directly
+            self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
+                          for key, TDF in array_container.items()}
+
+        else:
+            self._data = {}
+
         self._parent_var_hash = hash(tuple(self._array_container._parent.var.index))
 
 
@@ -375,6 +375,16 @@ class ViewVObsmArrayContainer(ViewVTDFArrayContainer):
             timepoints_slicer: the list of time points to view.
         """
         super().__init__(array_container, timepoints_slicer, obs_slicer, var_slicer)
+
+        self._data = {}
+
+        for key, TDF in array_container.items():
+            # get slicers for each axis only once
+            index_slicer, column_num_slicer, column_str_slicer, _ = \
+                parse_slicer(TDF, (timepoints_slicer, obs_slicer, var_slicer))
+
+            # then create view directly
+            self._data[key] = ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
