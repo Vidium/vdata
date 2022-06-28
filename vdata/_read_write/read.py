@@ -325,38 +325,45 @@ def read(file: Union[Path, str], mode: Literal['r', 'r+'] = 'r',
 
     # import data from file
     importFile = H5GroupReader(File(str(file), mode))
-    for key in importFile.keys():
-        generalLogger.info(f"Got key : '{key}'.")
 
-        if key in ('obs', 'var', 'timepoints', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
-            type_ = importFile[key].attrs('type')
-            data[key] = func_[type_](importFile[key], 1, mode)
+    try:
+        for key in importFile.keys():
+            generalLogger.info(f"Got key : '{key}'.")
 
-        else:
-            generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
+            if key in ('obs', 'var', 'timepoints', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
+                type_ = importFile[key].attrs('type')
+                data[key] = func_[type_](importFile[key], 1, mode)
 
-    data['timepoints']['value'] = [TimePoint(tp) for tp in data['timepoints']['value']]
+            else:
+                generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
 
-    name = importFile.attrs('name')
-    dtype = importFile.attrs('dtype')
+        data['timepoints']['value'] = [TimePoint(tp) for tp in data['timepoints']['value']]
 
-    new_VData = vdata.VData(data['layers'],
-                            data['obs'],
-                            data['obsm'],
-                            data['obsp'],
-                            data['var'],
-                            data['varm'],
-                            data['varp'],
-                            data['timepoints'],
-                            data['uns'],
-                            dtype=dtype if dtype != 'None' else None,
-                            name=name,
-                            file=importFile,
-                            no_check=True)
+        name = importFile.attrs('name')
+        dtype = importFile.attrs('dtype')
 
-    generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
+        new_VData = vdata.VData(data['layers'],
+                                data['obs'],
+                                data['obsm'],
+                                data['obsp'],
+                                data['var'],
+                                data['varm'],
+                                data['varp'],
+                                data['timepoints'],
+                                data['uns'],
+                                dtype=dtype if dtype != 'None' else None,
+                                name=name,
+                                file=importFile,
+                                no_check=True)
 
-    return new_VData
+        generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
+
+        return new_VData
+
+    except Exception as e:
+        importFile.close()
+
+        raise e
 
 
 # from HDF5 groups --------------------------------------------------------------------------------
