@@ -1627,7 +1627,8 @@ class VData:
                    timepoints_list: Optional[Union[str, 'TimePoint', Collection[Union[str, 'TimePoint']]]] = None,
                    into_one: bool = True,
                    with_timepoints_column: bool = True,
-                   layer_as_X: Optional[str] = None) -> Union[AnnData, list[AnnData]]:
+                   layer_as_X: Optional[str] = None,
+                   layers_to_export: Optional[list] = None) -> Union[AnnData, list[AnnData]]:
         """
         Convert a VData object to an AnnData object.
 
@@ -1639,6 +1640,7 @@ class VData:
             with_timepoints_column: store time points data in the obs DataFrame. This is only used when
                 concatenating the data into a single AnnData (i.e. into_one=True).
             layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.
+            layers_to_export: if None export all layers
 
         Returns:
             An AnnData object with data for selected time points.
@@ -1680,9 +1682,11 @@ class VData:
             X = view.layers[layer_as_X].to_pandas()
             X.index = X.index.astype(str)
             X.columns = X.columns.astype(str)
+            if layers_to_export is None:
+                layers_to_export = view.layers.keys()
 
             return AnnData(X=X,
-                           layers={key: layer.to_pandas(str_index=True) for key, layer in view.layers.items()},
+                           layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
                            obs=view.obs.to_pandas(with_timepoints=tp_col_name,
                                                   str_index=True),
                            obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
