@@ -325,6 +325,8 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         """
         Set values in a subset.
         """
+        # TODO : setattr if setting a single column
+
         index_positions, column_num_slicer, column_str_slicer, (_, index_array, columns_array) = \
             parse_slicer(self, slicer)
 
