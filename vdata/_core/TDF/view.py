@@ -648,6 +648,9 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property                                                                           # type: ignore
     @check_can_read
     def columns_num_positions(self) -> np.ndarray:
+        if not self.n_columns_num:
+            return np.array([], dtype=int)
+
         return npi.indices(self._parent.columns_num, self._columns_numerical)
 
     @property                                                                           # type: ignore
@@ -663,6 +666,9 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     @property                                                                           # type: ignore
     @check_can_read
     def columns_str_positions(self) -> np.ndarray:
+        if not self.n_columns_str:
+            return np.array([], dtype=int)
+
         return npi.indices(self._parent.columns_str, self._columns_string)
 
     @property                                                                           # type: ignore

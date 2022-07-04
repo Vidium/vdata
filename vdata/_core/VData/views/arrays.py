@@ -346,11 +346,13 @@ class ViewVLayerArrayContainer(ViewVTDFArrayContainer):
 
         if len(array_container):
             # get slicers for each axis only once
-            index_slicer, column_num_slicer, column_str_slicer, _ = \
-                parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
+            # TODO : fix this : does not work if some layers have num values and others have str values for the same column name
+            # index_slicer, column_num_slicer, column_str_slicer, _ = \
+            #     parse_slicer(list(array_container.values())[0], (timepoints_slicer, obs_slicer, var_slicer))
 
             # then create view directly
-            self._data = {key: ViewTemporalDataFrame(TDF, index_slicer, column_num_slicer, column_str_slicer)
+            self._data = {key: ViewTemporalDataFrame(TDF, *parse_slicer(TDF,
+                                                                        (timepoints_slicer, obs_slicer, var_slicer)))
                           for key, TDF in array_container.items()}
 
         else:
