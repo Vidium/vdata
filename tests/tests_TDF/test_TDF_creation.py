@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .utils import get_TDF, get_backed_TDF, reference_backed_data, cleanup
 from vdata.name_utils import H5Mode
-from vdata._core.TDF.dataframe import TemporalDataFrame
+from vdata import TemporalDataFrame
 
 
 # ====================================================

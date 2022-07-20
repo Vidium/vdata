@@ -524,6 +524,13 @@ class BaseTemporalDataFrame(ABC):
         """
 
     @property
+    def values(self) -> np.ndarray:
+        """
+        Get all the data (num and str concatenated).
+        """
+        return np.hstack((self.values_num.astype(object), self.values_str.astype(object)))
+
+    @property
     def tp0(self) -> TimePoint:
         return self.timepoints[0]
 
