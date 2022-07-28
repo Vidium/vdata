@@ -27,7 +27,7 @@ from vdata.name_utils import DType, StrDType
 from vdata.utils import repr_array, deep_dict_convert
 from vdata.time_point import TimePoint
 from ...IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError, VReadOnlyError
-from ..._read_write import write_vdata, write_vdata_to_csv, H5GroupReader
+from ...read_write import write_vdata, write_vdata_to_csv, H5GroupReader
 from ...vdataframe import VDataFrame
 
 DF = TypeVar('DF', bound=DataFrame)
@@ -1689,7 +1689,8 @@ class VData:
                            layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
                            obs=view.obs.to_pandas(with_timepoints=tp_col_name,
                                                   str_index=True),
-                           obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
+                           obsm={key: arr.values_num for key, arr in view.obsm.items()},
+                           obsp={key: arr.values for key, arr in view.obsp.items()},
                            var=view.var.to_pandas(),
                            varm={key: arr for key, arr in view.varm.items()},
                            varp={key: arr for key, arr in view.varp.items()},

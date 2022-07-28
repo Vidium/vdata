@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from time import time
 from pathlib import Path
+from h5py import Dataset, Group
 from typing import Union, Optional, Any, Callable, Collection, cast, Literal
 
 from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
@@ -23,7 +24,7 @@ from ..vdataframe import VDataFrame
 from ..time_point import TimePoint
 from ..IO import generalLogger, VValueError, VTypeError, ShapeError
 from .._core import TemporalDataFrame
-from ..h5pickle import File, Dataset, Group
+from ..h5pickle import File, Dataset as pklDataset, Group as pklGroup
 
 
 def spacer(nb: int) -> str:
@@ -472,7 +473,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
 
     start = time()
     # simple Series
-    if group.isinstance(Dataset):
+    if group.isinstance(Dataset) or group.isinstance(pklDataset):
         data_type = get_dtype_from_string(group.attrs('dtype'))
         if data_type == TimePoint:
             values = [TimePoint(tp) for tp in read_h5_array(group, level=level+1, log_func=log_func)]
@@ -486,7 +487,7 @@ def read_h5_series(group: H5GroupReader, index: Optional[list] = None, level: in
         return pd.Series(values, index=index)
 
     # categorical Series
-    elif group.isinstance(Group):
+    elif group.isinstance(Group) or group.isinstance(pklGroup):
         # get data
         data_type = get_dtype_from_string(group.attrs('dtype'))
         categories = read_h5_array(cast(H5GroupReader, group['categories']), level=level+1, log_func=log_func)

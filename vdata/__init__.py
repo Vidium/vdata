@@ -11,7 +11,7 @@ from ._core.VData.views import ViewVData
 from ._core.TDF import ViewTemporalDataFrame, read_TemporalDataFrame, read_TemporalDataFrame_from_csv
 from .IO import setLoggingLevel, getLoggingLevel, VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, \
     VAttributeError, VLockError
-from ._read_write import read, read_from_dict, read_from_csv, convert_anndata_to_vdata
+from .read_write import read, read_from_dict, read_from_csv, convert_anndata_to_vdata
 from .vdataframe import VDataFrame
 from .time_point import TimePoint
 

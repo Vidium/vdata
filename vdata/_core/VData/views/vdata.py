@@ -20,7 +20,7 @@ from vdata.utils import repr_array
 from vdata.time_point import TimePoint
 from vdata.vdataframe import ViewVDataFrame
 from vdata.IO import generalLogger, VTypeError, IncoherenceError, ShapeError, VValueError
-from ...._read_write.write import write_vdata, write_vdata_to_csv
+from ....read_write.write import write_vdata, write_vdata_to_csv
 
 
 # ====================================================
