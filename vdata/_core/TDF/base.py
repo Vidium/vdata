@@ -449,6 +449,13 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
+    def timepoints_column_numerical(self) -> np.ndarray:
+        """
+        Get the column of time-point values cast as floats.
+        """
+
+    @property
+    @abstractmethod
     def timepoints_column_name(self) -> Optional[str]:
         """
         Get the name of the column containing the time-points values.
@@ -536,6 +543,7 @@ class BaseTemporalDataFrame(ABC):
 
     def _convert_to_pandas(self,
                            with_timepoints: Optional[str] = None,
+                           timepoints_type: Literal['string', 'numerical'] = 'string',
                            str_index: bool = False) -> pd.DataFrame:
         """
         Internal function for converting to a pandas DataFrame. Do not use directly, it is called by '.to_pandas()'.
@@ -543,6 +551,8 @@ class BaseTemporalDataFrame(ABC):
         Args:
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
+            timepoints_type: if <with_timepoints> if True, type of the timepoints that will be added (either 'string'
+                or 'numerical'). (default: 'string')
             str_index: cast index as string ?
         """
         index_ = self.index
@@ -554,15 +564,26 @@ class BaseTemporalDataFrame(ABC):
                               pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)),
                              axis=1)
 
-        return pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                       index=index_, columns=[str(with_timepoints)]),
-                          pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
-                          pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)),
-                         axis=1)
+        if timepoints_type == 'string':
+            return pd.concat((
+                pd.DataFrame(self.timepoints_column_str[:, None], index=index_, columns=[str(with_timepoints)]),
+                pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
+                pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)
+            ), axis=1)
+
+        elif timepoints_type == 'numerical':
+            return pd.concat((
+                pd.DataFrame(self.timepoints_column_numerical[:, None], index=index_, columns=[str(with_timepoints)]),
+                pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
+                pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)
+            ), axis=1)
+
+        raise ValueError(f"Invalid timepoints_type argument '{timepoints_type}'. Should be 'string' or 'numerical'.")
 
     @abstractmethod
     def to_pandas(self,
                   with_timepoints: Optional[str] = None,
+                  timepoints_type: Literal['string', 'numerical'] = 'string',
                   str_index: bool = False) -> pd.DataFrame:
         """
         Convert to a pandas DataFrame.
@@ -570,6 +591,8 @@ class BaseTemporalDataFrame(ABC):
         Args:
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
+            timepoints_type: if <with_timepoints> if True, type of the timepoints that will be added (either 'string'
+                or 'numerical'). (default: 'string')
             str_index: cast index as string ?
         """
 

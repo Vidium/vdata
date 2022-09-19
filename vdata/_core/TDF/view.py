@@ -4,6 +4,8 @@
 
 # ====================================================
 # imports
+from __future__ import annotations
+
 import re
 import numpy as np
 import pandas as pd
@@ -12,7 +14,7 @@ from pathlib import Path
 from numbers import Number
 from h5py import Dataset, File
 
-from typing import TYPE_CHECKING, Union, Optional, Collection, Any
+from typing import TYPE_CHECKING, Collection, Any, Literal
 
 from vdata.time_point import TimePoint
 from vdata.name_utils import H5Mode
@@ -63,7 +65,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
     __slots__ = '_parent', '_index_positions', '_columns_numerical', '_columns_string', '_repeating_index', '_inverted'
 
     def __init__(self,
-                 parent: 'TemporalDataFrame',
+                 parent: TemporalDataFrame,
                  index_positions: np.ndarray,
                  columns_numerical: np.ndarray,
                  columns_string: np.ndarray,
@@ -89,7 +91,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __getattr__(self,
-                    column_name: str) -> 'ViewTemporalDataFrame':
+                    column_name: str) -> ViewTemporalDataFrame:
         """
         Get a single column from this view of a TemporalDataFrame.
         """
@@ -105,7 +107,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                          index_slicer: np.ndarray,
                          column_num_slicer: np.ndarray,
                          column_str_slicer: np.ndarray,
-                         arrays: tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]) \
+                         arrays: tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]) \
             -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         tp_array, index_array, columns_array = arrays
 
@@ -130,10 +132,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __getitem__(self,
-                    slicer: Union[SLICER,
-                                  tuple[SLICER, SLICER],
-                                  tuple[SLICER, SLICER, SLICER]]) \
-            -> 'ViewTemporalDataFrame':
+                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
+            -> ViewTemporalDataFrame:
         """
         Get a subset.
         """
@@ -144,10 +144,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_write
     def __setitem__(self,
-                    slicer: Union[SLICER,
-                                  tuple[SLICER, SLICER],
-                                  tuple[SLICER, SLICER, SLICER]],
-                    values: Union[Number, np.number, str, Collection, 'TemporalDataFrame', 'ViewTemporalDataFrame']) \
+                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
+                    values: Number | np.number | str | Collection | TemporalDataFrame | ViewTemporalDataFrame) \
             -> None:
         """
         Set values in a subset.
@@ -162,7 +160,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
                                   (tp_array, index_array, columns_array))
 
         if self._inverted:
-            columns_array = columns_array = np.concatenate((_columns_numerical, _columns_string))
+            columns_array = np.concatenate((_columns_numerical, _columns_string))
 
         elif columns_array is None:
             columns_array = self.columns
@@ -216,7 +214,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __add__(self,
-                value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
+                value: Number | np.number | str | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -226,12 +224,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __radd__(self,
-                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                 value: Number | np.number) -> TemporalDataFrame:
         return self.__add__(value)
 
     @check_can_write
     def __iadd__(self,
-                 value: Union[Number, np.number, str, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
+                 value: Number | np.number | str | BaseTemporalDataFrame) -> ViewTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -253,7 +251,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __sub__(self,
-                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
+                value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -262,12 +260,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __rsub__(self,
-                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                 value: Number | np.number) -> TemporalDataFrame:
         return self.__sub__(value)
 
     @check_can_write
     def __isub__(self,
-                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
+                 value: Number | np.number | BaseTemporalDataFrame) -> ViewTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -280,7 +278,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __mul__(self,
-                value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
+                value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -289,12 +287,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __rmul__(self,
-                 value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                 value: Number | np.number) -> TemporalDataFrame:
         return self.__mul__(value)
 
     @check_can_write
     def __imul__(self,
-                 value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
+                 value: Number | np.number | BaseTemporalDataFrame) -> ViewTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -307,7 +305,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __truediv__(self,
-                    value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'TemporalDataFrame':
+                    value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -316,12 +314,12 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __rtruediv__(self,
-                     value: Union[Number, np.number]) -> 'TemporalDataFrame':
+                     value: Number | np.number) -> TemporalDataFrame:
         return self.__truediv__(value)
 
     @check_can_write
     def __itruediv__(self,
-                     value: Union[Number, np.number, 'BaseTemporalDataFrame']) -> 'ViewTemporalDataFrame':
+                     value: Number | np.number | BaseTemporalDataFrame) -> ViewTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -334,7 +332,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def __eq__(self,
-               other: Any) -> Union[bool, np.ndarray]:
+               other: Any) -> bool | np.ndarray:
         """
         Test for equality with :
             - another TemporalDataFrame or view of a TemporalDataFrame
@@ -343,7 +341,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return self._is_equal(other)
 
     @check_can_read
-    def __invert__(self) -> 'ViewTemporalDataFrame':
+    def __invert__(self) -> ViewTemporalDataFrame:
         """
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
@@ -580,7 +578,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return len(self.timepoints)
 
     @check_can_read
-    def get_timepoint_mask(self, timepoint: Union[str, TimePoint]) -> np.ndarray:
+    def get_timepoint_mask(self, timepoint: str | TimePoint) -> np.ndarray:
         """TODO"""
         if self._parent.is_backed:
             return self._parent.timepoints_column[self.index_positions] == str(TimePoint(timepoint))
@@ -603,9 +601,17 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         """
         return np.array(list(map(str, self.timepoints_column)))
 
+    @property
+    @check_can_read
+    def timepoints_column_numerical(self) -> np.ndarray:
+        """
+        Get the column of time-point values cast as floats.
+        """
+        return np.array([tp.value for tp in self.timepoints_column])
+
     @property                                                                           # type: ignore
     @check_can_read
-    def timepoints_column_name(self) -> Optional[str]:
+    def timepoints_column_name(self) -> str | None:
         return self._parent.timepoints_column_name
 
     @property                                                                           # type: ignore
@@ -620,13 +626,13 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         return len(self._index_positions)
 
     @check_can_read
-    def index_at(self, timepoint: Union[str, TimePoint]) -> np.ndarray:
+    def index_at(self, timepoint: str | TimePoint) -> np.ndarray:
         """TODO"""
         return self._parent.index[self.index_positions[self.get_timepoint_mask(timepoint)]]
 
     @check_can_read
     def n_index_at(self,
-                   timepoint: Union[str, TimePoint]) -> int:
+                   timepoint: str | TimePoint) -> int:
         return len(self.index_at(timepoint))
 
     @property                                                                           # type: ignore
@@ -715,7 +721,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def to_pandas(self,
-                  with_timepoints: Optional[str] = None,
+                  with_timepoints: str | None = None,
+                  timepoints_type: Literal['string', 'numerical'] = 'string',
                   str_index: bool = False) -> pd.DataFrame:
         """
         Convert to a pandas DataFrame.
@@ -723,9 +730,13 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         Args:
             with_timepoints: Name of the column containing time-points data to add to the DataFrame. If left to None,
                 no column is created.
+            timepoints_type: if <with_timepoints> if True, type of the timepoints that will be added (either 'string'
+                or 'numerical'). (default: 'string')
             str_index: cast index as string ?
         """
-        return self._convert_to_pandas(with_timepoints=with_timepoints, str_index=str_index)
+        return self._convert_to_pandas(with_timepoints=with_timepoints,
+                                       timepoints_type=timepoints_type,
+                                       str_index=str_index)
 
     @property
     def at(self) -> 'indexer.VAtIndexer':
@@ -775,7 +786,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def write(self,
-              file: Union[str, Path, H5Data]) -> None:
+              file: str | Path | H5Data) -> None:
         """
         Save this view of a TemporalDataFrame in HDF5 file format.
 
@@ -789,7 +800,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         write_TDF(self, file)
 
     @check_can_read
-    def to_csv(self, path: Union[str, Path], sep: str = ",", na_rep: str = "",
+    def to_csv(self, path: str | Path, sep: str = ",", na_rep: str = "",
                index: bool = True, header: bool = True) -> None:
         """
         Save this TemporalDataFrame in a csv file.
@@ -808,7 +819,7 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
         self.to_pandas(with_timepoints=tp_col_name).to_csv(path, sep=sep, na_rep=na_rep, index=index, header=header)
 
     @check_can_read
-    def copy(self) -> 'TemporalDataFrame':
+    def copy(self) -> TemporalDataFrame:
         """
         Get a TemporalDataFrame that is a copy of this view.
         """
@@ -816,8 +827,8 @@ class ViewTemporalDataFrame(BaseTemporalDataFrame):
 
     @check_can_read
     def merge(self,
-              other: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
-              name: Optional[str] = None) -> 'TemporalDataFrame':
+              other: TemporalDataFrame | ViewTemporalDataFrame,
+              name: str | None = None) -> TemporalDataFrame:
         """
         Merge two TemporalDataFrames together, by rows. The column names and time points must match.
 

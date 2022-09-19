@@ -8,9 +8,10 @@ import builtins
 
 import numpy as np
 import pandas as pd
-from collections import abc, Collection
+from collections import Collection
+from collections.abc import MutableMapping
 
-from typing import Union, Any, Sequence, MutableMapping, cast
+from typing import Union, Any, Sequence, MutableMapping as MutableMappingT, cast
 
 from . import name_utils
 
@@ -52,6 +53,7 @@ _builtin_names.remove('None')
 #     return inner(obj_0)
 
 
+# region misc -----------------------------------------------------------------
 def get_value(v: Any) -> Union[str, int, float]:
     """
     If possible, get the int or float value of the passed object.
@@ -97,8 +99,10 @@ def are_equal(obj1: Any,
 
     return obj1 == obj2
 
+# endregion
 
-# Representation --------------------------------------------------------------
+
+# region Representation --------------------------------------------------------------
 def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis']) -> str:
     """
     Get a short string representation of an array.
@@ -119,9 +123,11 @@ def repr_array(arr: Union['name_utils.DType', Sequence, range, slice, 'ellipsis'
         else:
             return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"
 
+# endregion
 
-# Type coercion ---------------------------------------------------------------
-def deep_dict_convert(obj: MutableMapping) -> Any:
+
+# region Type coercion ---------------------------------------------------------------
+def deep_dict_convert(obj: MutableMappingT) -> Any:
     """
     'Deep' convert a mapping of any kind (and children mappings) into regular dictionaries.
 
@@ -131,7 +137,9 @@ def deep_dict_convert(obj: MutableMapping) -> Any:
     Returns:
         a converted dictionary.
     """
-    if not isinstance(obj, abc.MutableMapping):
+    if not isinstance(obj, MutableMapping):
         return obj
 
     return {k: deep_dict_convert(v) for k, v in obj.items()}
+
+# endregion
