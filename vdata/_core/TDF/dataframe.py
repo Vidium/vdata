@@ -846,7 +846,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
         Get the column of time-point values.
         """
         if isinstance(self._timepoints_array, Dataset):
-            return self._timepoints_array.asstr()[()]
+            return np.array([TimePoint(tp) for tp in self._timepoints_array.asstr()])
 
         return self._timepoints_array.copy()
 
