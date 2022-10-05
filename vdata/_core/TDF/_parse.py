@@ -40,6 +40,7 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
             - a dictionary of ['column_name': [values]], where [values] has always the same length
             - a pandas DataFrame
             - a H5 File or Group containing numerical and string data.
+            - a single value to fill the data with
         index: Optional indices to set or to substitute to indices defined in data if data is a pandas DataFrame.
         repeating_index: Is the index repeated at all time-points ?
             If False, the index must contain unique values.
@@ -128,6 +129,52 @@ def parse_data(data: Union[None, dict, pd.DataFrame, H5Data],
             warn("Data loaded from a H5 file, 'time_col_name' parameter is ignored.")
 
         return parse_data_h5(data, index, columns_numerical, columns_string, lock, name)
+
+    if not isCollection(data):
+        if time_list is not None:
+            if index is None:
+                index = np.arange(len(time_list))
+
+            if (lt := len(time_list)) != (li := len(index)):
+                raise ValueError(f"Length of 'time_list' ({lt}) did not match length of 'index' ({li}).")
+
+        if time_list is None:
+            # set time values to default value '0h'
+            if index is not None:
+                time_values = np.array([TimePoint('0h') for _ in enumerate(index)])
+
+            else:
+                time_values = np.empty(0)
+
+        else:
+            # pick time values from time_list
+            time_values = time_list
+
+        if index is not None and columns_numerical is not None:
+            numerical_array = np.empty((len(index), len(columns_numerical)), dtype=float)
+            numerical_array[:] = np.nan
+
+        else:
+            numerical_array = np.empty((0, 0))
+
+        if index is not None and columns_string is not None:
+            string_array = np.empty((len(index), len(columns_string)), dtype='<U3')
+            string_array[:] = np.nan
+
+        else:
+            string_array = np.empty((0, 0))
+
+        return None, \
+            numerical_array, \
+            string_array, \
+            time_values, \
+            np.empty(0) if index is None else np.array(index), \
+            np.empty(0) if columns_numerical is None else np.array(columns_numerical), \
+            np.empty(0) if columns_string is None else np.array(columns_string), \
+            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), \
+            time_col_name, \
+            str(name), \
+            False
 
     raise ValueError("Invalid 'data' supplied for creating a TemporalDataFrame. 'data' can be :\n"
                      " - a dictionary of ['column_name': [values]], where [values] has always the same length \n"

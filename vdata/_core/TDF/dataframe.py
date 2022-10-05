@@ -94,6 +94,7 @@ class TemporalDataFrame(BaseTemporalDataFrame):
                 - a dictionary of ['column_name': [values]], where [values] has always the same length
                 - a pandas DataFrame
                 - a H5 File or Group containing numerical and string data.
+                - a single value to fill the data with
             index: Optional collection of indices. Must match the total number of rows in this TemporalDataFrame,
                 over all time-points.
             repeating_index: Is the index repeated at all time-points ?
