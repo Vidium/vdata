@@ -560,22 +560,28 @@ class BaseTemporalDataFrame(ABC):
             index_ = index_.astype(str)
 
         if with_timepoints is None:
-            return pd.concat((pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
-                              pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)),
+            return pd.concat((pd.DataFrame(self.values_num if self.values_num.size else None,
+                                           index=index_, columns=self.columns_num),
+                              pd.DataFrame(self.values_str if self.values_str.size else None,
+                                           index=index_, columns=self.columns_str)),
                              axis=1)
 
         if timepoints_type == 'string':
             return pd.concat((
                 pd.DataFrame(self.timepoints_column_str[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
-                pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)
+                pd.DataFrame(self.values_num if self.values_num.size else None,
+                             index=index_, columns=self.columns_num),
+                pd.DataFrame(self.values_str if self.values_str.size else None,
+                             index=index_, columns=self.columns_str)
             ), axis=1)
 
         elif timepoints_type == 'numerical':
             return pd.concat((
                 pd.DataFrame(self.timepoints_column_numerical[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self.values_num, index=index_, columns=self.columns_num),
-                pd.DataFrame(self.values_str, index=index_, columns=self.columns_str)
+                pd.DataFrame(self.values_num if self.values_num.size else None,
+                             index=index_, columns=self.columns_num),
+                pd.DataFrame(self.values_str if self.values_num.size else None,
+                             index=index_, columns=self.columns_str)
             ), axis=1)
 
         raise ValueError(f"Invalid timepoints_type argument '{timepoints_type}'. Should be 'string' or 'numerical'.")
