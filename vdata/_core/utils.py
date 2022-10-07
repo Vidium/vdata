@@ -152,7 +152,7 @@ def slicer_to_array(slicer: 'PreSlicer',
     if not isinstance(slicer, (slice, type(Ellipsis))):
         if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
             # boolean array : extract values from reference_index
-            return np.array(reference_index)[np.where(slicer)]
+            return np.array(reference_index)[np.where(slicer.flatten())]
 
         elif not isCollection(slicer):
             # single value : convert to array (void array if value not in reference_index)
