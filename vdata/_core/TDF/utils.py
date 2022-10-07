@@ -67,6 +67,9 @@ def parse_axis_slicer(axis_slicer: SLICER,
 
         return np.array(list(iter(range_function(start, stop, step))))
 
+    elif isinstance(axis_slicer, np.ndarray) and axis_slicer.dtype == bool:
+        return possible_values[axis_slicer.flatten()]
+
     elif isinstance(axis_slicer, range) or isCollection(axis_slicer):
         return np.array(list(map(cast_type, axis_slicer)))
 
