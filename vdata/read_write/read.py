@@ -83,7 +83,7 @@ def read_from_csv(directory: Union[Path, str],
             'varm': None, 'varp': None, 'dtype': dtype}
 
     # import the data
-    for f in parsed_directory.iterdir():
+    for f in sorted(parsed_directory.iterdir()):
         if f != ".metadata.json":
             generalLogger.info(f"Got key : '{f}'.")
 
@@ -110,7 +110,7 @@ def read_from_csv(directory: Union[Path, str],
                 dataset_dict = {}
                 generalLogger.info(f"{spacer(1)}Reading group '{f}'.")
 
-                for dataset in (parsed_directory / f).iterdir():
+                for dataset in sorted((parsed_directory / f).iterdir()):
                     if f in ('layers', 'obsm'):
                         generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {str(dataset)[:-4]}")
                         if time_list is None and time_col is None:
