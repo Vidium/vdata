@@ -16,7 +16,7 @@ REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
 def VData_pickle_dump():
-    v1 = vdata.read(REF_DIR / "vdata.vd")
+    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
 
     if (REF_DIR / 'pickled_vdata.pkl').exists():
         (REF_DIR / 'pickled_vdata.pkl').unlink()
@@ -27,7 +27,8 @@ def VData_pickle_dump():
     v1.file.close()
 
 
-def test_VData_pickle_load():
+# TODO
+def TODO_test_VData_pickle_load():
     VData_pickle_dump()
 
     v2 = pickle.load(open(REF_DIR / 'pickled_vdata.pkl', 'rb'))
@@ -43,9 +44,3 @@ def test_VData_pickle_load():
     v2.file.close()
 
     (REF_DIR / 'pickled_vdata.pkl').unlink()
-
-
-if __name__ == '__main__':
-    vdata.setLoggingLevel('INFO')
-
-    test_VData_pickle_load()

@@ -25,15 +25,15 @@ from tests.tests_vdata.test_VData_pickle import test_VData_pickle_dump, test_VDa
 # code
 vdata.setLoggingLevel('INFO')
 
-# TDF creation
+# tdf creation
 print('\n >>> TemporalDataFrame creation <<< \n')
 test_TDF_creation()
 
-# TDF seb-setting
+# tdf seb-setting
 print('\n >>> TemporalDataFrame sub-setting <<< \n')
 test_TDF_sub_setting()
 
-# TDF pickling
+# tdf pickling
 print('\n >>> TemporalDataFrame pickling <<< \n')
 test_TDF_pickle_dump()
 test_TDF_pickle_load()

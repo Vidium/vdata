@@ -1,41 +1,115 @@
 # coding: utf-8
 # Created on 06/04/2022 12:04
 # Author : matteo
-
+from pathlib import Path
 # ====================================================
 # imports
-import numpy as np
 from time import perf_counter
 
-from vdata._core.TDF.dataframe import TemporalDataFrame
+import numpy as np
+import pytest
+from h5py import File, string_dtype
+
+from vdata import TemporalDataFrame, read_TDF
+from vdata.core.attribute_proxy.attribute import NONE_VALUE
+from vdata.core.tdf.base import BaseTemporalDataFrame
+from vdata.name_utils import H5Mode
 
 # ====================================================
 # code
-MAX_ELAPSED_TIME = 5
+MAX_ELAPSED_TIME_SECONDS = 1
 
 
-def test_speed():
-    TDF = TemporalDataFrame({'col1': [i for i in range(20_000)],
-                             'col2': [i for i in range(20_000, 40_000)],
-                             'col3': [str(i) for i in range(40_000, 60_000)],
-                             'col4': [str(i) for i in range(60_000, 80_000)]},
-                            name='1',
-                            time_list=['0h' for _ in range(2500)] +
-                                      ['1h' for _ in range(2500)] +
-                                      ['2h' for _ in range(2500)] +
-                                      ['3h' for _ in range(2500)] +
-                                      ['4h' for _ in range(2500)] +
-                                      ['5h' for _ in range(2500)] +
-                                      ['6h' for _ in range(2500)] +
-                                      ['7h' for _ in range(2500)])
+@pytest.fixture(scope='module')
+def large_TDF(request) -> BaseTemporalDataFrame:
+    if hasattr(request, 'param'):
+        which = request.param
 
-    # TDF representation
+    else:
+        which = 'plain'
+
+    if 'backed' in which:
+        with File('backed_large_TDF', H5Mode.WRITE_TRUNCATE) as h5_file:
+            # write data to h5 file directly
+            h5_file.attrs['type'] = 'tdf'
+            h5_file.attrs['name'] = 'large TDF'
+            h5_file.attrs['locked_indices'] = False
+            h5_file.attrs['locked_columns'] = False
+            h5_file.attrs['timepoints_column_name'] = NONE_VALUE
+            h5_file.attrs['repeating_index'] = False
+
+            h5_file.create_dataset('index', data=np.arange(20_000))
+            h5_file.create_dataset('columns_numerical', data=np.array(['col1', 'col2'], dtype=np.dtype('O')),
+                                   chunks=True, maxshape=(None,), dtype=string_dtype())
+            h5_file.create_dataset('columns_string', data=np.array(['col3', 'col4'], dtype=np.dtype('O')),
+                                   chunks=True, maxshape=(None,), dtype=string_dtype())
+            h5_file.create_dataset('timepoints', data=['0.0h' for _ in range(2500)] +
+                                                      ['1.0h' for _ in range(2500)] +
+                                                      ['2.0h' for _ in range(2500)] +
+                                                      ['3.0h' for _ in range(2500)] +
+                                                      ['4.0h' for _ in range(2500)] +
+                                                      ['5.0h' for _ in range(2500)] +
+                                                      ['6.0h' for _ in range(2500)] +
+                                                      ['7.0h' for _ in range(2500)], dtype=string_dtype())
+
+            h5_file.create_dataset('values_numerical', data=np.arange(40_000).reshape(20_000, 2),
+                                   chunks=True, maxshape=(None, None))
+
+            h5_file.create_dataset('values_string',
+                                   data=np.arange(40_000, 80_000).astype(str).astype('O').reshape(20_000, 2),
+                                   dtype=string_dtype(), chunks=True, maxshape=(None, None))
+
+        # read tdf from file
+        TDF = read_TDF('backed_large_TDF', mode=H5Mode.READ_WRITE)
+
+        if 'view' in which:
+            yield TDF
+
+        else:
+            yield TDF
+
+        Path('backed_large_TDF').unlink()
+
+    else:
+        TDF = TemporalDataFrame({'col1': [i for i in range(20_000)],
+                                 'col2': [i for i in range(20_000, 40_000)],
+                                 'col3': [str(i) for i in range(40_000, 60_000)],
+                                 'col4': [str(i) for i in range(60_000, 80_000)]},
+                                name='large TDF',
+                                time_list=['0h' for _ in range(2500)] +
+                                          ['1h' for _ in range(2500)] +
+                                          ['2h' for _ in range(2500)] +
+                                          ['3h' for _ in range(2500)] +
+                                          ['4h' for _ in range(2500)] +
+                                          ['5h' for _ in range(2500)] +
+                                          ['6h' for _ in range(2500)] +
+                                          ['7h' for _ in range(2500)])
+
+        if 'view' in which:
+            yield TDF[:]
+
+        else:
+            yield TDF
+
+
+@pytest.mark.parametrize(
+    'large_TDF',
+    ['plain', 'view', 'backed', 'backed view'],
+    indirect=True
+)
+def test_fast_repr(large_TDF):
     start = perf_counter()
-    repr(TDF)
+    repr(large_TDF)
 
-    assert perf_counter() - start < MAX_ELAPSED_TIME
+    assert (perf_counter() - start) < MAX_ELAPSED_TIME_SECONDS
 
-    # TDF sub-setting
+
+@pytest.mark.parametrize(
+    'large_TDF',
+    ['plain', 'view', 'backed', 'backed view'],
+    indirect=True
+)
+def test_fast_subset(large_TDF):
     index = np.array([19120, 19840, 9500, 17420, 8300, 2820, 1860, 7220, 5420,
                       18280, 9980, 13240, 18600, 8340, 16060, 3780, 17500, 7760,
                       14500, 10840, 2520, 4660, 4860, 2880, 19940, 15840, 2220,
@@ -150,22 +224,6 @@ def test_speed():
                       1720])
 
     start = perf_counter()
-    view = TDF[['2h', '0h', '4h'], index]
+    _ = large_TDF[['2h', '0h', '4h'], index]
 
-    assert perf_counter() - start < MAX_ELAPSED_TIME
-
-    # view TDF representation
-    start = perf_counter()
-    repr(view)
-
-    assert perf_counter() - start < MAX_ELAPSED_TIME
-
-    # TDF view sub
-    # TODO
-
-    # backed TDF --------------------------------------------------------------
-    # TODO
-
-
-if __name__ == '__main__':
-    test_speed()
+    assert (perf_counter() - start) < MAX_ELAPSED_TIME_SECONDS

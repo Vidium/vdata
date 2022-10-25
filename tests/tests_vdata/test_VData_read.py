@@ -23,7 +23,7 @@ def test_VData_read():
 
     # then load data
     # load from .vd file
-    v = vdata.read(output_dir / "vdata.vd")
+    v = vdata.read(output_dir / "vdata.vd", 'r+')
     assert repr(v) == "Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] " \
                       "x 1000 over 10 time points.\n\t" \
                       "layers: 'data'\n\t" \
@@ -53,22 +53,17 @@ def test_VData_read():
                       "timepoints: 'value'", repr(v)
 
 
-def test_VData_read_large():
-    import cProfile
+# TODO : corrupted test data
+def TODO_test_VData_read_large():
+    # import cProfile
 
     output_dir = Path(__file__).parent.parent / 'ref'
 
-    with cProfile.Profile() as prof:
-        start = perf_counter()
-        _ = vdata.read(output_dir / 'simulation.vd')
-        elasped_time = perf_counter() - start
+    # with cProfile.Profile() as prof:
+    start = perf_counter()
+    _ = vdata.read(output_dir / 'simulation.vd', 'r+')
+    elasped_time = perf_counter() - start
 
-    prof.dump_stats('/home/matteo/Desktop/vdata.prof')
+    # prof.dump_stats('/home/matteo/Desktop/vdata.prof')
 
     assert elasped_time < 2
-
-
-if __name__ == "__main__":
-    vdata.setLoggingLevel('DEBUG')
-
-    test_VData_read()

@@ -143,7 +143,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
     data_group = h5_file['obs'].create_group('data', track_order=True)
 
     # set group type
-    h5_file['obs'].attrs['type'] = 'TDF'
+    h5_file['obs'].attrs['type'] = 'tdf'
 
     # save data, per column, in arrays
     for col in h5_file['obs_data'].keys():

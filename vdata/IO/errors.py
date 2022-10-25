@@ -66,14 +66,14 @@ class VAttributeError(VBaseError):
 
 class VLockError(VBaseError):
     """
-    Custom error for TDF lock errors.
+    Custom error for tdf lock errors.
     """
     pass
 
 
 class VClosedFileError(VBaseError):
     """
-    Custom error for TDF lock errors.
+    Custom error for tdf lock errors.
     """
     def __init__(self, msg: str = ""):
         self.msg = "Closed backing file !"

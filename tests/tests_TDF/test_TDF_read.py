@@ -4,67 +4,34 @@
 
 # ====================================================
 # imports
+import pytest
 import numpy as np
-from pathlib import Path
 
-from .utils import get_backed_TDF, reference_backed_data, cleanup
-from vdata.name_utils import H5Mode
-from vdata._core.TDF.dataframe import TemporalDataFrame
+from vdata.core.tdf.base import BaseTemporalDataFrameImplementation
 
 
 # ====================================================
 # code
-def check_TDF(TDF: TemporalDataFrame,
-              name: str) -> None:
-    """
-    Check a TemporalDataFrame was correctly read from a H5 file.
-    """
-    assert TDF.name == name
-    assert np.all(TDF.values_num == reference_backed_data['values_numerical'])
-    assert np.all(TDF.values_str == reference_backed_data['values_string'])
-    assert np.all(TDF.index == reference_backed_data['index'])
-    assert np.all(TDF.columns_num == reference_backed_data['columns_numerical'])
-    assert np.all(TDF.columns_str == reference_backed_data['columns_string'])
-    assert np.all(TDF.timepoints_column == reference_backed_data['timepoints'])
-    assert TDF.lock[0] == reference_backed_data['locked_indices']
-    assert TDF.lock[1] == reference_backed_data['locked_columns']
-    assert TDF.timepoints_column_name is None
+@pytest.mark.usefixtures('class_TDF_backed')
+class TestReadTDF:
 
+    def test_can_read_TDF(self):
+        assert isinstance(self.TDF, BaseTemporalDataFrameImplementation) and self.TDF.is_backed
 
-def test_read():
-    input_file = Path(__file__).parent / 'test_read_TDF'
+    def test_read_TDF_attributes(self):
+        assert self.TDF.name == '1'
 
-    cleanup([input_file])
+    def test_read_index(self):
+        assert np.all(self.TDF.index == np.concatenate((np.arange(50, 100), np.arange(0, 50))))
 
-    TDF = get_backed_TDF(input_file, '1')
+    def test_read_timepoints(self):
+        assert np.all(self.TDF.timepoints_column == ['0.0h' for _ in range(50)] + ['1.0h' for _ in range(50)])
 
-    assert TDF.is_backed
-    assert TDF.file.mode == H5Mode.READ
-    check_TDF(TDF, '1')
+    def test_read_values(self):
+        assert np.all(self.TDF.values_num == np.vstack((
+            np.concatenate((np.arange(50, 100), np.arange(0, 50))),
+            np.concatenate((np.arange(150, 200), np.arange(100, 150)))
+        )).T.astype(float))
 
-    assert repr(TDF) == "Backed TemporalDataFrame 1\n" \
-                        "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
-                        "  Time-point    col1 col2    col3\n" \
-                        "0       0.0h  |  0.0  1.0  |  100\n" \
-                        "1       0.0h  |  2.0  3.0  |  101\n" \
-                        "2       0.0h  |  4.0  5.0  |  102\n" \
-                        "3       0.0h  |  6.0  7.0  |  103\n" \
-                        "4       0.0h  |  8.0  9.0  |  104\n" \
-                        "[25 x 3]\n" \
-                        "\n" \
-                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
-                        "   Time-point     col1  col2    col3\n" \
-                        "25       1.0h  |  50.0  51.0  |  125\n" \
-                        "26       1.0h  |  52.0  53.0  |  126\n" \
-                        "27       1.0h  |  54.0  55.0  |  127\n" \
-                        "28       1.0h  |  56.0  57.0  |  128\n" \
-                        "29       1.0h  |  58.0  59.0  |  129\n" \
-                        "[25 x 3]\n\n"
-
-    TDF.file.close()
-
-    cleanup([input_file])
-
-
-if __name__ == '__main__':
-    test_read()
+    def test_get_correct_shape(self):
+        assert self.TDF.shape == (2, [50, 50], 4)

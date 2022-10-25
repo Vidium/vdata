@@ -8,13 +8,11 @@ import builtins
 
 import numpy as np
 import pandas as pd
-from collections import Collection
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping, Collection
 
 from typing import Union, Any, Sequence, MutableMapping as MutableMappingT, cast
 
 from . import name_utils
-
 
 # ====================================================
 # code
@@ -91,9 +89,11 @@ def isCollection(obj: Any) -> bool:
 
 def are_equal(obj1: Any,
               obj2: Any) -> bool:
-    if isinstance(obj1, np.ndarray):
-        if isinstance(obj2, np.ndarray):
-            return np.array_equal(obj1, obj2)
+    from vdata.core.dataset_proxy import DatasetProxy
+
+    if isinstance(obj1, (np.ndarray, DatasetProxy)):
+        if isinstance(obj2, (np.ndarray, DatasetProxy)):
+            return np.array_equal(obj1[:], obj2[:])
 
         return False
 

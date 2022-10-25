@@ -4,6 +4,8 @@
 
 # ====================================================
 # imports
+from __future__ import annotations
+
 import os
 import json
 import shutil
@@ -12,22 +14,26 @@ import anndata.compat
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
 
-from typing import Union, Optional
+from typing import TYPE_CHECKING
 
 import vdata
+from vdata.core.backed_dict import BackedDict
 from vdata.name_utils import H5Mode
-from .utils import parse_path, H5GroupReader
-from ..vdataframe import VDataFrame, ViewVDataFrame
-from ..IO import generalLogger, VPathError, VValueError
-from .._core import TemporalDataFrame
-from .._core.TDF import ViewTemporalDataFrame
-from .._core.TDF.name_utils import DEFAULT_TIME_POINTS_COL_NAME
-from ..h5pickle import H5Group, File
+from vdata.read_write.utils import parse_path, H5GroupReader
+from vdata.vdataframe import VDataFrame, ViewVDataFrame
+from vdata.IO import generalLogger, VPathError, VValueError
+from vdata.core.tdf.name_utils import DEFAULT_TIME_POINTS_COL_NAME, H5Data
+from vdata.h5pickle import H5Group, File
+from vdata.core.attribute_proxy.attribute import NONE_VALUE
+from vdata.core.tdf.base import BaseTemporalDataFrame
+
+if TYPE_CHECKING:
+    from vdata import VData, ViewVData
 
 
 # ====================================================
@@ -36,8 +42,9 @@ def spacer(nb: int) -> str:
     return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
 
 
-def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
-                file: Optional[Union[str, Path]],
+# region write VData
+def write_vdata(obj: VData | ViewVData,
+                file: str | Path | None,
                 show_progress: bool = True) -> None:
     """
     Save this VData object in HDF5 file format.
@@ -103,7 +110,8 @@ def write_vdata(obj: Union['vdata.VData', 'vdata.ViewVData'],
             progressBar.clear()
 
 
-def update_vdata(obj: 'vdata.VData') -> None:
+# TODO : get rid of function
+def update_vdata(obj: VData) -> None:
     """
     Update data from a backed VData object on the h5 file.
 
@@ -180,8 +188,8 @@ def update_vdata(obj: 'vdata.VData') -> None:
     obj.file.group.flush()
 
 
-def write_vdata_to_csv(obj: Union['vdata.VData', 'vdata.ViewVData'],
-                       directory: Union[str, Path],
+def write_vdata_to_csv(obj: VData | ViewVData,
+                       directory: str | Path,
                        sep: str = ",",
                        na_rep: str = "",
                        index: bool = True,
@@ -233,6 +241,104 @@ def write_vdata_to_csv(obj: Union['vdata.VData', 'vdata.ViewVData'],
     if obj.uns is not None:
         generalLogger.warning(f"'uns' data stored in VData '{obj.name}' cannot be saved to a csv.")
 
+# endregion
+
+
+# region write TDF
+def write_array_in_TDF(array: np.ndarray,
+                       file: H5Data,
+                       key: str) -> None:
+    """
+    Write a numpy array to a H5 file.
+    """
+    if np.issubdtype(array.dtype, np.number) or array.dtype == np.dtype('bool'):
+        dtype = array.dtype
+
+    else:
+        dtype = string_dtype()
+        array = array.astype(str).astype('O')
+
+    if key in file.keys():
+        if file[key].dtype == dtype:
+            file[key].resize((len(array),))
+            file[key].astype(dtype)
+            file[key][()] = array
+            return
+
+        del file[key]
+
+    file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None,))
+
+
+def write_array_chunked_in_TDF(array: np.ndarray,
+                               file: H5Data,
+                               key: str) -> None:
+    """
+    Write a numpy array to a H5 file to create a chunked dataset.
+    """
+    if np.issubdtype(array.dtype, np.number) or array.dtype == np.dtype('bool'):
+        dtype = array.dtype
+
+    else:
+        dtype = string_dtype()
+        array = array.astype(str).astype('O')
+
+    if key in file.keys():
+        if file[key].chunks is None:
+            del file[key]
+            file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None, None))
+
+        else:
+            file[key].resize(array.shape)
+            file[key].astype(dtype)
+            file[key][()] = array
+
+    else:
+        file.create_dataset(key, data=array, dtype=dtype, chunks=True, maxshape=(None, None))
+
+
+# TODO : move writing to Dataset to the dataset_proxy package
+# TODO : smarter copies of h5 datasets to new h5 file
+def write_TDF(TDF: BaseTemporalDataFrame,
+              file: H5Data) -> None:
+    """
+    Write a TemporalDataFrame to a H5 file.
+
+    Args:
+        TDF: A TemporalDataFrame to write.
+        file: A H5 File or Group in which to save the TemporalDataFrame.
+    """
+    # save attributes
+    file.attrs['type'] = 'tdf'
+    file.attrs['name'] = TDF.name
+    file.attrs['locked_indices'] = TDF.has_locked_indices
+    file.attrs['locked_columns'] = TDF.has_locked_columns
+    file.attrs['repeating_index'] = TDF.has_repeating_index
+    file.attrs['timepoints_column_name'] = NONE_VALUE if TDF.timepoints_column_name is None else \
+        TDF.timepoints_column_name
+
+    # save index
+    write_array_in_TDF(TDF.index[:], file, 'index')
+
+    # save columns numerical
+    write_array_in_TDF(TDF.columns_num[:], file, 'columns_numerical')
+
+    # save columns string
+    write_array_in_TDF(TDF.columns_str[:], file, 'columns_string')
+
+    # save timepoints data
+    write_array_in_TDF(TDF.timepoints_column_str[:], file, 'timepoints')
+
+    # save numerical data
+    write_array_chunked_in_TDF(TDF.values_num[:], file, 'values_numerical')
+
+    # save string data
+    write_array_chunked_in_TDF(TDF.values_str[:], file, 'values_string')
+
+# endregion
+
+
+# region write objects
 
 @singledispatch
 def write_data(data,
@@ -257,12 +363,13 @@ def write_data(data,
 
 
 @write_data.register(dict)
+@write_data.register(BackedDict)
 @write_data.register(anndata.compat.OverloadedDict)
-def write_Dict(data: Union[dict, anndata.compat.OverloadedDict],
+def write_Dict(data: dict | BackedDict | anndata.compat.OverloadedDict,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               progress: Optional[tqdm] = None) -> None:
+               progress: tqdm | None = None) -> None:
     """
     Function for writing dictionaries to the h5 file.
     It creates a group for storing the keys and recursively calls write_data to store them.
@@ -283,11 +390,11 @@ def write_Dict(data: Union[dict, anndata.compat.OverloadedDict],
 
 @write_data.register(VDataFrame)
 @write_data.register(pd.DataFrame)
-def write_VDataFrame(data: Union[VDataFrame, pd.DataFrame],
+def write_VDataFrame(data: VDataFrame | pd.DataFrame,
                      group: H5Group,
                      key: str,
                      key_level: int = 0,
-                     progress: Optional[tqdm] = None) -> None:
+                     progress: tqdm | None = None) -> None:
     """
     Function for writing VDataFrames to the h5 file. Each VDataFrame is stored in a group, containing the index and the
     columns as Series.
@@ -331,7 +438,7 @@ def write_ViewVDataFrame(data: ViewVDataFrame,
                          group: H5Group,
                          key: str,
                          key_level: int = 0,
-                         progress: Optional[tqdm] = None) -> None:
+                         progress: tqdm | None = None) -> None:
     generalLogger.info(f"{spacer(key_level)}Converting ViewVDataFrame {key} to VDataFrame")
     write_VDataFrame(data.to_pandas(), group, key, key_level)
 
@@ -339,13 +446,12 @@ def write_ViewVDataFrame(data: ViewVDataFrame,
         progress.update()
 
 
-@write_data.register(TemporalDataFrame)
-@write_data.register(ViewTemporalDataFrame)
-def write_TemporalDataFrame(data: Union['TemporalDataFrame', 'ViewTemporalDataFrame'],
+@write_data.register(BaseTemporalDataFrame)
+def write_TemporalDataFrame(data: BaseTemporalDataFrame,
                             group: H5Group,
                             key: str,
                             key_level: int = 0,
-                            progress: Optional[tqdm] = None) -> None:
+                            progress: tqdm | None = None) -> None:
     generalLogger.info(f"{spacer(key_level)}Saving TemporalDataFrame {key}")
     data.write(group.create_group(str(key)))
 
@@ -355,11 +461,11 @@ def write_TemporalDataFrame(data: Union['TemporalDataFrame', 'ViewTemporalDataFr
 
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
-def write_series(series: Union[pd.Series, pd.Index],
+def write_series(series: pd.Series | pd.Index,
                  group: H5Group,
                  key: str,
                  key_level: int = 0,
-                 progress: Optional[tqdm] = None,
+                 progress: tqdm | None = None,
                  **kwargs) -> None:
     """
     Function for writing pd.Series to the h5 file. The Series are expected to belong to a group (a DataFrame or in uns).
@@ -409,7 +515,7 @@ def write_array(data: np.ndarray,
                 group: H5Group,
                 key: str,
                 key_level: int = 0,
-                progress: Optional[tqdm] = None) -> None:
+                progress: tqdm = None) -> None:
     """
     Function for writing np.arrays to the h5 file.
     """
@@ -431,7 +537,7 @@ def write_sparse_matrix(data: sp.spmatrix,
                         group: H5Group,
                         key: str,
                         key_level: int = 0,
-                        progress: Optional[tqdm] = None) -> None:
+                        progress: tqdm = None) -> None:
     """
     Function for writing scipy sparse matrices to the h5 file.
     """
@@ -450,7 +556,7 @@ def write_list(data: list,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               progress: Optional[tqdm] = None) -> None:
+               progress: tqdm = None) -> None:
     """
     Function for writing lists to the h5 file.
     """
@@ -469,11 +575,11 @@ def write_list(data: list,
 @write_data.register(np.floating)
 @write_data.register(bool)
 @write_data.register(np.bool_)
-def write_single_value(data: Union[str, np.str_, int, np.integer, float, np.floating, bool, np.bool_],
+def write_single_value(data: str | np.str_ | int | np.integer | float | np.floating | bool | np.bool_,
                        group: H5Group,
                        key: str,
                        key_level: int = 0,
-                       progress: Optional[tqdm] = None) -> None:
+                       progress: tqdm | None = None) -> None:
     """
     Function for writing a single value to the h5 file.
     """
@@ -490,7 +596,7 @@ def write_Type(data: type,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               progress: Optional[tqdm] = None) -> None:
+               progress: tqdm = None) -> None:
     """
     Function for writing a type to the h5 file.
     """
@@ -507,7 +613,7 @@ def write_Path(data: Path,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               progress: Optional[tqdm] = None) -> None:
+               progress: tqdm = None) -> None:
     """
     Function for writing a Path to the h5 file.
     """
@@ -524,7 +630,7 @@ def write_None(_: None,
                group: H5Group,
                key: str,
                key_level: int = 0,
-               progress: Optional[tqdm] = None) -> None:
+               progress: tqdm = None) -> None:
     """
     Function for writing None to the h5 file.
     """
@@ -534,3 +640,6 @@ def write_None(_: None,
 
     if progress is not None:
         progress.update()
+
+
+# endregion
