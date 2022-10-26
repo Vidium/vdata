@@ -525,8 +525,13 @@ class VLayerArrayContainer(VBase3DArrayContainer):
                                            f"time_point's index. ({_timepoints})")
 
                 # checks passed, store the TemporalDataFrame
-                TDF.lock_indices()
-                TDF.lock_columns()
+                # TODO : change this once the VData object will be split into Backed and regular objects
+                if not TDF.is_backed or TDF.h5_mode == 'r+':
+                    TDF.lock_indices()
+                    TDF.lock_columns()
+
+                assert TDF.has_locked_indices and TDF.has_locked_columns
+
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")

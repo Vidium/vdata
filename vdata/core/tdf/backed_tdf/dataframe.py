@@ -15,6 +15,7 @@ from numbers import Number
 from typing import Collection, Iterable
 
 from vdata.IO import VLockError
+from vdata.name_utils import H5Mode
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy import DatasetProxy, issubdtype, num_, int_, float_, str_
 from vdata.core.tdf.backed_tdf._parse import parse_data_h5
@@ -324,6 +325,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
             return
 
         self._string_array[:] = values
+
+    @property
+    def h5_mode(self) -> H5Mode:
+        """Get the mode the h5 file was opened with."""
+        return self._file.file.mode
 
     # endregion
 

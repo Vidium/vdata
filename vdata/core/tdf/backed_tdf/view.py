@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import numpy_indexed as npi
 
+from vdata.name_utils import H5Mode
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy import DatasetProxy, issubdtype, num_, str_
 from vdata.core.tdf.base import BaseTemporalDataFrameView, BaseTemporalDataFrameImplementation
@@ -115,6 +116,11 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
             return
 
         self._string_array[:] = values
+
+    @property
+    def h5_mode(self) -> H5Mode:
+        """Get the mode the h5 file was opened with."""
+        return self._parent.mode
 
     # endregion
 

@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from vdata.core.tdf.backed_tdf.meta import CheckH5File
 from vdata.core.tdf.base import BaseTemporalDataFrame
+from vdata.name_utils import H5Mode
 
 
 # ====================================================
@@ -28,6 +29,14 @@ class BackedMixin(BaseTemporalDataFrame, metaclass=CheckH5File):
         """Inplace modification of the string values."""
         self.values_str += value
         return self
+
+    # endregion
+
+    # region attributes
+    @property
+    @abstractmethod
+    def h5_mode(self) -> H5Mode:
+        """Get the mode the h5 file was opened with."""
 
     # endregion
 
