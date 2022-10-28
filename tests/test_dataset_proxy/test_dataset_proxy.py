@@ -53,6 +53,16 @@ def test_str_dataset_should_return_unique_values(str_dataset):
                                            '46', '47', '48', '5', '6', '7', '8', 'a', 'b', 'c'])
 
 
+def test_str_dataset_should_return_unique_values_with_numpy(str_dataset):
+    np.unique(str_dataset)
+
+    assert np.all(np.unique(str_dataset) == ['0', '1', '10', '11', '12', '13', '14', '15', '16', '17', '18',
+                                             '19', '2', '20', '21', '22', '23', '24', '25', '26', '27', '28',
+                                             '29', '3', '30', '31', '32', '33', '34', '35', '36', '37', '38',
+                                             '39', '4', '40', '41', '42', '43', '44', '45', '46', '47', '48',
+                                             '49', '5', '6', '7', '8', '9'])
+
+
 def test_tp_dataset_gives_correct_dtype(tp_dataset):
     assert tp_dataset.dtype == tp_
 

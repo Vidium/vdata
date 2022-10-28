@@ -221,6 +221,9 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
         self._set(self._data, new_values)
         return self
 
+    def __array__(self) -> np.ndarray:
+        return self._get(self._data_str)
+
     # endregion
 
     # region attributes
