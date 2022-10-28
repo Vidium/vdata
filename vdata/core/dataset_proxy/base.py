@@ -238,6 +238,9 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
 
         return value
 
+    def unique(self) -> np.ndarray:
+        return np.unique(self._get(self._data_str))
+
     # endregion
 
 

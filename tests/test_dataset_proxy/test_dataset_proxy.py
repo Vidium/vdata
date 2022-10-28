@@ -5,6 +5,7 @@
 # ====================================================
 # imports
 import pytest
+import numpy as np
 
 from vdata.core.dataset_proxy import int_, float_, num_, str_, tp_
 
@@ -41,6 +42,15 @@ def test_num_dataset_gives_correct_dtype(num_dataset):
 
 def test_str_dataset_gives_correct_dtype(str_dataset):
     assert str_dataset.dtype == str_
+
+
+def test_str_dataset_should_return_unique_values(str_dataset):
+    str_dataset[:, -1] = ['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c', 'a']
+
+    assert np.all(str_dataset.unique() == ['0', '1', '10', '11', '12', '13', '15', '16', '17', '18', '2',
+                                           '20', '21', '22', '23', '25', '26', '27', '28', '3', '30', '31',
+                                           '32', '33', '35', '36', '37', '38', '40', '41', '42', '43', '45',
+                                           '46', '47', '48', '5', '6', '7', '8', 'a', 'b', 'c'])
 
 
 def test_tp_dataset_gives_correct_dtype(tp_dataset):
