@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import warnings
 from numbers import Number
 
 import pandas as pd
@@ -43,9 +44,11 @@ def get_dtype_from_string(dtype_str: str) -> type:
     """
     Parse the given string into a data type.
 
-    :param dtype_str: string to parse.
+    Args:
+        dtype_str: string to parse.
 
-    :return: a parsed data type.
+    Returns:
+        A parsed data type.
     """
     if dtype_str.startswith("<class '"):
         return eval(dtype_str[8:-2])
@@ -55,6 +58,15 @@ def get_dtype_from_string(dtype_str: str) -> type:
 
     else:
         return eval(dtype_str)
+
+
+def deprecated(func):
+    def wrapper(*args, **kwargs):
+        warnings.warn("Reading old-style TemporalDataFrame, this will be deprecated in future versions.",
+                      DeprecationWarning,
+                      stacklevel=2)
+        return func(*args, **kwargs)
+    return wrapper
 
 
 # region read VData
@@ -317,7 +329,7 @@ def read_VData(file: Path | str,
                mode: Literal['r', 'r+'] = 'r',
                backup: bool = False) -> 'vdata.VData':
     """
-    Function for reading data from an h5 file and building a VData object from it.
+    Function for reading data from a h5 file and building a VData object from it.
 
     Args:
         file: path to a h5 file.
@@ -450,7 +462,7 @@ read_TDF_from_csv = read_TemporalDataFrame_from_csv
 # region read objects
 def read_h5_dict(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') -> BackedDict:
     """
-    Function for reading a dictionary from an h5 file.
+    Function for reading a dictionary from a h5 file.
 
     Args:
         group: a H5GroupReader from which to read a dictionary.
@@ -469,10 +481,11 @@ def read_h5_dict(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] 
 
 def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) -> VDataFrame:
     """
-    Function for reading a pandas DataFrame from an h5 file.
+    Function for reading a pandas DataFrame from a h5 file.
 
-    :param group: a H5GroupReader from which to read a DataFrame.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    Args:
+        group: a H5GroupReader from which to read a DataFrame.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
 
@@ -522,7 +535,7 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) ->
 
 def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode = 'r') -> BackedTemporalDataFrame:
     """
-    Function for reading a TemporalDataFrame from an h5 file.
+    Function for reading a TemporalDataFrame from a h5 file.
 
     Args:
         group: a H5GroupReader from which to read a TemporalDataFrame.
@@ -535,12 +548,13 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode
 def read_h5_series(group: H5GroupReader, index: list | None = None, level: int = 1,
                    log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> pd.Series:
     """
-    Function for reading a pandas Series from an h5 file.
+    Function for reading a pandas Series from a h5 file.
 
-    :param group: an H5GroupReader from which to read a Series.
-    :param index: an optional list representing the indexes for the Series.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
-    :param log_func: function to use with the logger. Either 'info' or 'debug'.
+    Args:
+        group: an H5GroupReader from which to read a Series.
+        index: an optional list representing the indexes for the Series.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
+        log_func: function to use with the logger. Either 'info' or 'debug'.
     """
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
@@ -581,12 +595,13 @@ def read_h5_series(group: H5GroupReader, index: list | None = None, level: int =
 def read_h5_array(group: H5GroupReader, level: int = 1,
                   log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> np.ndarray:
     """
-    Function for reading a numpy array from an h5 file.
-    If the imported array contains strings, as they where stored as bytes, they are converted back to strings.
+    Function for reading a numpy array from a h5 file.
+    If the imported array contains strings, as they were stored as bytes, they are converted back to strings.
 
-    :param group: a H5GroupReader from which to read an array.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
-    :param log_func: function to use with the logger. Either 'info' or 'debug'.
+    Args:
+        group: a H5GroupReader from which to read an array.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
+        log_func: function to use with the logger. Either 'info' or 'debug'.
     """
     getattr(generalLogger, log_func)(f"{spacer(level)}Reading array {group.name}.")
 
@@ -619,10 +634,11 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
 
 def read_h5_value(group: H5GroupReader, level: int = 1, *args, **kwargs) -> str | int | float | bool | type:
     """
-    Function for reading a value from an h5 file.
+    Function for reading a value from a h5 file.
 
-    :param group: a H5GroupReader from which to read a value.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    Args:
+        group: a H5GroupReader from which to read a value.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
 
@@ -634,10 +650,11 @@ def read_h5_value(group: H5GroupReader, level: int = 1, *args, **kwargs) -> str 
 
 def read_h5_path(group: H5GroupReader, level: int = 1, *args, **kwargs) -> Path:
     """
-    Function for reading a Path from an h5 file.
+    Function for reading a Path from a h5 file.
 
-    :param group: a H5GroupReader from which to read a Path.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    Args:
+        group: a H5GroupReader from which to read a Path.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading Path {group.name}.")
 
@@ -646,10 +663,11 @@ def read_h5_path(group: H5GroupReader, level: int = 1, *args, **kwargs) -> Path:
 
 def read_h5_None(_: H5GroupReader, level: int = 1, *args, **kwargs) -> None:
     """
-    Function for reading 'None' from an h5 file.
+    Function for reading 'None' from a h5 file.
 
-    :param _: a H5GroupReader from which to read a value.
-    :param level: for logging purposes, the recursion depth of calls to a read_h5 function.
+    Args:
+        _: a H5GroupReader from which to read a value.
+        level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
     generalLogger.info(f"{spacer(level)}Reading None.")
     return None
@@ -659,6 +677,7 @@ func_: dict[str, Callable] = {
     'dict': read_h5_dict,
     'VDF': read_h5_VDataFrame,
     'tdf': read_h5_TemporalDataFrame,
+    'TDF': deprecated(read_h5_TemporalDataFrame),           # for backwards compatibility
     'series': read_h5_series,
     'array': read_h5_array,
     'value': read_h5_value,
