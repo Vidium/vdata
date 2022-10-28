@@ -654,7 +654,8 @@ class VObsmArrayContainer(VBase3DArrayContainer):
                                            f"do not match time_point's index. ({_timepoints})")
 
                 # checks passed, store the TemporalDataFrame
-                TDF.lock_indices()
+                if not TDF.has_locked_indices:
+                    TDF.lock_indices()
                 _data[str(TDF_index)] = TDF
 
             generalLogger.debug("  Data was OK.")

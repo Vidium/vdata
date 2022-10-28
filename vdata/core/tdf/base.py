@@ -1176,7 +1176,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
 
             spacer_ = np.array([['|'] for _ in range(min(n, tp_data_array_.shape[0]))])
 
-            columns_ = np.concatenate(([self._timepoints_column_name, ''], columns_)) if \
+            columns_ = np.concatenate(([self.timepoints_column_name, ''], columns_)) if \
                 self.timepoints_column_name is not None else np.concatenate(([DEFAULT_TIME_POINTS_COL_NAME, ''],
                                                                              columns_))
 

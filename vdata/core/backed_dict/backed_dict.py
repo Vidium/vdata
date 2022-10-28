@@ -89,17 +89,21 @@ class BackedDict(MutableMapping[_KT, _VT]):
         del self._file[key]
 
     def __getitem__(self, key: _KT) -> _VT:
-        from vdata.read_write import read_TDF
+        from vdata.read_write.read import func_
+        from vdata.read_write import H5GroupReader
 
         value = self._file[key]
 
         if isinstance(value, Group):
+            type_ = value.attrs['type']
+
             # TODO : move reading function to this package
-            if value.attrs['type'] == 'dict':
+            if type_ == 'dict':
                 return BackedDict(value)
 
-            elif value.attrs['type'] == 'tdf':
-                return read_TDF(value, mode=value.file.mode)
+            elif type_ in func_:
+                # TODO : get rid of H5GroupReader
+                return func_[type_](H5GroupReader(value), mode=value.file.mode)
 
             else:
                 raise TypeError(f"Got unknown type '{value.attrs['type']}' when accessing key '{key}'.")

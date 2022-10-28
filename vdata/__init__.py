@@ -18,7 +18,7 @@ from .time_point import TimePoint
 
 __all__ = ["VData", "TemporalDataFrame", "BackedTemporalDataFrame",
            "ViewVData", "TemporalDataFrameView", "BackedTemporalDataFrameView",
-           "read", "read_from_dict", "read_from_csv", "read_TemporalDataFrame", "read_TemporalDataFrame_from_csv",
+           "read", "read_from_dict", "read_from_csv",
            "convert_anndata_to_vdata", "read_TDF", "read_TDF_from_csv",
            "setLoggingLevel", "getLoggingLevel", "concatenate",
            "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError", "VAttributeError",
