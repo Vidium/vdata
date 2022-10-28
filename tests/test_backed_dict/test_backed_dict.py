@@ -56,7 +56,7 @@ def test_backed_dict_has_correct_values(backed_dict):
     values_list = list(backed_dict.values())
 
     assert values_list[0] == 1 and \
-           np.all(values_list[1][()] == [1, 2, 3]) and \
+           np.all(values_list[1] == [1, 2, 3]) and \
            list(values_list[2].keys()) == ['d', 'e']
 
 
@@ -73,7 +73,7 @@ def test_backed_dict_can_set_regular_value(backed_dict):
 def test_backed_dict_can_set_array_value(backed_dict):
     backed_dict['b'][1] = 6
 
-    assert np.all(backed_dict['b'][()] == [1, 6, 3])
+    assert np.all(backed_dict['b'] == [1, 6, 3])
 
 
 def test_backed_dict_can_set_new_regular_value(backed_dict):
@@ -85,7 +85,7 @@ def test_backed_dict_can_set_new_regular_value(backed_dict):
 def test_backed_dict_can_set_new_array(backed_dict):
     backed_dict['y'] = np.array([1, 2, 3])
 
-    assert np.all(backed_dict['y'][()] == [1, 2, 3])
+    assert np.all(backed_dict['y'] == [1, 2, 3])
 
 
 def test_backed_dict_can_set_new_dict(backed_dict):
@@ -95,7 +95,7 @@ def test_backed_dict_can_set_new_dict(backed_dict):
 
     assert isinstance(backed_dict['z'], BackedDict) and \
            backed_dict['z']['l'] == 10 and \
-           np.all(backed_dict['z']['m'][()] == [10, 11, 12]) and \
+           np.all(backed_dict['z']['m'] == [10, 11, 12]) and \
            isinstance(backed_dict['z']['n'], BackedDict) and \
            backed_dict['z']['n']['o'] == 13
 

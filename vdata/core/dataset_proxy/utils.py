@@ -17,6 +17,13 @@ from vdata.core.dataset_proxy.dtypes import DType, num_, int_, float_, str_, tp_
 
 # ====================================================
 # code
+def is_str_dtype(dtype) -> bool:
+    if dtype == object or dtype.type == np.bytes_:
+        return True
+
+    return False
+
+
 def auto_DatasetProxy(dataset: Dataset,
                       view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None,
                       dtype: DType | None = None) -> BaseDatasetProxy:
@@ -34,7 +41,7 @@ def auto_DatasetProxy(dataset: Dataset,
         raise TypeError(f"Type '{type(dtype)}' not recognized for a data type.")
 
     if dtype is None:
-        if dataset.dtype == object:
+        if is_str_dtype(dataset.dtype):
             dtype = str_
 
         else:
@@ -52,7 +59,7 @@ def auto_DatasetProxy(dataset: Dataset,
 
     # create a dataset proxy of the correct type
     if dataset.ndim == 1:
-        if dataset.dtype == object:
+        if is_str_dtype(dataset.dtype):
             if issubdtype(dtype, num_):
                 raise NotImplementedError('Conversion (str --> num) not supported yet.')
 
@@ -79,7 +86,7 @@ def auto_DatasetProxy(dataset: Dataset,
                 raise TypeError
 
     elif dataset.ndim == 2:
-        if dataset.dtype == object:
+        if is_str_dtype(dataset.dtype):
             if issubdtype(dtype, num_):
                 raise NotImplementedError('Conversion (str --> num) not supported yet.')
 

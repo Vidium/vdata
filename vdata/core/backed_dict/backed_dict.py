@@ -6,13 +6,14 @@
 # imports
 from __future__ import annotations
 
-from collections.abc import MutableMapping, KeysView, Iterable
-from typing import Iterator, TypeVar
-
-import numpy as np
 from h5py import File
 from h5py import Group
 from h5py import Dataset
+from collections.abc import MutableMapping, KeysView, Iterable
+
+from typing import Iterator, TypeVar
+
+from vdata.core.dataset_proxy import DatasetProxy
 
 # ====================================================
 # code
@@ -34,25 +35,6 @@ class BackedDictKeyIterator(Iterable[_KT]):
 
     def __next__(self) -> _KT:
         return next(self._iterating)
-
-
-class BackedArray:
-
-    def __init__(self,
-                 dataset: Dataset):
-        self._dataset = dataset
-
-    def __getitem__(self,
-                    index) -> np.ndarray:
-        return self._dataset[index]
-
-    def __setitem__(self,
-                    index,
-                    value) -> None:
-        self._dataset[index] = value
-
-    def get(self) -> np.ndarray:
-        return self._dataset[()]
 
 
 class BackedDict(MutableMapping[_KT, _VT]):
@@ -109,7 +91,7 @@ class BackedDict(MutableMapping[_KT, _VT]):
                 raise TypeError(f"Got unknown type '{value.attrs['type']}' when accessing key '{key}'.")
 
         elif isinstance(value, Dataset) and value.size > 1:
-            return BackedArray(value)
+            return DatasetProxy(value)
 
         return value[()]
 
