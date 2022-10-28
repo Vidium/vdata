@@ -90,10 +90,6 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
         """
         Get a single column from this TemporalDataFrame.
         """
-        if column_name in BaseTemporalDataFrameImplementation._attributes \
-                or column_name in TemporalDataFrame._attributes:
-            return object.__getattribute__(self, column_name)
-
         if column_name in object.__getattribute__(self, 'columns_num'):
             return TemporalDataFrameView(self, np.arange(len(self.index)), np.array([column_name]), np.array([]))
 

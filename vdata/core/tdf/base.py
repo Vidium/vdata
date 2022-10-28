@@ -75,7 +75,7 @@ class BaseTemporalDataFrame(ABC):
     def _check_compatibility(self,
                              value: BaseTemporalDataFrame) -> None:
         # time-points column and nb of columns must be identical
-        if not np.array_equal(self.timepoints_column, value.timepoints_colum):
+        if not np.array_equal(self.timepoints_column, value.timepoints_column):
             raise ValueError("Time-points do not match.")
         if not np.array_equal(self.n_columns_num, value.n_columns_num):
             raise ValueError("Columns numerical do not match.")
