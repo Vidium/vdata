@@ -36,9 +36,9 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
                  inverted: bool = False):
         super().__init__(parent, index_positions, columns_numerical, columns_string, inverted)
 
-        self._numerical_array = DatasetProxy(parent.values_num,
+        self._numerical_array = DatasetProxy(parent.dataset_num,
                                              view_on=(self.index_positions, self.columns_num_positions))
-        self._string_array = DatasetProxy(parent.values_str,
+        self._string_array = DatasetProxy(parent.dataset_str,
                                           view_on=(self.index_positions, self.columns_str_positions))
 
     def __repr__(self) -> str:
@@ -57,6 +57,23 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         values = values[np.argsort(npi.indices(_index_positions,
                                                original_positions[np.isin(original_positions, _index_positions)]))]
         return values
+
+    def _setitem_set_numerical_values(self, _columns_numerical, _index_positions, columns_array, values):
+        self._parent.dataset_num[_index_positions[:, None],
+                                 npi.indices(self._parent.columns_num[:], _columns_numerical)] = \
+            values[:, npi.indices(columns_array, _columns_numerical)].astype(float)
+
+    def _setitem_set_string_values(self, _columns_string, _index_positions, columns_array, lcn, values):
+        # cast values as string
+        values_str = values[:, npi.indices(columns_array, _columns_string)].astype(str)
+
+        # cast string array to larger str dtype if needed
+        if values_str.dtype > self._parent.values_str.dtype:
+            self._parent.values_str = self._parent.values_str.astype(values_str.dtype)
+
+        # assign values into array
+        self._parent.dataset_str[_index_positions[:, None],
+                                 npi.indices(self._parent.columns_str[:], _columns_string)] = values_str
 
     # endregion
 
@@ -79,11 +96,11 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         return np.unique(self.timepoints_column)
 
     @property
-    def values_num(self) -> DatasetProxy:
+    def values_num(self) -> np.ndarray:
         """
         Get the numerical data.
         """
-        return self._numerical_array
+        return self._numerical_array[:]
 
     @values_num.setter
     def values_num(self,
@@ -91,19 +108,19 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         """
         Set the numerical data.
         """
-        if isinstance(values, DatasetProxy) and issubdtype(DatasetProxy.dtype, num_):
+        if isinstance(values, DatasetProxy) and issubdtype(values.dtype, num_):
             self._numerical_array = values
             return
 
         self._numerical_array[:] = values
 
     @property
-    def values_str(self) -> DatasetProxy:
+    def values_str(self) -> np.ndarray:
         """
         Get the string data.
         """
 
-        return self._string_array
+        return self._string_array[:]
 
     @values_str.setter
     def values_str(self,

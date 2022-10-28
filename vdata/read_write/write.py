@@ -330,10 +330,10 @@ def write_TDF(TDF: BaseTemporalDataFrame,
     write_array_in_TDF(TDF.timepoints_column_str[:], file, 'timepoints')
 
     # save numerical data
-    write_array_chunked_in_TDF(TDF.values_num[:], file, 'values_numerical')
+    write_array_chunked_in_TDF(TDF.values_num, file, 'values_numerical')
 
     # save string data
-    write_array_chunked_in_TDF(TDF.values_str[:], file, 'values_string')
+    write_array_chunked_in_TDF(TDF.values_str, file, 'values_string')
 
 # endregion
 

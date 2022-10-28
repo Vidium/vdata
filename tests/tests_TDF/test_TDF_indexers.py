@@ -217,7 +217,7 @@ def test_iloc_indexer_gets_correct_value_with_index(TDF):
 def test_iloc_indexer_gets_correct_value_with_index_and_column(TDF):
     view = TDF.iloc[60:70, [0, 2]]
     assert np.all(view.values_num == np.arange(10, 20).reshape((10, 1))) \
-           and np.all(np.char.equal(view.values_str[:], np.arange(210, 220).astype(str).reshape((10, 1))))
+           and np.all(np.char.equal(view.values_str, np.arange(210, 220).astype(str).reshape((10, 1))))
 
 
 @pytest.mark.parametrize(

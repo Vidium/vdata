@@ -217,11 +217,11 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
 
     def __iadd__(self,
                  value: str) -> Self:
-        new_values = np.char.add(self._get(self._data).astype(str), value)
+        new_values = self._get(self._data_str) + value
         self._set(self._data, new_values)
         return self
 
-    def __array__(self) -> np.ndarray:
+    def __array__(self, **kwargs) -> np.ndarray:
         return self._get(self._data_str)
 
     # endregion

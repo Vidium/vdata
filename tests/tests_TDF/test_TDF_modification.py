@@ -708,8 +708,8 @@ def test_add_TDF_to_TDF(TDF1, TDF2):
     sum_TDF = TDF1 + TDF2
 
     assert isinstance(sum_TDF, TemporalDataFrame)
-    assert np.array_equal(sum_TDF.values_num, TDF1.values_num[:] * 2) and \
-           np.array_equal(sum_TDF.values_str, np.char.add(TDF1.values_str[:], TDF1.values_str[:]))
+    assert np.array_equal(sum_TDF.values_num, TDF1.values_num * 2) and \
+           np.array_equal(sum_TDF.values_str, np.char.add(TDF1.values_str, TDF1.values_str))
 
 
 @pytest.mark.parametrize(
@@ -727,7 +727,7 @@ def test_subtract_TDF_to_TDF(TDF1, TDF2):
 
     assert isinstance(sub_TDF, TemporalDataFrame)
     assert np.array_equal(sub_TDF.values_num, np.zeros_like(sub_TDF.values_num)) and \
-           np.array_equal(sub_TDF.values_str, TDF1.values_str[:])
+           np.array_equal(sub_TDF.values_str, TDF1.values_str)
 
 
 @pytest.mark.parametrize(
@@ -744,8 +744,8 @@ def test_multiply_TDF_with_TDF(TDF1, TDF2):
     mul_TDF = TDF1 * TDF2
 
     assert isinstance(mul_TDF, TemporalDataFrame)
-    assert np.array_equal(mul_TDF.values_num, TDF1.values_num[:] ** 2) and \
-           np.array_equal(mul_TDF.values_str, TDF1.values_str[:])
+    assert np.array_equal(mul_TDF.values_num, TDF1.values_num ** 2) and \
+           np.array_equal(mul_TDF.values_str, TDF1.values_str)
 
 
 @pytest.mark.parametrize(
@@ -765,7 +765,7 @@ def test_divide_TDF_with_TDF(TDF1, TDF2):
 
     eq = div_TDF.values_num == np.ones_like(div_TDF.values_num)
     assert np.all(eq | np.isnan(div_TDF.values_num[~eq])) and \
-           np.array_equal(div_TDF.values_str, TDF1.values_str[:])
+           np.array_equal(div_TDF.values_str, TDF1.values_str)
 
 
 @pytest.mark.parametrize(
@@ -774,13 +774,13 @@ def test_divide_TDF_with_TDF(TDF1, TDF2):
     indirect=True
 )
 def test_inplace_add_to_TDF(TDF):
-    original_values_num = TDF.values_num[:].copy()
-    original_values_str = TDF.values_str[:].copy()
+    original_values_num = TDF.values_num.copy()
+    original_values_str = TDF.values_str.copy()
 
     TDF += 1
 
-    assert np.array_equal(TDF.values_num[:], original_values_num + 1) and \
-           np.array_equal(TDF.values_str[:], original_values_str)
+    assert np.array_equal(TDF.values_num, original_values_num + 1) and \
+           np.array_equal(TDF.values_str, original_values_str)
 
 
 @pytest.mark.parametrize(
@@ -789,13 +789,13 @@ def test_inplace_add_to_TDF(TDF):
     indirect=True
 )
 def test_inplace_add_string_to_TDF(TDF):
-    original_values_num = TDF.values_num[:].copy()
-    original_values_str = TDF.values_str[:].copy()
+    original_values_num = TDF.values_num.copy()
+    original_values_str = TDF.values_str.copy()
 
     TDF += '_1'
 
-    assert np.array_equal(TDF.values_num[:], original_values_num) and \
-           np.array_equal(TDF.values_str[:], np.char.add(original_values_str, '_1'))
+    assert np.array_equal(TDF.values_num, original_values_num) and \
+           np.array_equal(TDF.values_str, np.char.add(original_values_str, '_1'))
 
 
 @pytest.mark.parametrize(
@@ -804,13 +804,13 @@ def test_inplace_add_string_to_TDF(TDF):
     indirect=True
 )
 def test_inplace_subtract_to_TDF(TDF):
-    original_values_num = TDF.values_num[:].copy()
-    original_values_str = TDF.values_str[:].copy()
+    original_values_num = TDF.values_num.copy()
+    original_values_str = TDF.values_str.copy()
 
     TDF -= 2
 
-    assert np.array_equal(TDF.values_num[:], original_values_num - 2) and \
-           np.array_equal(TDF.values_str[:], original_values_str)
+    assert np.array_equal(TDF.values_num, original_values_num - 2) and \
+           np.array_equal(TDF.values_str, original_values_str)
 
 
 @pytest.mark.parametrize(
@@ -819,13 +819,13 @@ def test_inplace_subtract_to_TDF(TDF):
     indirect=True
 )
 def test_inplace_multiply_TDF(TDF):
-    original_values_num = TDF.values_num[:].copy()
-    original_values_str = TDF.values_str[:].copy()
+    original_values_num = TDF.values_num.copy()
+    original_values_str = TDF.values_str.copy()
 
     TDF *= 2
 
-    assert np.array_equal(TDF.values_num[:], original_values_num * 2) and \
-           np.array_equal(TDF.values_str[:], original_values_str)
+    assert np.array_equal(TDF.values_num, original_values_num * 2) and \
+           np.array_equal(TDF.values_str, original_values_str)
 
 
 @pytest.mark.parametrize(
@@ -834,13 +834,13 @@ def test_inplace_multiply_TDF(TDF):
     indirect=True
 )
 def test_inplace_divide_TDF(TDF):
-    original_values_num = TDF.values_num[:].copy()
-    original_values_str = TDF.values_str[:].copy()
+    original_values_num = TDF.values_num.copy()
+    original_values_str = TDF.values_str.copy()
 
     TDF /= 2
 
-    assert np.array_equal(TDF.values_num[:], original_values_num / 2) and \
-           np.array_equal(TDF.values_str[:], original_values_str)
+    assert np.array_equal(TDF.values_num, original_values_num / 2) and \
+           np.array_equal(TDF.values_str, original_values_str)
 
 
 @pytest.mark.parametrize(

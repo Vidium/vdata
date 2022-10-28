@@ -5,8 +5,10 @@ from __future__ import annotations
 
 from abc import abstractmethod
 
+import numpy as np
 from typing_extensions import Self
 
+from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf.meta import CheckH5File
 from vdata.core.tdf.base import BaseTemporalDataFrame
 from vdata.name_utils import H5Mode
@@ -27,7 +29,7 @@ class BackedMixin(BaseTemporalDataFrame, metaclass=CheckH5File):
     def _iadd_str(self,
                   value: str) -> Self:
         """Inplace modification of the string values."""
-        self.values_str += value
+        self.dataset_str += value
         return self
 
     # endregion
@@ -37,6 +39,24 @@ class BackedMixin(BaseTemporalDataFrame, metaclass=CheckH5File):
     @abstractmethod
     def h5_mode(self) -> H5Mode:
         """Get the mode the h5 file was opened with."""
+
+    @property
+    def dataset_num(self) -> DatasetProxy:
+        """Get the numerical data as a dataset proxy for efficient computations."""
+        return self._numerical_array
+
+    @dataset_num.setter
+    def dataset_num(self, value: np.ndarray | DatasetProxy):
+        self.values_num = value
+
+    @property
+    def dataset_str(self) -> DatasetProxy:
+        """Get the string data as a dataset proxy for efficient computations."""
+        return self._string_array
+
+    @dataset_str.setter
+    def dataset_str(self, value: np.ndarray | DatasetProxy):
+        self.values_str = value
 
     # endregion
 

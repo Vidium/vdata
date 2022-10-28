@@ -39,7 +39,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
     """
     A version of the TemporalDataFrame backed on a h5 file for RAM performance.
     """
-    _attributes = ('_file', '_attributes',)
+    _attributes = ('_file', '_attributes', 'dataset_num', 'dataset_str')
 
     # region magic methods
     def __init__(self,
@@ -111,25 +111,25 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
         if name in self.columns_num:
             # set values for numerical column
-            self.values_num[:, np.where(self.columns_num == name)[0][0]] = values   # .astype(self.values_num.dtype)
+            self.dataset_num[:, np.where(self.columns_num == name)[0][0]] = values
 
         elif name in self.columns_str:
             # set values for string column
-            self.values_str[:, np.where(self.columns_str == name)[0][0]] = values   # .astype(str)
+            self.dataset_str[:, np.where(self.columns_str == name)[0][0]] = values
 
         else:
             if np.issubdtype(values.dtype, np.number):
                 # create numerical column
-                self.values_num.resize((self.n_index, self.n_columns_num + 1))
-                self.values_num[:, -1] = values                                     # .astype(self.values_num.dtype)
+                self.dataset_num.resize((self.n_index, self.n_columns_num + 1))
+                self.dataset_num[:, -1] = values
 
                 self.columns_num.resize((self.n_columns_num + 1,))
                 self.columns_num[-1] = name
 
             else:
                 # create string column
-                self.values_str.resize((self.n_index, self.n_columns_str + 1))
-                self.values_str[:, -1] = values                                     # .astype(str)
+                self.dataset_str.resize((self.n_index, self.n_columns_str + 1))
+                self.dataset_str[:, -1] = values
 
                 self.columns_str.resize((self.n_columns_str + 1,))
                 self.columns_str[-1] = name
@@ -158,12 +158,12 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         if column_name in self.columns_num:
             item_index = np.where(self.columns_num == column_name)[0][0]
 
-            drop_column_h5(self.values_num, self.columns_num, item_index)
+            drop_column_h5(self.dataset_num, self.columns_num, item_index)
 
         elif column_name in self.columns_str:
             item_index = np.where(self.columns_str == column_name)[0][0]
 
-            drop_column_h5(self.values_str, self.columns_str, item_index)
+            drop_column_h5(self.dataset_str, self.columns_str, item_index)
 
         else:
             raise AttributeError(f"'{column_name}' not found in this backed TemporalDataFrame.")
@@ -208,11 +208,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
                                                original_positions[np.isin(original_positions, index_positions)]))]
 
         if lcn:
-            self.values_num[index_positions, npi.indices(self.columns_num[:], column_num_slicer)] = \
+            self.dataset_num[index_positions, npi.indices(self.columns_num[:], column_num_slicer)] = \
                 values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
 
         if lcs:
-            self.values_str[index_positions, npi.indices(self.columns_str[:], column_str_slicer)] = \
+            self.dataset_str[index_positions, npi.indices(self.columns_str[:], column_str_slicer)] = \
                 values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
 
     def __invert__(self) -> BackedTemporalDataFrameView:
@@ -289,11 +289,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         return self._columns_string
 
     @property
-    def values_num(self) -> DatasetProxy:
+    def values_num(self) -> np.ndarray:
         """
         Get the numerical data.
         """
-        return self._numerical_array
+        return self._numerical_array[:]
 
     @values_num.setter
     def values_num(self,
@@ -308,11 +308,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         self._numerical_array[:] = values
 
     @property
-    def values_str(self) -> DatasetProxy:
+    def values_str(self) -> np.ndarray:
         """
         Get the string data.
         """
-        return self._string_array
+        return self._string_array[:]
 
     @values_str.setter
     def values_str(self,
@@ -470,11 +470,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
         if np.issubdtype(values.dtype, np.number):
             # create numerical column
-            insert_column_h5(self.values_num, self.columns_num, loc)
+            insert_column_h5(self.dataset_num, self.columns_num, loc)
 
         else:
             # create string column
-            insert_column_h5(self.values_str, self.columns_str, loc)
+            insert_column_h5(self.dataset_str, self.columns_str, loc)
 
     def close(self) -> None:
         """Close the file this TemporalDataFrame is backed on."""

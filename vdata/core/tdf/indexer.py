@@ -26,6 +26,7 @@ class VAtIndexer:
 
     __slots__ = '_TDF'
 
+    # region magic methods
     def __init__(self,
                  TDF: BaseTemporalDataFrame):
         self._TDF = TDF
@@ -47,6 +48,8 @@ class VAtIndexer:
 
         self._TDF[:, index, column] = value
 
+    # endregion
+
 
 class ViAtIndexer:
     """
@@ -55,6 +58,7 @@ class ViAtIndexer:
 
     __slots__ = '_TDF'
 
+    # region magic methods
     def __init__(self,
                  TDF: BaseTemporalDataFrame):
         self._TDF = TDF
@@ -76,6 +80,8 @@ class ViAtIndexer:
 
         self._TDF[:, self._TDF.index[index_id], self._TDF.columns[column_id]] = value
 
+    # endregion
+
 
 class VLocIndexer:
     """
@@ -93,6 +99,7 @@ class VLocIndexer:
 
     __slots__ = '_TDF'
 
+    # region magic methods
     def __init__(self,
                  TDF: BaseTemporalDataFrame):
         self._TDF = TDF
@@ -144,6 +151,8 @@ class VLocIndexer:
 
         self._TDF[:, indices, columns] = value
 
+    # endregion
+
 
 I_LOC_INDEX = Union[int, slice, Collection[int], Collection[bool]]
 
@@ -164,6 +173,7 @@ class ViLocIndexer:
 
     __slots__ = '_TDF'
 
+    # region magic methods
     def __init__(self,
                  TDF: BaseTemporalDataFrame):
         self._TDF = TDF
@@ -208,3 +218,5 @@ class ViLocIndexer:
         columns = self.__parse_slicer(columns, self._TDF.columns)
 
         self._TDF[:, indices, columns] = value
+
+    # endregion

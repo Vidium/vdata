@@ -1343,8 +1343,8 @@ def test_min_max_mean_on_timepoints(TDF1, operation):
               'mean': tp_mean}[operation](TDF1.timepoints)
 
     assert getattr(TDF1, operation)(axis=0) == TemporalDataFrame(data=pd.DataFrame(
-        getattr(np, operation)([TDF1['0h'].values_num[:],
-                                TDF1['1h'].values_num[:]], axis=0),
+        getattr(np, operation)([TDF1['0h'].values_num,
+                                TDF1['1h'].values_num], axis=0),
         index=TDF1.index_at(TDF1.tp0),
         columns=TDF1.columns_num[:]
     ),

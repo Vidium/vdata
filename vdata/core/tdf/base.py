@@ -91,23 +91,23 @@ class BaseTemporalDataFrame(ABC):
             if self.values_num.size == 0:
                 raise ValueError("No numerical data to add to.")
 
-            values_num = self.values_num[:] + value
-            values_str = self.values_str[:]
+            values_num = self.values_num + value
+            values_str = self.values_str
             value_name = value
 
         elif isinstance(value, BaseTemporalDataFrame):
             self._check_compatibility(value)
 
-            values_num = self.values_num[:] + value.values_num[:]
-            values_str = np.char.add(self.values_str[:], value.values_str[:])
+            values_num = self.values_num + value.values_num
+            values_str = np.char.add(self.values_str, value.values_str)
             value_name = value.full_name
 
         else:
             if self.values_str.size == 0:
                 raise ValueError("No string data to add to.")
 
-            values_num = self.values_num[:]
-            values_str = np.char.add(self.values_str[:], value)
+            values_num = self.values_num
+            values_str = np.char.add(self.values_str, value)
             value_name = value
 
         if self.timepoints_column_name is None:
@@ -191,11 +191,11 @@ class BaseTemporalDataFrame(ABC):
             if isinstance(value, BaseTemporalDataFrame):
                 self._check_compatibility(value)
 
-                values_num = self.values_num[:] - value.values_num[:]
+                values_num = self.values_num - value.values_num
                 value_name = value.full_name
 
             else:
-                values_num = self.values_num[:] - value
+                values_num = self.values_num - value
                 value_name = value
 
         elif operation == 'mul':
@@ -206,11 +206,11 @@ class BaseTemporalDataFrame(ABC):
             if isinstance(value, BaseTemporalDataFrame):
                 self._check_compatibility(value)
 
-                values_num = self.values_num[:] * value.values_num[:]
+                values_num = self.values_num * value.values_num
                 value_name = value.full_name
 
             else:
-                values_num = self.values_num[:] * value
+                values_num = self.values_num * value
                 value_name = value
 
         elif operation == 'div':
@@ -221,11 +221,11 @@ class BaseTemporalDataFrame(ABC):
             if isinstance(value, BaseTemporalDataFrame):
                 self._check_compatibility(value)
 
-                values_num = self.values_num[:] / value.values_num[:]
+                values_num = self.values_num / value.values_num
                 value_name = value.full_name
 
             else:
-                values_num = self.values_num[:] / value
+                values_num = self.values_num / value
                 value_name = value
 
         else:
@@ -233,7 +233,7 @@ class BaseTemporalDataFrame(ABC):
 
         if self.timepoints_column_name is None:
             df_data = pd.concat((pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(self.values_str[:], index=self.index[:], columns=self.columns_str[:])),
+                                 pd.DataFrame(self.values_str, index=self.index[:], columns=self.columns_str[:])),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -245,7 +245,7 @@ class BaseTemporalDataFrame(ABC):
             df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
                                               index=self.index[:], columns=[str(self.timepoints_column_name)]),
                                  pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(self.values_str[:], index=self.index[:], columns=self.columns_str[:])),
+                                 pd.DataFrame(self.values_str, index=self.index[:], columns=self.columns_str[:])),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -498,7 +498,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def values_num(self) -> np.ndarray | DatasetProxy:
+    def values_num(self) -> np.ndarray:
         """
         Get the numerical data.
         """
@@ -513,7 +513,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def values_str(self) -> np.ndarray | DatasetProxy:
+    def values_str(self) -> np.ndarray:
         """
         Get the string data.
         """
@@ -531,7 +531,7 @@ class BaseTemporalDataFrame(ABC):
         """
         Get all the data (num and str concatenated).
         """
-        return np.hstack((self.values_num[:].astype(object), self.values_str[:].astype(object)))
+        return np.hstack((self.values_num.astype(object), self.values_str.astype(object)))
 
     @property
     def tp0(self) -> TimePoint:
@@ -796,27 +796,27 @@ class BaseTemporalDataFrame(ABC):
             index_ = index_.astype(str)
 
         if with_timepoints is None:
-            return pd.concat((pd.DataFrame(self.values_num[:] if self.values_num.size else None,
+            return pd.concat((pd.DataFrame(self.values_num if self.values_num.size else None,
                                            index=index_, columns=self.columns_num[:]),
-                              pd.DataFrame(self.values_str[:] if self.values_str.size else None,
+                              pd.DataFrame(self.values_str if self.values_str.size else None,
                                            index=index_, columns=self.columns_str[:])),
                              axis=1)
 
         if timepoints_type == 'string':
             return pd.concat((
                 pd.DataFrame(self.timepoints_column_str[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self.values_num[:] if self.values_num.size else None,
+                pd.DataFrame(self.values_num if self.values_num.size else None,
                              index=index_, columns=self.columns_num[:]),
-                pd.DataFrame(self.values_str[:] if self.values_str.size else None,
+                pd.DataFrame(self.values_str if self.values_str.size else None,
                              index=index_, columns=self.columns_str[:])
             ), axis=1)
 
         elif timepoints_type == 'numerical':
             return pd.concat((
                 pd.DataFrame(self.timepoints_column_numerical[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self.values_num[:] if self.values_num.size else None,
+                pd.DataFrame(self.values_num if self.values_num.size else None,
                              index=index_, columns=self.columns_num[:]),
-                pd.DataFrame(self.values_str[:] if self.values_num.size else None,
+                pd.DataFrame(self.values_str if self.values_num.size else None,
                              index=index_, columns=self.columns_str[:])
             ), axis=1)
 
@@ -1311,8 +1311,8 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
         index_positions = self._get_index_positions(order, repeating_values=True)
 
         # use `[:]` before actually indexing to cast h5 Datasets to numpy since we cannot index in non-increasing order
-        self.values_num[:] = self.values_num[:][index_positions]
-        self.values_str[:] = self.values_str[:][index_positions]
+        self.values_num = self.values_num[index_positions]
+        self.values_str = self.values_str[index_positions]
 
     @abstractmethod
     def insert(self,
@@ -1447,22 +1447,13 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
     def _setitem_reorder_values(self, _index_positions, index_array, values):
         pass
 
+    @abstractmethod
     def _setitem_set_numerical_values(self, _columns_numerical, _index_positions, columns_array, values):
-        self._parent.values_num[_index_positions[:, None],
-                                npi.indices(self._parent.columns_num[:], _columns_numerical)] = \
-            values[:, npi.indices(columns_array, _columns_numerical)].astype(float)
+        pass
 
+    @abstractmethod
     def _setitem_set_string_values(self, _columns_string, _index_positions, columns_array, lcn, values):
-        # cast values as string
-        values_str = values[:, npi.indices(columns_array, _columns_string)].astype(str)
-
-        # cast string array to larger str dtype if needed
-        if values_str.dtype > self._parent.values_str[:].dtype:
-            self._parent.values_str = self._parent.values_str[:].astype(values_str.dtype)
-
-        # assign values into array
-        self._parent.values_str[_index_positions[:, None],
-                                npi.indices(self._parent.columns_str[:], _columns_string)] = values_str
+        pass
 
     def __setitem__(self,
                     slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
