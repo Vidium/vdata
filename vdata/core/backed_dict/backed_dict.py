@@ -15,11 +15,11 @@ from collections.abc import MutableMapping, KeysView, Iterable
 from typing import Iterator, TypeVar
 
 from vdata.core.dataset_proxy import DatasetProxy
+from vdata.utils import isCollection
+
 
 # ====================================================
 # code
-from vdata.utils import isCollection
-
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 
@@ -27,6 +27,7 @@ _VT = TypeVar('_VT')
 class BackedDictKeyIterator(Iterable[_KT]):
     """Class for iterating over keys in a BackedDict."""
 
+    # region magic methods
     def __init__(self,
                  keys: KeysView[_KT]):
         self._keys = keys
@@ -38,6 +39,8 @@ class BackedDictKeyIterator(Iterable[_KT]):
 
     def __next__(self) -> _KT:
         return next(self._iterating)
+
+    # endregion
 
 
 class BackedDict(MutableMapping[_KT, _VT]):
@@ -135,5 +138,9 @@ class BackedDict(MutableMapping[_KT, _VT]):
 
     # endregion
 
+    # region mathods
     def close(self) -> None:
         self._file.file.close()
+
+    # endregion
+

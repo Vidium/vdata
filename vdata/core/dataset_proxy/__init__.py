@@ -5,8 +5,6 @@
 # ====================================================
 # imports
 from .dataset import DatasetProxy
-from .dtypes import num_, int_, float_, str_, tp_, issubdtype
-
 
 # ====================================================
 # code

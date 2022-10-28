@@ -13,8 +13,8 @@ from collections.abc import Sized
 from h5py import Dataset, string_dtype, File
 from typing_extensions import Self
 
-from vdata.core.dataset_proxy.base import BaseDatasetProxy, SELECTOR, _VT
-from vdata.core.dataset_proxy.dtypes import DType, num_, int_, str_, tp_, DTYPE_TO_NP, issubdtype
+from vdata.time_point import TimePoint
+from vdata.core.dataset_proxy.base import BaseDatasetProxy, SELECTOR, _VT, DATASET_DTYPE
 from vdata.core.dataset_proxy.utils import auto_DatasetProxy
 
 
@@ -27,7 +27,7 @@ class DatasetProxy(Sized, Generic[_VT]):
     def __init__(self,
                  data: Dataset | BaseDatasetProxy | DatasetProxy,
                  view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None,
-                 dtype: DType | None = None):
+                 dtype: DATASET_DTYPE | None = None):
         if isinstance(data, BaseDatasetProxy):
             data = data.data
 
@@ -97,30 +97,37 @@ class DatasetProxy(Sized, Generic[_VT]):
         return self._proxy
 
     @property
-    def dtype(self) -> DType:
+    def dtype(self) -> DATASET_DTYPE:
         return self._proxy.dtype
 
     # endregion
 
     # region methods
     def astype(self,
-               dtype: DType,
+               dtype: DATASET_DTYPE | int | float | str,
                replacement_data: np.ndarray | None = None) -> None:
         """
         In place data type conversion.
         """
+        CAST = {int: np.int64,
+                float: np.float64,
+                str: np.str_}
+
+        if dtype in CAST:
+            dtype = CAST[dtype]
+
         if self.dtype == dtype:
             return
 
-        if not issubdtype(dtype, (num_, str_, tp_)):
+        if not np.issubdtype(dtype, np.generic) or dtype == TimePoint:
             raise TypeError(f"Data type '{dtype}' is not supported.")
 
         h5_file: File = self._proxy.data.parent
         name = self._proxy.data.name
         shape_data = h5_file[name].shape
 
-        if issubdtype(self._proxy.dtype, num_):
-            if dtype == str_:
+        if np.issubdtype(self._proxy.dtype, np.number):
+            if np.issubdtype(dtype, np.str_):
                 # replace num dataset with str dataset
                 str_data = replacement_data if replacement_data is not None else h5_file[name][:]
                 str_data = str_data.astype(str).astype('O')
@@ -129,25 +136,24 @@ class DatasetProxy(Sized, Generic[_VT]):
                 h5_file.create_dataset(name, shape=shape_data, dtype=string_dtype(), data=str_data)
 
                 # update the proxy
-                self._proxy = auto_DatasetProxy(h5_file[name], dtype=str_)
+                self._proxy = auto_DatasetProxy(h5_file[name], dtype=np.str_)
 
-            elif dtype == tp_:
+            elif dtype == TimePoint:
                 raise NotImplementedError
 
-        elif self._proxy.dtype == str_:
-            if issubdtype(dtype, num_):
+        elif np.issubdtype(self._proxy.dtype, np.str_):
+            if np.issubdtype(dtype, np.number):
                 # replace str dataset with num dataset
                 num_data = replacement_data if replacement_data is not None else h5_file[name][:]
-                num_data = num_data.astype(DTYPE_TO_NP[dtype])
-                dtype_data = np.int_ if dtype == int_ else np.float_
+                num_data = num_data.astype(dtype)
 
                 del h5_file[name]
-                h5_file.create_dataset(name, shape=shape_data, dtype=dtype_data, data=num_data)
+                h5_file.create_dataset(name, shape=shape_data, dtype=dtype, data=num_data)
 
                 # update the proxy
                 self._proxy = auto_DatasetProxy(h5_file[name], dtype=dtype)
 
-            elif dtype == tp_:
+            elif dtype == TimePoint:
                 raise NotImplementedError
 
         else:

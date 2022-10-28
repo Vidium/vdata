@@ -17,7 +17,7 @@ from typing import Collection, Iterable
 from vdata.IO import VLockError
 from vdata.name_utils import H5Mode
 from vdata.time_point import TimePoint
-from vdata.core.dataset_proxy import DatasetProxy, issubdtype, num_, int_, float_, str_
+from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf._parse import parse_data_h5
 from vdata.core.tdf.backed_tdf.base import BackedMixin
 from vdata.core.tdf.backed_tdf.view import BackedTemporalDataFrameView
@@ -399,14 +399,8 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
         self._check_valid_index(values, repeating_index)
 
-        # type changes str --> number
-        if np.issubdtype(values.dtype, np.number) and not issubdtype(self._index.dtype, num_):
-            dtype = int_ if np.issubdtype(values.dtype, np.int_) else float_
-            self._index.astype(dtype, replacement_data=values)
-
-        # type changes number --> str
-        elif not np.issubdtype(values.dtype, np.number) and issubdtype(self._index.dtype, num_):
-            self._index.astype(str_, replacement_data=values)
+        if np.issubdtype(values.dtype, np.number) and not np.issubdtype(self._index.dtype, np.number):
+            self._index.astype(values.dtype, replacement_data=values)
 
         # no type change
         else:

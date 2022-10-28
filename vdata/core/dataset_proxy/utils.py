@@ -9,10 +9,10 @@ from __future__ import annotations
 import numpy as np
 from h5py import Dataset
 
-from vdata.core.dataset_proxy.base import BaseDatasetProxy
+from vdata.time_point import TimePoint
+from vdata.core.dataset_proxy.base import BaseDatasetProxy, DATASET_DTYPE
 from vdata.core.dataset_proxy.dataset_1D import NumDatasetProxy1D, StrDatasetProxy1D, TPDatasetProxy1D
 from vdata.core.dataset_proxy.dataset_2D import NumDatasetProxy2D, StrDatasetProxy2D
-from vdata.core.dataset_proxy.dtypes import DType, num_, int_, float_, str_, tp_, issubdtype
 
 
 # ====================================================
@@ -26,7 +26,7 @@ def is_str_dtype(dtype) -> bool:
 
 def auto_DatasetProxy(dataset: Dataset,
                       view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None,
-                      dtype: DType | None = None) -> BaseDatasetProxy:
+                      dtype: DATASET_DTYPE | None = None) -> BaseDatasetProxy:
     """
     Get a DatasetProxy of the correct type for the dataset.
     /!\ Works only for numeric and string datasets, datasets of custom objects are not handled.
@@ -37,49 +37,39 @@ def auto_DatasetProxy(dataset: Dataset,
         dtype: a data type to cast the Dataset.
     """
     # fix a data type
-    if dtype is not None and not isinstance(dtype, DType):
+    if dtype is not None and not np.issubdtype(dtype, np.generic) and not dtype == TimePoint:
         raise TypeError(f"Type '{type(dtype)}' not recognized for a data type.")
 
     if dtype is None:
         if is_str_dtype(dataset.dtype):
-            dtype = str_
+            dtype = np.str_
 
         else:
-            dtype = num_
-
-    if dtype == num_:
-        if np.issubdtype(dataset.dtype, int):
-            dtype = int_
-
-        elif np.issubdtype(dataset.dtype, float):
-            dtype = float_
-
-        else:
-            raise TypeError
+            dtype = dataset.dtype
 
     # create a dataset proxy of the correct type
     if dataset.ndim == 1:
         if is_str_dtype(dataset.dtype):
-            if issubdtype(dtype, num_):
+            if np.issubdtype(dtype, np.number):
                 raise NotImplementedError('Conversion (str --> num) not supported yet.')
 
-            elif dtype == str_:
+            elif np.issubdtype(dtype, np.str_):
                 return StrDatasetProxy1D(dataset, view_on)
 
-            elif dtype == tp_:
+            elif dtype == TimePoint:
                 return TPDatasetProxy1D(dataset, view_on)
 
             else:
                 raise TypeError
 
         else:
-            if issubdtype(dtype, num_):
+            if np.issubdtype(dtype, np.number):
                 return NumDatasetProxy1D(dataset, view_on)
 
-            elif dtype == str_:
+            elif np.issubdtype(dtype, np.str_):
                 raise NotImplementedError('Conversion (num --> str) not supported yet.')
 
-            elif dtype == tp_:
+            elif dtype == TimePoint:
                 raise NotImplementedError('Conversion (num --> tp) not supported yet.')
 
             else:
@@ -87,20 +77,20 @@ def auto_DatasetProxy(dataset: Dataset,
 
     elif dataset.ndim == 2:
         if is_str_dtype(dataset.dtype):
-            if issubdtype(dtype, num_):
+            if np.issubdtype(dtype, np.number):
                 raise NotImplementedError('Conversion (str --> num) not supported yet.')
 
-            elif dtype == str_:
+            elif np.issubdtype(dtype, np.str_):
                 return StrDatasetProxy2D(dataset, view_on)
 
             else:
                 raise TypeError
 
         else:
-            if issubdtype(dtype, num_):
+            if np.issubdtype(dtype, np.number):
                 return NumDatasetProxy2D(dataset, view_on)
 
-            elif dtype == str_:
+            elif np.issubdtype(dtype, np.str_):
                 raise NotImplementedError('Conversion (num --> str) not supported yet.')
 
             else:

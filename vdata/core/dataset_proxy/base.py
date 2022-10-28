@@ -13,12 +13,11 @@ from itertools import chain
 from abc import ABC, abstractmethod
 from collections.abc import Sized
 
-from typing import Iterable, TypeVar, Collection, Union, Any, Generic
+from typing import Iterable, TypeVar, Collection, Union, Any, Generic, Type
 from typing_extensions import Self
 
 from vdata.time_point import TimePoint
 from vdata.utils import isCollection
-from vdata.core.dataset_proxy.dtypes import int_, float_, str_, tp_
 
 # ====================================================
 # code
@@ -29,6 +28,8 @@ _TimePointT = TypeVar('_TimePointT', bound=TimePoint)
 
 SELECTOR = Union[int, Collection[int], np.ndarray, slice]
 ACCESSOR = Union[int, np.ndarray, slice]
+
+DATASET_DTYPE = Union[np.dtype, Type[TimePoint]]
 
 
 # ==== base types =============================================================
@@ -108,7 +109,7 @@ class BaseDatasetProxy(Sized, Generic[_VT]):
 
     @property
     @abstractmethod
-    def dtype(self) -> int_ | float_ | str_ | tp_:
+    def dtype(self) -> DATASET_DTYPE:
         pass
 
     # endregion
@@ -172,15 +173,8 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
 
     # region attributes
     @property
-    def dtype(self) -> int_ | float_:
-        if np.issubdtype(self._data, int):
-            return int_
-
-        elif np.issubdtype(self._data, float):
-            return float_
-
-        else:
-            raise TypeError
+    def dtype(self) -> np.dtype:
+        return self._data.dtype
 
     # endregion
 
@@ -228,8 +222,9 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
 
     # region attributes
     @property
-    def dtype(self) -> str_:
-        return str_
+    @abstractmethod
+    def dtype(self) -> np.dtype:
+        """Get array data type."""
 
     # endregion
 
@@ -266,8 +261,8 @@ class _TPDatasetProxy(ABC, BaseDatasetProxy, Generic[_TimePointT]):
 
     # region attributes
     @property
-    def dtype(self) -> tp_:
-        return tp_
+    def dtype(self) -> Type[TimePoint]:
+        return TimePoint
 
     # endregion
 

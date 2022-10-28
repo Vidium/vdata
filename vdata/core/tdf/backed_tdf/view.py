@@ -12,7 +12,7 @@ import numpy_indexed as npi
 
 from vdata.name_utils import H5Mode
 from vdata.time_point import TimePoint
-from vdata.core.dataset_proxy import DatasetProxy, issubdtype, num_, str_
+from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.base import BaseTemporalDataFrameView, BaseTemporalDataFrameImplementation
 from vdata.core.tdf.backed_tdf.base import BackedMixin
 
@@ -108,7 +108,7 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         """
         Set the numerical data.
         """
-        if isinstance(values, DatasetProxy) and issubdtype(values.dtype, num_):
+        if isinstance(values, DatasetProxy) and np.issubdtype(values.dtype, np.number):
             self._numerical_array = values
             return
 
@@ -128,7 +128,7 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         """
         Set the string data.
         """
-        if isinstance(values, DatasetProxy) and DatasetProxy.dtype == str_:
+        if isinstance(values, DatasetProxy) and np.issubdtype(values.dtype, np.str_):
             self._string_array = values
             return
 

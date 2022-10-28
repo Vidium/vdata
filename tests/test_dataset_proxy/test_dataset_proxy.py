@@ -7,7 +7,7 @@
 import pytest
 import numpy as np
 
-from vdata.core.dataset_proxy import int_, float_, num_, str_, tp_
+from vdata.time_point import TimePoint
 
 
 # ====================================================
@@ -37,11 +37,11 @@ def test_dataset_gives_correct_size(num_dataset, size):
 
 
 def test_num_dataset_gives_correct_dtype(num_dataset):
-    assert num_dataset.dtype == int_
+    assert num_dataset.dtype == np.int64
 
 
 def test_str_dataset_gives_correct_dtype(str_dataset):
-    assert str_dataset.dtype == str_
+    assert str_dataset.dtype == np.dtype('<U2')
 
 
 def test_str_dataset_should_return_unique_values(str_dataset):
@@ -64,11 +64,11 @@ def test_str_dataset_should_return_unique_values_with_numpy(str_dataset):
 
 
 def test_tp_dataset_gives_correct_dtype(tp_dataset):
-    assert tp_dataset.dtype == tp_
+    assert tp_dataset.dtype == TimePoint
 
 
 def test_dataset_proxy_creation_from_num_dataset_gives_correct_dtype(dataset):
-    assert dataset.dtype == int_
+    assert dataset.dtype == np.int64
 
 
 def test_dataset_proxy_creation_from_num_dataset_gives_correct_shape(dataset):
@@ -76,9 +76,9 @@ def test_dataset_proxy_creation_from_num_dataset_gives_correct_shape(dataset):
 
 
 def test_num_dataset_proxy_can_be_cast_to_str(dataset):
-    dataset.astype(str_)
+    dataset.astype(str)
 
-    assert dataset.dtype == str_
+    assert dataset.dtype == np.dtype('<U2')
 
 
 @pytest.mark.parametrize(
@@ -87,6 +87,6 @@ def test_num_dataset_proxy_can_be_cast_to_str(dataset):
     indirect=True
 )
 def test_str_dataset_proxy_can_be_cast_to_num(dataset):
-    dataset.astype(num_)
+    dataset.astype(float)
 
-    assert dataset.dtype == float_
+    assert dataset.dtype == np.float64

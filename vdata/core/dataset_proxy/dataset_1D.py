@@ -6,6 +6,8 @@
 # imports
 from __future__ import annotations
 
+import numpy as np
+
 from vdata.core.dataset_proxy.base import _Dataset1DMixin, _NumDatasetProxy, _StrDatasetProxy, _TPDatasetProxy
 
 
@@ -17,6 +19,11 @@ class NumDatasetProxy1D(_Dataset1DMixin, _NumDatasetProxy):
 
 class StrDatasetProxy1D(_Dataset1DMixin, _StrDatasetProxy):
     """Simple proxy for 1D string h5py.Dataset objects for performing inplace operations."""
+
+    @property
+    def dtype(self) -> np.dtype:
+        longest = len(max(self._data, key=len))
+        return np.dtype(f'<U{longest}')
 
 
 class TPDatasetProxy1D(_Dataset1DMixin, _TPDatasetProxy):

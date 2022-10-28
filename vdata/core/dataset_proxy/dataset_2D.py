@@ -6,6 +6,8 @@
 # imports
 from __future__ import annotations
 
+import numpy as np
+
 from vdata.core.dataset_proxy.base import _Dataset2DMixin, _NumDatasetProxy, _StrDatasetProxy
 
 
@@ -17,3 +19,13 @@ class NumDatasetProxy2D(_Dataset2DMixin, _NumDatasetProxy):
 
 class StrDatasetProxy2D(_Dataset2DMixin, _StrDatasetProxy):
     """Simple proxy 2D for string h5py.Dataset objects for performing inplace operations."""
+
+    @property
+    def dtype(self) -> np.dtype:
+        longest = 0
+        for row in self._data:
+            longest_in_row = len(max(row, key=len))
+            if longest_in_row > longest:
+                longest = longest_in_row
+
+        return np.dtype(f'<U{longest}')
