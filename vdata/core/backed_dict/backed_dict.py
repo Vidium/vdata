@@ -64,6 +64,13 @@ class BackedDict(MutableMapping[_KT, _VT]):
         if isinstance(value, dict):
             write_Dict(value, self._file, key=key)
 
+        elif isCollection(value):
+            value = np.array(value)
+            if np.issubdtype(value.dtype, np.str_):
+                value = value.astype('O')
+
+            self._file[key] = value
+
         else:
             self._file[key] = value
 
