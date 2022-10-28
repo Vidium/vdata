@@ -100,8 +100,16 @@ class BackedDict(MutableMapping[_KT, _VT]):
             else:
                 raise TypeError(f"Got unknown type '{value.attrs['type']}' when accessing key '{key}'.")
 
-        elif isinstance(value, Dataset) and value.size > 1:
-            return DatasetProxy(value)
+        elif isinstance(value, Dataset):
+            if value.size > 1:
+                return DatasetProxy(value)
+
+            elif value.size == 1:
+                value = value[()]
+                if isinstance(value, bytes):
+                    return value.decode()
+
+                return value
 
         return value[()]
 

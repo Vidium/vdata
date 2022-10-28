@@ -48,6 +48,10 @@ def test_backed_dict_can_get_regular_values(backed_dict):
     assert backed_dict['a'] == 1
 
 
+def test_backed_dict_should_return_string(backed_dict):
+    assert isinstance(backed_dict['c']['d'], str)
+
+
 def test_backed_dict_gets_nested_backed_dicts(backed_dict):
     assert isinstance(backed_dict['c'], BackedDict)
 
