@@ -6,6 +6,7 @@
 # imports
 from __future__ import annotations
 
+import numpy as np
 from h5py import File
 from h5py import Group
 from h5py import Dataset
@@ -17,6 +18,8 @@ from vdata.core.dataset_proxy import DatasetProxy
 
 # ====================================================
 # code
+from vdata.utils import isCollection
+
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 

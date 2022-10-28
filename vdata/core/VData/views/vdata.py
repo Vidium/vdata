@@ -47,6 +47,7 @@ class ViewVData:
                 '_timepoints', '_timepoints_slicer', '_obs', '_obs_slicer', '_obs_slicer_flat', '_var', '_var_slicer',\
                 '_layers', '_obsm', '_obsp', '_varm', '_varp', '_uns'
 
+    # region magic methods
     def __init__(self,
                  parent: 'vdata.VData',
                  timepoints_slicer: Optional[np.ndarray],
@@ -178,6 +179,9 @@ class ViewVData:
 
         return ViewVData(self._parent, index[0], index[1], index[2])
 
+    # endregion
+
+    # region predicates
     @property                                                                           # type: ignore
     def is_backed(self) -> Literal[False]:
         """
@@ -202,7 +206,9 @@ class ViewVData:
     @_check_parent_has_not_changed
     def has_repeated_obs_index(self) -> bool:
         return self._parent.has_repeated_obs_index
+    # endregion
 
+    # region attributes
     # Shapes -------------------------------------------------------------
     @property                                                                           # type: ignore
     @_check_parent_has_not_changed
@@ -300,22 +306,6 @@ class ViewVData:
         :return: the list of bare values from the time points.
         """
         return [tp.value for tp in self.timepoints.value]
-
-    # @timepoints.setter
-    # def timepoints(self, df: pd.DataFrame) -> None:
-    #     if not isinstance(df, pd.DataFrame):
-    #         raise VTypeError("'timepoints' must be a pandas DataFrame.")
-    #
-    #     elif df.columns != self._parent.timepoints.columns:
-    #         raise IncoherenceError("'timepoints' must have the same column names as the original 'timepoints' "
-    #                                "it replaces.")
-    #
-    #     elif df.shape[0] != self.n_timepoints:
-    #         raise ShapeError(f"'timepoints' has {df.shape[0]} lines, it should have {self.n_timepoints}.")
-    #
-    #     else:
-    #         df.index = self._parent.timepoints[self._timepoints_slicer].index
-    #         self._parent.timepoints[self._timepoints_slicer] = df
 
     @property                                                                           # type: ignore
     @_check_parent_has_not_changed
@@ -455,6 +445,9 @@ class ViewVData:
     def genes(self, df: pd.DataFrame) -> None:
         self.var = df
 
+    # endregion
+
+    # region methods
     # functions ----------------------------------------------------------
     def __mean_min_max_func(self, func: Literal['mean', 'min', 'max'], axis) \
             -> tuple[dict[str, TemporalDataFrame], list[TimePoint], pd.Index]:
@@ -562,3 +555,5 @@ class ViewVData:
                            dtype=self._parent.dtype,
                            name=f"{self.name}_copy",
                            no_check=True)
+
+    # endregion

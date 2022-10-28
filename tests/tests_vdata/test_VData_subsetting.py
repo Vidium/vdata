@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 import vdata
+from vdata import TemporalDataFrame
 
 
 # ====================================================
@@ -117,7 +118,14 @@ def test_VData_sub_setting():
     assert sub_vdata.layers.shape == (1, 2, sub_vdata.n_obs, sub_vdata.n_var)
 
 
-if __name__ == "__main__":
-    vdata.setLoggingLevel('DEBUG')
+def test_vdata_subset_on_timepoints_should_set_new_values_in_obs(VData):
+    subset = VData[['1h', '2h']].copy()
 
-    test_VData_sub_setting()
+    new_data = TemporalDataFrame({'col1': np.arange(subset.n_obs_total)},
+                                 index=subset.obs.index,
+                                 time_list=subset.obs.timepoints_column,
+                                 name="new_data")
+
+    subset.obsm['new_data'] = new_data
+
+    assert 'new_data' in subset.obsm.keys()

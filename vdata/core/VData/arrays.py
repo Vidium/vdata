@@ -335,10 +335,10 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not self._parent.timepoints.value.equals(pd.Series(value.timepoints)):
+        if not np.array_equal(self._parent.timepoints.value.values, value.timepoints):
             raise VValueError("Time points do not match.")
 
-        if not np.all(self._parent.obs.index == value.index):
+        if not np.array_equal(self._parent.obs.index, value.index):
             raise VValueError("Index does not match.")
 
         self._data[key] = value
