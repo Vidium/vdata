@@ -90,10 +90,14 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
         """
         Get a single column from this TemporalDataFrame.
         """
-        if column_name in self.columns_num:
+        if column_name in BaseTemporalDataFrameImplementation._attributes \
+                or column_name in TemporalDataFrame._attributes:
+            return object.__getattribute__(self, column_name)
+
+        if column_name in object.__getattribute__(self, 'columns_num'):
             return TemporalDataFrameView(self, np.arange(len(self.index)), np.array([column_name]), np.array([]))
 
-        elif column_name in self.columns_str:
+        elif column_name in object.__getattribute__(self, 'columns_str'):
             return TemporalDataFrameView(self, np.arange(len(self.index)), np.array([]), np.array([column_name]))
 
         raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
@@ -279,14 +283,42 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
         """
         Get the list of column names for numerical data.
         """
-        return self._columns_numerical.copy()
+        return self._columns_numerical
+
+    @columns_num.setter
+    def columns_num(self,
+                    values: np.ndarray) -> None:
+        """
+        Set the list of column names for numerical data.
+        """
+        if self.has_locked_columns:
+            raise VLockError("Cannot set columns in tdf with locked columns.")
+
+        if not (vs := values.shape) == (s := self._columns_numerical.shape):
+            raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
+
+        self._columns_numerical = values
 
     @property
     def columns_str(self) -> np.ndarray:
         """
         Get the list of column names for string data.
         """
-        return self._columns_string.copy()
+        return self._columns_string
+
+    @columns_str.setter
+    def columns_str(self,
+                    values: np.ndarray) -> None:
+        """
+        Set the list of column names for string data.
+        """
+        if self.has_locked_columns:
+            raise VLockError("Cannot set columns in tdf with locked columns.")
+
+        if not (vs := values.shape) == (s := self._columns_string.shape):
+            raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
+
+        self._columns_string = values
 
     @property
     def values_num(self) -> np.ndarray:

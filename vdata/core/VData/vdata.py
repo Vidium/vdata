@@ -97,8 +97,6 @@ class VData:
         self._dtype = np.dtype(dtype)
         generalLogger.debug(f'Set data-type to {self._dtype}')
 
-        self._uns: dict[str, Any] = {}
-
         if no_check:
             _obs, _var, _layers, _timepoints, _obsm, _obsp, _varm, _varp, obs_index, var_index = obs, var, data, \
                                                                                                  timepoints, obsm, \
@@ -115,8 +113,14 @@ class VData:
             _obs, _var, _layers, _timepoints, _obsm, _obsp, _varm, _varp, obs_index, var_index, uns = \
                 self._check_formats(data, obs, obsm, obsp, var, varm, varp, timepoints, uns, time_col_name, time_list)
 
-        if uns is not None:
+        if file is not None:
+            self._uns = uns
+
+        elif uns is not None:
             self._uns = dict(zip([str(k) for k in uns.keys()], uns.values()))
+
+        else:
+            self._uns = {}
 
         ref_TDF = list(_layers.values())[0] if _layers is not None else None
 

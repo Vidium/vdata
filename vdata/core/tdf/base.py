@@ -75,7 +75,7 @@ class BaseTemporalDataFrame(ABC):
     def _check_compatibility(self,
                              value: BaseTemporalDataFrame) -> None:
         # time-points column and nb of columns must be identical
-        if not np.array_equal(self.timepoints_column[:], value.timepoints_column[:]):
+        if not np.array_equal(self.timepoints_column, value.timepoints_colum):
             raise ValueError("Time-points do not match.")
         if not np.array_equal(self.n_columns_num, value.n_columns_num):
             raise ValueError("Columns numerical do not match.")
@@ -116,7 +116,7 @@ class BaseTemporalDataFrame(ABC):
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
-                                               time_list=self.timepoints_column[:],
+                                               time_list=self.timepoints_column,
                                                lock=self.lock,
                                                name=f"{self.full_name} + {value_name}")
 
@@ -237,7 +237,7 @@ class BaseTemporalDataFrame(ABC):
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
-                                               time_list=self.timepoints_column[:],
+                                               time_list=self.timepoints_column,
                                                lock=self.lock,
                                                name=f"{self.full_name} {op} {value_name}")
 
@@ -417,7 +417,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def timepoints_column(self) -> np.ndarray | DatasetProxy:
+    def timepoints_column(self) -> np.ndarray:
         """
         Get the column of time-point values.
         """
@@ -739,7 +739,7 @@ class BaseTemporalDataFrame(ABC):
                 index=self.index,
                 columns=[func],
             ),
-                time_list=self.timepoints_column[:],
+                time_list=self.timepoints_column,
                 time_col_name=self.timepoints_column_name)
 
         raise ValueError(f"Invalid axis '{axis}', should be in [0, 1, 2].")
@@ -891,7 +891,7 @@ class BaseTemporalDataFrame(ABC):
         if self.timepoints_column_name is None:
             return dataframe.TemporalDataFrame(self.to_pandas(),
                                                repeating_index=self.has_repeating_index,
-                                               time_list=self.timepoints_column[:],
+                                               time_list=self.timepoints_column,
                                                lock=self.lock,
                                                name=f"copy of {self.name}")
 
@@ -1016,10 +1016,10 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
             raise ValueError(f"Shape mismatch, new 'index' values have shape {vs}, expected {s}.")
 
         if repeating_index:
-            first_index = values[self.timepoints_column[:] == self.timepoints[0]]
+            first_index = values[self.timepoints_column == self.timepoints[0]]
 
             for tp in self.timepoints[1:]:
-                index_tp = values[self.timepoints_column[:] == tp]
+                index_tp = values[self.timepoints_column == tp]
 
                 if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
                     raise ValueError(f"Index at time-point {tp} is not equal to index at time-point "
@@ -1054,18 +1054,12 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
         """
 
     @columns_num.setter
+    @abstractmethod
     def columns_num(self,
                     values: np.ndarray) -> None:
         """
         Set the list of column names for numerical data.
         """
-        if self.has_locked_columns:
-            raise VLockError("Cannot set columns in tdf with locked columns.")
-
-        if not (vs := values.shape) == (s := self._columns_numerical.shape):
-            raise ValueError(f"Shape mismatch, new 'columns_num' values have shape {vs}, expected {s}.")
-
-        self.columns_num[:] = values
 
     @property
     def n_columns_num(self) -> int:
@@ -1082,18 +1076,12 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
         """
 
     @columns_str.setter
+    @abstractmethod
     def columns_str(self,
                     values: np.ndarray) -> None:
         """
         Set the list of column names for string data.
         """
-        if self.has_locked_columns:
-            raise VLockError("Cannot set columns in tdf with locked columns.")
-
-        if not (vs := values.shape) == (s := self._columns_string.shape):
-            raise ValueError(f"Shape mismatch, new 'columns_str' values have shape {vs}, expected {s}.")
-
-        self.columns_str[:] = values
 
     @property
     def n_columns_str(self) -> int:

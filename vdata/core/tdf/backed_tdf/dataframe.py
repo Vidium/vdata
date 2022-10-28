@@ -254,11 +254,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         return self._timepoints_array.unique()
 
     @property
-    def timepoints_column(self) -> DatasetProxy:
+    def timepoints_column(self) -> np.array:
         """
         Get the column of time-point values.
         """
-        return self._timepoints_array
+        return self._timepoints_array[:]
 
     @property
     def timepoints_column_name(self) -> str | None:

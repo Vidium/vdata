@@ -180,11 +180,6 @@ def update_vdata(obj: VData) -> None:
     obj.file.group.flush()
     write_data(obj.timepoints, obj.file.group, 'timepoints')
 
-    # update uns --------------------------------------------------------------
-    del obj.file.group['uns']
-    obj.file.group.flush()
-    write_data(obj.uns, obj.file.group, 'uns')
-
     obj.file.group.flush()
 
 

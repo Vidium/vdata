@@ -1,6 +1,9 @@
 # coding: utf-8
 # Created on 22/10/2022 20:01
 # Author : matteo
+
+# ====================================================
+# imports
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -13,9 +16,6 @@ from vdata.core.tdf.backed_tdf.meta import CheckH5File
 from vdata.core.tdf.base import BaseTemporalDataFrame
 from vdata.name_utils import H5Mode
 
-
-# ====================================================
-# imports
 
 # ====================================================
 # code
