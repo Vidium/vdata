@@ -309,6 +309,50 @@ def test_insert_into_empty_array(TDF):
     ['plain', 'backed'],
     indirect=True
 )
+def test_insert_single_numerical_value(TDF):
+    TDF.insert(0, 'col5', -1)
+
+    assert TDF.n_columns_num == 3 and np.all(TDF.values_num[:, 0] == -1)
+
+
+@pytest.mark.parametrize(
+    'TDF',
+    ['plain', 'backed'],
+    indirect=True
+)
+def test_insert_single_string_value(TDF):
+    TDF.insert(0, 'col5', 'a')
+
+    assert TDF.n_columns_str == 3 and np.all(TDF.values_str[:, 0] == 'a')
+
+
+@pytest.mark.parametrize(
+    'TDF',
+    ['plain', 'backed'],
+    indirect=True
+)
+def test_should_insert_numerical_column_as_last(TDF):
+    TDF.insert(-1, 'col5', -1)
+
+    assert np.all(TDF.values_num[:, -1] == -1)
+
+
+@pytest.mark.parametrize(
+    'TDF',
+    ['plain', 'backed'],
+    indirect=True
+)
+def test_should_insert_string_column_as_last(TDF):
+    TDF.insert(-1, 'col5', 'a')
+
+    assert np.all(TDF.values_str[:, -1] == 'a')
+
+
+@pytest.mark.parametrize(
+    'TDF',
+    ['plain', 'backed'],
+    indirect=True
+)
 def test_add_numerical_value(TDF):
     prefix = 'Backed ' if TDF.is_backed else ''
     assert repr(TDF + 1) == f"TemporalDataFrame {prefix}TemporalDataFrame 1 + 1\n" \

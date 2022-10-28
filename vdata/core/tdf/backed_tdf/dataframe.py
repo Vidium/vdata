@@ -24,7 +24,7 @@ from vdata.core.tdf.backed_tdf.view import BackedTemporalDataFrameView
 from vdata.core.tdf.base import BaseTemporalDataFrameImplementation, BaseTemporalDataFrame
 from vdata.core.tdf.name_utils import H5Data, SLICER
 from vdata.core.tdf.utils import parse_slicer, parse_values
-
+from vdata.utils import isCollection
 
 # ====================================================
 # code
@@ -435,6 +435,9 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         def insert_column_h5(array_: DatasetProxy,
                              columns_: DatasetProxy,
                              index_: int) -> None:
+            if index_ < 0:
+                index_ = len(columns_) + 1 + index_
+
             # resize the arrays to insert an extra column at the end
             columns_.resize((len(columns_) + 1,))
             array_.resize((array_.shape[0], array_.shape[1] + 1))
@@ -453,6 +456,9 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
         if self.has_locked_columns:
             raise VLockError("Cannot insert columns in tdf with locked columns.")
+
+        if not isCollection(values):
+            values = np.repeat(values, self.n_index)
 
         values = np.array(values)
 

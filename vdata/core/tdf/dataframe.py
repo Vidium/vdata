@@ -20,6 +20,7 @@ from vdata.core.tdf.utils import parse_slicer, parse_values
 from vdata.core.tdf.base import BaseTemporalDataFrameImplementation, BaseTemporalDataFrame
 from vdata.core.tdf.view import TemporalDataFrameView
 from vdata.core.tdf._parse import parse_data
+from vdata.utils import isCollection
 
 
 # ====================================================
@@ -418,7 +419,7 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
     def insert(self,
                loc: int,
                name: str,
-               values: np.ndarray | Iterable | int | float) -> None:
+               values: np.ndarray | Iterable | int | float | str) -> None:
         """
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.
@@ -426,6 +427,9 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
         def insert_column_np(array_: np.ndarray,
                              columns_: np.ndarray,
                              index_: int) -> tuple[np.ndarray, np.ndarray]:
+            if index_ < 0:
+                index_ = len(columns_) + 1 + index_
+
             # insert column in the data array the position index_.
             array_ = np.insert(array_, index_, values, axis=1)
 
@@ -436,6 +440,9 @@ class TemporalDataFrame(BaseTemporalDataFrameImplementation):
 
         if self.has_locked_columns:
             raise VLockError("Cannot insert columns in tdf with locked columns.")
+
+        if not isCollection(values):
+            values = np.repeat(values, self.n_index)
 
         values = np.array(values)
 
