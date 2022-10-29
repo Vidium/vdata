@@ -67,26 +67,74 @@ def test_tp_dataset_gives_correct_dtype(tp_dataset):
     assert tp_dataset.dtype == TimePoint
 
 
-def test_dataset_proxy_creation_from_num_dataset_gives_correct_dtype(dataset):
-    assert dataset.dtype == np.int64
+def test_dataset_proxy_creation_from_num_dataset_gives_correct_dtype(dataset_proxy):
+    assert dataset_proxy.dtype == np.int64
 
 
-def test_dataset_proxy_creation_from_num_dataset_gives_correct_shape(dataset):
-    assert dataset.shape == (10, 5)
+def test_dataset_proxy_creation_from_num_dataset_gives_correct_shape(dataset_proxy):
+    assert dataset_proxy.shape == (10, 5)
 
 
-def test_num_dataset_proxy_can_be_cast_to_str(dataset):
-    dataset.astype(str)
+def test_num_dataset_proxy_can_be_cast_to_str(dataset_proxy):
+    dataset_proxy.astype(str)
 
-    assert dataset.dtype == np.dtype('<U2')
+    assert dataset_proxy.dtype == np.dtype('<U2')
 
 
 @pytest.mark.parametrize(
-    'dataset',
+    'dataset_proxy',
     ['str'],
     indirect=True
 )
-def test_str_dataset_proxy_can_be_cast_to_num(dataset):
-    dataset.astype(float)
+def test_str_dataset_proxy_can_be_cast_to_num(dataset_proxy):
+    dataset_proxy.astype(float)
 
-    assert dataset.dtype == np.float64
+    assert dataset_proxy.dtype == np.float64
+
+
+def test_can_add_inplace(dataset):
+    dataset += 1.5
+
+    assert dataset[0, 0] == 1.5
+
+
+def test_can_add(dataset):
+    arr = dataset + 1.5
+
+    assert arr[0, 0] == 1.5
+
+
+def test_can_sub_inplace(dataset):
+    dataset -= 1.5
+
+    assert dataset[0, 0] == -1.5
+
+
+def test_can_sub(dataset):
+    arr = dataset - 1.5
+
+    assert arr[0, 0] == -1.5
+
+
+def test_can_mul_inplace(dataset):
+    dataset *= 2.5
+
+    assert dataset[0, 1] == 2.5
+
+
+def test_can_mul(dataset):
+    arr = dataset * 2.5
+
+    assert arr[0, 1] == 2.5
+
+
+def test_can_div_inplace(dataset):
+    dataset /= 2
+
+    assert dataset[0, 1] == 0.5
+
+
+def test_can_div(dataset):
+    arr = dataset / 2
+
+    assert arr[0, 1] == 0.5

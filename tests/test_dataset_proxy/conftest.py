@@ -64,7 +64,7 @@ def tp_dataset() -> TPDatasetProxy1D:
 
 
 @pytest.fixture
-def dataset(request, num_dataset, str_dataset) -> DatasetProxy:
+def dataset_proxy(request, num_dataset, str_dataset) -> DatasetProxy:
     if hasattr(request, 'param'):
         typ = request.param
 
@@ -78,3 +78,8 @@ def dataset(request, num_dataset, str_dataset) -> DatasetProxy:
         return DatasetProxy(str_dataset)
 
     raise TypeError
+
+
+@pytest.fixture
+def dataset(num_dataset):
+    return DatasetProxy(num_dataset)

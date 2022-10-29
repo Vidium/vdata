@@ -151,11 +151,19 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         self._set(self._data, new_values)
         return self
 
+    def __add__(self,
+                value: object) -> np.ndarray | _NumT:
+        return self._get(self._data) + value
+
     def __isub__(self,
                  value: _VT) -> Self:
         new_values = self._get(self._data) - value
         self._set(self._data, new_values)
         return self
+
+    def __sub__(self,
+                value: object) -> np.ndarray | _NumT:
+        return self._get(self._data) - value
 
     def __imul__(self,
                  value: _VT) -> Self:
@@ -163,11 +171,19 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         self._set(self._data, new_values)
         return self
 
+    def __mul__(self,
+                value: object) -> np.ndarray | _NumT:
+        return self._get(self._data) * value
+
     def __itruediv__(self,
                      value: _VT) -> Self:
         new_values = self._get(self._data) / value
         self._set(self._data, new_values)
         return self
+
+    def __truediv__(self,
+                    value: object) -> np.ndarray | _NumT:
+        return self._get(self._data) / value
 
     # endregion
 

@@ -6,7 +6,7 @@
 # imports
 from __future__ import annotations
 
-from typing import Any, Generic
+from typing import Any, Generic, Type
 
 import numpy as np
 from collections.abc import Sized
@@ -20,6 +20,11 @@ from vdata.core.dataset_proxy.utils import auto_DatasetProxy
 
 # ====================================================
 # code
+CAST = {int: np.int64,
+        float: np.float64,
+        str: np.str_}
+
+
 class DatasetProxy(Sized, Generic[_VT]):
     """Proxy for h5py.Dataset objects."""
 
@@ -61,23 +66,51 @@ class DatasetProxy(Sized, Generic[_VT]):
 
     def __iadd__(self,
                  value: _VT) -> Self:
+        if not np.issubdtype(self._proxy.dtype, float):
+            self.astype(float)
+
         self._proxy += value
         return self
 
     def __isub__(self,
                  value: _VT) -> Self:
+        if not np.issubdtype(self._proxy.dtype, float):
+            self.astype(float)
+
         self._proxy -= value
         return self
 
     def __imul__(self,
                  value: _VT) -> Self:
+        if not np.issubdtype(self._proxy.dtype, float):
+            self.astype(float)
+
         self._proxy *= value
         return self
 
     def __itruediv__(self,
                      value: _VT) -> Self:
+        if not np.issubdtype(self._proxy.dtype, float):
+            self.astype(float)
+
         self._proxy /= value
         return self
+
+    def __add__(self,
+                other: object) -> np.ndarray:
+        return self._proxy + other
+
+    def __sub__(self,
+                other: object) -> np.ndarray:
+        return self._proxy - other
+
+    def __mul__(self,
+                other: object) -> np.ndarray:
+        return self._proxy * other
+
+    def __truediv__(self,
+                    other: object) -> np.ndarray:
+        return self._proxy / other
 
     def __eq__(self,
                other: object) -> bool:
@@ -104,16 +137,13 @@ class DatasetProxy(Sized, Generic[_VT]):
 
     # region methods
     def astype(self,
-               dtype: DATASET_DTYPE | int | float | str,
+               dtype: DATASET_DTYPE | Type[int] | Type[float] | Type[str],
                replacement_data: np.ndarray | None = None) -> None:
         """
         In place data type conversion.
         """
-        CAST = {int: np.int64,
-                float: np.float64,
-                str: np.str_}
-
         if dtype in CAST:
+            # noinspection PyTypeChecker
             dtype = CAST[dtype]
 
         if self.dtype == dtype:
@@ -140,6 +170,17 @@ class DatasetProxy(Sized, Generic[_VT]):
 
             elif dtype == TimePoint:
                 raise NotImplementedError
+
+            else:
+                # replace num dataset with str dataset
+                new_data = replacement_data if replacement_data is not None else h5_file[name][:]
+                new_data = new_data.astype(dtype)
+
+                del h5_file[name]
+                h5_file.create_dataset(name, shape=shape_data, data=new_data)
+
+                # update the proxy
+                self._proxy = auto_DatasetProxy(h5_file[name], dtype=dtype)
 
         elif np.issubdtype(self._proxy.dtype, np.str_):
             if np.issubdtype(dtype, np.number):
