@@ -1635,7 +1635,7 @@ class VData:
                      obs=self.obs.copy(), obsm=self.obsm.dict_copy(), obsp=self._obsp.dict_copy(),
                      var=self.var.copy(), varm=self.varm.dict_copy(), varp=self.varp.dict_copy(),
                      timepoints=self.timepoints.copy(),
-                     uns=dict(self.uns),
+                     uns=self.uns.copy(),
                      dtype=self.dtype,
                      name=f"{self.name}_copy")
 

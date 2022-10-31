@@ -87,3 +87,14 @@ def test_copy_of_backed_VData_layers_should_not_be_backed(VData_uns: VData):
     v_copy = VData_uns.copy()
 
     assert not v_copy.layers['data'].is_backed
+
+
+@pytest.mark.parametrize(
+    'VData_uns',
+    ['backed'],
+    indirect=True
+)
+def test_copy_of_backed_VData_uns_arrays_should_not_be_backed(VData_uns: VData):
+    v_copy = VData_uns.copy()
+
+    assert isinstance(v_copy.uns['colors'], np.ndarray)

@@ -17,7 +17,7 @@ from vdata.read_write.write import write_Dict
 
 # ====================================================
 # code
-@pytest.fixture(scope='module')
+@pytest.fixture
 def backed_dict() -> BackedDict:
     data = {'a': 1,
             'b': [1, 2, 3],
@@ -127,3 +127,28 @@ def test_backed_dict_can_close_file(backed_dict):
 
     with pytest.raises(ValueError):
         _ = backed_dict['x']
+
+
+def test_backed_dict_copy_should_be_regular_dict(backed_dict):
+    c = backed_dict.copy()
+
+    assert isinstance(c, dict)
+
+
+def test_backed_dict_copy_should_have_same_keys(backed_dict):
+    c = backed_dict.copy()
+
+    assert c.keys() == backed_dict.keys()
+
+
+def test_backed_dict_copy_nested_backed_dict_should_be_dict(backed_dict):
+    c = backed_dict.copy()
+
+    assert isinstance(c['c'], dict)
+
+
+def test_backed_dict_copy_dataset_proxy_should_be_array(backed_dict):
+    c = backed_dict.copy()
+
+    assert isinstance(c['b'], np.ndarray)
+

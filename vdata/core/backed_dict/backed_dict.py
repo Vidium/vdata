@@ -12,7 +12,7 @@ from h5py import Group
 from h5py import Dataset
 from collections.abc import MutableMapping, KeysView, Iterable
 
-from typing import Iterator, TypeVar
+from typing import Iterator, TypeVar, Any
 
 from vdata.core.dataset_proxy import DatasetProxy
 from vdata.utils import isCollection
@@ -138,9 +138,24 @@ class BackedDict(MutableMapping[_KT, _VT]):
 
     # endregion
 
-    # region mathods
+    # region methods
     def close(self) -> None:
         self._file.file.close()
+
+    def copy(self) -> dict[str, Any]:
+        """
+        Build an in-memory copy of this BackedDict object.
+        """
+        def get_in_memory(value: Any) -> Any:
+            if isinstance(value, BackedDict):
+                return value.copy()
+
+            elif isinstance(value, DatasetProxy):
+                return value[:]
+
+            return value
+
+        return {k: get_in_memory(v) for k, v in self.items()}
 
     # endregion
 
