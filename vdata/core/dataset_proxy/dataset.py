@@ -6,6 +6,7 @@
 # imports
 from __future__ import annotations
 
+from functools import wraps
 from typing import Any, Generic, Type
 
 import numpy as np
@@ -23,6 +24,20 @@ from vdata.core.dataset_proxy.utils import auto_DatasetProxy
 CAST = {int: np.int64,
         float: np.float64,
         str: np.str_}
+
+
+def cast_int_to_float(func):
+    """If needed, cast int dataset to float."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        self = args[0]
+
+        if np.issubdtype(self._proxy.dtype, int) and not np.issubdtype(self._proxy.dtype, float):
+            self.astype(float)
+
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class DatasetProxy(Sized, Generic[_VT]):
@@ -64,35 +79,27 @@ class DatasetProxy(Sized, Generic[_VT]):
                     value: np.ndarray | _VT) -> None:
         self._proxy[item] = value
 
+    @cast_int_to_float
     def __iadd__(self,
                  value: _VT) -> Self:
-        if not np.issubdtype(self._proxy.dtype, float):
-            self.astype(float)
-
         self._proxy += value
         return self
 
+    @cast_int_to_float
     def __isub__(self,
                  value: _VT) -> Self:
-        if not np.issubdtype(self._proxy.dtype, float):
-            self.astype(float)
-
         self._proxy -= value
         return self
 
+    @cast_int_to_float
     def __imul__(self,
                  value: _VT) -> Self:
-        if not np.issubdtype(self._proxy.dtype, float):
-            self.astype(float)
-
         self._proxy *= value
         return self
 
+    @cast_int_to_float
     def __itruediv__(self,
                      value: _VT) -> Self:
-        if not np.issubdtype(self._proxy.dtype, float):
-            self.astype(float)
-
         self._proxy /= value
         return self
 

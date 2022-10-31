@@ -592,6 +592,7 @@ def read_h5_series(group: H5GroupReader, index: list | None = None, level: int =
         raise VTypeError(f"Unexpected type {type(group)} while reading h5 file.")
 
 
+# TODO : should not be needed anymore
 def read_h5_array(group: H5GroupReader, level: int = 1,
                   log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> np.ndarray:
     """

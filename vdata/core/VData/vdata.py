@@ -4,6 +4,8 @@
 
 # ====================================================
 # imports
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -630,15 +632,18 @@ class VData:
         return self._uns
 
     @uns.setter
-    def uns(self, data: dict) -> None:
+    def uns(self, data: dict | BackedDict) -> None:
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not isinstance(data, dict):
-            raise VTypeError("'uns' must be a dictionary.")
+        if isinstance(data, BackedDict):
+            self._uns = data
+
+        elif isinstance(data, dict):
+            self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
 
         else:
-            self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
+            raise VTypeError("'uns' must be a dictionary.")
 
     # Array containers ---------------------------------------------------
     @property

@@ -6,10 +6,16 @@
 # imports
 import os
 import shutil
+from tempfile import NamedTemporaryFile
+
+import numpy as np
 import scanpy as sc
 from pathlib import Path
 
 import vdata
+from vdata import VData
+from vdata.core.backed_dict import BackedDict
+from vdata.core.dataset_proxy import DatasetProxy
 
 
 # ====================================================
@@ -73,8 +79,19 @@ def test_VData_view_write():
     sub_v.write_to_csv(output_dir / "sub_vdata")
 
 
-if __name__ == "__main__":
-    vdata.setLoggingLevel('DEBUG')
+def test_VData_write_should_convert_uns_to_BackedDict():
+    v = VData(uns={'test': np.array([1, 2, 3])})
 
-    out_test_VData_write()
-    test_VData_view_write()
+    tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
+    v.write(tmp_file.name)
+
+    assert isinstance(v.uns, BackedDict)
+
+
+def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
+    v = VData(uns={'test': np.array([1, 2, 3])})
+
+    tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
+    v.write(tmp_file.name)
+
+    assert isinstance(v.uns['test'], DatasetProxy)

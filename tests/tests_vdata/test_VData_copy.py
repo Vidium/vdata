@@ -6,36 +6,26 @@
 # imports
 import pandas as pd
 import numpy as np
+import pytest
 
 import vdata
+from vdata import VData
+
 from . import expr_data_simple
 
 
 # ====================================================
 # code
-timepoints = pd.DataFrame({"value": ["0h"]})
-var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
-obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
-                               'data_bis': np.random.randint(0, 20, 6)},
-                              time_list=["0h", "0h", "0h", "0h", "0h", "0h"])
-uns = {"colors": ['blue', 'red', 'yellow'],
-       "date": '25/01/2021'}
+def test_VData_copy(VData_uns):
+    v2 = VData_uns.copy()
 
-data = pd.DataFrame(expr_data_simple)
-
-v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name=1)
-
-
-def test_VData_copy():
-    v2 = v.copy()
-
-    assert id(v) != id(v2)
-    assert repr(v) == "VData '1' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
-                      "layers: 'data'\n\t" \
-                      "obs: 'data', 'data_bis'\n\t" \
-                      "var: 'gene_name'\n\t" \
-                      "timepoints: 'value'\n\t" \
-                      "uns: 'colors', 'date'", repr(v)
+    assert id(VData_uns) != id(v2)
+    assert repr(VData_uns) == "VData '1' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+                              "layers: 'data'\n\t" \
+                              "obs: 'data', 'data_bis'\n\t" \
+                              "var: 'gene_name'\n\t" \
+                              "timepoints: 'value'\n\t" \
+                              "uns: 'colors', 'date'", repr(VData_uns)
 
     # repeating index
     timepoints = pd.DataFrame({"value": ["0h", "1h"]})
@@ -64,8 +54,8 @@ def test_VData_copy():
                        "\tuns: 'colors', 'date'"
 
 
-def test_VData_copy_subset():
-    v_subset = v[:, 0:4, 0:2]
+def test_VData_copy_subset(VData_uns):
+    v_subset = VData_uns[:, 0:4, 0:2]
     v2 = v_subset.copy()
 
     assert id(v_subset) != id(v2)
@@ -77,8 +67,23 @@ def test_VData_copy_subset():
                        "uns: 'colors', 'date'", repr(v2)
 
 
-if __name__ == '__main__':
-    vdata.setLoggingLevel('DEBUG')
+@pytest.mark.parametrize(
+    'VData_uns',
+    ['backed'],
+    indirect=True
+)
+def test_copy_of_backed_VData_should_not_be_backed(VData_uns: VData):
+    v_copy = VData_uns.copy()
 
-    test_VData_copy()
-    test_VData_copy_subset()
+    assert not v_copy.is_backed
+
+
+@pytest.mark.parametrize(
+    'VData_uns',
+    ['backed'],
+    indirect=True
+)
+def test_copy_of_backed_VData_layers_should_not_be_backed(VData_uns: VData):
+    v_copy = VData_uns.copy()
+
+    assert not v_copy.layers['data'].is_backed

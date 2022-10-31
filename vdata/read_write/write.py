@@ -105,6 +105,7 @@ def write_vdata(obj: VData | ViewVData,
 
         if isinstance(obj, vdata.VData):
             obj.file = H5GroupReader(save_file)
+            obj.uns = BackedDict(save_file['uns'])
 
         if show_progress:
             progressBar.clear()
