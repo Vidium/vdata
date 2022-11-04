@@ -22,7 +22,7 @@ class StrDatasetProxy1D(_Dataset1DMixin, _StrDatasetProxy):
 
     @property
     def dtype(self) -> np.dtype:
-        longest = len(max(self._data, key=len))
+        longest = len(max(self._data, key=len)) if self._data.size else 0
         return np.dtype(f'<U{longest}')
 
 
