@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import numpy as np
+import numpy_indexed as npi
 from h5py import Dataset
 from numbers import Number
 from itertools import chain
@@ -436,10 +437,46 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
 
         return sel0, sel1
 
+    @staticmethod
+    def _order(accessor: ACCESSOR | None) -> ACCESSOR | None:
+        if accessor is not None and isinstance(accessor, np.ndarray):
+            return sorted(accessor)
+
+        return accessor
+
+    @staticmethod
+    def _reorder(accessor: ACCESSOR | None) -> ACCESSOR | None:
+        if accessor is None:
+            return slice(None)
+
+        if isinstance(accessor, slice):
+            if accessor.step is None or accessor.step > 0:
+                step = None
+
+            else:
+                step = -1
+
+            return slice(None, None, step)
+
+        elif isinstance(accessor, np.ndarray):
+            return npi.indices(sorted(accessor), accessor)
+
+        return accessor
+
     def _getitem_core(self,
                       array: Dataset,
                       item: SELECTOR | tuple[SELECTOR, SELECTOR]) -> np.ndarray | _VT:
-        return self._get(array, *self._valid_selectors(item))
+        sel0, sel1 = self._valid_selectors(item)
+        selection = self._get(array, self._order(sel0), self._order(sel1))
+
+        if isinstance(selection, np.ndarray):
+            if selection.ndim == 1:
+                selection = selection[self._reorder(sel0)]
+
+            else:
+                selection = selection[self._reorder(sel0), self._reorder(sel1)]
+
+        return selection
 
     def __setitem__(self,
                     item: SELECTOR | tuple[SELECTOR, SELECTOR],

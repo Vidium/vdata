@@ -143,7 +143,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
             # transfer data one row to the left, starting from the column after the one to delete
             # matrix | 0 1 2 3 4 | with index of the column to delete = 2
             #   ==>  | 0 1 3 4 . |
-            array_[:, index_:len(columns_) - 1] = array_[:, index_ + 1:len(columns_)]
+            array_[:, index_:len(columns_) - 1] = array_[:, (index_ + 1):len(columns_)]
 
             # delete column from the column names as above
             columns_[index_:len(columns_) - 1] = columns_[index_ + 1:len(columns_)]

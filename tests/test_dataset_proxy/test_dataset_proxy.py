@@ -138,3 +138,15 @@ def test_can_div(dataset):
     arr = dataset / 2
 
     assert arr[0, 1] == 0.5
+
+
+def test_should_subset_index_in_disorder(dataset):
+    view = dataset[[2, 4, 1]]
+
+    assert isinstance(view, np.ndarray)
+
+
+def test_subset_index_in_disorder_should_return_index_in_disorder(dataset):
+    view = dataset[[2, 4, 1]]
+
+    assert np.all(view[:, 0] == [10, 20, 5])
