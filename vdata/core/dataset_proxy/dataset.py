@@ -11,7 +11,10 @@ from typing import Any, Generic, Type
 
 import numpy as np
 from collections.abc import Sized
-from h5py import Dataset, string_dtype, File
+from vdata.h5pickle import Dataset
+from vdata.h5pickle import File
+from h5py import string_dtype
+
 from typing_extensions import Self
 
 from vdata.time_point import TimePoint
@@ -49,10 +52,10 @@ class DatasetProxy(Sized, Generic[_VT]):
                  view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None,
                  dtype: DATASET_DTYPE | None = None):
         if isinstance(data, BaseDatasetProxy):
-            data = data.data
+            data, dtype = data.data, data.dtype
 
         elif isinstance(data, DatasetProxy):
-            data = data.proxy.data
+            data, dtype = data.proxy.data, data.proxy.dtype
 
         self._proxy = auto_DatasetProxy(data, view_on, dtype)
 
@@ -71,8 +74,14 @@ class DatasetProxy(Sized, Generic[_VT]):
                     item: SELECTOR) -> np.ndarray | _VT:
         return self._proxy[item]
 
-    def __setstate__(self, state):
-        self._proxy = auto_DatasetProxy(state['file'][state['name']])
+    def __getstate__(self) -> dict[str, Any]:
+        return {'view_on': self._proxy._view_on, 'dtype': self.dtype} | self.data.__getstate__()
+
+    def __setstate__(self,
+                     state: dict[str, Any]):
+        self._proxy = auto_DatasetProxy(state['file'][state['name']],
+                                        view_on=state['view_on'],
+                                        dtype=state['dtype'])
 
     def __setitem__(self,
                     item: SELECTOR | tuple[SELECTOR, SELECTOR],
@@ -143,6 +152,9 @@ class DatasetProxy(Sized, Generic[_VT]):
     # endregion
 
     # region methods
+    def close(self) -> None:
+        self._proxy.close()
+
     def astype(self,
                dtype: DATASET_DTYPE | Type[int] | Type[float] | Type[str],
                replacement_data: np.ndarray | None = None) -> None:

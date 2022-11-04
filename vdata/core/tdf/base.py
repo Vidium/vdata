@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Collection, Literal, Iterable, Type, NoReturn
 from typing_extensions import Self
 
-from h5py import File
+from vdata.h5pickle import File
 
 from vdata.core.tdf import dataframe, indexer
 from vdata.core.tdf.utils import parse_slicer, parse_values
@@ -26,7 +26,7 @@ from vdata.core.tdf.name_utils import SLICER, H5Data, DEFAULT_TIME_POINTS_COL_NA
 from vdata.utils import are_equal, repr_array
 from vdata.time_point import TimePoint, mean as tp_mean
 from vdata.IO import VLockError
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 
 if TYPE_CHECKING:
     from vdata.core.tdf.dataframe import TemporalDataFrame

@@ -4,7 +4,7 @@
 
 # ====================================================
 # imports
-from h5py import File
+from vdata.h5pickle import File
 from pathlib import Path
 
 from typing import Union

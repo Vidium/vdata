@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 import numpy as np
-from h5py import File
-from h5py import Group
-from h5py import Dataset
+from vdata.h5pickle import File
+from vdata.h5pickle import Group
+from vdata.h5pickle import Dataset
 from collections.abc import MutableMapping, KeysView, Iterable
 
 from typing import Iterator, TypeVar, Any

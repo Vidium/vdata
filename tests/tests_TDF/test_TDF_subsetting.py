@@ -10,7 +10,7 @@ import pandas as pd
 from pathlib import Path
 
 from vdata import TemporalDataFrame, TimePoint
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import mean as tp_mean
 
 

@@ -15,7 +15,7 @@ from numbers import Number
 from typing import Collection, Iterable
 
 from vdata.IO import VLockError
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf._parse import parse_data_h5

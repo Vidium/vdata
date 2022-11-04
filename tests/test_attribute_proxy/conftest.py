@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
-from h5py import File
+from vdata.h5pickle import File
 
 from vdata.core.attribute_proxy.attribute import AttributeProxy, NONE_VALUE
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 
 
 @pytest.fixture

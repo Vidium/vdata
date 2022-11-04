@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import numpy as np
-from h5py import Dataset
+from vdata.h5pickle import Dataset
 
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy.base import BaseDatasetProxy, DATASET_DTYPE

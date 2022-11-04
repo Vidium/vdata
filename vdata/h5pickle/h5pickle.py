@@ -3,12 +3,14 @@
 # Author : matteo
 
 """
-From https://github.com/DaanVanVugt/h5pickle/blob/master/h5pickle
+Modified from https://github.com/DaanVanVugt/h5pickle/blob/master/h5pickle
 """
 
 # ====================================================
 # imports
 import h5py
+
+from typing import Any
 
 
 # ====================================================
@@ -27,7 +29,7 @@ def h5py_wrap_type(obj):
         return obj                          # Just return, since we want to wrap h5py.Group.get too
 
 
-class PickleAbleH5PyObject:
+class PickleAbleH5PyObject(h5py.HLObject):
     """Save state required to pickle and unpickle h5py objects and groups.
     This class should not be used directly, but is here as a base for inheritance
     for Group and Dataset"""
@@ -35,7 +37,8 @@ class PickleAbleH5PyObject:
         """Save the current name and a reference to the root file object."""
         return {'name': self.name, 'file': self.file_info}
 
-    def __setstate__(self, state):
+    def __setstate__(self,
+                     state: dict[str, Any]):
         """File is reopened by pickle. Create a dataset and steal its identity"""
         self.__init__(state['file'][state['name']].id)
         self.file_info = state['file']
@@ -63,21 +66,19 @@ class Group(PickleAbleH5PyObject, h5py.Group):
 
 
 class File(PickleAbleH5PyObject, h5py.File):
-    """A subclass of h5py.File that implements a memoized cache and pickling.
-    Use this if you are going to be creating h5py.Files of the same file often.
+    """A subclass of h5py.File that implements pickling.
     Pickling is done not with __{get,set}state__ but with __getnewargs_ex__
-    which produces the arguments to supply to the __new__ method. This is required
-    to allow for memoization of unpickled values.
+    which produces the arguments to supply to the __new__ method.
     """
+
+    # noinspection PyMissingConstructor
     def __init__(self, *args, **kwargs):
         """We skip the init method, since it is called at object creation time
         by __new__. This is necessary to have both pickling and caching."""
         pass
 
     def __new__(cls, *args, **kwargs):
-        """Create a new File object with the h5open function, which memoizes
-        the file creation. Test if it is still valid and otherwise create a new one.
-        """
+        """Create a new File object with the h5 open function."""
         self = super(h5py.File, cls).__new__(cls)
         h5py.File.__init__(self, *args, **kwargs)
         # Store args and kwargs for pickling
@@ -98,8 +99,8 @@ class File(PickleAbleH5PyObject, h5py.File):
 
     def __getnewargs_ex__(self):
         kwargs = self.init_kwargs.copy()
-        return self.init_args, kwargs
 
-    def close(self):
-        """Override the close function to remove the file also from the cache"""
-        h5py.File.close(self)
+        if len(self.init_args) > 1 and self.init_args[1] == 'w':
+            return (self.init_args[0], 'r+', *self.init_args[2:]), kwargs
+
+        return self.init_args, kwargs

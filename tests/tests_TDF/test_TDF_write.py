@@ -1,16 +1,14 @@
 # coding: utf-8
 # Created on 30/03/2022 17:35
 # Author : matteo
-from pathlib import Path
 
 # ====================================================
 # imports
 import pytest
-from h5py import File
+from pathlib import Path
 
 from vdata import read_TDF, BackedTemporalDataFrame
 from vdata.core.tdf.base import BaseTemporalDataFrame
-from vdata.name_utils import H5Mode
 
 
 # ====================================================

@@ -14,7 +14,7 @@ from typing_extensions import Self
 from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf.meta import CheckH5File
 from vdata.core.tdf.base import BaseTemporalDataFrame
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 
 
 # ====================================================

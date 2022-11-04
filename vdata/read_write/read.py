@@ -15,14 +15,16 @@ import pandas as pd
 import numpy as np
 from time import perf_counter
 from pathlib import Path
-from h5py import Dataset, Group
+from vdata.h5pickle import Dataset
+from vdata.h5pickle import Group
 from typing import Any, Callable, Collection, cast, Literal
 
 # This import is need when evaluating a string to get a type # fixme : is there a better way ?
 from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
 
 import vdata
-from vdata.name_utils import H5Mode, DType
+from vdata.name_utils import DType
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.utils import get_value, repr_array
 from .utils import parse_path, H5GroupReader
 from vdata.vdataframe import VDataFrame

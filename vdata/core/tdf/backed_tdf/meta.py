@@ -8,7 +8,7 @@ from abc import ABCMeta
 
 from typing import TYPE_CHECKING
 
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 
 if TYPE_CHECKING:
     from vdata.core.tdf.base import BaseTemporalDataFrame

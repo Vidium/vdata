@@ -8,10 +8,10 @@ import pytest
 import numpy as np
 from pathlib import Path
 
-from h5py import File
+from vdata.h5pickle import File
 
 from vdata.core.backed_dict import BackedDict
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.read_write.write import write_Dict
 
 

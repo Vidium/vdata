@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import numpy_indexed as npi
 
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.base import BaseTemporalDataFrameView, BaseTemporalDataFrameImplementation

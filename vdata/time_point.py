@@ -9,6 +9,8 @@ from numbers import Number
 
 from typing import Union, Literal, cast, Sequence
 
+from vdata._meta import PrettyRepr
+
 # ====================================================
 # code
 UNIT_TYPE = Literal['s', 'm', 'h', 'D', 'M', 'Y']
@@ -110,7 +112,7 @@ class Unit:
         return Unit.units_order[self.value] <= Unit.units_order[other.value]
 
 
-class TimePoint:
+class TimePoint(metaclass=PrettyRepr):
     """
     Simple class for storing a single time point, with its value and unit.
     """

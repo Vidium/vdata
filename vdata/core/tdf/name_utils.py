@@ -6,7 +6,8 @@
 # imports
 import numpy as np
 from numbers import Number
-from h5py import File, Group
+from vdata.h5pickle import File
+from vdata.h5pickle import Group
 
 from typing import Union, Collection
 

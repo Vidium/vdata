@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 import numpy_indexed as npi
-from h5py import Dataset
+from vdata.h5pickle import Dataset
 from numbers import Number
 from itertools import chain
 from abc import ABC, abstractmethod
@@ -116,6 +116,9 @@ class BaseDatasetProxy(Sized, Generic[_VT]):
     # endregion
 
     # region methods
+    def close(self) -> None:
+        self._data.file.close()
+
     @abstractmethod
     def _parse_value(self,
                      value: np.ndarray | _VT) -> np.ndarray | _VT:
@@ -440,7 +443,7 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
     @staticmethod
     def _order(accessor: ACCESSOR | None) -> ACCESSOR | None:
         if accessor is not None and isinstance(accessor, np.ndarray):
-            return sorted(accessor)
+            return np.sort(accessor)
 
         return accessor
 

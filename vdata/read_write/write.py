@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import vdata
 from vdata.core.backed_dict import BackedDict
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.read_write.utils import parse_path, H5GroupReader
 from vdata.vdataframe import VDataFrame, ViewVDataFrame
 from vdata.IO import generalLogger, VPathError, VValueError

@@ -22,10 +22,5 @@ class StrDatasetProxy2D(_Dataset2DMixin, _StrDatasetProxy):
 
     @property
     def dtype(self) -> np.dtype:
-        longest = 0
-        for row in self._data:
-            longest_in_row = len(max(row, key=len))
-            if longest_in_row > longest:
-                longest = longest_in_row
-
+        longest = len(max(self._data[:].flat, key=len)) if self._data.size else 0
         return np.dtype(f'<U{longest}')

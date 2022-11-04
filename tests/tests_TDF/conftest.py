@@ -3,12 +3,13 @@
 # Author : matteo
 import pytest
 import numpy as np
-from h5py import File, string_dtype
+from vdata.h5pickle import File
+from h5py import string_dtype
 from pathlib import Path
 
 from vdata import TemporalDataFrame, BackedTemporalDataFrame
 from vdata.core.attribute_proxy.attribute import NONE_VALUE
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.read_write import read_TDF
 
 

@@ -7,12 +7,13 @@ import numpy as np
 # ====================================================
 # imports
 import pytest
-from h5py import File, string_dtype
+from vdata.h5pickle import File
+from h5py import string_dtype
 
 from vdata.core.dataset_proxy.dataset import DatasetProxy
 from vdata.core.dataset_proxy.dataset_1D import TPDatasetProxy1D
 from vdata.core.dataset_proxy.dataset_2D import NumDatasetProxy2D, StrDatasetProxy2D
-from vdata.name_utils import H5Mode
+from vdata.h5pickle.name_utils import H5Mode
 
 
 # ====================================================
@@ -81,5 +82,20 @@ def dataset_proxy(request, num_dataset, str_dataset) -> DatasetProxy:
 
 
 @pytest.fixture
-def dataset(num_dataset):
-    return DatasetProxy(num_dataset)
+def dataset(request, num_dataset, str_dataset, tp_dataset):
+    if hasattr(request, 'param'):
+        which = request.param
+
+    else:
+        which = 'num'
+
+    if which == 'num':
+        return DatasetProxy(num_dataset)
+
+    elif which == 'str':
+        return DatasetProxy(str_dataset)
+
+    elif which == 'tp':
+        return DatasetProxy(tp_dataset)
+
+    raise ValueError
