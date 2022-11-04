@@ -347,16 +347,6 @@ def test_subset_with_timepoints_rows_and_columns_shuffled(TDF1):
 
 @pytest.mark.parametrize(
     'TDF1',
-    ['backed', 'backed view'],
-    indirect=True
-)
-@pytest.mark.xfail(raises=TypeError)
-def test_subset_with_timepoints_rows_and_columns_shuffled_should_fail(TDF1):
-    repr(TDF1[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col2', 'col1', 'col3']])
-
-
-@pytest.mark.parametrize(
-    'TDF1',
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
@@ -424,16 +414,6 @@ def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1):
                                                ['204', '304'],
                                                ['200', '300'],
                                                ['202', '302']]))
-
-
-@pytest.mark.parametrize(
-    'TDF1',
-    ['backed', 'backed view'],
-    indirect=True
-)
-@pytest.mark.xfail(raises=TypeError)
-def test_subset_shuffled_index_should_fail(TDF1):
-    repr(TDF1[:, [4, 0, 2]])
 
 
 @pytest.mark.usefixtures('class_TDF1')

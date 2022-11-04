@@ -796,8 +796,9 @@ class BaseTemporalDataFrame(ABC):
             index_ = index_.astype(str)
 
         if with_timepoints is None:
+            self.values_num
             return pd.concat((pd.DataFrame(self.values_num if self.values_num.size else None,
-                                           index=index_, columns=self.columns_num[:]),
+                                           index=index_, columns=self.columns_num),
                               pd.DataFrame(self.values_str if self.values_str.size else None,
                                            index=index_, columns=self.columns_str[:])),
                              axis=1)

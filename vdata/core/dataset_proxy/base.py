@@ -466,17 +466,7 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
     def _getitem_core(self,
                       array: Dataset,
                       item: SELECTOR | tuple[SELECTOR, SELECTOR]) -> np.ndarray | _VT:
-        sel0, sel1 = self._valid_selectors(item)
-        selection = self._get(array, self._order(sel0), self._order(sel1))
-
-        if isinstance(selection, np.ndarray):
-            if selection.ndim == 1:
-                selection = selection[self._reorder(sel0)]
-
-            else:
-                selection = selection[self._reorder(sel0), self._reorder(sel1)]
-
-        return selection
+        return self._get(array, *self._valid_selectors(item))
 
     def __setitem__(self,
                     item: SELECTOR | tuple[SELECTOR, SELECTOR],
@@ -518,17 +508,24 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
              index_1: ACCESSOR | None = None) -> np.ndarray | _VT:
         index_0, index_1 = self._parse_index(index_0, 0), self._parse_index(index_1, 1)
 
+        index_0_ordered, index_1_ordered = self._order(index_0), self._order(index_1)
+
         # get whole array
-        if isinstance(index_0, slice) and index_0 == slice(None) \
-                and isinstance(index_1, slice) and index_1 == slice(None):
-            return array[:]
+        if isinstance(index_0_ordered, slice) and index_0_ordered == slice(None) \
+                and isinstance(index_1_ordered, slice) and index_1_ordered == slice(None):
+            return array[:][self._reorder(index_0_ordered), self._reorder(index_1_ordered)]
 
         # get value(s) in array
-        indexed_array = array[index_0]
-        if indexed_array.ndim == 1:
-            return indexed_array[index_1]
+        indexed_array = array[index_0_ordered]
+        if indexed_array.ndim == 2:
+            return indexed_array[self._reorder(index_0)][:, index_1_ordered][:, self._reorder(index_1)]
 
-        return indexed_array[:, index_1]
+        # no need to reorder index_0 here: if array is 1D, index_0 was only ONE value
+        indexed_array = indexed_array[index_1_ordered]
+        if isinstance(indexed_array, np.ndarray):
+            return indexed_array[self._reorder(index_1)]
+
+        return indexed_array
 
     def _set(self,
              array: Dataset,
