@@ -15,8 +15,8 @@ import pandas as pd
 import numpy as np
 from time import perf_counter
 from pathlib import Path
-from vdata.h5pickle import Dataset
-from vdata.h5pickle import Group
+from h5py import Dataset
+from h5py import Group
 from typing import Any, Callable, Collection, cast, Literal
 
 # This import is need when evaluating a string to get a type # fixme : is there a better way ?
@@ -547,6 +547,7 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode
     return read_TDF(group.group, mode=mode)
 
 
+# TODO : drop H5GroupReader class
 def read_h5_series(group: H5GroupReader, index: list | None = None, level: int = 1,
                    log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> pd.Series:
     """
