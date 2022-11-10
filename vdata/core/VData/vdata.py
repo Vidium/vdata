@@ -1711,7 +1711,7 @@ class VData:
                            var=view.var.to_pandas(),
                            varm={key: arr for key, arr in view.varm.items()},
                            varp={key: arr for key, arr in view.varp.items()},
-                           uns=view.uns)
+                           uns=view.uns.copy())
 
         else:
             generalLogger.debug("Convert to many AnnData objects.")
