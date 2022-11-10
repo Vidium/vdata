@@ -6,7 +6,12 @@
 # imports
 import pytest
 import numpy as np
+from h5py import File
+from tempfile import TemporaryFile
 
+from vdata.core.dataset_proxy import DatasetProxy
+from vdata.core.dataset_proxy.utils import auto_DatasetProxy
+from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import TimePoint
 
 
@@ -92,61 +97,80 @@ def test_str_dataset_proxy_can_be_cast_to_num(dataset_proxy):
     assert dataset_proxy.dtype == np.float64
 
 
-def test_can_add_inplace(dataset):
-    dataset += 1.5
+def test_can_add_inplace(dataset_proxy):
+    dataset_proxy += 1.5
 
-    assert dataset[0, 0] == 1.5
+    assert dataset_proxy[0, 0] == 1.5
 
 
-def test_can_add(dataset):
-    arr = dataset + 1.5
+def test_can_add(dataset_proxy):
+    arr = dataset_proxy + 1.5
 
     assert arr[0, 0] == 1.5
 
 
-def test_can_sub_inplace(dataset):
-    dataset -= 1.5
+def test_can_sub_inplace(dataset_proxy):
+    dataset_proxy -= 1.5
 
-    assert dataset[0, 0] == -1.5
+    assert dataset_proxy[0, 0] == -1.5
 
 
-def test_can_sub(dataset):
-    arr = dataset - 1.5
+def test_can_sub(dataset_proxy):
+    arr = dataset_proxy - 1.5
 
     assert arr[0, 0] == -1.5
 
 
-def test_can_mul_inplace(dataset):
-    dataset *= 2.5
+def test_can_mul_inplace(dataset_proxy):
+    dataset_proxy *= 2.5
 
-    assert dataset[0, 1] == 2.5
+    assert dataset_proxy[0, 1] == 2.5
 
 
-def test_can_mul(dataset):
-    arr = dataset * 2.5
+def test_can_mul(dataset_proxy):
+    arr = dataset_proxy * 2.5
 
     assert arr[0, 1] == 2.5
 
 
-def test_can_div_inplace(dataset):
-    dataset /= 2
+def test_can_div_inplace(dataset_proxy):
+    dataset_proxy /= 2
 
-    assert dataset[0, 1] == 0.5
+    assert dataset_proxy[0, 1] == 0.5
 
 
-def test_can_div(dataset):
-    arr = dataset / 2
+def test_can_div(dataset_proxy):
+    arr = dataset_proxy / 2
 
     assert arr[0, 1] == 0.5
 
 
-def test_should_subset_index_in_disorder(dataset):
-    view = dataset[[2, 4, 1]]
+def test_should_subset_index_in_disorder(dataset_proxy):
+    view = dataset_proxy[[2, 4, 1]]
 
     assert isinstance(view, np.ndarray)
 
 
-def test_subset_index_in_disorder_should_return_index_in_disorder(dataset):
-    view = dataset[[2, 4, 1]]
+def test_subset_index_in_disorder_should_return_index_in_disorder(dataset_proxy):
+    view = dataset_proxy[[2, 4, 1]]
 
     assert np.all(view[:, 0] == [10, 20, 5])
+
+
+def test_should_create_dataset_3D():
+    temp = TemporaryFile()
+
+    with File(temp, H5Mode.WRITE_TRUNCATE) as h5_file:
+        h5_file.create_dataset('data', data=np.arange(10 * 5 * 5).reshape((10, 5, 5)))
+        dataset = auto_DatasetProxy(h5_file['data'])
+
+        assert dataset.ndim == 3
+
+
+def test_should_create_dataset_proxy_from_3D_array(dataset_proxy_3d):
+    assert dataset_proxy_3d.ndim == 3
+
+
+def test_should_subset_dataset_proxy_from_3D_array(dataset_proxy_3d):
+    assert np.all(dataset_proxy_3d[1, 2:4, 2:4] == np.array([[37, 38],
+                                                             [42, 43]]))

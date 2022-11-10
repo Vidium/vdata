@@ -1,15 +1,17 @@
 # coding: utf-8
 # Created on 24/10/2022 10:40
 # Author : matteo
-from pathlib import Path
 
-import numpy as np
 # ====================================================
 # imports
 import pytest
-from vdata.h5pickle import File
+import numpy as np
+from pathlib import Path
 from h5py import string_dtype
+from tempfile import TemporaryFile
 
+from vdata.h5pickle import File
+from vdata.core.dataset_proxy.utils import auto_DatasetProxy
 from vdata.core.dataset_proxy.dataset import DatasetProxy
 from vdata.core.dataset_proxy.dataset_1D import TPDatasetProxy1D
 from vdata.core.dataset_proxy.dataset_2D import NumDatasetProxy2D, StrDatasetProxy2D
@@ -65,7 +67,7 @@ def tp_dataset() -> TPDatasetProxy1D:
 
 
 @pytest.fixture
-def dataset_proxy(request, num_dataset, str_dataset) -> DatasetProxy:
+def dataset_proxy(request, num_dataset, str_dataset, tp_dataset) -> DatasetProxy:
     if hasattr(request, 'param'):
         typ = request.param
 
@@ -78,24 +80,20 @@ def dataset_proxy(request, num_dataset, str_dataset) -> DatasetProxy:
     elif typ == 'str':
         return DatasetProxy(str_dataset)
 
+    elif typ == 'tp':
+        return DatasetProxy(tp_dataset)
+
     raise TypeError
 
 
 @pytest.fixture
-def dataset(request, num_dataset, str_dataset, tp_dataset):
-    if hasattr(request, 'param'):
-        which = request.param
+def dataset_proxy_3d() -> DatasetProxy:
+    temp = TemporaryFile()
 
-    else:
-        which = 'num'
+    h5_file = File(temp, H5Mode.WRITE_TRUNCATE)
+    h5_file.create_dataset('data', data=np.arange(10 * 5 * 5).reshape((10, 5, 5)))
+    dataset_proxy = DatasetProxy(auto_DatasetProxy(h5_file['data']))
 
-    if which == 'num':
-        return DatasetProxy(num_dataset)
+    yield dataset_proxy
 
-    elif which == 'str':
-        return DatasetProxy(str_dataset)
-
-    elif which == 'tp':
-        return DatasetProxy(tp_dataset)
-
-    raise ValueError
+    h5_file.close()

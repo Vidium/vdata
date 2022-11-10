@@ -46,12 +46,17 @@ def pickled_dataset(request, num_dataset, str_dataset, tp_dataset):
 
 
 @pytest.mark.parametrize(
-    'dataset',
+    'dataset_proxy',
     ['num', 'str', 'tp'],
     indirect=True
 )
-def test_should_pickle(dataset):
-    _ = pickle.dumps(dataset)
+def test_should_pickle(dataset_proxy):
+    _ = pickle.dumps(dataset_proxy)
+
+
+@pytest.mark.xfail
+def test_dataset_3D_pickle_should_fail(dataset_proxy_3d):
+    _ = pickle.dumps(dataset_proxy_3d)
 
 
 @pytest.mark.parametrize(

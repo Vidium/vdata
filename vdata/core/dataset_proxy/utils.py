@@ -26,7 +26,7 @@ def is_str_dtype(dtype) -> bool:
 
 def auto_DatasetProxy(dataset: Dataset,
                       view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None,
-                      dtype: DATASET_DTYPE | None = None) -> BaseDatasetProxy:
+                      dtype: DATASET_DTYPE | None = None) -> BaseDatasetProxy | np.ndarray:
     """
     Get a DatasetProxy of the correct type for the dataset.
     /!\ Works only for numeric and string datasets, datasets of custom objects are not handled.
@@ -47,8 +47,11 @@ def auto_DatasetProxy(dataset: Dataset,
         else:
             dtype = dataset.dtype
 
+    if dataset.ndim == 0:
+        raise TypeError('Datasets of dimension 0 are not handled.')
+
     # create a dataset proxy of the correct type
-    if dataset.ndim == 1:
+    elif dataset.ndim == 1:
         if is_str_dtype(dataset.dtype):
             if np.issubdtype(dtype, np.number):
                 raise NotImplementedError('Conversion (str --> num) not supported yet.')
@@ -96,4 +99,6 @@ def auto_DatasetProxy(dataset: Dataset,
             else:
                 raise TypeError
 
-    raise TypeError('Datasets of dimension 0 or greater than 2 are not handled.')
+    else:
+        # FIXME : temporary solution for 3+ dimensional arrays: load them all in RAM as numpy arrays
+        return dataset[:]
