@@ -49,7 +49,7 @@ def concatenate(arr: Sequence['VData'],
     _varm = first_VData.varm.dict_copy()
     _varp = first_VData.varp.dict_copy()
     _timepoints = first_VData.timepoints
-    _uns = first_VData.uns
+    _uns = first_VData.uns.copy()
 
     # concatenate with data in other VData objects
     for next_VData_index, next_VData in enumerate(arr[1:]):

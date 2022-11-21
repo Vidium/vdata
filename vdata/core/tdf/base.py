@@ -924,7 +924,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
     """
     Abstract base class for non-views of TemporalDataFrames.
     """
-    _attributes = ('name', 'index', 'columns_num', 'columns_str', 'values_num', 'values_str',
+    _attributes = ('name', 'index', 'columns', 'columns_num', 'columns_str', 'values_num', 'values_str',
                    '_numerical_array', '_string_array', '_index', '_columns_numerical',
                    '_columns_string', '_timepoints_array')
 
@@ -1339,6 +1339,9 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
         if not self.timepoints_column_name == other.timepoints_column_name:
             raise ValueError("Cannot merge TemporalDataFrames with different 'timepoints_column_name'.")
 
+        if self.has_repeating_index is not other.has_repeating_index:
+            raise ValueError('Cannot merge TemporalDataFrames if one has repeating index while the other has not.')
+
         if self.empty:
             combined_index = np.array([])
             for tp in self.time_points:
@@ -1368,6 +1371,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
             _time_list = None
 
         return dataframe.TemporalDataFrame(data=_data,
+                                           repeating_index=self.has_repeating_index,
                                            columns_numerical=self.columns_num[:],
                                            columns_string=self.columns_str[:],
                                            time_list=_time_list,

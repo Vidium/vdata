@@ -402,10 +402,9 @@ def read_VData(file: Path | str,
 
         return new_VData
 
-    except Exception as e:
+    except Exception:
         importFile.close()
-
-        raise e
+        raise
 
 
 read = read_VData
