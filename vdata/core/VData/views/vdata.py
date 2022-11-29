@@ -433,7 +433,7 @@ class ViewVData:
     def cells(self, df: Union['TemporalDataFrame', 'TemporalDataFrameView']) -> None:
         self.obs = df
 
-    @property                                                                           # type: ignore
+    @property
     def genes(self) -> ViewVDataFrame:
         """
         Alias for the var attribute.

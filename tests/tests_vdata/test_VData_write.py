@@ -95,3 +95,13 @@ def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
     v.write(tmp_file.name)
 
     assert isinstance(v.uns['test'], DatasetProxy)
+
+
+def test_backed_VData_new_layer_should_be_backed():
+    output_dir = Path(__file__).parent.parent / 'ref'
+    VData = vdata.read(output_dir / "vdata.vd", 'r+')
+
+    VData.layers['data_copy'] = VData.layers['data'].copy()
+    VData.layers['data_copy'][:] = 100
+
+    assert VData.layers['data_copy'].is_backed

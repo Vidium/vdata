@@ -21,7 +21,8 @@ from vdata.time_point import TimePoint
 from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError, \
     VClosedFileError, VReadOnlyError
 from vdata.h5pickle import File, Group
-
+from vdata.read_write import read_TDF
+from ...h5pickle.name_utils import H5Mode
 
 # ====================================================
 # code
@@ -559,12 +560,14 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 
         value_copy.lock_indices()
         value_copy.lock_columns()
-        super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
             if key not in self._parent.file['layers'].keys():
                 self._parent.file['layers'].create_group(key)
             value_copy.write(self._parent.file['layers'][key].group)
+            value_copy = read_TDF(self._parent.file['layers'][key].group, mode=H5Mode.READ_WRITE)
+
+        super().__setitem__(key, value_copy)
 
     @property
     def name(self) -> Literal['layers']:
