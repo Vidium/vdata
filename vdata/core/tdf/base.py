@@ -725,7 +725,7 @@ class BaseTemporalDataFrame(ABC):
 
         elif axis == 1:
             return dataframe.TemporalDataFrame(data=pd.DataFrame(
-                getattr(np, func)([self.values_num[self.get_timepoint_mask(tp)] for tp in self.timepoints], axis=1),
+                [getattr(np, func)(self.values_num[self.get_timepoint_mask(tp)], axis=0) for tp in self.timepoints],
                 index=[func for _ in enumerate(self.timepoints)],
                 columns=self.columns_num[:]
             ),
