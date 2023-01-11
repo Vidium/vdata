@@ -462,6 +462,9 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
             return slice(None, None, step)
 
         elif isinstance(accessor, np.ndarray):
+            if accessor.size == 0:
+                return accessor
+
             return npi.indices(sorted(accessor), accessor)
 
         return accessor
