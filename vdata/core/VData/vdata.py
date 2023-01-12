@@ -619,7 +619,7 @@ class VData:
         self.var.index = values
 
         for df in self.varm.values():
-            df.columns = values
+            df.index = values
 
         self.varp.set_index(values)
 
