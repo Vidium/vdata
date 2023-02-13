@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Sized
 
 from typing import Iterable, TypeVar, Collection, Union, Any, Generic, Type
-from typing_extensions import Self
 
 from vdata.time_point import TimePoint
 from vdata.utils import isCollection
@@ -39,7 +38,7 @@ class BaseDatasetProxy(Sized, Generic[_VT]):
 
     # region magic methods
     def __init__(self,
-                 dataset: Dataset | Self,
+                 dataset: Dataset | BaseDatasetProxy,
                  view_on: np.ndarray | tuple[np.ndarray, np.ndarray] | None = None):
         self._data = dataset.data if isinstance(dataset, BaseDatasetProxy) else dataset
         self._view_on = view_on
@@ -75,7 +74,7 @@ class BaseDatasetProxy(Sized, Generic[_VT]):
 
     @abstractmethod
     def __iadd__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> BaseDatasetProxy:
         pass
 
     def __eq__(self,
@@ -150,7 +149,7 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         return self._getitem_core(self._data, item)
 
     def __iadd__(self,
-                 value: _NumT) -> Self:
+                 value: _NumT) -> _NumDatasetProxy:
         new_values = self._get(self._data) + value
         self._set(self._data, new_values)
         return self
@@ -160,7 +159,7 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         return self._get(self._data) + value
 
     def __isub__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> _NumDatasetProxy:
         new_values = self._get(self._data) - value
         self._set(self._data, new_values)
         return self
@@ -170,7 +169,7 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         return self._get(self._data) - value
 
     def __imul__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> _NumDatasetProxy:
         new_values = self._get(self._data) * value
         self._set(self._data, new_values)
         return self
@@ -180,7 +179,7 @@ class _NumDatasetProxy(ABC, BaseDatasetProxy, Generic[_NumT]):
         return self._get(self._data) * value
 
     def __itruediv__(self,
-                     value: _VT) -> Self:
+                     value: _VT) -> _NumDatasetProxy:
         new_values = self._get(self._data) / value
         self._set(self._data, new_values)
         return self
@@ -214,7 +213,7 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
 
     # region magic methods
     def __init__(self,
-                 dataset: Dataset | Self,
+                 dataset: Dataset | _StrDatasetProxy,
                  view_on: tuple[np.ndarray, np.ndarray] | None = None):
         super().__init__(dataset, view_on)
 
@@ -230,7 +229,7 @@ class _StrDatasetProxy(ABC, BaseDatasetProxy, Generic[_StrT]):
         return str(subset)
 
     def __iadd__(self,
-                 value: str) -> Self:
+                 value: str) -> _StrDatasetProxy:
         new_values = self._get(self._data_str) + value
         self._set(self._data, new_values)
         return self
@@ -274,7 +273,7 @@ class _TPDatasetProxy(ABC, BaseDatasetProxy, Generic[_TimePointT]):
 
         return TimePoint(subset.decode())
 
-    def __iadd__(self, value: TimePoint) -> Self:
+    def __iadd__(self, value: TimePoint) -> _TPDatasetProxy:
         raise NotImplemented
 
     # endregion
@@ -310,7 +309,7 @@ class _Dataset1DMixin(ABC, BaseDatasetProxy):
 
     # region magic methods
     def __init__(self,
-                 dataset: Dataset | Self,
+                 dataset: Dataset | _Dataset1DMixin,
                  view_on: tuple[np.ndarray, np.ndarray] | None = None):
         super().__init__(dataset, view_on)
 
@@ -408,7 +407,7 @@ class _Dataset2DMixin(ABC, BaseDatasetProxy):
 
     # region magic methods
     def __init__(self,
-                 dataset: Dataset | Self,
+                 dataset: Dataset | _Dataset2DMixin,
                  view_on: tuple[np.ndarray, np.ndarray] | None = None):
         super().__init__(dataset, view_on)
 

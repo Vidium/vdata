@@ -9,7 +9,6 @@ from __future__ import annotations
 from abc import abstractmethod
 
 import numpy as np
-from typing_extensions import Self
 
 from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf.meta import CheckH5File
@@ -27,7 +26,7 @@ class BackedMixin(BaseTemporalDataFrame, metaclass=CheckH5File):
 
     # region magic methods
     def _iadd_str(self,
-                  value: str) -> Self:
+                  value: str) -> BackedMixin:
         """Inplace modification of the string values."""
         self.dataset_str += value
         return self

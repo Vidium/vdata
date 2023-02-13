@@ -6,16 +6,14 @@
 # imports
 from __future__ import annotations
 
-from functools import wraps
-from typing import Any, Generic, Type
-
 import numpy as np
+from functools import wraps
 from collections.abc import Sized
 from vdata.h5pickle import Dataset
 from vdata.h5pickle import File
 from h5py import string_dtype
 
-from typing_extensions import Self
+from typing import Any, Generic, Type
 
 from vdata.time_point import TimePoint
 from vdata.core.dataset_proxy.base import BaseDatasetProxy, SELECTOR, _VT, DATASET_DTYPE
@@ -90,25 +88,25 @@ class DatasetProxy(Sized, Generic[_VT]):
 
     @cast_int_to_float
     def __iadd__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> DatasetProxy:
         self._proxy += value
         return self
 
     @cast_int_to_float
     def __isub__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> DatasetProxy:
         self._proxy -= value
         return self
 
     @cast_int_to_float
     def __imul__(self,
-                 value: _VT) -> Self:
+                 value: _VT) -> DatasetProxy:
         self._proxy *= value
         return self
 
     @cast_int_to_float
     def __itruediv__(self,
-                     value: _VT) -> Self:
+                     value: _VT) -> DatasetProxy:
         self._proxy /= value
         return self
 

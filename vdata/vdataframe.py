@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from pandas._typing import Axes, Dtype
 
-from typing_extensions import Literal
+from typing import Literal
 
 from .IO import VTypeError, VValueError
 from .h5pickle import File, Group
