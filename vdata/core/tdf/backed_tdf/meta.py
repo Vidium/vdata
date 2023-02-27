@@ -5,10 +5,9 @@
 # ====================================================
 # imports
 from abc import ABCMeta
+from ch5mpy import H5Mode
 
 from typing import TYPE_CHECKING
-
-from vdata.h5pickle.name_utils import H5Mode
 
 if TYPE_CHECKING:
     from vdata.core.tdf.base import BaseTemporalDataFrame

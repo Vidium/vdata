@@ -7,21 +7,21 @@
 import os
 import shutil
 import numpy as np
+from ch5mpy import File
+from ch5mpy import Group
+from ch5mpy import Dataset
 from pathlib import Path
 
-from typing import Union, Optional
-
-from .write import write_data
-from ..time_point import TimePoint
-from ..IO import generalLogger
-from ..h5pickle import File, Group, Dataset
+from vdata.IO import generalLogger
+from vdata.time_point import TimePoint
+from vdata.read_write.write import write_data
 
 
 # ====================================================
 # code
-def convert_anndata_to_vdata(file: Union[Path, str],
-                             time_point: Union[int, float, str, TimePoint] = '0h',
-                             time_column_name: Optional[str] = None,
+def convert_anndata_to_vdata(file: Path | str,
+                             time_point: int | float | str | TimePoint = '0h',
+                             time_column_name: str | None = None,
                              inplace: bool = False) -> None:
     """
     Convert an anndata h5 file into a valid vdata h5 file.
@@ -46,6 +46,7 @@ def convert_anndata_to_vdata(file: Union[Path, str],
         os.rename(file, working_on_file)
 
     # reformat copied file
+    # FIXME : redo with H5Dict
     h5_file = File(working_on_file, mode='a')
 
     # -------------------------------------------------------------------------

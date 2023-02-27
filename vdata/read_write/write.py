@@ -22,13 +22,10 @@ from functools import singledispatch
 from typing import TYPE_CHECKING
 
 import vdata
-from vdata.core.backed_dict import BackedDict
-from vdata.h5pickle.name_utils import H5Mode
-from vdata.read_write.utils import parse_path, H5GroupReader
+from vdata.read_write.utils import parse_path
 from vdata.vdataframe import VDataFrame, ViewVDataFrame
 from vdata.IO import generalLogger, VPathError, VValueError
 from vdata.core.tdf.name_utils import DEFAULT_TIME_POINTS_COL_NAME, H5Data
-from vdata.h5pickle import H5Group, File
 from vdata.core.attribute_proxy.attribute import NONE_VALUE
 from vdata.core.tdf.base import BaseTemporalDataFrame
 
@@ -359,10 +356,10 @@ def write_data(data,
 
 
 @write_data.register(dict)
-@write_data.register(BackedDict)
+# @write_data.register(BackedDict)
 @write_data.register(anndata.compat.OverloadedDict)
-def write_Dict(data: dict | BackedDict | anndata.compat.OverloadedDict,
-               group: H5Group,
+def write_Dict(data: dict | anndata.compat.OverloadedDict,
+               group,                                                   # FIXME : H5Group
                key: str,
                key_level: int = 0,
                progress: tqdm | None = None) -> None:
@@ -387,7 +384,7 @@ def write_Dict(data: dict | BackedDict | anndata.compat.OverloadedDict,
 @write_data.register(VDataFrame)
 @write_data.register(pd.DataFrame)
 def write_VDataFrame(data: VDataFrame | pd.DataFrame,
-                     group: H5Group,
+                     group,                                                 # FIXME : H5Group
                      key: str,
                      key_level: int = 0,
                      progress: tqdm | None = None) -> None:
@@ -431,7 +428,7 @@ def write_VDataFrame(data: VDataFrame | pd.DataFrame,
 
 @write_data.register(ViewVDataFrame)
 def write_ViewVDataFrame(data: ViewVDataFrame,
-                         group: H5Group,
+                         group,                                                 # FIXME : H5Group
                          key: str,
                          key_level: int = 0,
                          progress: tqdm | None = None) -> None:
@@ -444,7 +441,7 @@ def write_ViewVDataFrame(data: ViewVDataFrame,
 
 @write_data.register(BaseTemporalDataFrame)
 def write_TemporalDataFrame(data: BaseTemporalDataFrame,
-                            group: H5Group,
+                            group,                                                  # FIXME : H5Group
                             key: str,
                             key_level: int = 0,
                             progress: tqdm | None = None) -> None:
@@ -458,7 +455,7 @@ def write_TemporalDataFrame(data: BaseTemporalDataFrame,
 @write_data.register(pd.Series)
 @write_data.register(pd.Index)
 def write_series(series: pd.Series | pd.Index,
-                 group: H5Group,
+                 group,                                             # FIXME : H5Group
                  key: str,
                  key_level: int = 0,
                  progress: tqdm | None = None,
@@ -508,7 +505,7 @@ def write_series(series: pd.Series | pd.Index,
 
 @write_data.register
 def write_array(data: np.ndarray,
-                group: H5Group,
+                group,                                                      # FIXME : H5Group
                 key: str,
                 key_level: int = 0,
                 progress: tqdm = None) -> None:
@@ -530,7 +527,7 @@ def write_array(data: np.ndarray,
 
 @write_data.register
 def write_sparse_matrix(data: sp.spmatrix,
-                        group: H5Group,
+                        group,                                                  # FIXME : H5Group
                         key: str,
                         key_level: int = 0,
                         progress: tqdm = None) -> None:
@@ -549,7 +546,7 @@ def write_sparse_matrix(data: sp.spmatrix,
 
 @write_data.register(list)
 def write_list(data: list,
-               group: H5Group,
+               group,                                                       # FIXME : H5Group
                key: str,
                key_level: int = 0,
                progress: tqdm = None) -> None:
@@ -572,7 +569,7 @@ def write_list(data: list,
 @write_data.register(bool)
 @write_data.register(np.bool_)
 def write_single_value(data: str | np.str_ | int | np.integer | float | np.floating | bool | np.bool_,
-                       group: H5Group,
+                       group,                                                       # FIXME : H5Group
                        key: str,
                        key_level: int = 0,
                        progress: tqdm | None = None) -> None:
@@ -589,7 +586,7 @@ def write_single_value(data: str | np.str_ | int | np.integer | float | np.float
 
 @write_data.register
 def write_Type(data: type,
-               group: H5Group,
+               group,                                                           # FIXME : H5Group
                key: str,
                key_level: int = 0,
                progress: tqdm = None) -> None:
@@ -606,7 +603,7 @@ def write_Type(data: type,
 
 @write_data.register
 def write_Path(data: Path,
-               group: H5Group,
+               group,                                                           # FIXME : H5Group
                key: str,
                key_level: int = 0,
                progress: tqdm = None) -> None:
@@ -623,7 +620,7 @@ def write_Path(data: Path,
 
 @write_data.register
 def write_None(_: None,
-               group: H5Group,
+               group,                                                           # FIXME : H5Group
                key: str,
                key_level: int = 0,
                progress: tqdm = None) -> None:

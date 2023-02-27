@@ -12,12 +12,13 @@ from typing import Optional, Collection, Sequence, Union
 
 import numpy as np
 import pandas as pd
+from ch5mpy import File
+from ch5mpy import Group
 from pandas._typing import Axes, Dtype
 
 from typing import Literal
 
 from .IO import VTypeError, VValueError
-from .h5pickle import File, Group
 
 
 # ====================================================

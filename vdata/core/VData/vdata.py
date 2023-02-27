@@ -9,10 +9,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from pathlib import Path
-# from sys import getsizeof
 from anndata import AnnData
 from scipy.sparse import spmatrix
-from pympler.asizeof import asizeof
 
 from typing import Optional, Union, Any, TypeVar, Collection, Iterator, Sequence, cast, Literal
 
@@ -21,9 +19,9 @@ from vdata.core.VData.utils import array_isin
 from vdata.core.VData.arrays import VLayerArrayContainer, VObsmArrayContainer, VObspArrayContainer, VVarmArrayContainer, \
     VVarpArrayContainer
 from vdata.core.VData.views import ViewVData
-from vdata.core.backed_dict import BackedDict
 from vdata.core.name_utils import PreSlicer
 from vdata.core.tdf.base import BaseTemporalDataFrame
+from vdata.core.tdf.name_utils import H5Data
 from vdata.core.utils import reformat_index, to_tp_list, match_timepoints, repr_index, list_to_tp_list_strict
 from vdata.core.tdf import TemporalDataFrame
 from vdata.core.tdf.name_utils import DEFAULT_TIME_POINTS_COL_NAME
@@ -32,7 +30,7 @@ from vdata.utils import repr_array, deep_dict_convert
 from vdata.time_point import TimePoint
 from vdata.IO import generalLogger, VTypeError, IncoherenceError, VValueError, ShapeError, VClosedFileError, \
     VReadOnlyError
-from vdata.read_write import write_vdata, write_vdata_to_csv, H5GroupReader
+from vdata.read_write import write_vdata, write_vdata_to_csv
 from vdata.vdataframe import VDataFrame
 
 DF = TypeVar('DF', bound=DataFrame)
@@ -64,7 +62,7 @@ class VData:
                  time_list: Optional[Sequence[Union[str, TimePoint]]] = None,
                  dtype: Optional[Union['DType', 'StrDType']] = None,
                  name: Optional[Any] = None,
-                 file: Optional[H5GroupReader] = None,
+                 file: H5Data | None = None,
                  no_check: bool = False):
         """
         Args:

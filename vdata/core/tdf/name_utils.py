@@ -5,11 +5,12 @@
 # ====================================================
 # imports
 import numpy as np
+from ch5mpy import File
+from ch5mpy import Group
 from numbers import Number
-from vdata.h5pickle import File
-from vdata.h5pickle import Group
 
-from typing import Union, Collection
+from typing import Union
+from typing import Collection
 
 from vdata.time_point import TimePoint
 

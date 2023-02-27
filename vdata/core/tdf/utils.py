@@ -13,7 +13,7 @@ from numbers import Number
 
 from typing import Any, Type, TYPE_CHECKING
 
-from vdata.h5pickle import Dataset
+from ch5mpy import Dataset
 
 from .name_utils import SLICER
 from vdata.utils import repr_array, isCollection

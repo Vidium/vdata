@@ -7,10 +7,8 @@
 import pytest
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
-from vdata import TemporalDataFrame, TimePoint
-from vdata.h5pickle.name_utils import H5Mode
+from vdata import TemporalDataFrame
 from vdata.time_point import mean as tp_mean
 
 

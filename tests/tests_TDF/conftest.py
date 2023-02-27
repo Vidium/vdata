@@ -3,13 +3,13 @@
 # Author : matteo
 import pytest
 import numpy as np
-from vdata.h5pickle import File
+from ch5mpy import File
+from ch5mpy import H5Mode
 from h5py import string_dtype
 from pathlib import Path
 
 from vdata import TemporalDataFrame, BackedTemporalDataFrame
 from vdata.core.attribute_proxy.attribute import NONE_VALUE
-from vdata.h5pickle.name_utils import H5Mode
 from vdata.read_write import read_TDF
 
 
@@ -57,8 +57,10 @@ def get_backed_TDF(name: str = '1') -> BackedTemporalDataFrame:
         h5_file.create_dataset('index', data=REFERENCE_BACKED_DATA['index'])
         h5_file.create_dataset('columns_numerical', data=REFERENCE_BACKED_DATA['columns_numerical'],
                                chunks=True, maxshape=(None,), dtype=string_dtype())
+        h5_file['columns_numerical'].attrs['dtype'] = '<U4'
         h5_file.create_dataset('columns_string', data=REFERENCE_BACKED_DATA['columns_string'],
                                chunks=True, maxshape=(None,), dtype=string_dtype())
+        h5_file['columns_string'].attrs['dtype'] = '<U4'
         h5_file.create_dataset('timepoints', data=REFERENCE_BACKED_DATA['timepoints'], dtype=string_dtype())
 
         h5_file.create_dataset('values_numerical', data=REFERENCE_BACKED_DATA['values_numerical'],
@@ -66,12 +68,13 @@ def get_backed_TDF(name: str = '1') -> BackedTemporalDataFrame:
 
         h5_file.create_dataset('values_string', data=REFERENCE_BACKED_DATA['values_string'], dtype=string_dtype(),
                                chunks=True, maxshape=(None, None))
+        h5_file['values_string'].attrs['dtype'] = '<U4'
 
     # read tdf from file
     return read_TDF('backed_TDF_' + name, mode=H5Mode.READ_WRITE)
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def TDF(request) -> TemporalDataFrame:
     if hasattr(request, 'param'):
         which = request.param

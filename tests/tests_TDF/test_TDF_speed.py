@@ -1,21 +1,21 @@
 # coding: utf-8
 # Created on 06/04/2022 12:04
 # Author : matteo
-import cProfile
-from pathlib import Path
+
 # ====================================================
 # imports
 from time import perf_counter
 
 import numpy as np
 import pytest
-from vdata.h5pickle import File
+from ch5mpy import File
+from ch5mpy import H5Mode
+from pathlib import Path
 from h5py import string_dtype
 
 from vdata import TemporalDataFrame, read_TDF
 from vdata.core.attribute_proxy.attribute import NONE_VALUE
 from vdata.core.tdf.base import BaseTemporalDataFrame
-from vdata.h5pickle.name_utils import H5Mode
 
 # ====================================================
 # code

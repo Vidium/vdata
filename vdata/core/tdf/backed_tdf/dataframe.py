@@ -10,14 +10,14 @@ from itertools import chain
 
 import numpy as np
 import numpy_indexed as npi
+from ch5mpy import H5Mode
+from ch5mpy import H5Dict
 from numbers import Number
 
 from typing import Collection, Iterable
 
 from vdata.IO import VLockError
-from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import TimePoint
-from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf._parse import parse_data_h5
 from vdata.core.tdf.backed_tdf.base import BackedMixin
 from vdata.core.tdf.backed_tdf.view import BackedTemporalDataFrameView
@@ -57,17 +57,15 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         super().__init__()
 
         # parse h5 file
-        _numerical_array, _string_array, _index, _columns_numerical, _columns_string, _timepoints_array, _attributes \
-            = parse_data_h5(data, lock, name)
+        self._file = H5Dict(data)
+        self._attributes = parse_data_h5(data, lock, name)
 
-        self._file = data
-        self._numerical_array = _numerical_array
-        self._string_array = _string_array
-        self._index = _index
-        self._columns_numerical = _columns_numerical
-        self._columns_string = _columns_string
-        self._timepoints_array = _timepoints_array
-        self._attributes = _attributes
+        self._numerical_array = self._file["values_numerical"]
+        self._string_array = self._file["values_string"]
+        self._index = self._file["index"]
+        self._columns_numerical = self._file["columns_numerical"]
+        self._columns_string = self._file["columns_string"]
+        self._timepoints_array = self._file["timepoints"].maptype(TimePoint)
 
     def __repr__(self) -> str:
         if self.is_closed:
@@ -251,7 +249,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         """
         Get the list of unique time points in this TemporalDataFrame.
         """
-        return self._timepoints_array.unique()
+        return np.unique(self._timepoints_array)
 
     @property
     def timepoints_column(self) -> np.array:
@@ -360,7 +358,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         """
         Is the h5 file (this TemporalDataFrame is backed on) closed ?
         """
-        return not self._file.file.id.valid
+        return self._file.is_closed
 
     # endregion
 
@@ -376,7 +374,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         Returns:
             A boolean mask for rows matching the time-point.
         """
-        return self._timepoints_array.is_equal(timepoint)
+        return self._timepoints_array == timepoint
 
     def lock_indices(self) -> None:
         self._attributes['locked_indices'] = True

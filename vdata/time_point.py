@@ -131,6 +131,9 @@ class TimePoint(metaclass=PrettyRepr):
             unit: an Optional string representing a unit, in ('s', 'm', 'h', 'D', 'M', 'Y').
                 /!\\ Overrides the unit defined in 'value' if 'value' is a string or a TimePoint.
         """
+        if isinstance(value, bytes):
+            value = value.decode()
+
         if isinstance(value, TimePoint):
             self.value: float = value.value
             self.unit: Unit = value.unit if unit is None else Unit(unit)

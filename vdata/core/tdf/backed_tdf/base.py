@@ -6,14 +6,14 @@
 # imports
 from __future__ import annotations
 
+from ch5mpy import H5Mode
+from ch5mpy import H5Array
 from abc import abstractmethod
 
 import numpy as np
 
-from vdata.core.dataset_proxy import DatasetProxy
 from vdata.core.tdf.backed_tdf.meta import CheckH5File
 from vdata.core.tdf.base import BaseTemporalDataFrame
-from vdata.h5pickle.name_utils import H5Mode
 
 
 # ====================================================
@@ -40,21 +40,21 @@ class BackedMixin(BaseTemporalDataFrame, metaclass=CheckH5File):
         """Get the mode the h5 file was opened with."""
 
     @property
-    def dataset_num(self) -> DatasetProxy:
+    def dataset_num(self) -> H5Array:
         """Get the numerical data as a dataset proxy for efficient computations."""
         return self._numerical_array
 
     @dataset_num.setter
-    def dataset_num(self, value: np.ndarray | DatasetProxy):
+    def dataset_num(self, value: np.ndarray | H5Array):
         self.values_num = value
 
     @property
-    def dataset_str(self) -> DatasetProxy:
+    def dataset_str(self) -> H5Array:
         """Get the string data as a dataset proxy for efficient computations."""
         return self._string_array
 
     @dataset_str.setter
-    def dataset_str(self, value: np.ndarray | DatasetProxy):
+    def dataset_str(self, value: np.ndarray | H5Array):
         self.values_str = value
 
     # endregion

@@ -7,8 +7,12 @@
 import os
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
+from ch5mpy import File
+from ch5mpy import Group
+from ch5mpy import H5Mode
 from pathlib import Path
+from abc import ABC, abstractmethod
+
 from typing import Optional, Union, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, Collection, \
     Generic, Literal
 
@@ -20,9 +24,7 @@ from vdata.name_utils import DType
 from vdata.time_point import TimePoint
 from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError, \
     VClosedFileError, VReadOnlyError
-from vdata.h5pickle import File, Group
 from vdata.read_write import read_TDF
-from ...h5pickle.name_utils import H5Mode
 
 # ====================================================
 # code

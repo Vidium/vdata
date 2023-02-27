@@ -22,7 +22,8 @@ def test_convert_without_timepoints(TDF):
 
     nb_col = 1 if TDF.is_view else 2
 
-    assert np.all(df.values[:, :nb_col] == TDF.values_num) and np.all(TDF.values_str == df.values[:, nb_col:])
+    assert np.all(df.values[:, :nb_col] == TDF.values_num)
+    assert np.all(TDF.values_str == df.values[:, nb_col:])
 
 
 @pytest.mark.parametrize(
@@ -67,5 +68,7 @@ def test_modifying_copy_does_not_modify_original(TDF):
     copy = TDF.copy()
 
     copy[:, :, 'col1'] = -1
+    cp_values = copy.values_num[:, 0]
+    tdf_values = TDF.values_num[:, 0]
 
-    assert np.sum(copy.values_num[:, 0] == TDF.values_num[:, 0]) == 0
+    assert np.sum(cp_values == tdf_values) == 0

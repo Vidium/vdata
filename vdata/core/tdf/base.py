@@ -7,18 +7,17 @@
 from __future__ import annotations
 
 import re
-
 import numpy as np
 import pandas as pd
 import numpy_indexed as npi
+from ch5mpy import File
+from ch5mpy import H5Mode
+from ch5mpy import H5Array
 from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
 
-from typing import TYPE_CHECKING, Any, Collection, Literal, Iterable, Type, NoReturn
-from typing_extensions import Self
-
-from vdata.h5pickle import File
+from typing import TYPE_CHECKING, Any, Collection, Literal, Iterable, NoReturn
 
 from vdata.core.tdf import dataframe, indexer
 from vdata.core.tdf.utils import parse_slicer, parse_values
@@ -26,12 +25,10 @@ from vdata.core.tdf.name_utils import SLICER, H5Data, DEFAULT_TIME_POINTS_COL_NA
 from vdata.utils import are_equal, repr_array
 from vdata.time_point import TimePoint, mean as tp_mean
 from vdata.IO import VLockError
-from vdata.h5pickle.name_utils import H5Mode
 
 if TYPE_CHECKING:
     from vdata.core.tdf.dataframe import TemporalDataFrame
     from vdata.core.tdf.indexer import VAtIndexer, ViAtIndexer, VLocIndexer, ViLocIndexer
-    from vdata.core.dataset_proxy import DatasetProxy
 
 
 # ====================================================
@@ -151,13 +148,13 @@ class BaseTemporalDataFrame(ABC):
         return self.__add__(value)
 
     def _iadd_str(self,
-                  value: str) -> Self:
+                  value: str) -> BaseTemporalDataFrame:
         """Inplace modification of the string values."""
         self.values_str = np.char.add(self.values_str, value)
         return self
 
     def __iadd__(self,
-                 value: Number | np.number | str | BaseTemporalDataFrame) -> Self:
+                 value: Number | np.number | str | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -270,7 +267,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__sub__(value)
 
     def __isub__(self,
-                 value: Number | np.number | BaseTemporalDataFrame) -> Self:
+                 value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -298,7 +295,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__mul__(value)
 
     def __imul__(self,
-                 value: Number | np.number | BaseTemporalDataFrame) -> Self:
+                 value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -326,7 +323,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__truediv__(value)
 
     def __itruediv__(self,
-                     value: Number | np.number | BaseTemporalDataFrame) -> Self:
+                     value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -348,7 +345,6 @@ class BaseTemporalDataFrame(ABC):
             for attr in ['timepoints_column_name', 'has_locked_indices', 'has_locked_columns', 'columns',
                          'timepoints_column', 'index', 'values_num', 'values_str']:
                 if not are_equal(getattr(self, attr), getattr(other, attr)):
-                    print(attr)
                     return False
 
             return True
@@ -445,7 +441,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def index(self) -> np.ndarray | DatasetProxy:
+    def index(self) -> np.ndarray | H5Array:
         """
         Get the index across all time-points.
         """
@@ -459,7 +455,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def columns_num(self) -> np.ndarray | DatasetProxy:
+    def columns_num(self) -> np.ndarray | H5Array:
         """
         Get the list of column names for numerical data.
         """
@@ -473,7 +469,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def columns_str(self) -> np.ndarray | DatasetProxy:
+    def columns_str(self) -> np.ndarray | H5Array:
         """
         Get the list of column names for string data.
         """
@@ -490,7 +486,7 @@ class BaseTemporalDataFrame(ABC):
         """
         Get the list of all column names.
         """
-        return np.concatenate((self.columns_num[:], self.columns_str[:]))
+        return np.concatenate((self.columns_num, self.columns_str))
 
     @property
     def n_columns(self) -> int:
@@ -506,7 +502,7 @@ class BaseTemporalDataFrame(ABC):
     @values_num.setter
     @abstractmethod
     def values_num(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: np.ndarray | H5Array) -> None:
         """
         Set the numerical data.
         """
@@ -521,7 +517,7 @@ class BaseTemporalDataFrame(ABC):
     @values_str.setter
     @abstractmethod
     def values_str(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: np.ndarray | H5Array) -> None:
         """
         Set the string data.
         """
@@ -531,7 +527,7 @@ class BaseTemporalDataFrame(ABC):
         """
         Get all the data (num and str concatenated).
         """
-        return np.hstack((self.values_num.astype(object), self.values_str.astype(object)))
+        return np.hstack((self.values_num.astype(object), self.values_str))
 
     @property
     def tp0(self) -> TimePoint:
@@ -791,6 +787,7 @@ class BaseTemporalDataFrame(ABC):
                 or 'numerical'). (default: 'string')
             str_index: cast index as string ?
         """
+        # FIXME
         index_ = self.index[:]
         if str_index:
             index_ = index_.astype(str)
@@ -1004,7 +1001,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
 
     @property
     @abstractmethod
-    def index(self) -> np.ndarray | DatasetProxy:
+    def index(self) -> np.ndarray | H5Array:
         """
         Get the index across all time-points.
         """
@@ -1048,7 +1045,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
 
     @property
     @abstractmethod
-    def columns_num(self) -> np.ndarray | DatasetProxy:
+    def columns_num(self) -> np.ndarray | H5Array:
         """
         Get the list of column names for numerical data.
         """
@@ -1070,7 +1067,7 @@ class BaseTemporalDataFrameImplementation(BaseTemporalDataFrame, ABC):
 
     @property
     @abstractmethod
-    def columns_str(self) -> np.ndarray | DatasetProxy:
+    def columns_str(self) -> np.ndarray | H5Array:
         """
         Get the list of column names for string data.
         """
@@ -1388,17 +1385,22 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
     # region magic methods
     def __init__(self,
                  parent: BaseTemporalDataFrameImplementation,
-                 index_positions: np.ndarray,
-                 columns_numerical: np.ndarray,
-                 columns_string: np.ndarray,
+                 index_positions: H5Array,
+                 columns_numerical: H5Array,
+                 columns_string: H5Array,
                  inverted: bool = False):
         self._parent = parent
         self._index_positions = index_positions
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
-        self._repeating_index = parent.has_repeating_index
-
         self._inverted = inverted
+
+        col_num_indices = npi.indices(self.parent.columns_num, columns_numerical)
+        self._numerical_array = self.parent.values_num[np.ix_(index_positions, col_num_indices)]
+        col_num_indices = npi.indices(self.parent.columns_num, columns_numerical)
+        self._string_array = self.parent.values_str[np.ix_(index_positions, col_num_indices)]
+
+        self._repeating_index = parent.has_repeating_index
 
     def __repr__(self) -> str:
         return f"{self.full_name}\n" \
@@ -1408,12 +1410,12 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
         return dir(BaseTemporalDataFrameView) + list(map(str, self.columns))
 
     def __getattr__(self,
-                    column_name: str) -> Type[Self]:
+                    column_name: str) -> BaseTemporalDataFrameView:
         """
         Get a single column from this view of a TemporalDataFrame.
         """
         if column_name in self.columns_num:
-            return self.__class__(self._parent, self._index_positions, np.array([column_name]), np.array([]))
+            return type(self)(self._parent, self._index_positions, np.array([column_name]), np.array([]))
 
         elif column_name in self.columns_str:
             return self.__class__(self._parent, self._index_positions, np.array([]), np.array([column_name]))
@@ -1426,14 +1428,13 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
         raise TypeError('Cannot delete columns from a view.')
 
     def __getitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) -> Type[Self]:
+                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
+            -> BaseTemporalDataFrameView:
         """
         Get a subset.
         """
-        _index_positions, _columns_numerical, _columns_string = self.__parse_inverted(*parse_slicer(self, slicer))
-
-        return self.__class__(self._parent, _index_positions, _columns_numerical, _columns_string,
-                              inverted=self._inverted)
+        _index_positions, _columns_numerical, _columns_string = self._parse_inverted(*parse_slicer(self, slicer))
+        return type(self)(self._parent, _index_positions, _columns_numerical, _columns_string, inverted=self._inverted)
 
     @abstractmethod
     def _setitem_reorder_values(self, _index_positions, index_array, values):
@@ -1457,10 +1458,10 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
             parse_slicer(self, slicer)
 
         _index_positions, _columns_numerical, _columns_string = \
-            self.__parse_inverted(index_positions,
-                                  column_num_slicer,
-                                  column_str_slicer,
-                                  (tp_array, index_array, columns_array))
+            self._parse_inverted(index_positions,
+                                 column_num_slicer,
+                                 column_str_slicer,
+                                 (tp_array, index_array, columns_array))
 
         if self._inverted:
             columns_array = np.concatenate((_columns_numerical, _columns_string))
@@ -1485,12 +1486,12 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
         if lcs:
             self._setitem_set_string_values(_columns_string, _index_positions, columns_array, lcn, values)
 
-    def __invert__(self) -> Type[Self]:
+    def __invert__(self) -> BaseTemporalDataFrameView:
         """
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
-        return self.__class__(self._parent, self._index_positions, self._columns_numerical, self._columns_string,
-                              inverted=not self._inverted)
+        return type(self)(self._parent, self._index_positions, self._columns_numerical, self._columns_string,
+                          inverted=not self._inverted)
 
     # endregion
 
@@ -1645,11 +1646,11 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
     # endregion
 
     # region methods
-    def __parse_inverted(self,
-                         index_slicer: np.ndarray,
-                         column_num_slicer: np.ndarray,
-                         column_str_slicer: np.ndarray,
-                         arrays: tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]) \
+    def _parse_inverted(self,
+                        index_slicer: np.ndarray,
+                        column_num_slicer: np.ndarray,
+                        column_str_slicer: np.ndarray,
+                        arrays: tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]) \
             -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         tp_array, index_array, columns_array = arrays
 

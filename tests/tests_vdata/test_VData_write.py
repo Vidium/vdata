@@ -6,16 +6,15 @@
 # imports
 import os
 import shutil
-from tempfile import NamedTemporaryFile
-
 import numpy as np
 import scanpy as sc
 from pathlib import Path
+from ch5mpy import H5Dict
+from ch5mpy import H5Array
+from tempfile import NamedTemporaryFile
 
 import vdata
 from vdata import VData
-from vdata.core.backed_dict import BackedDict
-from vdata.core.dataset_proxy import DatasetProxy
 
 
 # ====================================================
@@ -85,7 +84,7 @@ def test_VData_write_should_convert_uns_to_BackedDict():
     tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
     v.write(tmp_file.name)
 
-    assert isinstance(v.uns, BackedDict)
+    assert isinstance(v.uns, H5Dict)
 
 
 def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
@@ -94,7 +93,7 @@ def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
     tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
     v.write(tmp_file.name)
 
-    assert isinstance(v.uns['test'], DatasetProxy)
+    assert isinstance(v.uns['test'], H5Array)
 
 
 def test_backed_VData_new_layer_should_be_backed():

@@ -9,31 +9,28 @@ from __future__ import annotations
 import json
 import shutil
 import warnings
-from numbers import Number
-
-import pandas as pd
 import numpy as np
-from time import perf_counter
+import pandas as pd
 from pathlib import Path
-from h5py import Dataset
-from h5py import Group
+from numbers import Number
+from time import perf_counter
+from ch5mpy import File
+from ch5mpy import H5Mode
+
 from typing import Any, Callable, Collection, cast, Literal
 
 # This import is need when evaluating a string to get a type # fixme : is there a better way ?
-from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
+# from numpy import int8, int16, int32, int64, float16, float32, float64, float128  # noqa: F401
 
 import vdata
 from vdata.name_utils import DType
-from vdata.h5pickle.name_utils import H5Mode
-from vdata.utils import get_value, repr_array
-from .utils import parse_path, H5GroupReader
-from vdata.vdataframe import VDataFrame
 from vdata.time_point import TimePoint
+from vdata.vdataframe import VDataFrame
+from vdata.utils import get_value, repr_array
+from vdata.read_write.utils import parse_path
 from vdata.IO import generalLogger, VValueError, VTypeError, ShapeError
 from vdata.core.tdf import TemporalDataFrame, BackedTemporalDataFrame
-from vdata.h5pickle import File, Dataset as pklDataset, Group as pklGroup
 from vdata.core.tdf.name_utils import H5Data, DEFAULT_TIME_POINTS_COL_NAME
-from ..core.backed_dict import BackedDict
 
 
 # ====================================================
@@ -415,11 +412,14 @@ read = read_VData
 # region read TemporalDataFrame
 def read_TemporalDataFrame(file: str | Path | H5Data,
                            mode: H5Mode = H5Mode.READ) -> BackedTemporalDataFrame:
+    if mode not in (H5Mode.READ, H5Mode.READ_WRITE):
+        raise ValueError("Only 'r' and 'r+' are valid modes.")
+
     if isinstance(file, (str, Path)):
         file = File(file, mode=mode)
 
-    if file.file.mode != mode:
-        raise ValueError(f"Can't set mode of H5 file in {file.file.mode} mode to '{mode}'.")
+    if file.file.mode == 'r' and mode == 'r+':
+        raise ValueError(f"Can't set mode of H5 file in 'r' mode to 'r+'.")
 
     return BackedTemporalDataFrame(file)
 

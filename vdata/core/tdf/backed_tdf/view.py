@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import numpy as np
 import numpy_indexed as npi
+from ch5mpy import H5Mode
+from ch5mpy import H5Array
+from numbers import Number
 
-from vdata.h5pickle.name_utils import H5Mode
 from vdata.time_point import TimePoint
-from vdata.core.dataset_proxy import DatasetProxy
-from vdata.core.tdf.base import BaseTemporalDataFrameView, BaseTemporalDataFrameImplementation
+from vdata.core.tdf.base import BaseTemporalDataFrameView
 from vdata.core.tdf.backed_tdf.base import BackedMixin
 
 # ====================================================
@@ -28,19 +29,6 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
     """A view on a backed TemporalDataFrame."""
 
     # region magic methods
-    def __init__(self,
-                 parent: BaseTemporalDataFrameImplementation,
-                 index_positions: np.ndarray,
-                 columns_numerical: np.ndarray,
-                 columns_string: np.ndarray,
-                 inverted: bool = False):
-        super().__init__(parent, index_positions, columns_numerical, columns_string, inverted)
-
-        self._numerical_array = DatasetProxy(parent.dataset_num,
-                                             view_on=(self.index_positions, self.columns_num_positions))
-        self._string_array = DatasetProxy(parent.dataset_str,
-                                          view_on=(self.index_positions, self.columns_str_positions))
-
     def __repr__(self) -> str:
         if self.is_closed:
             return self.full_name
@@ -96,43 +84,43 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         return np.unique(self.timepoints_column)
 
     @property
-    def values_num(self) -> np.ndarray:
+    def values_num(self) -> H5Array[Number]:
         """
         Get the numerical data.
         """
-        return self._numerical_array[:]
+        return self._numerical_array
 
     @values_num.setter
     def values_num(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: np.ndarray | H5Array[Number]) -> None:
         """
         Set the numerical data.
         """
-        if isinstance(values, DatasetProxy) and np.issubdtype(values.dtype, np.number):
+        if isinstance(values, H5Array) and np.issubdtype(values.dtype, np.number):
             self._numerical_array = values
-            return
 
-        self._numerical_array[:] = values
+        else:
+            self._numerical_array[:] = values
 
     @property
-    def values_str(self) -> np.ndarray:
+    def values_str(self) -> H5Array[str]:
         """
         Get the string data.
         """
 
-        return self._string_array[:]
+        return self._string_array
 
     @values_str.setter
     def values_str(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: np.ndarray | H5Array[str]) -> None:
         """
         Set the string data.
         """
-        if isinstance(values, DatasetProxy) and np.issubdtype(values.dtype, np.str_):
+        if isinstance(values, H5Array) and np.issubdtype(values.dtype, np.str_):
             self._string_array = values
-            return
 
-        self._string_array[:] = values
+        else:
+            self._string_array[:] = values
 
     @property
     def h5_mode(self) -> H5Mode:
