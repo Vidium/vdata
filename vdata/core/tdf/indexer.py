@@ -36,8 +36,7 @@ class VAtIndexer:
         index, column = key
 
         if column in self._TDF.columns_num:
-            a = self._TDF[:, index, column].values_num
-            return a[0, 0]
+            return self._TDF[:, index, column].values_num[0, 0]
 
         return self._TDF[:, index, column].values_str[0, 0]
 

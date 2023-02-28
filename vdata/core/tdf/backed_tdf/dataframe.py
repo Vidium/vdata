@@ -12,9 +12,13 @@ import numpy as np
 import numpy_indexed as npi
 from ch5mpy import H5Mode
 from ch5mpy import H5Dict
+from ch5mpy import H5Array
 from numbers import Number
 
-from typing import Collection, Iterable
+import numpy.typing as npt
+from typing import Any
+from typing import Iterable
+from typing import Collection
 
 from vdata.IO import VLockError
 from vdata.time_point import TimePoint
@@ -81,13 +85,13 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         """
         Get a single column from this TemporalDataFrame.
         """
-        n_index = len(object.__getattribute__(self, '_index'))
-
         if column_name in object.__getattribute__(self, 'columns_num'):
-            return BackedTemporalDataFrameView(self, np.arange(n_index), np.array([column_name]), np.array([]))
+            raise NotImplementedError
+            # return BackedTemporalDataFrameView(self, self._index, self._columns_numerical[], np.array([]))
 
         elif column_name in object.__getattribute__(self, 'columns_str'):
-            return BackedTemporalDataFrameView(self, np.arange(n_index), np.array([]), np.array([column_name]))
+            raise NotImplementedError
+            # return BackedTemporalDataFrameView(self, self._index, np.array([]), self._columns_string[])
 
         raise AttributeError(f"'{column_name}' not found in this backed TemporalDataFrame.")
 
@@ -135,8 +139,8 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
     def __delattr__(self,
                     column_name: str) -> None:
         """Drop a column."""
-        def drop_column_h5(array_: DatasetProxy,
-                           columns_: DatasetProxy,
+        def drop_column_h5(array_: H5Array[Any],
+                           columns_: H5Array[Any],
                            index_: int) -> None:
             # transfer data one row to the left, starting from the column after the one to delete
             # matrix | 0 1 2 3 4 | with index of the column to delete = 2
@@ -170,7 +174,6 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
                     slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
             -> BackedTemporalDataFrameView:
         index_slicer, column_num_slicer, column_str_slicer, _ = parse_slicer(self, slicer)
-
         return BackedTemporalDataFrameView(self, index_slicer, column_num_slicer, column_str_slicer)
 
     def __setitem__(self,
@@ -206,18 +209,19 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
                                                original_positions[np.isin(original_positions, index_positions)]))]
 
         if lcn:
-            self.dataset_num[index_positions, npi.indices(self.columns_num[:], column_num_slicer)] = \
+            self.dataset_num[index_positions, npi.indices(self.columns_num, column_num_slicer)] = \
                 values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
 
         if lcs:
-            self.dataset_str[index_positions, npi.indices(self.columns_str[:], column_str_slicer)] = \
+            self.dataset_str[index_positions, npi.indices(self.columns_str, column_str_slicer)] = \
                 values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
 
     def __invert__(self) -> BackedTemporalDataFrameView:
         """
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
-        return BackedTemporalDataFrameView(self, np.arange(0, self.n_index), self.columns_num[:], self.columns_str[:],
+        # TODO : self._index and inverted=True  OR  self._index[::-1] and drop inverted ?
+        return BackedTemporalDataFrameView(self, self._index, self._columns_numerical, self._columns_string,
                                            inverted=True)
 
     # endregion
@@ -252,11 +256,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         return np.unique(self._timepoints_array)
 
     @property
-    def timepoints_column(self) -> np.array:
+    def timepoints_column(self) -> H5Array[TimePoint]:
         """
         Get the column of time-point values.
         """
-        return self._timepoints_array[:]
+        return self._timepoints_array
 
     @property
     def timepoints_column_name(self) -> str | None:
@@ -266,62 +270,54 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         return self._attributes['timepoints_column_name']
 
     @property
-    def index(self) -> DatasetProxy:
+    def index(self) -> H5Array[Any]:
         """
         Get the index across all time-points.
         """
-        return self._index[:]
+        return self._index
 
     @property
-    def columns_num(self) -> DatasetProxy:
+    def columns_num(self) -> H5Array[Any]:
         """
         Get the list of column names for numerical data.
         """
         return self._columns_numerical
 
     @property
-    def columns_str(self) -> DatasetProxy:
+    def columns_str(self) -> H5Array[Any]:
         """
         Get the list of column names for string data.
         """
         return self._columns_string
 
     @property
-    def values_num(self) -> np.ndarray:
+    def values_num(self) -> H5Array[Number]:
         """
         Get the numerical data.
         """
-        return self._numerical_array[:]
+        return self._numerical_array
 
     @values_num.setter
     def values_num(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: npt.NDArray[Number] | H5Array[Number]) -> None:
         """
         Set the numerical data.
         """
-        if isinstance(values, DatasetProxy):
-            self._numerical_array = values
-            return
-
         self._numerical_array[:] = values
 
     @property
-    def values_str(self) -> np.ndarray:
+    def values_str(self) -> H5Array[str]:
         """
         Get the string data.
         """
-        return self._string_array[:]
+        return self._string_array
 
     @values_str.setter
     def values_str(self,
-                   values: np.ndarray | DatasetProxy) -> None:
+                   values: npt.NDArray[str] | H5Array[str]) -> None:
         """
         Set the string data.
         """
-        if isinstance(values, DatasetProxy):
-            self._string_array = values
-            return
-
         self._string_array[:] = values
 
     @property
@@ -364,7 +360,7 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
     # region methods
     def get_timepoint_mask(self,
-                           timepoint: str | TimePoint) -> np.ndarray:
+                           timepoint: str | TimePoint) -> npt.NDArray[bool]:
         """
         Get a boolean mask indicating where in this TemporalDataFrame's the rows' time-point are equal to <timepoint>.
 
@@ -424,8 +420,8 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.
         """
-        def insert_column_h5(array_: DatasetProxy,
-                             columns_: DatasetProxy,
+        def insert_column_h5(array_: H5Array[Any],
+                             columns_: H5Array[Any],
                              index_: int) -> None:
             if index_ < 0:
                 index_ = len(columns_) + 1 + index_

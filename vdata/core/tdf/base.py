@@ -17,6 +17,7 @@ from pathlib import Path
 from numbers import Number
 from abc import ABC, abstractmethod
 
+import numpy.typing as npt
 from typing import TYPE_CHECKING, Any, Collection, Literal, Iterable, NoReturn
 
 from vdata.core.tdf import dataframe, indexer
@@ -39,8 +40,8 @@ class BaseTemporalDataFrame(ABC):
     """
 
     # region magic methods
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__()
+    # def __init_subclass__(cls, **kwargs):
+    #     super().__init_subclass__()
 
     @abstractmethod
     def __dir__(self) -> Iterable[str]:
@@ -64,7 +65,7 @@ class BaseTemporalDataFrame(ABC):
     @abstractmethod
     def __setitem__(self,
                     slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
-                    values: Number | np.number | str | Collection | BaseTemporalDataFrame) -> None:
+                    values: Number | str | Collection[Any] | BaseTemporalDataFrame) -> None:
         """
         Set values in a subset.
         """
@@ -80,7 +81,7 @@ class BaseTemporalDataFrame(ABC):
             raise ValueError("Columns string do not match.")
 
     def _add_core(self,
-                  value: Number | np.number | str | BaseTemporalDataFrame) -> TemporalDataFrame:
+                  value: Number | str | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Internal function for adding a value, called from __add__. Do not use directly.
         """
@@ -108,8 +109,8 @@ class BaseTemporalDataFrame(ABC):
             value_name = value
 
         if self.timepoints_column_name is None:
-            df_data = pd.concat((pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(values_str, index=self.index[:], columns=self.columns_str[:])),
+            df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -119,9 +120,9 @@ class BaseTemporalDataFrame(ABC):
 
         else:
             df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                              index=self.index[:], columns=[str(self.timepoints_column_name)]),
-                                 pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(values_str, index=self.index[:], columns=self.columns_str[:])),
+                                              index=self.index, columns=[str(self.timepoints_column_name)]),
+                                 pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -130,7 +131,7 @@ class BaseTemporalDataFrame(ABC):
                                                name=f"{self.full_name} + {value_name}")
 
     def __add__(self,
-                value: Number | np.number | str | BaseTemporalDataFrame) -> TemporalDataFrame:
+                value: Number | str | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -139,7 +140,7 @@ class BaseTemporalDataFrame(ABC):
         return self._add_core(value)
 
     def __radd__(self,
-                 value: Number | np.number | str) -> TemporalDataFrame:
+                 value: Number | str) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values incremented by <value> if <value> is a number
@@ -154,7 +155,7 @@ class BaseTemporalDataFrame(ABC):
         return self
 
     def __iadd__(self,
-                 value: Number | np.number | str | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
+                 value: Number | str | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values incremented by <value> if <value> is a number.
@@ -174,7 +175,7 @@ class BaseTemporalDataFrame(ABC):
             return self._iadd_str(value)
 
     def _op_core(self,
-                 value: Number | np.number | BaseTemporalDataFrame,
+                 value: Number | BaseTemporalDataFrame,
                  operation: Literal['sub', 'mul', 'div']) -> TemporalDataFrame:
         """
         Internal function for subtracting, multiplying by and dividing by a value, called from __add__. Do not use
@@ -229,8 +230,8 @@ class BaseTemporalDataFrame(ABC):
             raise ValueError(f"Unknown operation '{operation}'.")
 
         if self.timepoints_column_name is None:
-            df_data = pd.concat((pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(self.values_str, index=self.index[:], columns=self.columns_str[:])),
+            df_data = pd.concat((pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -240,9 +241,9 @@ class BaseTemporalDataFrame(ABC):
 
         else:
             df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                              index=self.index[:], columns=[str(self.timepoints_column_name)]),
-                                 pd.DataFrame(values_num, index=self.index[:], columns=self.columns_num[:]),
-                                 pd.DataFrame(self.values_str, index=self.index[:], columns=self.columns_str[:])),
+                                              index=self.index, columns=[str(self.timepoints_column_name)]),
+                                 pd.DataFrame(values_num, index=self.index, columns=self.columns_num),
+                                 pd.DataFrame(self.values_str, index=self.index, columns=self.columns_str)),
                                 axis=1)
 
             return dataframe.TemporalDataFrame(df_data,
@@ -251,7 +252,7 @@ class BaseTemporalDataFrame(ABC):
                                                name=f"{self.full_name} {op} {value_name}")
 
     def __sub__(self,
-                value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
+                value: Number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -259,7 +260,7 @@ class BaseTemporalDataFrame(ABC):
         return self._op_core(value, 'sub')
 
     def __rsub__(self,
-                 value: Number | np.number) -> TemporalDataFrame:
+                 value: Number) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values decremented by <value>.
@@ -267,7 +268,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__sub__(value)
 
     def __isub__(self,
-                 value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
+                 value: Number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values decremented by <value>.
@@ -279,7 +280,7 @@ class BaseTemporalDataFrame(ABC):
         return self
 
     def __mul__(self,
-                value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
+                value: Number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -287,7 +288,7 @@ class BaseTemporalDataFrame(ABC):
         return self._op_core(value, 'mul')
 
     def __rmul__(self,
-                 value: Number | np.number) -> TemporalDataFrame:
+                 value: Number) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values multiplied by <value>.
@@ -295,7 +296,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__mul__(value)
 
     def __imul__(self,
-                 value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
+                 value: Number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values multiplied by <value>.
@@ -307,7 +308,7 @@ class BaseTemporalDataFrame(ABC):
         return self
 
     def __truediv__(self,
-                    value: Number | np.number | BaseTemporalDataFrame) -> TemporalDataFrame:
+                    value: Number | BaseTemporalDataFrame) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -315,7 +316,7 @@ class BaseTemporalDataFrame(ABC):
         return self._op_core(value, 'div')
 
     def __rtruediv__(self,
-                     value: Number | np.number) -> TemporalDataFrame:
+                     value: Number) -> TemporalDataFrame:
         """
         Get a copy with :
             - numerical values divided by <value>.
@@ -323,7 +324,7 @@ class BaseTemporalDataFrame(ABC):
         return self.__truediv__(value)
 
     def __itruediv__(self,
-                     value: Number | np.number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
+                     value: Number | BaseTemporalDataFrame) -> BaseTemporalDataFrame:
         """
         Modify inplace the values :
             - numerical values divided by <value>.
@@ -335,7 +336,7 @@ class BaseTemporalDataFrame(ABC):
         return self
 
     def __eq__(self,
-               other: Any) -> bool | np.ndarray:
+               other: Any) -> bool | npt.NDArray[np.bool_]:
         """
         Test for equality with :
             - another TemporalDataFrame or view of a TemporalDataFrame
@@ -355,8 +356,7 @@ class BaseTemporalDataFrame(ABC):
         elif isinstance(other, str):
             return self.values_str == other
 
-        raise ValueError(f"Cannot compare {self.__class__.__name__} object with object of class "
-                         f"{other.__class__.__name__}.")
+        raise ValueError(f"Cannot compare {type(self).__name__} object with object of class {type(other).__name__}.")
 
     @abstractmethod
     def __invert__(self) -> BaseTemporalDataFrameView:
@@ -402,7 +402,7 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def timepoints(self) -> np.ndarray:
+    def timepoints(self) -> npt.NDArray[TimePoint]:
         """
         Get the list of unique time points in this TemporalDataFrame.
         """
@@ -413,17 +413,17 @@ class BaseTemporalDataFrame(ABC):
 
     @property
     @abstractmethod
-    def timepoints_column(self) -> np.ndarray:
+    def timepoints_column(self) -> npt.NDArray[TimePoint]:
         """
         Get the column of time-point values.
         """
 
     @property
-    def timepoints_column_str(self) -> np.ndarray:
+    def timepoints_column_str(self) -> npt.NDArray[str]:
         """
         Get the column of time-point values cast as strings.
         """
-        return np.array(list(map(str, self.timepoints_column)))
+        return self.timepoints_column.astype(str)
 
     @property
     def timepoints_column_numerical(self) -> np.ndarray:
@@ -1397,8 +1397,8 @@ class BaseTemporalDataFrameView(BaseTemporalDataFrame, ABC):
 
         col_num_indices = npi.indices(self.parent.columns_num, columns_numerical)
         self._numerical_array = self.parent.values_num[np.ix_(index_positions, col_num_indices)]
-        col_num_indices = npi.indices(self.parent.columns_num, columns_numerical)
-        self._string_array = self.parent.values_str[np.ix_(index_positions, col_num_indices)]
+        col_str_indices = npi.indices(self.parent.columns_str, columns_string)
+        self._string_array = self.parent.values_str[np.ix_(index_positions, col_str_indices)]
 
         self._repeating_index = parent.has_repeating_index
 
