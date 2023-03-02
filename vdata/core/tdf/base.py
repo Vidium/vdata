@@ -40,8 +40,8 @@ class BaseTemporalDataFrame(ABC):
     """
 
     # region magic methods
-    # def __init_subclass__(cls, **kwargs):
-    #     super().__init_subclass__()
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__()
 
     @abstractmethod
     def __dir__(self) -> Iterable[str]:
