@@ -209,11 +209,14 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
                                                original_positions[np.isin(original_positions, index_positions)]))]
 
         if lcn:
-            self.dataset_num[index_positions, npi.indices(self.columns_num, column_num_slicer)] = \
+            self.dataset_num[np.ix_(index_positions, npi.indices(self.columns_num, column_num_slicer))] = \
+                values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
+
+            self.dataset_num[np.ix_(index_positions, npi.indices(self.columns_num, column_num_slicer))] = \
                 values[:, npi.indices(columns_array, column_num_slicer)].astype(float)
 
         if lcs:
-            self.dataset_str[index_positions, npi.indices(self.columns_str, column_str_slicer)] = \
+            self.dataset_str[np.ix_(index_positions, npi.indices(self.columns_str, column_str_slicer))] = \
                 values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
 
     def __invert__(self) -> BackedTemporalDataFrameView:

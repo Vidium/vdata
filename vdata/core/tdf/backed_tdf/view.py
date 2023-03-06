@@ -47,21 +47,25 @@ class BackedTemporalDataFrameView(BackedMixin, BaseTemporalDataFrameView,
         return values
 
     def _setitem_set_numerical_values(self, _columns_numerical, _index_positions, columns_array, values):
-        self._parent.dataset_num[_index_positions[:, None],
-                                 npi.indices(self._parent.columns_num[:], _columns_numerical)] = \
+        self._parent.dataset_num[np.ix_(_index_positions,
+                                        npi.indices(self._parent.columns_num, _columns_numerical))] = \
             values[:, npi.indices(columns_array, _columns_numerical)].astype(float)
 
     def _setitem_set_string_values(self, _columns_string, _index_positions, columns_array, lcn, values):
-        # cast values as string
-        values_str = values[:, npi.indices(columns_array, _columns_string)].astype(str)
+        self._parent.dataset_str[np.ix_(_index_positions,
+                                        npi.indices(self._parent.columns_str, _columns_string))] = \
+            values[:, npi.indices(columns_array, _columns_string)].astype(str)
 
-        # cast string array to larger str dtype if needed
-        if values_str.dtype > self._parent.values_str.dtype:
-            self._parent.values_str = self._parent.values_str.astype(values_str.dtype)
-
-        # assign values into array
-        self._parent.dataset_str[_index_positions[:, None],
-                                 npi.indices(self._parent.columns_str[:], _columns_string)] = values_str
+        # # cast values as string
+        # values_str = values[:, npi.indices(columns_array, _columns_string)].astype(str)
+        #
+        # # cast string array to larger str dtype if needed
+        # if values_str.dtype > self._parent.values_str.dtype:
+        #     self._parent.values_str = self._parent.values_str.astype(values_str.dtype)
+        #
+        # # assign values into array
+        # self._parent.dataset_str[_index_positions[:, None],
+        #                          npi.indices(self._parent.columns_str[:], _columns_string)] = values_str
 
     # endregion
 
