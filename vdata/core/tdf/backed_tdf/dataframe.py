@@ -17,6 +17,7 @@ from numbers import Number
 
 import numpy.typing as npt
 from typing import Any
+from typing import Sized
 from typing import Iterable
 from typing import Collection
 
@@ -36,6 +37,61 @@ _CHECK_READ = ('__getattr__', '__getitem__', '__invert__', 'timepoints', 'timepo
                'timepoints_column_name', 'file', 'has_locked_indices', 'has_locked_columns', 'has_repeating_index')
 _CHECK_WRITE = ('__setattr__', '__delattr__', '__setitem__', 'lock_indices', 'unlock_indices', 'lock_columns',
                 'unlock_columns', 'set_index', 'reindex', 'insert')
+
+
+def len1m(obj: Sized[Any]) -> int:
+    if not len(obj):
+        raise ValueError('Object has 0 length.')
+
+    return len(obj) - 1
+
+
+def _drop_column_h5(array: H5Array[Any],
+                    columns: H5Array[Any],
+                    index: int) -> None:
+    if index < len1m(columns):
+        # transfer data one row to the left, starting from the column after the one to delete
+        # matrix | 0 1 2 3 4 | with index of the column to delete = 2
+        #   ==>  | 0 1 3 4 . |
+        array[:, index:] = array[:, (index + 1):]
+
+        # delete column from the column names as above
+        columns[index:] = columns[(index + 1):]
+
+    # resize the arrays to drop the extra column at the end
+    # matrix | 0 1 3 4 . |
+    #   ==>  | 0 1 3 4 |
+    columns.contract(1)
+    array.contract(1, 1)
+
+
+def _insert_column_h5(array: H5Array[Any],
+                      columns: H5Array[Any],
+                      index: int,
+                      values,
+                      col_name: str) -> None:
+    if index < 0:
+        index = len(columns) + 1 + index
+
+    # resize the arrays to insert an extra column at the end
+    # matrix | 0 1 2 3 4 |
+    #   ==>  | 0 1 2 3 4 . |
+    columns.expand(1)
+    array.expand(1, 1)
+
+    if index < len1m(columns):
+        # transfer data one row to the right, starting from the column after the index and insert values at index
+        # matrix | 0 1 2 3 4 . | with index = 2
+        #   ==>  | 0 1 . 2 3 4 |
+        array[:, (index + 1):] = array[:, index:len1m(columns)]
+
+        # insert column from the column names as above
+        columns[(index + 1):] = columns[index:len1m(columns)]
+
+    # matrix | 0 1 . 2 3 4 |
+    #   ==>  | 0 1 v 2 3 4 |
+    array[:, index] = values
+    columns[index] = col_name
 
 
 class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
@@ -122,53 +178,37 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
         else:
             if np.issubdtype(values.dtype, np.number):
                 # create numerical column
-                self.dataset_num.resize((self.n_index, self.n_columns_num + 1))
+                self.dataset_num.expand(1, 1)
                 self.dataset_num[:, -1] = values
 
-                self.columns_num.resize((self.n_columns_num + 1,))
+                self.columns_num.expand(1)
                 self.columns_num[-1] = name
 
             else:
                 # create string column
-                self.dataset_str.resize((self.n_index, self.n_columns_str + 1))
+                self.dataset_str.expand(1, 1)
                 self.dataset_str[:, -1] = values
 
-                self.columns_str.resize((self.n_columns_str + 1,))
+                self.columns_str.expand(1)
                 self.columns_str[-1] = name
 
     def __delattr__(self,
                     column_name: str) -> None:
         """Drop a column."""
-        def drop_column_h5(array_: H5Array[Any],
-                           columns_: H5Array[Any],
-                           index_: int) -> None:
-            # transfer data one row to the left, starting from the column after the one to delete
-            # matrix | 0 1 2 3 4 | with index of the column to delete = 2
-            #   ==>  | 0 1 3 4 . |
-            array_[:, index_:len(columns_) - 1] = array_[:, (index_ + 1):len(columns_)]
-
-            # delete column from the column names as above
-            columns_[index_:len(columns_) - 1] = columns_[index_ + 1:len(columns_)]
-
-            # resize the arrays to drop the extra column at the end
-            columns_.resize((len(columns_) - 1,))
-            array_.resize((array_.shape[0], array_.shape[1] - 1))
-
         if self.has_locked_columns:
             raise VLockError("Cannot delete column from tdf with locked columns.")
 
         if column_name in self.columns_num:
-            item_index = np.where(self.columns_num == column_name)[0][0]
-
-            drop_column_h5(self.dataset_num, self.columns_num, item_index)
+            array, columns = self.dataset_num, self.columns_num
 
         elif column_name in self.columns_str:
-            item_index = np.where(self.columns_str == column_name)[0][0]
-
-            drop_column_h5(self.dataset_str, self.columns_str, item_index)
+            array, columns = self.dataset_str, self.columns_str
 
         else:
             raise AttributeError(f"'{column_name}' not found in this backed TemporalDataFrame.")
+
+        item_index = np.where(columns == column_name)[0][0]
+        _drop_column_h5(array, columns, item_index)
 
     def __getitem__(self,
                     slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
@@ -418,33 +458,11 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
     def insert(self,
                loc: int,
                name: str,
-               values: np.ndarray | Iterable | int | float) -> None:
+               values: npt.NDArray[Any] | Iterable[Any] | int | float) -> None:
         """
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.
         """
-        def insert_column_h5(array_: H5Array[Any],
-                             columns_: H5Array[Any],
-                             index_: int) -> None:
-            if index_ < 0:
-                index_ = len(columns_) + 1 + index_
-
-            # resize the arrays to insert an extra column at the end
-            columns_.resize((len(columns_) + 1,))
-            array_.resize((array_.shape[0], array_.shape[1] + 1))
-
-            # transfer data one row to the right, starting from the column after the index
-            # matrix | 0 1 2 3 4 | with index = 2
-            #   ==>  | 0 1 . 2 3 4 |
-            array_[:, index_ + 1:len(columns_)] = array_[:, index_:len(columns_) - 1]
-
-            # insert values at index
-            array_[:, index_] = values
-
-            # insert column from the column names as above
-            columns_[index_ + 1:len(columns_)] = columns_[index_:len(columns_) - 1]
-            columns_[index_] = name
-
         if self.has_locked_columns:
             raise VLockError("Cannot insert columns in tdf with locked columns.")
 
@@ -453,19 +471,19 @@ class BackedTemporalDataFrame(BackedMixin, BaseTemporalDataFrameImplementation,
 
         values = np.array(values)
 
-        if (l := len(values)) != (n := self.n_index):
-            raise ValueError(f"Wrong number of values ({l}), expected {n}.")
+        if len(values) != self.n_index:
+            raise ValueError(f"Wrong number of values ({len(values)}), expected {self.n_index}.")
 
         if name in self.columns:
             raise ValueError(f"A column named '{name}' already exists.")
 
-        if np.issubdtype(values.dtype, np.number):
-            # create numerical column
-            insert_column_h5(self.dataset_num, self.columns_num, loc)
+        if np.issubdtype(values.dtype, np.str_):
+            dataset, columns = self.dataset_str, self.columns_str
 
         else:
-            # create string column
-            insert_column_h5(self.dataset_str, self.columns_str, loc)
+            dataset, columns = self.dataset_num, self.columns_num
+
+        _insert_column_h5(dataset, columns, loc, values, name)
 
     def close(self) -> None:
         """Close the file this TemporalDataFrame is backed on."""

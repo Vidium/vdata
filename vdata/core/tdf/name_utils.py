@@ -5,8 +5,6 @@
 # ====================================================
 # imports
 import numpy as np
-from ch5mpy import File
-from ch5mpy import Group
 from numbers import Number
 
 from typing import Union
@@ -20,7 +18,5 @@ from vdata.time_point import TimePoint
 SLICER = Union[Number, np.number, str, TimePoint,
                Collection[Union[Number, np.number, str, TimePoint]],
                range, slice, 'ellipsis']
-
-H5Data = Union[File, Group]
 
 DEFAULT_TIME_POINTS_COL_NAME = 'Time-point'

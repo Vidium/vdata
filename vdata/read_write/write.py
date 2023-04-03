@@ -18,6 +18,8 @@ from tqdm.autonotebook import tqdm
 from pathlib import Path
 from h5py import string_dtype
 from functools import singledispatch
+from ch5mpy import File
+from ch5mpy import H5Mode
 
 from typing import TYPE_CHECKING
 
