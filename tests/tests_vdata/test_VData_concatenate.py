@@ -4,19 +4,21 @@
 
 # ====================================================
 # imports
-import os
-import pandas as pd
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+import pytest
+
 import vdata
+
 from . import expr_data_complex, obs_index_data
-from .test_VData_write import out_test_VData_write
 
 
 # ====================================================
 # code
-def test_VData_concatenate():
+@pytest.fixture
+def merged_vdata() -> vdata.VData:
     timepoints = pd.DataFrame({"value": ['0h', '5h']})
     var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]}, index=["g1", "g2", "g3"])
     obs = vdata.TemporalDataFrame({'data': np.random.randint(0, 20, 6),
@@ -40,53 +42,49 @@ def test_VData_concatenate():
 
     v2.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
-    v_merged = vdata.concatenate((v1, v2))
-
-    assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [8, 4] x 3 over 2 time points.\n\t" \
-                             "layers: 'spliced', 'unspliced'\n\t" \
-                             "obs: 'data', 'data_bis'\n\t" \
-                             "var: 'gene_name'\n\t" \
-                             "timepoints: 'value'\n\t" \
-                             "uns: 'colors', 'date'", repr(v_merged)
-
-    assert np.all(v_merged.obs.index == ['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8', 'C_9',
-                                         'C_4', 'C_5', 'C_10', 'C_11']), v_merged.obs.index
-
-    assert np.all(v_merged.layers['spliced'].index == ['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8',
-                                                       'C_9', 'C_4', 'C_5', 'C_10', 'C_11']), \
-        v_merged.layers['spliced'].index
+    return vdata.concatenate((v1, v2))
 
 
-# TODO : implement back in TDFs
-# def test_VData_concatenate_mean():
-#     output_dir = Path(__file__).parent.parent / 'ref'
-#
-#     if not os.path.exists(output_dir / 'vdata.vd'):
-#         # first write data
-#         out_test_VData_write()
-#
-#     v3 = vdata.read(output_dir / 'vdata.vd', name=3)
-#
-#     v4 = v3.copy()
-#
-#     vm3 = v3.mean()
-#
-#     vm4 = v4.mean()
-#
-#     vm4.set_obs_index(vm3.obs.index + '_2')
-#
-#     v_merged = vdata.concatenate((vm3, vm4))
-#
-#     assert repr(v_merged) == "VData 'No_Name' with n_obs x n_var = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] x 1000 " \
-#                              "over 10 time points.\n\t" \
-#                              "layers: 'data'\n\t" \
-#                              "timepoints: 'value'", repr(v_merged)
-#
-#     v3.file.close()
+def test_concatenated_VData_has_correct_shape(merged_vdata: vdata.VData) -> None:
+    assert repr(merged_vdata) == "VData 'No_Name' ([8, 4] obs x 3 vars over 2 time points).\n" \
+                             "\tlayers: 'spliced', 'unspliced'\n" \
+                             "\tobs: 'data', 'data_bis'\n" \
+                             "\tvar: 'gene_name'\n" \
+                             "\ttimepoints: 'value'\n" \
+                             "\tuns: 'colors', 'date'"
 
 
-if __name__ == '__main__':
-    vdata.setLoggingLevel('DEBUG')
+def test_concatenated_VData_has_correct_obs_index(merged_vdata: vdata.VData) -> None:
+    assert np.all(merged_vdata.obs.index == ['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8', 'C_9',
+                                         'C_4', 'C_5', 'C_10', 'C_11'])
 
-    test_VData_concatenate()
-    # test_VData_concatenate_mean()
+
+def test_concatented_VData_has_correct_layer_index(merged_vdata: vdata.VData) -> None:
+    assert np.all(merged_vdata.layers['spliced'].index == ['C_0', 'C_1', 'C_2', 'C_3', 'C_6', 'C_7', 'C_8',
+                                                       'C_9', 'C_4', 'C_5', 'C_10', 'C_11'])
+
+
+def test_VData_concatenate_mean() -> None:
+    output_dir = Path(__file__).parent.parent / 'ref'
+    
+    if not (output_dir / 'vdata.vd').exists():
+        # first write data
+        from .test_VData_write import out_test_VData_write
+        out_test_VData_write()
+
+    v3 = vdata.VData.read(output_dir / 'vdata.vd')
+    v4 = v3.copy()
+
+    vm3 = v3.mean(axis=0)
+    vm4 = v4.mean(axis=0)
+
+    vm4.set_obs_index(vm3.obs.index + '_2', repeating_index=True)
+
+    v_merged = vdata.concatenate((vm3, vm4))
+
+    assert repr(v_merged) == "VData 'No_Name' ([2, 2, 2, 2, 2, 2, 2, 2, 2, 2] obs x 1000 vars " \
+                             "over 10 time points).\n" \
+                             "\tlayers: 'data'\n" \
+                             "\ttimepoints: 'value'"
+
+    v3.close()

@@ -4,10 +4,10 @@
 
 # ====================================================
 # imports
-import pytest
 import numpy as np
+import pytest
 
-from vdata import TemporalDataFrame
+from vdata.tdf import TemporalDataFrameBase
 
 
 # ====================================================
@@ -17,7 +17,7 @@ from vdata import TemporalDataFrame
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_convert_without_timepoints(TDF):
+def test_convert_without_timepoints(TDF: TemporalDataFrameBase) -> None:
     df = TDF.to_pandas()
 
     nb_col = 1 if TDF.is_view else 2
@@ -31,7 +31,7 @@ def test_convert_without_timepoints(TDF):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_convert_with_timepoints_as_str(TDF):
+def test_convert_with_timepoints_as_str(TDF: TemporalDataFrameBase) -> None:
     df = TDF.to_pandas(with_timepoints='timepoints', timepoints_type='string')
 
     assert df.columns[0] == 'timepoints' and np.all(df.values[:, 0] == TDF.timepoints_column_str)
@@ -42,7 +42,7 @@ def test_convert_with_timepoints_as_str(TDF):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_convert_with_timepoints_as_numbers(TDF):
+def test_convert_with_timepoints_as_numbers(TDF: TemporalDataFrameBase) -> None:
     df = TDF.to_pandas(with_timepoints='timepoints', timepoints_type='numerical')
 
     assert df.columns[0] == 'timepoints' and np.all(df.values[:, 0] == TDF.timepoints_column_numerical)
@@ -53,10 +53,10 @@ def test_convert_with_timepoints_as_numbers(TDF):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_create_copy_TDF(TDF):
+def test_create_copy_TDF(TDF: TemporalDataFrameBase) -> None:
     copy = TDF.copy()
 
-    assert isinstance(copy, TemporalDataFrame)
+    assert isinstance(copy, TemporalDataFrameBase)
 
 
 @pytest.mark.parametrize(
@@ -64,7 +64,7 @@ def test_create_copy_TDF(TDF):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_modifying_copy_does_not_modify_original(TDF):
+def test_modifying_copy_does_not_modify_original(TDF: TemporalDataFrameBase) -> None:
     copy = TDF.copy()
 
     copy[:, :, 'col1'] = -1

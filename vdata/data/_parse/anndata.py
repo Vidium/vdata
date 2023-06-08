@@ -1,0 +1,83 @@
+from typing import Any
+
+import numpy.typing as npt
+import pandas as pd
+from anndata import AnnData
+from scipy.sparse import spmatrix
+
+from vdata.data._parse.data import ParsingDataIn, ParsingDataOut
+from vdata.data._parse.time import check_time_match
+from vdata.data._parse.utils import log_timepoints
+from vdata.data.utils import array_isin
+from vdata.IO.logger import generalLogger
+from vdata.tdf import TemporalDataFrame
+from vdata.utils import deep_dict_convert
+from vdata.vdataframe import VDataFrame
+
+
+def _no_dense_data(_data: npt.NDArray[Any] | spmatrix) -> npt.NDArray[Any]:
+    """
+    Convert sparse matrices to dense.
+    """
+    if isinstance(_data, spmatrix):
+        raise NotImplementedError
+
+    return _data
+
+
+def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
+    generalLogger.debug('  VData creation from an AnnData.')
+          
+    # import and cast obs to a TemporalDataFrame
+    obs = TemporalDataFrame(adata.obs,
+                            time_list=data.time_list,
+                            time_col_name=data.time_col_name,
+                            name='obs',
+                            lock=(True, False))
+    reordering_index = obs.index
+    
+    check_time_match(data)
+    log_timepoints(data.timepoints)
+
+    if array_isin(adata.X, adata.layers.values()):
+        layers = dict((key, TemporalDataFrame(
+            pd.DataFrame(arr, index=adata.obs.index, columns=adata.var.index).reindex(reordering_index),
+            time_list=obs.timepoints_column, name=key)
+                        ) for key, arr in adata.layers.items())
+
+    else:
+        layers = dict({"data": TemporalDataFrame(
+            pd.DataFrame(adata.X, index=adata.obs.index, columns=adata.var.index).reindex(reordering_index),
+            time_list=obs.timepoints_column, name='adata')
+        },
+            **dict((key, TemporalDataFrame(
+                pd.DataFrame(arr, index=adata.obs.index, columns=adata.var.index).reindex(
+                    reordering_index),
+                time_list=obs.timepoints_column, name=key)
+                    ) for key, arr in adata.layers.items()))
+
+    # import other arrays
+    obsm = {TDF_name: TemporalDataFrame(pd.DataFrame(_no_dense_data(TDF_data)),
+                                        time_list=obs.timepoints_column,
+                                        index=obs.index,
+                                        name=TDF_name)
+            for TDF_name, TDF_data in adata.obsm.items()}
+    obsp = {VDF_name: VDataFrame(_no_dense_data(VDF_data), index=obs.index, columns=obs.index)
+            for VDF_name, VDF_data in adata.obsp.items()}
+    var = VDataFrame(adata.var)
+    varm = {VDF_name: VDataFrame(_no_dense_data(VDF_data), index=var.index)
+            for VDF_name, VDF_data in adata.varm.items()}
+    varp = {VDF_name: VDataFrame(_no_dense_data(VDF_data), index=var.index, columns=var.index)
+            for VDF_name, VDF_data in adata.varp.items()}
+    uns = deep_dict_convert(adata.uns)
+    
+    return ParsingDataOut(layers,
+                          obs,
+                          obsm, 
+                          obsp,
+                          var,
+                          varm,
+                          varp,
+                          data.timepoints,
+                          uns)
+    

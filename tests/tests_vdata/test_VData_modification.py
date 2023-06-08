@@ -4,9 +4,10 @@
 
 # ====================================================
 # imports
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 import vdata
 
@@ -15,66 +16,62 @@ import vdata
 REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
-def test_VData_modification():
-    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
+def test_VData_modification() -> None:
+    v1 = vdata.VData.read(REF_DIR / "vdata.vd", mode='r+')
 
     # set once
     v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': range(v1.n_obs_total)}),
-                                           time_list=v1.obs.timepoints_column[:],
-                                           index=v1.obs.index[:])
+                                           time_list=v1.obs.timepoints_column,
+                                           index=v1.obs.index)
+    
+    assert 'X' in v1.obsm.keys()
 
     # set a second time
     v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': 2*np.arange(v1.n_obs_total)}),
-                                           time_list=v1.obs.timepoints_column[:],
-                                           index=v1.obs.index[:])
+                                           time_list=v1.obs.timepoints_column,
+                                           index=v1.obs.index)
 
+    assert 'X' in v1.obsm.keys()
     del v1.obsm['X']
-    v1.write()              # TODO : should not have to do this, should be written automatically
+    assert 'X' not in v1.obsm.keys()
 
-    v1.file.close()
+    v1.close()
 
 
-def test_VData_set_index():
-    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
+def test_VData_set_index(VData: vdata.VData) -> None:
+    # v1 = vdata.VData.read(REF_DIR / "vdata.vd", mode='r+')
 
     # not repeating ==> not repeating
-    v1.set_obs_index(values=range(v1.n_obs_total))
+    VData.set_obs_index(values=range(VData.n_obs_total))
 
-    assert np.array_equal(v1.obs.index, range(v1.n_obs_total))
-    assert np.array_equal(v1.layers['data'].index, range(v1.n_obs_total))
+    assert np.array_equal(VData.obs.index, range(VData.n_obs_total))
+    assert np.array_equal(VData.layers['data'].index, range(VData.n_obs_total))
+    
+    # v1.close()
 
-    # subset first 10 indices of each time-point
-    index = np.concatenate([v1.obs.index_at(tp)[:10] for tp in v1.timepoints.value])
-    v2 = v1[:, index].copy()
-    v1.file.close()
 
+def test_VData_set_index_repeating(VData: vdata.VData) -> None:
     # not repeating ==> repeating
-    new_index = np.concatenate([range(10) for _ in range(v2.n_timepoints)])
+    new_index = np.concatenate([range(100) for _ in range(VData.n_timepoints)])
 
-    v2.set_obs_index(values=new_index,
+    VData.set_obs_index(values=new_index,
                      repeating_index=True)
 
-    assert np.array_equal(v2.obs.index, new_index)
-    assert np.array_equal(v2.layers['data'].index, new_index)
+    assert np.array_equal(VData.obs.index, new_index)
+    assert np.array_equal(VData.layers['data'].index, new_index)
 
     # repeating ==> repeating
-    new_index = np.concatenate([range(10) for _ in range(v2.n_timepoints)]) * 2
+    new_index = np.concatenate([range(100) for _ in range(VData.n_timepoints)]) * 2
 
-    v2.set_obs_index(values=new_index,
-                     repeating_index=True)
+    VData.set_obs_index(values=new_index, repeating_index=True)
 
-    assert np.array_equal(v2.obs.index, new_index)
-    assert np.array_equal(v2.layers['data'].index, new_index)
+    assert np.array_equal(VData.obs.index, new_index)
+    assert np.array_equal(VData.layers['data'].index, new_index)
 
     # repeating ==> not repeating
-    new_index = range(10 * v2.n_timepoints)
+    new_index = np.arange(100 * VData.n_timepoints)
 
-    v2.set_obs_index(values=new_index)
+    VData.set_obs_index(values=new_index)
 
-    assert np.array_equal(v2.obs.index, new_index)
-    assert np.array_equal(v2.layers['data'].index, new_index)
-
-
-if __name__ == '__main__':
-    test_VData_modification()
-    test_VData_set_index()
+    assert np.array_equal(VData.obs.index, new_index)
+    assert np.array_equal(VData.layers['data'].index, new_index)

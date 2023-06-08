@@ -6,6 +6,8 @@
 # imports
 import pytest
 
+from vdata.tdf import TemporalDataFrameBase
+
 
 # ====================================================
 @pytest.mark.parametrize(
@@ -18,7 +20,7 @@ import pytest
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_are_equal(TDF1, TDF2):
+def test_are_equal(TDF1: TemporalDataFrameBase, TDF2: TemporalDataFrameBase) -> None:
     assert id(TDF1) != id(TDF2)
     assert TDF1 == TDF2
 
@@ -33,6 +35,6 @@ def test_are_equal(TDF1, TDF2):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_are_different_when_modified(TDF1, TDF2):
+def test_are_different_when_modified(TDF1: TemporalDataFrameBase, TDF2: TemporalDataFrameBase) -> None:
     TDF2.iloc[0, 0] = -1
     assert TDF1 != TDF2

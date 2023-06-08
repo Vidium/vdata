@@ -8,21 +8,32 @@ VDataFrame wrapper around pandas DataFrames.
 
 # ====================================================
 # imports
-from typing import Optional, Collection, Sequence, Union
+from __future__ import annotations
 
+from typing import Any, Callable, Collection, Iterable, Literal, Sequence
+
+import ch5mpy as ch
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
-from ch5mpy import File
-from ch5mpy import Group
 from pandas._typing import Axes, Dtype
 
-from typing import Literal
-
-from .IO import VTypeError, VValueError
+from vdata._typing import IFS_NP
 
 
 # ====================================================
 # code
+def _get_column(name: IFS_NP, 
+                order: ch.H5Array[IFS_NP],
+                data_num: ch.H5Array[np.float_],
+                data_str: ch.H5Array[np.str_]) -> ch.H5Array[IFS_NP]:
+    idx = np.where(order == name)[0][0]
+    if idx < data_num.shape[1]:
+        return data_num[:, idx]
+    
+    return data_str[:, idx - data_num.shape[1]]
+
+
 class VDataFrame(pd.DataFrame):
     """
     Simple wrapper around pandas DataFrames for managing index and columns modification when the DataFrame is read
@@ -31,13 +42,14 @@ class VDataFrame(pd.DataFrame):
 
     _internal_names_set = {"_file"} | pd.DataFrame._internal_names_set
 
+    # region magic methods
     def __init__(self,
-                 data=None,
-                 index: Optional[Axes] = None,
-                 columns: Optional[Axes] = None,
-                 dtype: Optional[Dtype] = None,
+                 data: npt.NDArray[Any] | Iterable[Any] | dict[Any, Any] | pd.DataFrame | None = None,
+                 index: Axes | None = None,
+                 columns: Axes | None = None,
+                 dtype: Dtype | None = None,
                  copy: bool = False,
-                 file: Optional[Union[File, Group]] = None):
+                 file: ch.Group | None = None):
         """
         Args:
             file: an optional h5py group where this VDataFrame is read from.
@@ -45,7 +57,34 @@ class VDataFrame(pd.DataFrame):
         super().__init__(data, index, columns, dtype, copy)
 
         self._file = file
+        
+    def __h5_write__(self, group: ch.Group) -> None:
+        if self._file is not None:
+            return      
+        
+        data_numeric = self.select_dtypes(include=[np.number, bool])
+        data_string = self.select_dtypes(exclude=[np.number, bool])
+                
+        ch.write_objects(group,
+                         data_numeric=data_numeric.values.astype(np.float64),
+                         data_string=data_string.values.astype(str),
+                         index=np.array(self.index),
+                         columns=np.array(self.columns),
+                         columns_stored_order=np.concatenate((data_numeric.columns, data_string.columns)))
+        
+    @classmethod
+    def __h5_read__(cls, group: ch.Group) -> VDataFrame:                
+        return VDataFrame(data={c: _get_column(c,
+                                               group['columns_stored_order'], 
+                                               group['data_numeric'],
+                                               group['data_string'])
+                                for c in group['columns']},
+                          index=group['index'],
+                          file=group)
 
+    # endregion
+
+    # region attributes
     @property
     def is_backed(self) -> bool:
         """
@@ -57,25 +96,25 @@ class VDataFrame(pd.DataFrame):
         return self._file is not None
 
     @property
-    def file(self) -> Optional[Union[File, Group]]:
+    def file(self) -> ch.Group | None:
         """
         Get the h5 file this VDataFrame is backed on.
         :return: the h5 file this VDataFrame is backed on.
         """
         return self._file
 
-    @file.setter
-    def file(self, new_file: Union[File, Group]) -> None:
-        """
-        Set the h5 file to back this VDataFrame on.
+    # @file.setter
+    # def file(self, new_file: ch.Group) -> None:
+    #     """
+    #     Set the h5 file to back this VDataFrame on.
 
-        Args:
-            new_file: a h5 file to back this VDataFrame on.
-        """
-        if not isinstance(new_file, (File, Group)):
-            raise VTypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
+    #     Args:
+    #         new_file: a h5 file to back this VDataFrame on.
+    #     """
+    #     if not isinstance(new_file, ch.Group):
+    #         raise TypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
 
-        self._file = new_file
+    #     self._file = new_file
 
     @property
     def index(self) -> pd.Index:
@@ -121,17 +160,19 @@ class VDataFrame(pd.DataFrame):
             self._file.file.flush()
 
         self._set_axis(0, pd.Index(values))
+        
+    # endregion
 
 
-def _check_parent_has_not_changed(func):
-    def wrapper(*args, **kwargs):
+def _check_parent_has_not_changed(func: Callable[..., Any]) -> Callable[..., Any]:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         self = args[0]
 
         if hash(tuple(object.__getattribute__(self, '_parent').index)) != \
                 object.__getattribute__(self, '_parent_index_hash') or \
                 hash(tuple(object.__getattribute__(self, '_parent').columns)) != \
                 object.__getattribute__(self, '_parent_columns_hash'):
-            raise VValueError("View no longer valid since parent's VDataFrame has changed.")
+            raise ValueError("View no longer valid since parent's VDataFrame has changed.")
 
         return func(*args, **kwargs)
 
@@ -145,8 +186,8 @@ class ViewVDataFrame:
 
     def __init__(self,
                  parent: VDataFrame,
-                 index_slicer: Union[np.ndarray, slice] = slice(None),
-                 column_slicer: Union[np.ndarray, slice] = slice(None)):
+                 index_slicer: npt.NDArray[IFS_NP] | slice = slice(None),
+                 column_slicer: npt.NDArray[IFS_NP] | slice = slice(None)):
         """
         Args:
             parent: TODO
@@ -174,31 +215,31 @@ class ViewVDataFrame:
         return False
 
     @_check_parent_has_not_changed
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         return getattr(self._DataFrame, item)
 
     @_check_parent_has_not_changed
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: str, value: Any) -> None:
         setattr(self._DataFrame, key, value)
 
     @_check_parent_has_not_changed
-    def __delattr__(self, item):
+    def __delattr__(self, item: str) -> None:
         delattr(self._DataFrame, item)
 
     @_check_parent_has_not_changed
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         return self._DataFrame.__getitem__(item)
 
     @_check_parent_has_not_changed
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self._DataFrame.__setitem__(key, value)
 
     @_check_parent_has_not_changed
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         self._DataFrame.__delitem__(key)
 
     @_check_parent_has_not_changed
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._DataFrame)
 
     @_check_parent_has_not_changed

@@ -4,11 +4,13 @@
 
 # ====================================================
 # imports
-import pytest
 from pathlib import Path
 
-from vdata import read_TDF, BackedTemporalDataFrame
-from vdata.core.tdf.base import BaseTemporalDataFrame
+import ch5mpy as ch
+import pytest
+
+from vdata import TemporalDataFrame
+from vdata.tdf import TemporalDataFrameBase
 
 
 # ====================================================
@@ -18,51 +20,31 @@ from vdata.core.tdf.base import BaseTemporalDataFrame
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_can_read_written_TDF(TDF):
+def test_can_read_written_TDF(TDF: TemporalDataFrameBase) -> None:
     TDF.write('TDF_write.vd')
 
-    tdf = read_TDF('TDF_write.vd')
-    assert isinstance(tdf, BaseTemporalDataFrame)
+    tdf = TemporalDataFrame.read('TDF_write.vd')
+    assert isinstance(tdf, TemporalDataFrameBase)
 
     tdf.close()
     Path('TDF_write.vd').unlink()
 
 
-@pytest.mark.parametrize(
-    'TDF',
-    ['backed'],
-    indirect=True
-)
-def test_write_backed_TDF_to_same_file(TDF):
-    TDF.write()
-
-
-@pytest.mark.parametrize(
-    'TDF',
-    ['backed view'],
-    indirect=True
-)
-def test_write_backed_view_with_no_file_should_fail(TDF):
-    with pytest.raises(ValueError):
-        TDF.write()
-
-
 @pytest.mark.usefixtures('h5_file')
 class TestWriteTDF:
+    h5_file: ch.File
 
-    def test_wrote_correct_type(self):
-        assert self.h5_file.attrs['type'] == 'tdf'
+    def test_wrote_correct_attributes(self) -> None:
+        assert sorted(list(self.h5_file.attrs.keys())) == ['__h5_class__', '__h5_type__', 
+                                                           'locked_columns', 'locked_indices', 'name',
+                                                           'repeating_index', 'timepoints_column_name']
 
-    def test_wrote_correct_attributes(self):
-        assert sorted(list(self.h5_file.attrs.keys())) == ['locked_columns', 'locked_indices', 'name',
-                                                           'repeating_index', 'timepoints_column_name', 'type']
-
-    def test_wrote_datasets(self):
-        assert sorted(list(self.h5_file.keys())) == ['columns_numerical', 'columns_string', 'index', 'timepoints',
-                                                     'values_numerical', 'values_string']
+    def test_wrote_datasets(self) -> None:
+        assert sorted(list(self.h5_file.keys())) == ['columns_numerical', 'columns_string', 'index',
+                                                     'numerical_array', 'string_array', 'timepoints_array']
 
     @pytest.mark.parametrize('TDF', ['plain'], indirect=True)
-    def test_wrote_all_data_correctly(self, TDF):
-        written_tdf = BackedTemporalDataFrame(self.h5_file)
+    def test_wrote_all_data_correctly(self, TDF: TemporalDataFrame) -> None:
+        written_tdf = TemporalDataFrame.read(self.h5_file)
 
         assert written_tdf == TDF

@@ -6,19 +6,21 @@
 # imports
 import numpy as np
 import pandas as pd
+import pytest
 
 import vdata
 from vdata import TemporalDataFrame
 
-
 # ====================================================
 # code
-def test_VData_sub_setting():
+_MASK_GENES = ['g_10', 'g_2', 'g_5', 'g_25', 'g_49']
+_MASK_CELLS = ['c_20', 'c_1', 'c_199', 'c_100', 'c_30', 'c_10', 'c_150', 'c_151']
+_INDEX_CELLS = ['c_20', 'c_1', 'c_30', 'c_10', 'c_199', 'c_100', 'c_150', 'c_151']
+
+@pytest.fixture
+def sub_vdata() -> vdata.VDataView:
     genes = list(map(lambda x: "g_" + str(x), range(50)))
     cells = list(map(lambda x: "c_" + str(x), range(300)))
-
-    mask_genes = ['g_10', 'g_2', 'g_5', 'g_25', 'g_49']
-    mask_cells = ['c_20', 'c_1', 'c_199', 'c_100', 'c_30', 'c_10', 'c_150', 'c_151']
 
     v = vdata.VData(data={'data': pd.DataFrame(np.array(range(300 * 50)).reshape((300, 50)),
                                                index=cells,
@@ -50,20 +52,12 @@ def test_VData_sub_setting():
         columns=v.var.index,
         index=v.var.index
     )
+    
+    return v[:, _MASK_CELLS, _MASK_GENES]
 
-    assert repr(v) == "VData 'No_Name' with n_obs x n_var = [100, 100, 100] x 50 over 3 time points.\n" \
-                      "\tlayers: 'data'\n" \
-                      "\tobs: 'col1'\n" \
-                      "\tvar: 'col1'\n" \
-                      "\ttimepoints: 'value'\n" \
-                      "\tobsm: 'test_obsm'\n" \
-                      "\tvarm: 'test_varm'\n" \
-                      "\tobsp: 'test_obsp'\n" \
-                      "\tvarp: 'test_varp'", repr(v)
 
-    sub_vdata = v[:, mask_cells, mask_genes]
-
-    assert repr(sub_vdata) == "View of VData 'No_Name' with n_obs x n_var = [4, 4] x 5 over 2 time points\n" \
+def test_VData_sub_setting_creation(sub_vdata: vdata.VDataView) -> None:
+    assert repr(sub_vdata) == "View of VData 'No_Name' ([4, 4] obs x 5 vars over 2 time points).\n" \
                               "\tlayers: 'data'\n" \
                               "\tobs: 'col1'\n" \
                               "\tvar: 'col1'\n" \
@@ -73,52 +67,110 @@ def test_VData_sub_setting():
                               "\tobsp: 'test_obsp'\n" \
                               "\tvarp: 'test_varp'", repr(sub_vdata)
 
-    index_cells = ['c_20', 'c_1', 'c_30', 'c_10', 'c_199', 'c_100', 'c_150', 'c_151']
 
-    assert np.all(sub_vdata.layers['data'].index == index_cells), sub_vdata.layers['data'].index
-    assert np.all(sub_vdata.layers['data'].columns == mask_genes), sub_vdata.layers['data'].columns
+def test_VData_sub_setting_correct_layers_index(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.layers['data'].index == _INDEX_CELLS), sub_vdata.layers['data'].index
+    
+    
+def test_VData_sub_setting_correct_layers_columns(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.layers['data'].columns == _MASK_GENES), sub_vdata.layers['data'].columns
+    
+    
+def test_VData_sub_setting_correct_layers_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.layers['data'].values_num.flatten(),
-                          np.array([int(c[2:]) * 50 + int(g[2:]) for c in index_cells for g in mask_genes]))
+                          np.array([int(c[2:]) * 50 + int(g[2:]) for c in _INDEX_CELLS for g in _MASK_GENES]))
 
-    assert np.all(sub_vdata.obs.index == index_cells), sub_vdata.obs.index
-    assert np.all(sub_vdata.obs.columns == v.obs.columns), sub_vdata.obs.columns
+
+def test_VData_sub_setting_correct_obs_index(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.obs.index == _INDEX_CELLS), sub_vdata.obs.index
+    
+    
+def test_VData_sub_setting_correct_obs_columns(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.obs.columns == ['col1']), sub_vdata.obs.columns
+    
+    
+def test_VData_sub_setting_correct_obs_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.obs.values_num.flatten(),
-                          np.array([int(c[2:]) for c in index_cells]))
+                          np.array([int(c[2:]) for c in _INDEX_CELLS]))
 
-    assert sub_vdata.var.index.equals(pd.Index(mask_genes)), sub_vdata.var.index
-    assert sub_vdata.var.columns.equals(v.var.columns), sub_vdata.var.columns
+
+def test_VData_sub_setting_correct_var_index(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.var.index.equals(pd.Index(_MASK_GENES)), sub_vdata.var.index
+    
+    
+def test_VData_sub_setting_correct_var_columns(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.var.columns == ['col1']), sub_vdata.var.columns
+    
+    
+def test_VData_sub_setting_correct_var_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.var.values.flatten(),
-                          np.array([int(g[2:]) for g in mask_genes]))
+                          np.array([int(g[2:]) for g in _MASK_GENES]))
 
-    assert np.all(sub_vdata.obsm['test_obsm'].index == index_cells), sub_vdata.obsm['test_obsm'].index
-    assert np.all(sub_vdata.obsm['test_obsm'].columns == v.obsm['test_obsm'].columns), sub_vdata.obsm[
+def test_VData_sub_setting_correct_obsm_index(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.obsm['test_obsm'].index == _INDEX_CELLS), sub_vdata.obsm['test_obsm'].index
+    
+    
+def test_VData_sub_setting_correct_obms_columns(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.obsm['test_obsm'].columns == ['X1', 'X2']), sub_vdata.obsm[
         'test_obsm'].columns
+    
+    
+def test_VData_sub_setting_correct_obsm_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.obsm['test_obsm'].values_num.flatten(),
-                          np.array([int(c[2:]) * 2 + col for c in index_cells for col in (0, 1)]))
+                          np.array([int(c[2:]) * 2 + col for c in _INDEX_CELLS for col in (0, 1)]))
 
-    assert sub_vdata.obsp['test_obsp'].index.equals(pd.Index(index_cells)), sub_vdata.obsp['test_obsp'].index
-    assert sub_vdata.obsp['test_obsp'].columns.equals(pd.Index(index_cells)), sub_vdata.obsp['test_obsp'].columns
+
+def test_VData_sub_setting_correct_obsp_index(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.obsp['test_obsp'].index.equals(pd.Index(_INDEX_CELLS)), sub_vdata.obsp['test_obsp'].index
+    
+    
+def test_VData_sub_setting_correct_obsp_columns(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.obsp['test_obsp'].columns.equals(pd.Index(_INDEX_CELLS)), sub_vdata.obsp['test_obsp'].columns
+    
+    
+def test_VData_sub_setting_correct_obsp_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.obsp['test_obsp'].values.flatten(),
-                          np.array([int(c[2:]) * 300 + int(c2[2:]) for c in index_cells for c2 in index_cells]))
+                          np.array([int(c[2:]) * 300 + int(c2[2:]) for c in _INDEX_CELLS for c2 in _INDEX_CELLS]))
 
-    assert sub_vdata.varm['test_varm'].index.equals(pd.Index(mask_genes)), sub_vdata.varm['test_varm'].index
-    assert sub_vdata.varm['test_varm'].columns.equals(v.varm['test_varm'].columns), sub_vdata.varm['test_varm'].columns
+
+def test_VData_sub_setting_correct_varm_index(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.varm['test_varm'].index.equals(pd.Index(_MASK_GENES)), sub_vdata.varm['test_varm'].index
+    
+    
+def test_VData_sub_setting_correct_varm_columns(sub_vdata: vdata.VDataView) -> None:
+    assert np.all(sub_vdata.varm['test_varm'].columns == ['X1', 'X2']), sub_vdata.varm['test_varm'].columns
+    
+    
+def test_VData_sub_setting_correct_varm_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.varm['test_varm'].values.flatten(),
-                          np.array([int(g[2:]) * 2 + col for g in mask_genes for col in (0, 1)]))
+                          np.array([int(g[2:]) * 2 + col for g in _MASK_GENES for col in (0, 1)]))
 
-    assert sub_vdata.varp['test_varp'].index.equals(pd.Index(mask_genes)), sub_vdata.varp['test_varp'].index
-    assert sub_vdata.varp['test_varp'].columns.equals(pd.Index(mask_genes)), sub_vdata.varp['test_varp'].columns
+
+def test_VData_sub_setting_correct_varp_index(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.varp['test_varp'].index.equals(pd.Index(_MASK_GENES)), sub_vdata.varp['test_varp'].index
+    
+    
+def test_VData_sub_setting_correct_varp_columns(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.varp['test_varp'].columns.equals(pd.Index(_MASK_GENES)), sub_vdata.varp['test_varp'].columns
+    
+    
+def test_VData_sub_setting_correct_varp_values(sub_vdata: vdata.VDataView) -> None:
     assert np.array_equal(sub_vdata.varp['test_varp'].values.flatten(),
-                          np.array([int(g[2:]) * 50 + int(g2[2:]) for g in mask_genes for g2 in mask_genes]))
+                          np.array([int(g[2:]) * 50 + int(g2[2:]) for g in _MASK_GENES for g2 in _MASK_GENES]))
 
-    assert sub_vdata.n_obs_total == len(index_cells), sub_vdata.n_obs_total
-    assert sub_vdata.n_var == len(mask_genes), sub_vdata.n_var
+
+def test_VData_sub_setting_correct_shape(sub_vdata: vdata.VDataView) -> None:
+    assert sub_vdata.n_obs_total == len(_INDEX_CELLS), sub_vdata.n_obs_total
+    assert sub_vdata.n_var == len(_MASK_GENES), sub_vdata.n_var
 
     assert sub_vdata.layers.shape == (1, 2, [4, 4], 5)
     assert sub_vdata.layers.shape == (1, 2, sub_vdata.n_obs, sub_vdata.n_var)
 
 
-def test_vdata_subset_on_timepoints_should_set_new_values_in_obs(VData):
+def test_vdata_subset_on_timepoints_should_set_new_values_in_obs(VData: vdata.VData) -> None:
+    v = VData[['1h', '2h']]
+    v.copy()
+    
     subset = VData[['1h', '2h']].copy()
 
     new_data = TemporalDataFrame({'col1': np.arange(subset.n_obs_total)},

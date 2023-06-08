@@ -13,19 +13,6 @@ import vdata
 # code
 obs_index_data = [f"C_{i}" for i in range(6)]
 
-data = {
-    'RNA': {
-        '0h': np.zeros((7, 4)),
-        '5h': np.ones((3, 4)),
-        '10h': 2 * np.ones((10, 4))
-    },
-    'Protein': {
-        '0h': 10 * np.ones((7, 4)),
-        '5h': 20 * np.ones((3, 4)),
-        '10h': 30 * np.ones((10, 4))
-    }
-}
-
 expr_data_simple = np.array([[10, 11, 12],
                              [20, 21, 22],
                              [30, 31, 32],

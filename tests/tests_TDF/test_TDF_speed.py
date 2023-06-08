@@ -4,18 +4,17 @@
 
 # ====================================================
 # imports
+from pathlib import Path
 from time import perf_counter
+from typing import Generator
 
 import numpy as np
 import pytest
-from ch5mpy import File
-from ch5mpy import H5Mode
-from pathlib import Path
+from ch5mpy import File, H5Mode
 from h5py import string_dtype
 
-from vdata import TemporalDataFrame, read_TDF
-from vdata.core.attribute_proxy.attribute import NONE_VALUE
-from vdata.core.tdf.base import BaseTemporalDataFrame
+from vdata import TemporalDataFrame
+from vdata.tdf import TemporalDataFrameBase
 
 # ====================================================
 # code
@@ -23,7 +22,7 @@ MAX_ELAPSED_TIME_SECONDS = 1
 
 
 @pytest.fixture(scope='module')
-def large_TDF(request) -> BaseTemporalDataFrame:
+def large_TDF(request: pytest.FixtureRequest) -> Generator[TemporalDataFrameBase, None, None]:
     if hasattr(request, 'param'):
         which = request.param
 
@@ -37,7 +36,7 @@ def large_TDF(request) -> BaseTemporalDataFrame:
             h5_file.attrs['name'] = 'large TDF'
             h5_file.attrs['locked_indices'] = False
             h5_file.attrs['locked_columns'] = False
-            h5_file.attrs['timepoints_column_name'] = NONE_VALUE
+            h5_file.attrs['timepoints_column_name'] = None
             h5_file.attrs['repeating_index'] = False
 
             h5_file.create_dataset('index', data=np.arange(20_000))
@@ -45,24 +44,24 @@ def large_TDF(request) -> BaseTemporalDataFrame:
                                    chunks=True, maxshape=(None,), dtype=string_dtype())
             h5_file.create_dataset('columns_string', data=np.array(['col3', 'col4'], dtype=np.dtype('O')),
                                    chunks=True, maxshape=(None,), dtype=string_dtype())
-            h5_file.create_dataset('timepoints', data=['0.0h' for _ in range(2500)] +
-                                                      ['1.0h' for _ in range(2500)] +
-                                                      ['2.0h' for _ in range(2500)] +
-                                                      ['3.0h' for _ in range(2500)] +
-                                                      ['4.0h' for _ in range(2500)] +
-                                                      ['5.0h' for _ in range(2500)] +
-                                                      ['6.0h' for _ in range(2500)] +
-                                                      ['7.0h' for _ in range(2500)], dtype=string_dtype())
+            h5_file.create_dataset('timepoints_array', data=['0.0h' for _ in range(2500)] +
+                                                            ['1.0h' for _ in range(2500)] +
+                                                            ['2.0h' for _ in range(2500)] +
+                                                            ['3.0h' for _ in range(2500)] +
+                                                            ['4.0h' for _ in range(2500)] +
+                                                            ['5.0h' for _ in range(2500)] +
+                                                            ['6.0h' for _ in range(2500)] +
+                                                            ['7.0h' for _ in range(2500)], dtype=string_dtype())
 
-            h5_file.create_dataset('values_numerical', data=np.arange(40_000).reshape(20_000, 2),
+            h5_file.create_dataset('numerical_array', data=np.arange(40_000).reshape(20_000, 2),
                                    chunks=True, maxshape=(None, None))
 
-            h5_file.create_dataset('values_string',
+            h5_file.create_dataset('string_array',
                                    data=np.arange(40_000, 80_000).astype(str).astype('O').reshape(20_000, 2),
                                    dtype=string_dtype(), chunks=True, maxshape=(None, None))
 
         # read tdf from file
-        TDF = read_TDF('backed_large_TDF', mode=H5Mode.READ_WRITE)
+        TDF: TemporalDataFrameBase = TemporalDataFrame.read('backed_large_TDF', mode=H5Mode.READ_WRITE)
 
         if 'view' in which:
             yield TDF
@@ -99,7 +98,7 @@ def large_TDF(request) -> BaseTemporalDataFrame:
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_fast_repr(large_TDF):
+def test_fast_repr(large_TDF: TemporalDataFrameBase) -> None:
     start = perf_counter()
     repr(large_TDF)
 
@@ -111,7 +110,7 @@ def test_fast_repr(large_TDF):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_fast_subset(large_TDF):
+def test_fast_subset(large_TDF: TemporalDataFrameBase) -> None:
     index = np.array([19120, 19840, 9500, 17420, 8300, 2820, 1860, 7220, 5420,
                       18280, 9980, 13240, 18600, 8340, 16060, 3780, 17500, 7760,
                       14500, 10840, 2520, 4660, 4860, 2880, 19940, 15840, 2220,

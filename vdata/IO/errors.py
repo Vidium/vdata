@@ -1,14 +1,6 @@
-# coding: utf-8
-# Created on 11/6/20 7:08 PM
-# Author : matteo
-
-# ====================================================
-# imports
 from . import logger
 
 
-# ====================================================
-# code
 # Errors
 class VBaseError(Exception):
     """
@@ -19,21 +11,7 @@ class VBaseError(Exception):
 
     def __str__(self) -> str:
         logger.generalLogger.error(self.msg)
-        return ""
-
-
-class VTypeError(VBaseError):
-    """
-    Custom error for type errors.
-    """
-    pass
-
-
-class VValueError(VBaseError):
-    """
-    Custom error for value errors.
-    """
-    pass
+        return self.msg
 
 
 class ShapeError(VBaseError):
@@ -46,20 +24,6 @@ class ShapeError(VBaseError):
 class IncoherenceError(VBaseError):
     """
     Custom error for incoherent data formats.
-    """
-    pass
-
-
-class VPathError(VBaseError):
-    """
-    Custom error for path errors.
-    """
-    pass
-
-
-class VAttributeError(VBaseError):
-    """
-    Custom error for attribute errors.
     """
     pass
 
@@ -86,12 +50,4 @@ class VReadOnlyError(VBaseError):
 
     def __init__(self, msg: str = ""):
         self.msg = "Read-only file !"
-
-
-class VDeprecatedError(VBaseError):
-    """
-    Custom error for deprecated features that should no longer be used.
-    """
-
-    def __init__(self, msg: str = ""):
-        self.msg = "Deprecated feature !"
+        

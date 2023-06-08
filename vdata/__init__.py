@@ -1,27 +1,33 @@
-# coding: utf-8
-# Created on 11/4/20 10:35 AM
-# Author : matteo
+"""Annotated, temporal and multivariate observation data."""
 
-"""Annotated multivariate observation data with time dimension."""
+from vdata.data import VData, VDataView, concatenate, convert_anndata_to_vdata
+from vdata.IO import (
+    IncoherenceError,
+    ShapeError,
+    VLockError,
+    getLoggingLevel,
+    setLoggingLevel,
+)
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
+from vdata.timepoint import TimePoint
+from vdata.vdataframe import VDataFrame
 
-# ====================================================
-# imports
-from .core.VData import VData, concatenate
-from .core.VData.views import ViewVData
-from .core.tdf import TemporalDataFrame, TemporalDataFrameView, BackedTemporalDataFrame, BackedTemporalDataFrameView
-from .IO import setLoggingLevel, getLoggingLevel, VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, \
-    VAttributeError, VLockError
-from .read_write import read, read_from_dict, read_from_csv, convert_anndata_to_vdata, read_TDF, \
-    read_TDF_from_csv
-from .vdataframe import VDataFrame
-from .time_point import TimePoint
+read = VData.read
+read_from_csv = VData.read_from_csv
+read_from_anndata = VData.read_from_anndata
 
-__all__ = ["VData", "TemporalDataFrame", "BackedTemporalDataFrame",
-           "ViewVData", "TemporalDataFrameView", "BackedTemporalDataFrameView",
-           "read", "read_from_dict", "read_from_csv",
-           "convert_anndata_to_vdata", "read_TDF", "read_TDF_from_csv",
-           "setLoggingLevel", "getLoggingLevel", "concatenate",
-           "VTypeError", "VValueError", "ShapeError", "IncoherenceError", "VPathError", "VAttributeError",
-           "VLockError",
-           "VDataFrame",
-           "TimePoint"]
+__all__ = [
+    "VData",
+    "TemporalDataFrame",
+    "VDataView",
+    "TemporalDataFrameView",
+    "convert_anndata_to_vdata",
+    "setLoggingLevel",
+    "getLoggingLevel",
+    "concatenate",
+    "ShapeError",
+    "IncoherenceError",
+    "VLockError",
+    "VDataFrame",
+    "TimePoint"
+]

@@ -4,8 +4,8 @@
 
 # ====================================================
 # imports
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
 
 import vdata
@@ -16,17 +16,19 @@ from . import expr_data_simple
 
 # ====================================================
 # code
-def test_VData_copy(VData_uns):
+def test_VData_copy(VData_uns: VData) -> None:
     v2 = VData_uns.copy()
 
     assert id(VData_uns) != id(v2)
-    assert repr(VData_uns) == "VData '1' with n_obs x n_var = 6 x 3 over 1 time point.\n\t" \
+    assert repr(VData_uns) == "VData '1' (6 obs x 3 vars over 1 time point).\n\t" \
                               "layers: 'data'\n\t" \
                               "obs: 'data', 'data_bis'\n\t" \
                               "var: 'gene_name'\n\t" \
                               "timepoints: 'value'\n\t" \
                               "uns: 'colors', 'date'", repr(VData_uns)
 
+
+def test_VData_copy_with_repeating_index() -> None:
     # repeating index
     timepoints = pd.DataFrame({"value": ["0h", "1h"]})
     var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
@@ -43,10 +45,10 @@ def test_VData_copy(VData_uns):
                                    repeating_index=True,
                                    time_list=["0h", "0h", "0h", "1h", "1h", "1h"])
 
-    v3 = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name=3)
+    v3 = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name='3')
 
     v4 = v3.copy()
-    assert repr(v4) == "VData '3_copy' with n_obs x n_var = [3, 3] x 3 over 2 time points.\n" \
+    assert repr(v4) == "VData '3_copy' ([3, 3] obs x 3 vars over 2 time points).\n" \
                        "\tlayers: 'data'\n" \
                        "\tobs: 'data', 'data_bis'\n" \
                        "\tvar: 'gene_name'\n" \
@@ -54,17 +56,17 @@ def test_VData_copy(VData_uns):
                        "\tuns: 'colors', 'date'"
 
 
-def test_VData_copy_subset(VData_uns):
+def test_VData_copy_subset(VData_uns: VData) -> None:
     v_subset = VData_uns[:, 0:4, 0:2]
     v2 = v_subset.copy()
 
     assert id(v_subset) != id(v2)
-    assert repr(v2) == "VData '1_view_copy' with n_obs x n_var = 4 x 2 over 1 time point.\n\t" \
-                       "layers: 'data'\n\t" \
-                       "obs: 'data', 'data_bis'\n\t" \
-                       "var: 'gene_name'\n\t" \
-                       "timepoints: 'value'\n\t" \
-                       "uns: 'colors', 'date'", repr(v2)
+    assert repr(v2) == "VData '1_view_copy' (4 obs x 2 vars over 1 time point).\n" \
+                       "\tlayers: 'data'\n" \
+                       "\tobs: 'data', 'data_bis'\n" \
+                       "\tvar: 'gene_name'\n" \
+                       "\ttimepoints: 'value'\n" \
+                       "\tuns: 'colors', 'date'", repr(v2)
 
 
 @pytest.mark.parametrize(
@@ -72,7 +74,7 @@ def test_VData_copy_subset(VData_uns):
     ['backed'],
     indirect=True
 )
-def test_copy_of_backed_VData_should_not_be_backed(VData_uns: VData):
+def test_copy_of_backed_VData_should_not_be_backed(VData_uns: VData) -> None:
     v_copy = VData_uns.copy()
 
     assert not v_copy.is_backed
@@ -83,7 +85,7 @@ def test_copy_of_backed_VData_should_not_be_backed(VData_uns: VData):
     ['backed'],
     indirect=True
 )
-def test_copy_of_backed_VData_layers_should_not_be_backed(VData_uns: VData):
+def test_copy_of_backed_VData_layers_should_not_be_backed(VData_uns: VData) -> None:
     v_copy = VData_uns.copy()
 
     assert not v_copy.layers['data'].is_backed
@@ -94,7 +96,7 @@ def test_copy_of_backed_VData_layers_should_not_be_backed(VData_uns: VData):
     ['backed'],
     indirect=True
 )
-def test_copy_of_backed_VData_uns_arrays_should_not_be_backed(VData_uns: VData):
+def test_copy_of_backed_VData_uns_arrays_should_not_be_backed(VData_uns: VData) -> None:
     v_copy = VData_uns.copy()
 
     assert isinstance(v_copy.uns['colors'], np.ndarray)

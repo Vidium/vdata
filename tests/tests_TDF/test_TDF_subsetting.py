@@ -4,12 +4,12 @@
 
 # ====================================================
 # imports
-import pytest
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
+import pytest
 
-from vdata import TemporalDataFrame
-from vdata.time_point import mean as tp_mean
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 
 
 # ====================================================
@@ -21,55 +21,57 @@ from vdata.time_point import mean as tp_mean
     indirect=True
 )
 class TestSubGetting:
-    def test_subset_get_single_tp(self):
+    TDF: TemporalDataFrameBase
+        
+    def test_subset_get_single_tp(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF['0h']) == f"View of {backed}TemporalDataFrame 1\n" \
-                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                       "Time point : 0.0 hours\n" \
+                                       "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                        "   Time-point     col1   col2    col3 col4\n" \
-                                       "50       0.0h  |  50.0  150.0  |  250  350\n" \
-                                       "51       0.0h  |  51.0  151.0  |  251  351\n" \
-                                       "52       0.0h  |  52.0  152.0  |  252  352\n" \
-                                       "53       0.0h  |  53.0  153.0  |  253  353\n" \
-                                       "54       0.0h  |  54.0  154.0  |  254  354\n" \
-                                       "[50 x 4]\n\n"
+                                       "50       0.0h  ｜  50.0  150.0  ｜  250  350\n" \
+                                       "51       0.0h  ｜  51.0  151.0  ｜  251  351\n" \
+                                       "52       0.0h  ｜  52.0  152.0  ｜  252  352\n" \
+                                       "53       0.0h  ｜  53.0  153.0  ｜  253  353\n" \
+                                       "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
+                                       "[50 rows x 4 columns]\n\n"
 
         assert np.all(self.TDF['0h'].values_num == np.hstack((np.arange(50, 100)[:, None],
                                                               np.arange(150, 200)[:, None])))
         assert np.all(self.TDF['0h'].values_str == np.hstack((np.arange(250, 300).astype(str)[:, None],
                                                               np.arange(350, 400).astype(str)[:, None])))
 
-    def test_subset_get_tp_not_in_tdf_should_fail(self):
+    def test_subset_get_tp_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF['1s'])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "Some time-points were not found in this TemporalDataFrame " \
+                                      "([1.0 seconds] (1 value long))"
 
-        assert str(exc_info.value) == f"Some time-points were not found in this {view}{backed}TemporalDataFrame " \
-                                      f"([1.0 seconds] (1 value long))"
-
-    def test_subset_multiple_timepoints(self):
+    def test_subset_multiple_timepoints(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[['0h', '1h']]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                               "Time point : 0.0 hours\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "   Time-point     col1   col2    col3 col4\n" \
-                                               "50       0.0h  |  50.0  150.0  |  250  350\n" \
-                                               "51       0.0h  |  51.0  151.0  |  251  351\n" \
-                                               "52       0.0h  |  52.0  152.0  |  252  352\n" \
-                                               "53       0.0h  |  53.0  153.0  |  253  353\n" \
-                                               "54       0.0h  |  54.0  154.0  |  254  354\n" \
-                                               "[50 x 4]\n" \
+                                               "50       0.0h  ｜  50.0  150.0  ｜  250  350\n" \
+                                               "51       0.0h  ｜  51.0  151.0  ｜  251  351\n" \
+                                               "52       0.0h  ｜  52.0  152.0  ｜  252  352\n" \
+                                               "53       0.0h  ｜  53.0  153.0  ｜  253  353\n" \
+                                               "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
+                                               "[50 rows x 4 columns]\n" \
                                                "\n" \
-                                               "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                               "Time point : 1.0 hours\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "  Time-point    col1   col2    col3 col4\n" \
-                                               "0       1.0h  |  0.0  100.0  |  200  300\n" \
-                                               "1       1.0h  |  1.0  101.0  |  201  301\n" \
-                                               "2       1.0h  |  2.0  102.0  |  202  302\n" \
-                                               "3       1.0h  |  3.0  103.0  |  203  303\n" \
-                                               "4       1.0h  |  4.0  104.0  |  204  304\n" \
-                                               "[50 x 4]\n\n"
+                                               "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
+                                               "1       1.0h  ｜  1.0  101.0  ｜  201  301\n" \
+                                               "2       1.0h  ｜  2.0  102.0  ｜  202  302\n" \
+                                               "3       1.0h  ｜  3.0  103.0  ｜  203  303\n" \
+                                               "4       1.0h  ｜  4.0  104.0  ｜  204  304\n" \
+                                               "[50 rows x 4 columns]\n\n"
 
         assert np.all(self.TDF[['0h', '1h']].values_num == np.hstack((
             np.concatenate((np.arange(50, 100), np.arange(0, 50)))[:, None],
@@ -80,61 +82,58 @@ class TestSubGetting:
             np.concatenate((np.arange(350, 400), np.arange(300, 350))).astype(str)[:, None])
         ))
 
-    def test_subset_multiple_timepoints_not_in_tdf_should_fail(self):
+    def test_subset_multiple_timepoints_not_in_tdf_should_fail(self) -> None:
         # subset multiple TPs, some not in tdf
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF[['0h', '1h', '2h']])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
-
-        assert str(exc_info.value) == f"Some time-points were not found in this {view}{backed}TemporalDataFrame " \
+        assert str(exc_info.value) == "Some time-points were not found in this TemporalDataFrame " \
                                       "([2.0 hours] (1 value long))"
 
-    def test_subset_single_row(self):
+    def test_subset_single_row(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, 10]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                        "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                        "Time point : 1.0 hours\n" \
+                                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                         "   Time-point     col1   col2    col3 col4\n" \
-                                        "10       1.0h  |  10.0  110.0  |  210  310\n" \
-                                        "[1 x 4]\n\n"
+                                        "10       1.0h  ｜  10.0  110.0  ｜  210  310\n" \
+                                        "[1 rows x 4 columns]\n\n"
 
         assert np.all(self.TDF[:, 10].values_num == np.array([[10, 110]]))
         assert np.all(self.TDF[:, 10].values_str == np.array([['210', '310']]))
 
-    def test_subset_single_row_not_in_tdf_should_fail(self):
+    def test_subset_single_row_not_in_tdf_should_fail(self) -> None:
         # subset single row, not in tdf
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF[:, 500])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "Some indices were not found in this TemporalDataFrame " \
+                                      "([500] (1 value long))"
 
-        assert str(exc_info.value) == f"Some indices were not found in this {view}{backed}TemporalDataFrame " \
-                                      f"([500] (1 value long))"
-
-    def test_subset_multiple_rows(self):
+    def test_subset_multiple_rows(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, range(25, 75)]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                                   "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                                   "Time point : 0.0 hours\n" \
+                                                   "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                    "   Time-point     col1   col2    col3 col4\n" \
-                                                   "50       0.0h  |  50.0  150.0  |  250  350\n" \
-                                                   "51       0.0h  |  51.0  151.0  |  251  351\n" \
-                                                   "52       0.0h  |  52.0  152.0  |  252  352\n" \
-                                                   "53       0.0h  |  53.0  153.0  |  253  353\n" \
-                                                   "54       0.0h  |  54.0  154.0  |  254  354\n" \
-                                                   "[25 x 4]\n" \
+                                                   "50       0.0h  ｜  50.0  150.0  ｜  250  350\n" \
+                                                   "51       0.0h  ｜  51.0  151.0  ｜  251  351\n" \
+                                                   "52       0.0h  ｜  52.0  152.0  ｜  252  352\n" \
+                                                   "53       0.0h  ｜  53.0  153.0  ｜  253  353\n" \
+                                                   "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
+                                                   "[25 rows x 4 columns]\n" \
                                                    "\n" \
-                                                   "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                                   "Time point : 1.0 hours\n" \
+                                                   "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                    "   Time-point     col1   col2    col3 col4\n" \
-                                                   "25       1.0h  |  25.0  125.0  |  225  325\n" \
-                                                   "26       1.0h  |  26.0  126.0  |  226  326\n" \
-                                                   "27       1.0h  |  27.0  127.0  |  227  327\n" \
-                                                   "28       1.0h  |  28.0  128.0  |  228  328\n" \
-                                                   "29       1.0h  |  29.0  129.0  |  229  329\n" \
-                                                   "[25 x 4]\n\n"
+                                                   "25       1.0h  ｜  25.0  125.0  ｜  225  325\n" \
+                                                   "26       1.0h  ｜  26.0  126.0  ｜  226  326\n" \
+                                                   "27       1.0h  ｜  27.0  127.0  ｜  227  327\n" \
+                                                   "28       1.0h  ｜  28.0  128.0  ｜  228  328\n" \
+                                                   "29       1.0h  ｜  29.0  129.0  ｜  229  329\n" \
+                                                   "[25 rows x 4 columns]\n\n"
 
         assert np.all(self.TDF[:, range(25, 75)].values_num == np.hstack((
             np.concatenate((np.arange(50, 75), np.arange(25, 50)))[:, None],
@@ -145,145 +144,141 @@ class TestSubGetting:
             np.concatenate((np.arange(350, 375), np.arange(325, 350))).astype(str)[:, None])
         ))
 
-    def test_subset_multiple_rows_with_some_not_in_tdf_should_fail(self):
+    def test_subset_multiple_rows_with_some_not_in_tdf_should_fail(self) -> None:
         # subset multiple rows, some not in tdf
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF[:, 20:500:2])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
-
-        assert str(exc_info.value) == f"Some indices were not found in this {view}{backed}TemporalDataFrame " \
+        assert str(exc_info.value) == "Some indices were not found in this TemporalDataFrame " \
                                       "([100 102 ... 496 498] (200 values long))"
 
-    def test_subset_single_column(self):
+    def test_subset_single_column(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, :, 'col3']) == f"View of {backed}TemporalDataFrame 1\n" \
-                                               "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                               "Time point : 0.0 hours\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "   Time-point    col3\n" \
-                                               "50       0.0h  |  250\n" \
-                                               "51       0.0h  |  251\n" \
-                                               "52       0.0h  |  252\n" \
-                                               "53       0.0h  |  253\n" \
-                                               "54       0.0h  |  254\n" \
-                                               "[50 x 1]\n" \
+                                               "50       0.0h  ｜  250\n" \
+                                               "51       0.0h  ｜  251\n" \
+                                               "52       0.0h  ｜  252\n" \
+                                               "53       0.0h  ｜  253\n" \
+                                               "54       0.0h  ｜  254\n" \
+                                               "[50 rows x 1 columns]\n" \
                                                "\n" \
-                                               "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                               "Time point : 1.0 hours\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "  Time-point    col3\n" \
-                                               "0       1.0h  |  200\n" \
-                                               "1       1.0h  |  201\n" \
-                                               "2       1.0h  |  202\n" \
-                                               "3       1.0h  |  203\n" \
-                                               "4       1.0h  |  204\n" \
-                                               "[50 x 1]\n\n"
+                                               "0       1.0h  ｜  200\n" \
+                                               "1       1.0h  ｜  201\n" \
+                                               "2       1.0h  ｜  202\n" \
+                                               "3       1.0h  ｜  203\n" \
+                                               "4       1.0h  ｜  204\n" \
+                                               "[50 rows x 1 columns]\n\n"
 
         assert self.TDF[:, :, 'col3'].values_num.size == 0
         assert np.all(self.TDF[:, :, 'col3'].values_str ==
                       np.concatenate((np.arange(250, 300), np.arange(200, 250))).astype(str)[:, None])
 
-    def test_subset_single_column_with_getattr(self):
+    def test_subset_single_column_with_getattr(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF.col2) == f"View of {backed}TemporalDataFrame 1\n" \
-                                      "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                      "Time point : 0.0 hours\n" \
+                                      "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                       "   Time-point      col2\n" \
-                                      "50       0.0h  |  150.0\n" \
-                                      "51       0.0h  |  151.0\n" \
-                                      "52       0.0h  |  152.0\n" \
-                                      "53       0.0h  |  153.0\n" \
-                                      "54       0.0h  |  154.0\n" \
-                                      "[50 x 1]\n" \
+                                      "50       0.0h  ｜  150.0\n" \
+                                      "51       0.0h  ｜  151.0\n" \
+                                      "52       0.0h  ｜  152.0\n" \
+                                      "53       0.0h  ｜  153.0\n" \
+                                      "54       0.0h  ｜  154.0\n" \
+                                      "[50 rows x 1 columns]\n" \
                                       "\n" \
-                                      "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                      "Time point : 1.0 hours\n" \
+                                      "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                       "  Time-point      col2\n" \
-                                      "0       1.0h  |  100.0\n" \
-                                      "1       1.0h  |  101.0\n" \
-                                      "2       1.0h  |  102.0\n" \
-                                      "3       1.0h  |  103.0\n" \
-                                      "4       1.0h  |  104.0\n" \
-                                      "[50 x 1]\n\n"
+                                      "0       1.0h  ｜  100.0\n" \
+                                      "1       1.0h  ｜  101.0\n" \
+                                      "2       1.0h  ｜  102.0\n" \
+                                      "3       1.0h  ｜  103.0\n" \
+                                      "4       1.0h  ｜  104.0\n" \
+                                      "[50 rows x 1 columns]\n\n"
 
         assert np.all(self.TDF.col2.values_num == np.concatenate((np.arange(150, 200), np.arange(100, 150)))[:, None])
         assert self.TDF.col2.values_str.size == 0
 
-    def test_subset_column_not_in_tdf_should_fail(self):
+    def test_subset_column_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF[:, :, 'col5'])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "Some columns were not found in this TemporalDataFrame " \
+                                      "(['col5'] (1 value long))"
 
-        assert str(exc_info.value) == f"Some columns were not found in this {view}{backed}TemporalDataFrame " \
-                                      f"(['col5'] (1 value long))"
-
-    def test_subset_column_with_getattr_not_in_tdf_should_fail(self):
+    def test_subset_column_with_getattr_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(AttributeError) as exc_info:
             repr(self.TDF.col5)
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "'col5' not found in this TemporalDataFrame."
 
-        assert str(exc_info.value) == f"'col5' not found in this {view}{backed}TemporalDataFrame."
-
-    def test_subset_multiple_columns(self):
+    def test_subset_multiple_columns(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, :, ['col1', 'col3']]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                                         "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                                         "Time point : 0.0 hours\n" \
+                                                         "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                          "   Time-point     col1    col3\n" \
-                                                         "50       0.0h  |  50.0  |  250\n" \
-                                                         "51       0.0h  |  51.0  |  251\n" \
-                                                         "52       0.0h  |  52.0  |  252\n" \
-                                                         "53       0.0h  |  53.0  |  253\n" \
-                                                         "54       0.0h  |  54.0  |  254\n" \
-                                                         "[50 x 2]\n" \
+                                                         "50       0.0h  ｜  50.0  ｜  250\n" \
+                                                         "51       0.0h  ｜  51.0  ｜  251\n" \
+                                                         "52       0.0h  ｜  52.0  ｜  252\n" \
+                                                         "53       0.0h  ｜  53.0  ｜  253\n" \
+                                                         "54       0.0h  ｜  54.0  ｜  254\n" \
+                                                         "[50 rows x 2 columns]\n" \
                                                          "\n" \
-                                                         "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                                         "Time point : 1.0 hours\n" \
+                                                         "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                          "  Time-point    col1    col3\n" \
-                                                         "0       1.0h  |  0.0  |  200\n" \
-                                                         "1       1.0h  |  1.0  |  201\n" \
-                                                         "2       1.0h  |  2.0  |  202\n" \
-                                                         "3       1.0h  |  3.0  |  203\n" \
-                                                         "4       1.0h  |  4.0  |  204\n" \
-                                                         "[50 x 2]\n\n"
+                                                         "0       1.0h  ｜  0.0  ｜  200\n" \
+                                                         "1       1.0h  ｜  1.0  ｜  201\n" \
+                                                         "2       1.0h  ｜  2.0  ｜  202\n" \
+                                                         "3       1.0h  ｜  3.0  ｜  203\n" \
+                                                         "4       1.0h  ｜  4.0  ｜  204\n" \
+                                                         "[50 rows x 2 columns]\n\n"
 
         assert np.all(self.TDF[:, :, ['col1', 'col3']].values_num == np.concatenate((
             np.arange(50, 100), np.arange(0, 50)))[:, None])
         assert np.all(self.TDF[:, :, ['col1', 'col3']].values_str == np.concatenate((
             np.arange(250, 300), np.arange(200, 250))).astype(str)[:, None])
 
-    def test_subset_multiple_columns_with_some_not_in_tdf_should_fail(self):
+    def test_subset_multiple_columns_with_some_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             repr(self.TDF[:, :, ['col1', 'col3', 'col5']])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "Some columns were not found in this TemporalDataFrame " \
+                                      "(['col5'] (1 value long))"
 
-        assert str(exc_info.value) == f"Some columns were not found in this {view}{backed}TemporalDataFrame " \
-                                      f"(['col5'] (1 value long))"
-
-    def test_subset_multiple_columns_shuffled(self):
+    def test_subset_multiple_columns_shuffled(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, :, ['col4', 'col2', 'col1']]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                                                 "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                                                 "Time point : 0.0 hours\n" \
+                                                                 "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                                  "   Time-point      col2  col1    col4\n" \
-                                                                 "50       0.0h  |  150.0  50.0  |  350\n" \
-                                                                 "51       0.0h  |  151.0  51.0  |  351\n" \
-                                                                 "52       0.0h  |  152.0  52.0  |  352\n" \
-                                                                 "53       0.0h  |  153.0  53.0  |  353\n" \
-                                                                 "54       0.0h  |  154.0  54.0  |  354\n" \
-                                                                 "[50 x 3]\n" \
+                                                                 "50       0.0h  ｜  150.0  50.0  ｜  350\n" \
+                                                                 "51       0.0h  ｜  151.0  51.0  ｜  351\n" \
+                                                                 "52       0.0h  ｜  152.0  52.0  ｜  352\n" \
+                                                                 "53       0.0h  ｜  153.0  53.0  ｜  353\n" \
+                                                                 "54       0.0h  ｜  154.0  54.0  ｜  354\n" \
+                                                                 "[50 rows x 3 columns]\n" \
                                                                  "\n" \
-                                                                 "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                                                 "Time point : 1.0 hours\n" \
+                                                                 "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                                  "  Time-point      col2 col1    col4\n" \
-                                                                 "0       1.0h  |  100.0  0.0  |  300\n" \
-                                                                 "1       1.0h  |  101.0  1.0  |  301\n" \
-                                                                 "2       1.0h  |  102.0  2.0  |  302\n" \
-                                                                 "3       1.0h  |  103.0  3.0  |  303\n" \
-                                                                 "4       1.0h  |  104.0  4.0  |  304\n" \
-                                                                 "[50 x 3]\n\n"
+                                                                 "0       1.0h  ｜  100.0  0.0  ｜  300\n" \
+                                                                 "1       1.0h  ｜  101.0  1.0  ｜  301\n" \
+                                                                 "2       1.0h  ｜  102.0  2.0  ｜  302\n" \
+                                                                 "3       1.0h  ｜  103.0  3.0  ｜  303\n" \
+                                                                 "4       1.0h  ｜  104.0  4.0  ｜  304\n" \
+                                                                 "[50 rows x 3 columns]\n\n"
 
         assert np.all(self.TDF[:, :, ['col4', 'col2', 'col1']].values_num == np.hstack((
             np.concatenate((np.arange(150, 200), np.arange(100, 150)))[:, None],
@@ -293,18 +288,19 @@ class TestSubGetting:
         assert np.all(self.TDF[:, :, ['col4', 'col2', 'col1']].values_str == np.concatenate((
             np.arange(350, 400), np.arange(300, 350))).astype(str)[:, None])
 
-    def test_subset_with_timepoints_rows_and_columns(self):
+    def test_subset_with_timepoints_rows_and_columns(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF['1h', 10:40:5, ['col1', 'col3']]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                                                  "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                                                  "Time point : 1.0 hours\n" \
+                                                                  "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                                   "   Time-point     col1    col3\n" \
-                                                                  "10       1.0h  |  10.0  |  210\n" \
-                                                                  "15       1.0h  |  15.0  |  215\n" \
-                                                                  "20       1.0h  |  20.0  |  220\n" \
-                                                                  "25       1.0h  |  25.0  |  225\n" \
-                                                                  "30       1.0h  |  30.0  |  230\n" \
-                                                                  "[6 x 2]\n\n"
+                                                                  "10       1.0h  ｜  10.0  ｜  210\n" \
+                                                                  "15       1.0h  ｜  15.0  ｜  215\n" \
+                                                                  "20       1.0h  ｜  20.0  ｜  220\n" \
+                                                                  "25       1.0h  ｜  25.0  ｜  225\n" \
+                                                                  "30       1.0h  ｜  30.0  ｜  230\n" \
+                                                                  "[6 rows x 2 columns]\n\n"
 
         assert np.all(
             self.TDF['1h', 10:40:5, ['col1', 'col3']].values_num == np.array([10, 15, 20, 25, 30, 35])[:, None])
@@ -317,17 +313,18 @@ class TestSubGetting:
     ['plain', 'view'],
     indirect=True
 )
-def test_subset_with_timepoints_rows_and_columns_shuffled(TDF1):
+def test_subset_with_timepoints_rows_and_columns_shuffled(TDF1: TemporalDataFrameBase) -> None:
     view = TDF1[['0h'], [40, 10, 80, 60, 20, 70, 50], ['col2', 'col1', 'col3']]
     assert repr(view) == \
            "View of TemporalDataFrame 1\n" \
-           "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+           "Time point : 0.0 hours\n" \
+           "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
            "   Time-point      col2  col1    col3\n" \
-           "80       0.0h  |  180.0  80.0  |  280\n" \
-           "60       0.0h  |  160.0  60.0  |  260\n" \
-           "70       0.0h  |  170.0  70.0  |  270\n" \
-           "50       0.0h  |  150.0  50.0  |  250\n" \
-           "[4 x 3]\n\n"
+           "80       0.0h  ｜  180.0  80.0  ｜  280\n" \
+           "60       0.0h  ｜  160.0  60.0  ｜  260\n" \
+           "70       0.0h  ｜  170.0  70.0  ｜  270\n" \
+           "50       0.0h  ｜  150.0  50.0  ｜  250\n" \
+           "[4 rows x 3 columns]\n\n"
 
     assert np.all(view.values_num == np.array([
         [180, 80],
@@ -348,7 +345,7 @@ def test_subset_with_timepoints_rows_and_columns_shuffled(TDF1):
     ['plain', 'view', 'backed', 'backed view'],
     indirect=True
 )
-def test_subset_same_index_at_multiple_timepoints(TDF1):
+def test_subset_same_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -> None:
     if TDF1.is_view:
         TDF1.parent.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
@@ -358,19 +355,21 @@ def test_subset_same_index_at_multiple_timepoints(TDF1):
     backed = 'backed ' if TDF1.is_backed else ''
 
     assert repr(TDF1[:, [0, 2, 4]]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                       "\x1b[4mTime point : 0.0 hours\x1b[0m\n" \
+                                       "Time point : 0.0 hours\n" \
+                                       "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                        "  Time-point     col1   col2    col3 col4\n" \
-                                       "0       0.0h  |  50.0  150.0  |  250  350\n" \
-                                       "2       0.0h  |  52.0  152.0  |  252  352\n" \
-                                       "4       0.0h  |  54.0  154.0  |  254  354\n" \
-                                       "[3 x 4]\n" \
+                                       "0       0.0h  ｜  50.0  150.0  ｜  250  350\n" \
+                                       "2       0.0h  ｜  52.0  152.0  ｜  252  352\n" \
+                                       "4       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
+                                       "[3 rows x 4 columns]\n" \
                                        "\n" \
-                                       "\x1b[4mTime point : 1.0 hours\x1b[0m\n" \
+                                       "Time point : 1.0 hours\n" \
+                                       "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                        "  Time-point    col1   col2    col3 col4\n" \
-                                       "0       1.0h  |  0.0  100.0  |  200  300\n" \
-                                       "2       1.0h  |  2.0  102.0  |  202  302\n" \
-                                       "4       1.0h  |  4.0  104.0  |  204  304\n" \
-                                       "[3 x 4]\n\n"
+                                       "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
+                                       "2       1.0h  ｜  2.0  102.0  ｜  202  302\n" \
+                                       "4       1.0h  ｜  4.0  104.0  ｜  204  304\n" \
+                                       "[3 rows x 4 columns]\n\n"
 
     assert np.all(TDF1[:, [0, 2, 4]].values_num == np.array([[50, 150],
                                                              [52, 152],
@@ -391,7 +390,7 @@ def test_subset_same_index_at_multiple_timepoints(TDF1):
     ['plain', 'view'],
     indirect=True
 )
-def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1):
+def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -> None:
     if TDF1.is_view:
         TDF1.parent.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
@@ -421,14 +420,15 @@ def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1):
     indirect=True
 )
 class TestSubSetting:
+    TDF: TemporalDataFrameBase
 
-    def test_set_values_with_wrong_shape_should_fail(self):
+    def test_set_values_with_wrong_shape_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             self.TDF['0h', 10:70:2, ['col4', 'col1']] = np.ones((50, 50))
 
-        assert str(exc_info.value) == "Can't set 10 x 2 values from 50 x 50 array."
+        assert str(exc_info.value) == "Can't set 10 x 2 values from (50, 50) array."
 
-    def test_set_values(self):
+    def test_set_values(self) -> None:
         self.TDF['0h', 10:70:2, ['col4', 'col1']] = np.array([['a', -1],
                                                               ['b', -2],
                                                               ['c', -3],
@@ -641,17 +641,14 @@ class TestSubSetting:
                                                        ['248', '348'],
                                                        ['249', '349']], dtype='<U3'))
 
-    def test_set_values_for_timepoints_not_in_tdf_should_fail(self):
+    def test_set_values_for_timepoints_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             self.TDF[['0h', '2h'], 10:70:2, ['col4', 'col1']] = np.array([['a', -1]])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == 'Some time-points were not found in this TemporalDataFrame ' \
+                                      '([2.0 hours] (1 value long))'
 
-        assert str(exc_info.value) == f'Some time-points were not found in this {view}{backed}TemporalDataFrame ' \
-                                      f'([2.0 hours] (1 value long))'
-
-    def test_set_values_for_rows_not_in_tdf_should_fail(self):
+    def test_set_values_for_rows_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             self.TDF['0h', 0:200:20, ['col4', 'col1']] = np.array([['a', -1],
                                                                    ['b', -2],
@@ -664,13 +661,10 @@ class TestSubSetting:
                                                                    ['i', -9],
                                                                    ['j', -10]])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
-
-        assert str(exc_info.value) == f'Some indices were not found in this {view}{backed}TemporalDataFrame ' \
+        assert str(exc_info.value) == 'Some indices were not found in this TemporalDataFrame ' \
                                       '([100 120 ... 160 180] (5 values long))'
 
-    def test_set_values_forcolumns_not_in_TDF_should_fail(self):
+    def test_set_values_forcolumns_not_in_TDF_should_fail(self) -> None:
         # set values for columns, some not in tdf
         with pytest.raises(ValueError) as exc_info:
             self.TDF['0h', 10:70:20, ['col4', 'col1', 'col5']] = np.array([['a', -1, 0],
@@ -684,13 +678,10 @@ class TestSubSetting:
                                                                            ['i', -9, 0],
                                                                            ['j', -10, 0]])
 
-        view = 'view of a ' if self.TDF.is_view else ''
-        backed = 'backed ' if self.TDF.is_backed else ''
+        assert str(exc_info.value) == "Some columns were not found in this TemporalDataFrame " \
+                                      "(['col5'] (1 value long))"
 
-        assert str(exc_info.value) == f"Some columns were not found in this {view}{backed}TemporalDataFrame " \
-                                      f"(['col5'] (1 value long))"
-
-    def test_set_values_with_same_index_at_multiple_timepoints(self):
+    def test_set_values_with_same_index_at_multiple_timepoints(self) -> None:
         if self.TDF.is_view:
             self.TDF.parent.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
@@ -905,7 +896,7 @@ class TestSubSetting:
                                                        ['248', '348'],
                                                        ['249', '349']], dtype='<U3'))
 
-    def test_set_single_value_broadcast(self):
+    def test_set_single_value_broadcast(self) -> None:
         # set single value
         self.TDF[:, [4, 0, 2], ['col1', 'col2']] = 1000
 
@@ -1116,7 +1107,7 @@ class TestSubSetting:
     ['plain', 'backed'],
     indirect=True
 )
-def test_reindex(TDF1):
+def test_reindex(TDF1: TemporalDataFrame) -> None:
     # all in index
     TDF1.reindex(np.arange(99, -1, -1))
 
@@ -1132,7 +1123,7 @@ def test_reindex(TDF1):
     ['plain', 'backed'],
     indirect=True
 )
-def test_reindex_with_indices_not_in_original_index_should_fail(TDF1):
+def test_reindex_with_indices_not_in_original_index_should_fail(TDF1: TemporalDataFrame) -> None:
     with pytest.raises(ValueError) as exc_info:
         TDF1.reindex(np.arange(149, 49, -1))
 
@@ -1144,7 +1135,7 @@ def test_reindex_with_indices_not_in_original_index_should_fail(TDF1):
     ['plain', 'backed'],
     indirect=True
 )
-def test_reindex_with_repeating_index_should_fail(TDF1):
+def test_reindex_with_repeating_index_should_fail(TDF1: TemporalDataFrame) -> None:
     with pytest.raises(ValueError) as exc_info:
         TDF1.reindex(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
@@ -1156,7 +1147,7 @@ def test_reindex_with_repeating_index_should_fail(TDF1):
     ['plain', 'backed'],
     indirect=True
 )
-def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1):
+def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1: TemporalDataFrame) -> None:
     TDF1.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
     TDF1.reindex(np.concatenate((np.arange(49, -1, -1), np.arange(49, -1, -1))), repeating_index=True)
@@ -1172,7 +1163,7 @@ def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1):
 # @pytest.mark.parametrize('provide_TDFs', [(False, 'test_sub_getting_inverted_TDF', 1, 'r'),
 #                                           (True, 'test_sub_getting_inverted_TDF', 3, 'r')],
 #                          indirect=True)
-# def test_reversed_sub_getting(provide_TDFs):
+# def test_reversed_sub_getting(provide_TDFs) -> None:
 #     TDF, backed_TDF = provide_TDFs
 #
 #     # tdf is not backed -------------------------------------------------------
@@ -1195,7 +1186,7 @@ def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1):
 # @pytest.mark.parametrize('provide_TDFs', [(False, 'test_sub_getting_inverted_TDF', 1, 'r+'),
 #                                           (True, 'test_sub_getting_inverted_TDF', 3, 'r+')],
 #                          indirect=True)
-# def test_reversed_sub_setting(provide_TDFs):
+# def test_reversed_sub_setting(provide_TDFs) -> None:
 #     TDF, backed_TDF = provide_TDFs
 #
 #     # tdf is not backed -------------------------------------------------------
@@ -1254,12 +1245,12 @@ def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1):
 @pytest.mark.parametrize(
     'operation,expected',
     [
-        ('min', 0),
-        ('max', 199),
+        ('min', 0.),
+        ('max', 199.),
         ('mean', 99.5)
     ]
 )
-def test_global_min_max_mean(TDF1, operation, expected):
+def test_global_min_max_mean(TDF1: TemporalDataFrameBase, operation: str, expected: float) -> None:
     assert getattr(TDF1, operation)() == expected
 
 
@@ -1271,12 +1262,12 @@ def test_global_min_max_mean(TDF1, operation, expected):
 @pytest.mark.parametrize(
     'operation,expected',
     [
-        ('min', np.array([[50, 150], [0, 100]])),
-        ('max', np.array([[99, 199], [49, 149]])),
+        ('min', np.array([[50., 150.], [0., 100.]])),
+        ('max', np.array([[99., 199.], [49., 149.]])),
         ('mean', np.array([[74.5, 174.5], [24.5, 124.5]]))
     ]
 )
-def test_min_max_mean_on_rows(TDF1, operation, expected):
+def test_min_max_mean_on_rows(TDF1: TemporalDataFrameBase, operation: str, expected: npt.NDArray[np.float_]) -> None:
     assert getattr(TDF1, operation)(axis=1) == TemporalDataFrame(
         data=pd.DataFrame(expected,
                           index=[operation, operation],
@@ -1293,7 +1284,7 @@ def test_min_max_mean_on_rows(TDF1, operation, expected):
     indirect=True
 )
 @pytest.mark.parametrize('operation', ['min', 'max', 'mean'])
-def test_min_max_mean_on_columns(TDF1, operation):
+def test_min_max_mean_on_columns(TDF1: TemporalDataFrameBase, operation: str) -> None:
     assert getattr(TDF1, operation)(axis=2) == TemporalDataFrame(data=pd.DataFrame(
         getattr(np, operation)(TDF1.values_num, axis=1)[:, None],
         index=TDF1.index,
@@ -1309,22 +1300,20 @@ def test_min_max_mean_on_columns(TDF1, operation):
     indirect=True
 )
 @pytest.mark.parametrize('operation', ['min', 'max', 'mean'])
-def test_min_max_mean_on_timepoints(TDF1, operation):
+def test_min_max_mean_on_timepoints(TDF1: TemporalDataFrameBase, operation: str) -> None:
     if TDF1.is_view:
         TDF1.parent.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
     else:
         TDF1.set_index(np.concatenate((np.arange(0, 50), np.arange(0, 50))), repeating_index=True)
 
-    mmm_tp = {'min': min,
-              'max': max,
-              'mean': tp_mean}[operation](TDF1.timepoints)
+    mmm_tp = getattr(TDF1.timepoints, operation)()
 
     assert getattr(TDF1, operation)(axis=0) == TemporalDataFrame(data=pd.DataFrame(
         getattr(np, operation)([TDF1['0h'].values_num,
                                 TDF1['1h'].values_num], axis=0),
         index=TDF1.index_at(TDF1.tp0),
-        columns=TDF1.columns_num[:]
+        columns=TDF1.columns_num
     ),
         time_list=[mmm_tp for _ in enumerate(TDF1.index_at(TDF1.tp0))],
         time_col_name=TDF1.timepoints_column_name)

@@ -6,20 +6,19 @@
 # imports
 import os
 import shutil
-import numpy as np
-import scanpy as sc
 from pathlib import Path
-from ch5mpy import H5Dict
-from ch5mpy import H5Array
 from tempfile import NamedTemporaryFile
 
+import numpy as np
+import scanpy as sc
+from ch5mpy import H5Array, H5Dict
+
 import vdata
-from vdata import VData
 
 
 # ====================================================
 # code
-def out_test_VData_write():
+def out_test_VData_write() -> None:
     """
     This test has the 'out_' prefix to exclude it from pytest since it is called by test_VData_read.
     """
@@ -48,10 +47,10 @@ def out_test_VData_write():
     # write vdata in csv files
     v.write_to_csv(output_dir / "vdata")
 
-    v.file.close()
+    v.close()
 
 
-def test_VData_view_write():
+def test_VData_view_write() -> None:
     output_dir = Path(__file__).parent.parent / 'ref'
 
     if os.path.exists(output_dir / 'sub_vdata'):
@@ -78,8 +77,8 @@ def test_VData_view_write():
     sub_v.write_to_csv(output_dir / "sub_vdata")
 
 
-def test_VData_write_should_convert_uns_to_BackedDict():
-    v = VData(uns={'test': np.array([1, 2, 3])})
+def test_VData_write_should_convert_uns_to_BackedDict() -> None:
+    v = vdata.VData(uns={'test': np.array([1, 2, 3])})
 
     tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
     v.write(tmp_file.name)
@@ -87,8 +86,8 @@ def test_VData_write_should_convert_uns_to_BackedDict():
     assert isinstance(v.uns, H5Dict)
 
 
-def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
-    v = VData(uns={'test': np.array([1, 2, 3])})
+def test_VData_write_should_convert_uns_arrays_to_datasetProxies() -> None:
+    v = vdata.VData(uns={'test': np.array([1, 2, 3])})
 
     tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
     v.write(tmp_file.name)
@@ -96,11 +95,8 @@ def test_VData_write_should_convert_uns_arrays_to_datasetProxies():
     assert isinstance(v.uns['test'], H5Array)
 
 
-def test_backed_VData_new_layer_should_be_backed():
-    output_dir = Path(__file__).parent.parent / 'ref'
-    VData = vdata.read(output_dir / "vdata.vd", 'r+')
+def test_backed_VData_new_layer_should_be_backed(backed_VData: vdata.VData) -> None:
+    backed_VData.layers['data_copy'] = backed_VData.layers['data'].copy()
+    backed_VData.layers['data_copy'][:] = 100
 
-    VData.layers['data_copy'] = VData.layers['data'].copy()
-    VData.layers['data_copy'][:] = 100
-
-    assert VData.layers['data_copy'].is_backed
+    assert backed_VData.layers['data_copy'].is_backed

@@ -1,13 +1,15 @@
+from tempfile import NamedTemporaryFile
+from typing import Generator
+
 import numpy as np
 import pandas as pd
 import pytest
-from tempfile import NamedTemporaryFile
 
-from vdata.core.VData import vdata
+import vdata
 
 
 @pytest.fixture
-def VData():
+def VData() -> vdata.VData:
     genes = list(map(lambda x: "g_" + str(x), range(50)))
     cells = list(map(lambda x: "c_" + str(x), range(300)))
 
@@ -22,7 +24,23 @@ def VData():
 
 
 @pytest.fixture
-def VData_uns(request):
+def backed_VData() -> vdata.VData:
+    genes = list(map(lambda x: "g_" + str(x), range(50)))
+    cells = list(map(lambda x: "c_" + str(x), range(300)))
+
+    v = vdata.VData(data={'data': pd.DataFrame(np.array(range(300 * 50)).reshape((300, 50)),
+                                               index=cells,
+                                               columns=genes)},
+                    obs=pd.DataFrame({'col1': range(300)}, index=cells),
+                    var=pd.DataFrame({'col1': range(50)}, index=genes),
+                    time_list=['0h' for _ in range(100)] + ['1h' for _ in range(100)] + ['2h' for _ in range(100)])
+
+    v.write(NamedTemporaryFile(suffix='.vd').name)
+    return v
+
+
+@pytest.fixture
+def VData_uns(request: pytest.FixtureRequest) -> Generator[vdata.VData, None, None]:
     if hasattr(request, 'param'):
         which = request.param
 
@@ -44,14 +62,14 @@ def VData_uns(request):
                                  [50, 51, 52],
                                  [60, 61, 62]]))
 
-    v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name=1)
+    v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name='1')
 
     if 'backed' in which:
         tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
 
         v.write(tmp_file.name)
         yield v
-        v.file.close()
+        v.close()
 
     else:
         yield v

@@ -4,10 +4,16 @@
 
 # ====================================================
 # imports
-from .logger import generalLogger, setLoggingLevel, getLoggingLevel
-from .errors import VTypeError, VValueError, ShapeError, IncoherenceError, VPathError, VAttributeError, VLockError, \
-    VClosedFileError, VReadOnlyError, VDeprecatedError
+from .errors import IncoherenceError, ShapeError, VClosedFileError, VLockError, VReadOnlyError
+from .logger import generalLogger, getLoggingLevel, setLoggingLevel
 
-__all__ = ['generalLogger', 'setLoggingLevel', 'getLoggingLevel', 'VTypeError', 'VValueError', 'ShapeError',
-           'IncoherenceError', 'VPathError', 'VAttributeError', 'VLockError', 'VClosedFileError', 'VReadOnlyError',
-           'VDeprecatedError']
+__all__ = [
+    'generalLogger', 
+    'setLoggingLevel', 
+    'getLoggingLevel', 
+    'ShapeError',
+    'IncoherenceError', 
+    'VLockError', 
+    'VClosedFileError',
+    'VReadOnlyError'
+]

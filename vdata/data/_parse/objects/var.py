@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+
+from vdata._typing import IFS_NP
+from vdata.IO.logger import generalLogger
+from vdata.tdf import TemporalDataFrameBase
+from vdata.utils import first, obj_as_str
+from vdata.vdataframe import VDataFrame
+
+if TYPE_CHECKING:
+    from vdata.data._parse.data import ParsingDataIn
+
+
+def get_var_index(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None,
+                  var: pd.DataFrame | VDataFrame | None) -> npt.NDArray[IFS_NP] | None:
+    if var is not None:
+        return obj_as_str(np.array(var.index))
+    
+    if isinstance(data, (pd.DataFrame, VDataFrame, TemporalDataFrameBase)):
+        return obj_as_str(np.array(data.columns))
+        
+    if isinstance(data, dict):
+        return obj_as_str(np.array(first(data).columns))
+    
+    return None
+
+
+def parse_var(data: ParsingDataIn) -> VDataFrame:
+    # FIXME
+    return data.var
+
+
+def parse_varm(data: ParsingDataIn) -> dict[str, VDataFrame]:
+    if not len(data.varm):
+        generalLogger.debug("    6. \u2717 'varm' was not given.")
+        return {}
+    
+    if not isinstance(data.varm, dict):
+        raise TypeError("'varm' must be a dictionary of DataFrames.")
+    
+    generalLogger.debug(f"    6. \u2713 'varm' is a {type(data.varm).__name__}.")
+
+    if data.var is None and not len(data.layers):
+        raise ValueError("'varm' parameter cannot be set unless either 'data' or 'var' are set.")
+
+    valid_varm: dict[str, VDataFrame] = {}
+
+    for key, value in data.varm.items():
+        if not isinstance(value, (pd.DataFrame, VDataFrame)):
+            raise TypeError(f"'varm' '{key}' must be a DataFrame.")
+
+        if not np.all(np.isin(value.index, data.var.index)):
+            raise ValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
+
+        valid_varm[str(key)] = value
+        valid_varm[str(key)].reindex(data.var.index)
+
+    return valid_varm
+
+
+def parse_varp(data: ParsingDataIn) -> dict[str, VDataFrame]:
+    if not len(data.varp):
+        generalLogger.debug("    7. \u2717 'varp' was not given.")
+        return {}
+    
+    if not isinstance(data.varp, dict):
+        raise TypeError("'varp' must be a dictionary of 2D numpy arrays or pandas DataFrames.")
+        
+    if data.var is None and not len(data.layers):
+        raise ValueError("'varp' parameter cannot be set unless either 'data' or 'var' are set.")
+
+    generalLogger.debug(f"    7. \u2713 'varp' is a {type(data.varp).__name__}.")
+
+    valid_varp: dict[str, VDataFrame] = {}
+
+    for key, value in data.varp.items():
+        if not isinstance(value, (np.ndarray, (pd.DataFrame, VDataFrame))) and value.ndim != 2:
+            raise TypeError(f"'varp' '{key}' must be 2D numpy array or pandas DataFrame.")
+
+        if isinstance(value, (pd.DataFrame, VDataFrame)):
+            if not all(value.index.isin(data.var.index)):
+                raise ValueError(f"Index of 'varp' '{key}' does not match 'var' and 'layers' column names.")
+            
+            if not all(value.columns.isin(data.var.index)):
+                raise ValueError(f"Column names of 'varp' '{key}' do not match 'var' and 'layers' column names.")
+            
+            value.reindex(data.var.index)
+            value = value[data.var.index]
+
+        else:
+            value = VDataFrame(value, index=data.var_index, columns=data.var_index)
+
+        valid_varp[str(key)] = value
+
+    return valid_varp
