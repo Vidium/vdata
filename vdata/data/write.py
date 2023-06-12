@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import ch5mpy as ch
 from tqdm.auto import tqdm
 
-from vdata.data.file import NoFile
+from vdata.data.file import NoData
 from vdata.IO.logger import generalLogger
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.utils import spacer
@@ -15,11 +15,11 @@ from vdata.utils import spacer
 if TYPE_CHECKING:
     from vdata.data.vdata import VData
     from vdata.data.view import VDataView
-
+    
 
 def write_vdata(data: VData | VDataView,
                 file: str | Path | None = None,
-                verbose: bool = True) -> ch.H5Dict:
+                verbose: bool = True) -> ch.H5Dict[Any]:
     """
     Save a VData object in HDF5 file format.
 
@@ -27,8 +27,8 @@ def write_vdata(data: VData | VDataView,
         file: path to save the VData
         verbose: print a progress bar while saving objects in this VData ? (default: True)
     """
-    if data.file is not NoFile._:
-        if data.file.mode == ch.H5Mode.READ_WRITE:
+    if data.data is not NoData._:
+        if data.data.mode == ch.H5Mode.READ_WRITE:
             raise NotImplementedError('Should not be necessary')
 
         raise ValueError("Cannot save backed VData in 'r' mode !")
@@ -52,8 +52,8 @@ def write_vdata(data: VData | VDataView,
 
     nb_items_to_write = len(data.layers) + len(data.obsm) + len(data.obsp) + len(data.varm) + \
         len(data.varp) + len(data.uns) + 9
-    progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {data.name}', unit='object') if verbose \
-        else None
+    progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {data.name}', unit='object') \
+        if verbose else None
 
     h5_data.attributes['name'] = data.name
 
@@ -69,7 +69,7 @@ def write_vdata(data: VData | VDataView,
                      timepoints=data.timepoints,
                      uns=data.uns)
 
-    if verbose:
+    if progressBar is not None:
         progressBar.close()
         
     return h5_data

@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import builtins
 from types import EllipsisType
-from typing import Any, Collection, MutableMapping, Sequence, TypeGuard, TypeVar, cast
+from typing import Any, Collection, Mapping, TypeGuard, TypeVar, Union, cast
 
 import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 
-from vdata._typing import IFS_NP, PreSlicer
+from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
 from vdata.array_view import NDArrayView
 from vdata.IO.errors import ShapeError
-from vdata.timepoint import TimePoint, TimePointArray
+from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
 
 _builtin_names = dir(builtins)
 _builtin_names.remove('False')
@@ -22,7 +21,7 @@ _builtin_names.remove('None')
 _V = TypeVar('_V')
 
 # region misc -----------------------------------------------------------------
-def first(d: dict[Any, _V]) -> _V:
+def first(d: Mapping[Any, _V]) -> _V:
     return next(iter(d.values()))
 
 
@@ -43,7 +42,7 @@ def are_equal(obj1: Any,
 
         return False
 
-    return obj1 == obj2
+    return bool(obj1 == obj2)
 
 
 def spacer(nb: int) -> str:
@@ -57,31 +56,22 @@ def obj_as_str(arr: npt.NDArray[Any]) -> npt.NDArray[Any]:
 
 
 # region Representation --------------------------------------------------------------
-def repr_array(arr: npt.DTypeLike | Sequence[Any] | range | slice | EllipsisType) -> str:
-    """
-    Get a short string representation of an array.
-    :param: an array to represent.
-    :return: a short string representation of the array.
-    """
-    if isinstance(arr, slice) or arr is ... or not isCollection(arr):
+def repr_array(arr: npt.DTypeLike | Collection[Any] | range | slice | EllipsisType) -> str:
+    """Get a short string representation of an array."""
+    if isinstance(arr, slice) or arr is Ellipsis or not isCollection(arr):
         return str(arr)
 
-    else:
-        arr = cast(Sequence, arr)
-        if isinstance(arr, range) or len(arr) <= 4:
-            return f"{str(arr)} ({len(arr)} value{'' if len(arr) == 1 else 's'} long)"
+    if isinstance(arr, range) or len(arr) <= 4:
+        return f"{str(arr)} ({len(arr)} value{'' if len(arr) == 1 else 's'} long)"
 
-        elif isinstance(arr, pd.Series):
-            return f"[{arr[0]} {arr[1]} ... {arr.iloc[-2]} {arr.iloc[-1]}] ({len(arr)} values long)"
-
-        else:
-            return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"
+    arr = list(arr)
+    return f"[{arr[0]} {arr[1]} ... {arr[-2]} {arr[-1]}] ({len(arr)} values long)"
 
 # endregion
 
 
 # region Type coercion ---------------------------------------------------------------
-def deep_dict_convert(obj: MutableMapping) -> Any:
+def deep_dict_convert(obj: Mapping[Any, Any]) -> dict[Any, Any]:
     """
     'Deep' convert a mapping of any kind (and children mappings) into regular dictionaries.
 
@@ -91,7 +81,7 @@ def deep_dict_convert(obj: MutableMapping) -> Any:
     Returns:
         a converted dictionary.
     """
-    if not isinstance(obj, MutableMapping):
+    if not isinstance(obj, Mapping):
         return obj
 
     return {k: deep_dict_convert(v) for k, v in obj.items()}
@@ -155,8 +145,7 @@ def slice_or_range_to_list(s: slice | range, _c: Collection[Any]) -> list[Any]:
 
 
 def slicer_to_array(slicer: PreSlicer,
-                    reference_index: Collection,
-                    on_time_point: bool = False) -> npt.NDArray[IFS_NP] | None:
+                    reference_index: NDArrayLike_IFS) -> NDArray_IFS | None:
     """
     Format a slicer into an array of allowed values given in the 'reference_index' parameter.
 
@@ -168,32 +157,42 @@ def slicer_to_array(slicer: PreSlicer,
     Returns:
         An array of allowed values in the slicer.
     """
-    if not isinstance(slicer, (slice, type(Ellipsis))):
+    if not isinstance(slicer, (slice, EllipsisType)):
         if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-            # boolean array : extract values from reference_index
             return np.array(reference_index)[np.where(slicer.flatten())]
 
         elif not isCollection(slicer):
-            # single value : convert to array (void array if value not in reference_index)
-            slicer = TimePoint(slicer) if on_time_point else slicer
             return np.array([slicer]) if smart_isin(slicer, reference_index) else np.array([])
 
-        else:
-            # array of values : store values that are in reference_index
-            slicer = as_tp_list(slicer) if on_time_point else slicer
-            return np.array(slicer)[np.where(smart_isin(slicer, reference_index))]
+        return np.array(slicer)[np.where(smart_isin(slicer, reference_index))]
 
-    elif slicer == slice(None, None, None) or isinstance(slicer, type(Ellipsis)):
-        # slice from start to end : take all values in reference_index
-        # return np.array(reference_index)
+    elif slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
         return None
 
     elif isinstance(slicer, (slice, range)):
-        # slice from specific start to end : get list of sliced values
-        if on_time_point:
-            slicer.start = TimePoint(float(slicer.start))
-            slicer.stop = TimePoint(float(slicer.stop))
         return np.array(slice_or_range_to_list(slicer, reference_index))
+
+    raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
+
+
+def slicer_to_array_timepoints(slicer: PreSlicer,
+                               reference_index: TimePointArray) -> TimePointArray | None:
+    if not isinstance(slicer, (slice, EllipsisType)):
+        if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
+            return atleast_1d(reference_index[np.where(slicer.flatten())])
+
+        elif isCollection(slicer):
+            slicer_list = as_tp_list(slicer)
+            return atleast_1d(np.array(slicer_list)[np.where(smart_isin(slicer_list, reference_index))])
+            
+        slicer = cast(Union[IFS, TimePoint], slicer)
+        return TimePointArray([slicer]) if smart_isin(TimePoint(slicer), reference_index) else TimePointArray([])
+
+    elif slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
+        return None
+
+    elif isinstance(slicer, (slice, range)):
+        return TimePointArray(slice_or_range_to_list(slicer, reference_index))
 
     raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
@@ -202,38 +201,33 @@ def reformat_index(index: PreSlicer |
                           tuple[PreSlicer] |
                           tuple[PreSlicer, PreSlicer] |
                           tuple[PreSlicer, PreSlicer, PreSlicer],
-                   timepoints_reference: Collection[TimePoint] | None,
-                   obs_reference: Collection | None,
-                   var_reference: Collection | None) \
-        -> tuple[TimePointArray, npt.NDArray[IFS_NP], npt.NDArray[IFS_NP]]:
+                   timepoints_reference: TimePointArray,
+                   obs_reference: NDArrayLike_IFS,
+                   var_reference: NDArrayLike_IFS) \
+        -> tuple[TimePointArray | None, 
+                 NDArray_IFS | None,
+                 NDArray_IFS | None]:
     """
     Format a sub-setting index into 3 arrays of selected (and allowed) values for time points, observations and
     variables. The reference collections are used to transform a PreSlicer into an array of selected values.
-    :param index: an index to format.
-    :param timepoints_reference: a collection of allowed values for the time points.
-    :param obs_reference: a collection of allowed values for the observations.
-    :param var_reference: a collection of allowed values for the variables.
-    :return: 3 arrays of selected (and allowed) values for time points, observations and variables.
+    
+    Args:
+        index: an index to format.
+        timepoints_reference: a collection of allowed values for the time points.
+        obs_reference: a collection of allowed values for the observations.
+        var_reference: a collection of allowed values for the variables.
+    
+    Returns:    
+        3 arrays of selected (and allowed) values for time points, observations and variables.
     """
     if not isinstance(index, tuple):
-        return slicer_to_array(index, timepoints_reference, on_time_point=True), \
-               slicer_to_array(..., obs_reference), \
-               slicer_to_array(..., var_reference)
-
-    elif isinstance(index, tuple) and len(index) == 1:
-        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
-               slicer_to_array(..., obs_reference), \
-               slicer_to_array(..., var_reference)
-
-    elif isinstance(index, tuple) and len(index) == 2:
-        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
-               slicer_to_array(index[1], obs_reference), \
-               slicer_to_array(..., var_reference)
-
-    else:
-        return slicer_to_array(index[0], timepoints_reference, on_time_point=True), \
-               slicer_to_array(index[1], obs_reference), \
-               slicer_to_array(index[2], var_reference)
+        index = (index,)
+        
+    index = index + (...,) * (3 - len(index))
+    
+    return slicer_to_array_timepoints(index[0], timepoints_reference), \
+        slicer_to_array(index[1], obs_reference), \
+        slicer_to_array(index[2], var_reference)
 
 
 # Identification ---------------------------------------------------------
@@ -356,18 +350,14 @@ def match_timepoints(tp_list: TimePointArray,
 
     if len(tp_index):
         for tp_i, tp_value in enumerate(_tp_list):
-            if not isCollection(tp_value) and tp_value.value == '*':
+            if isCollection(tp_value):
+                for one_tp_value in tp_value:
+                    if smart_isin(one_tp_value, tp_index):
+                        mask[tp_i] = True
+                        break
+
+            elif smart_isin(tp_value, tp_index):
                 mask[tp_i] = True
-
-            else:
-                if isCollection(tp_value):
-                    for one_tp_value in cast(Sequence, tp_value):
-                        if smart_isin(one_tp_value, tp_index):
-                            mask[tp_i] = True
-                            break
-
-                elif smart_isin(tp_value, tp_index):
-                    mask[tp_i] = True
 
     return mask
 
@@ -377,7 +367,7 @@ def repr_index(index: PreSlicer |
                       tuple[PreSlicer] |
                       tuple[PreSlicer, PreSlicer] |
                       tuple[PreSlicer, PreSlicer, PreSlicer] |
-                      tuple[npt.NDArray[IFS_NP], npt.NDArray[IFS_NP], npt.NDArray[IFS_NP]]) \
+                      tuple[NDArray_IFS, NDArray_IFS, NDArray_IFS]) \
         -> str:
     """
     Get a short string representation of a sub-setting index.

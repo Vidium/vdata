@@ -47,7 +47,7 @@ class TestSubGetting:
             repr(self.TDF['1s'])
 
         assert str(exc_info.value) == "Some time-points were not found in this TemporalDataFrame " \
-                                      "([1.0 seconds] (1 value long))"
+                                      "([1.0 second] (1 value long))"
 
     def test_subset_multiple_timepoints(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
@@ -63,8 +63,8 @@ class TestSubGetting:
                                                "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
                                                "[50 rows x 4 columns]\n" \
                                                "\n" \
-                                               "Time point : 1.0 hours\n" \
-                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                               "Time point : 1.0 hour\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "  Time-point    col1   col2    col3 col4\n" \
                                                "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
                                                "1       1.0h  ｜  1.0  101.0  ｜  201  301\n" \
@@ -94,8 +94,8 @@ class TestSubGetting:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF[:, 10]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                        "Time point : 1.0 hours\n" \
-                                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                        "Time point : 1.0 hour\n" \
+                                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                         "   Time-point     col1   col2    col3 col4\n" \
                                         "10       1.0h  ｜  10.0  110.0  ｜  210  310\n" \
                                         "[1 rows x 4 columns]\n\n"
@@ -125,8 +125,8 @@ class TestSubGetting:
                                                    "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
                                                    "[25 rows x 4 columns]\n" \
                                                    "\n" \
-                                                   "Time point : 1.0 hours\n" \
-                                                   "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                                   "Time point : 1.0 hour\n" \
+                                                   "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                    "   Time-point     col1   col2    col3 col4\n" \
                                                    "25       1.0h  ｜  25.0  125.0  ｜  225  325\n" \
                                                    "26       1.0h  ｜  26.0  126.0  ｜  226  326\n" \
@@ -166,8 +166,8 @@ class TestSubGetting:
                                                "54       0.0h  ｜  254\n" \
                                                "[50 rows x 1 columns]\n" \
                                                "\n" \
-                                               "Time point : 1.0 hours\n" \
-                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                               "Time point : 1.0 hour\n" \
+                                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                "  Time-point    col3\n" \
                                                "0       1.0h  ｜  200\n" \
                                                "1       1.0h  ｜  201\n" \
@@ -194,8 +194,8 @@ class TestSubGetting:
                                       "54       0.0h  ｜  154.0\n" \
                                       "[50 rows x 1 columns]\n" \
                                       "\n" \
-                                      "Time point : 1.0 hours\n" \
-                                      "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                      "Time point : 1.0 hour\n" \
+                                      "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                       "  Time-point      col2\n" \
                                       "0       1.0h  ｜  100.0\n" \
                                       "1       1.0h  ｜  101.0\n" \
@@ -234,8 +234,8 @@ class TestSubGetting:
                                                          "54       0.0h  ｜  54.0  ｜  254\n" \
                                                          "[50 rows x 2 columns]\n" \
                                                          "\n" \
-                                                         "Time point : 1.0 hours\n" \
-                                                         "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                                         "Time point : 1.0 hour\n" \
+                                                         "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                          "  Time-point    col1    col3\n" \
                                                          "0       1.0h  ｜  0.0  ｜  200\n" \
                                                          "1       1.0h  ｜  1.0  ｜  201\n" \
@@ -270,8 +270,8 @@ class TestSubGetting:
                                                                  "54       0.0h  ｜  154.0  54.0  ｜  354\n" \
                                                                  "[50 rows x 3 columns]\n" \
                                                                  "\n" \
-                                                                 "Time point : 1.0 hours\n" \
-                                                                 "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                                                 "Time point : 1.0 hour\n" \
+                                                                 "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                                  "  Time-point      col2 col1    col4\n" \
                                                                  "0       1.0h  ｜  100.0  0.0  ｜  300\n" \
                                                                  "1       1.0h  ｜  101.0  1.0  ｜  301\n" \
@@ -292,8 +292,8 @@ class TestSubGetting:
         backed = 'backed ' if self.TDF.is_backed else ''
 
         assert repr(self.TDF['1h', 10:40:5, ['col1', 'col3']]) == f"View of {backed}TemporalDataFrame 1\n" \
-                                                                  "Time point : 1.0 hours\n" \
-                                                                  "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                                                  "Time point : 1.0 hour\n" \
+                                                                  "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                                                   "   Time-point     col1    col3\n" \
                                                                   "10       1.0h  ｜  10.0  ｜  210\n" \
                                                                   "15       1.0h  ｜  15.0  ｜  215\n" \
@@ -363,8 +363,8 @@ def test_subset_same_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -
                                        "4       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
                                        "[3 rows x 4 columns]\n" \
                                        "\n" \
-                                       "Time point : 1.0 hours\n" \
-                                       "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                                       "Time point : 1.0 hour\n" \
+                                       "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                        "  Time-point    col1   col2    col3 col4\n" \
                                        "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
                                        "2       1.0h  ｜  2.0  102.0  ｜  202  302\n" \

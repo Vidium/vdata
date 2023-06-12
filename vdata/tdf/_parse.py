@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from vdata._typing import IFS, IFS_NP
+from vdata._typing import IFS, NDArray_IFS
 from vdata.names import NO_NAME
 from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import isCollection, obj_as_str
@@ -82,7 +82,7 @@ def _sort_and_get_tp(data: pd.DataFrame | None,
     data[col_name] = timepoints
     data.sort_values(by=col_name, inplace=True, kind='mergesort')
 
-    time_values_ = TimePointArray(data[col_name].values)
+    time_values_ = TimePointArray(list(data[col_name]))
     del data[col_name]
     data.columns = data.columns.astype(_dtype)
 
@@ -95,7 +95,7 @@ def _get_timed_index(index: Collection[IFS] | None,
                      data: pd.DataFrame | None,
                      repeating_index: bool) -> TimedArray:
     if isinstance(data, pd.DataFrame) and index is not None:
-        data.index = index
+        data.index = pd.Index(index)
     
     if time_list is None and time_col_name is not None:
         if not isinstance(data, pd.DataFrame):
@@ -135,7 +135,7 @@ def _get_timed_index(index: Collection[IFS] | None,
     return TimedArray(_index, _time_list, repeating_index)
             
 
-def parse_data_h5(data: ch.H5Dict,
+def parse_data_h5(data: ch.H5Dict[Any],
                   lock: tuple[bool, bool] | None,
                   name: str) -> ch.AttributeManager:
     if lock is not None:
@@ -147,7 +147,7 @@ def parse_data_h5(data: ch.H5Dict,
     return data.attributes
 
 
-def parse_data(data: dict[str, npt.NDArray[IFS_NP]] | pd.DataFrame | None,
+def parse_data(data: dict[str, NDArray_IFS] | pd.DataFrame | None,
                index: Collection[IFS] | None,
                repeating_index: bool,
                columns: Collection[IFS] | None,
@@ -158,9 +158,9 @@ def parse_data(data: dict[str, npt.NDArray[IFS_NP]] | pd.DataFrame | None,
                    npt.NDArray[np.int_ | np.float_], 
                    npt.NDArray[np.str_],
                    TimePointArray,
-                   npt.NDArray[IFS_NP],
-                   npt.NDArray[IFS_NP],
-                   npt.NDArray[IFS_NP],
+                   NDArray_IFS,
+                   NDArray_IFS,
+                   NDArray_IFS,
                    tuple[bool, bool],
                    str | None,
                    str,
@@ -271,8 +271,8 @@ def parse_data_df(data: pd.DataFrame,
                   columns: Collection[IFS] | None) -> tuple[
                       npt.NDArray[np.float64], 
                       npt.NDArray[np.str_], 
-                      npt.NDArray[IFS_NP],
-                      npt.NDArray[IFS_NP]
+                      NDArray_IFS,
+                      NDArray_IFS
                   ]:
     numerical_df = data.select_dtypes(include='number')
     string_df = data.select_dtypes(exclude='number')

@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 
-from vdata._typing import IFS_NP
+from vdata._typing import NDArray_IFS
 from vdata.data._parse.time import check_time_match
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
@@ -19,14 +18,18 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def _index(obj: pd.DataFrame | VDataFrame | TemporalDataFrameBase) -> tuple[npt.NDArray[IFS_NP], bool]:
+def _index(obj: pd.DataFrame | VDataFrame | TemporalDataFrameBase) -> tuple[NDArray_IFS, bool]:
     _repeating_index = obj.has_repeating_index if isinstance(obj, TemporalDataFrameBase) else False
     return np.array(obj.index), _repeating_index
     
 
-def get_obs_index(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None,
+def get_obs_index(data: pd.DataFrame | 
+                        VDataFrame | 
+                        TemporalDataFrameBase | 
+                        dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
+                        None,
                   obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) \
-    -> tuple[npt.NDArray[IFS_NP] | None, bool]:
+    -> tuple[NDArray_IFS | None, bool]:
     if obs is not None:
         return _index(obs)
     

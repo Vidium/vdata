@@ -4,10 +4,10 @@ from enum import Enum
 from typing import Any, NoReturn
 
 
-class _NoFileType:
+class _NoDataType:
     _instance = None
     
-    def __new__(cls, *args: Any, **kwargs: Any) -> _NoFileType:
+    def __new__(cls, *args: Any, **kwargs: Any) -> _NoDataType:
         if not isinstance(cls._instance, cls):
             cls._instance = object.__new__(cls, *args, **kwargs)
         return cls._instance
@@ -16,5 +16,5 @@ class _NoFileType:
         raise ValueError('Cannot close object which is not backed on h5 file.')
     
 
-class NoFile(Enum):
-    _ = _NoFileType()
+class NoData(Enum):
+    _ = _NoDataType()

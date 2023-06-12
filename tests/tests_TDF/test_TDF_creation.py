@@ -549,8 +549,8 @@ class TestCreationBackedTDF:
                             "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
                             "[50 rows x 4 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "  Time-point    col1   col2    col3 col4\n" \
                             "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
                             "1       1.0h  ｜  1.0  101.0  ｜  201  301\n" \
@@ -580,7 +580,7 @@ def todo_test_inverted_TDF_creation(TDF: TemporalDataFrameBase) -> None:
                                      "54       0.0h  ｜  54.0  154.0  ｜  254  354\n" \
                                      "[50 rows x 4 columns]\n" \
                                      "\n" \
-                                     "Time point : 1.0 hours\n" \
+                                     "Time point : 1.0 hour\n" \
                                      "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                      "  Time-point    col1   col2    col3 col4\n" \
                                      "0       1.0h  ｜  0.0  100.0  ｜  200  300\n" \
@@ -599,7 +599,7 @@ def todo_test_inverted_TDF_creation(TDF: TemporalDataFrameBase) -> None:
 def todo_test_inverted_TDF_view_creation(TDF: TemporalDataFrameBase) -> None:
     assert repr(~TDF['0h', '0', :]) == "Inverted view of TemporalDataFrame 1\n" \
                                        "Time point : 0.0 hours\n" \
-                                       "Time point : 1.0 hours\n" \
+                                       "Time point : 1.0 hour\n" \
                                        "  Time-point    col1    col4\n" \
                                        "1       1.0h  ｜  1.0  ｜  301\n" \
                                        "2       1.0h  ｜  2.0  ｜  302\n" \

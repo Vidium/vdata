@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal, cast
 
 import ch5mpy as ch
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 
 import vdata
-from vdata._typing import IFS_NP, PreSlicer
+from vdata._typing import DictLike, NDArray_IFS, PreSlicer
 from vdata.data.arrays import (
     VLayersArrayContainerView,
     VObsmArrayContainerView,
@@ -18,14 +17,14 @@ from vdata.data.arrays import (
     VVarmArrayContainerView,
     VVarpArrayContainerView,
 )
-from vdata.data.file import NoFile
+from vdata.data.file import NoData
 from vdata.data.write import write_vdata, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
 from vdata.utils import reformat_index, repr_array, repr_index
-from vdata.vdataframe import ViewVDataFrame
+from vdata.vdataframe import VDataFrame, ViewVDataFrame
 
 
 def _check_parent_has_not_changed(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -53,8 +52,8 @@ class VDataView:
     def __init__(self,
                  parent: vdata.VData,
                  timepoints_slicer: TimePointArray | None,
-                 obs_slicer: npt.NDArray[IFS_NP],
-                 var_slicer: npt.NDArray[IFS_NP]):
+                 obs_slicer: NDArray_IFS | None,
+                 var_slicer: NDArray_IFS | None):
         """
         Args:
             parent: a VData object to build a view of
@@ -87,13 +86,14 @@ class VDataView:
                             f" selected)")
 
         if obs_slicer is None:
-            self._obs_slicer: list[npt.NDArray[IFS_NP]] = [self._obs.index_at(tp) for tp in self._obs.timepoints]
+            self._obs_slicer: list[NDArray_IFS] = [self._obs.index_at(tp) for tp in self._obs.timepoints]
 
         else:
-            self._obs_slicer = [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
-                                for tp in self._obs.timepoints]
+            self._obs_slicer = cast(list[NDArray_IFS],
+                                    [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
+                                     for tp in self._obs.timepoints])
 
-        self._obs_slicer_flat = np.concatenate(self._obs_slicer)
+        self._obs_slicer_flat: NDArray_IFS = np.concatenate(self._obs_slicer)       # type: ignore[assignment]
 
         generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
                             f"({len(self._obs_slicer_flat)} value{'' if len(self._obs_slicer_flat) == 1 else 's'}"
@@ -107,16 +107,19 @@ class VDataView:
         # recompute var slicer
         # TODO : check the order is maintained
         if var_slicer is None:
-            self._var_slicer: npt.NDArray[IFS_NP] = self._var.index
+            self._var_slicer: NDArray_IFS = self._var.index
 
         else:
-            self._var_slicer = np.array(var_slicer)[np.isin(var_slicer, self._var.index)]
+            self._var_slicer = cast(NDArray_IFS,
+                                    np.array(var_slicer)[np.isin(var_slicer, self._var.index)])
 
         # subset and store arrays
         _obs_slicer_flat = self._obs_slicer[0] if self.has_repeated_obs_index else self._obs_slicer_flat
 
         self._layers = VLayersArrayContainerView(self._parent.layers,
-                                                 self._timepoints_slicer, _obs_slicer_flat, self._var_slicer)
+                                                 self._timepoints_slicer, 
+                                                 _obs_slicer_flat, 
+                                                 self._var_slicer)
 
         self._obsm = VObsmArrayContainerView(self._parent.obsm, self._timepoints_slicer, _obs_slicer_flat, slice(None))
         self._obsp = VObspArrayContainerView(self._parent.obsp, np.array(self._obs.index))
@@ -289,7 +292,7 @@ class VDataView:
 
         :return: the list of time points values (with the unit if possible).
         """
-        return self.timepoints.value.values
+        return TimePointArray(self.timepoints.value.values)
 
     @property
     def timepoints_strings(self) -> Iterator[str]:
@@ -330,9 +333,8 @@ class VDataView:
         elif df.shape[0] != self.n_obs:
             raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
 
-        else:
-            df.index = self._parent.obs[self._obs_slicer_flat].index
-            self._parent.obs[self._obs_slicer_flat] = df
+        df.index = self._parent.obs[self._obs_slicer_flat].index
+        self._parent.obs[self._obs_slicer_flat] = df
 
     @property
     @_check_parent_has_not_changed
@@ -356,12 +358,12 @@ class VDataView:
             raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
 
         else:
-            df.index = self._parent.var[self._var_slicer].index
-            self._parent.var[self._var_slicer] = df
+            df.index = self._parent.var.loc[self._var_slicer].index
+            self._parent.var.loc[self._var_slicer] = df
 
     @property
     @_check_parent_has_not_changed
-    def uns(self) -> dict[str, Any]:
+    def uns(self) ->  DictLike[Any]:
         """
         Get a view on the uns dictionary in this ViewVData.
         :return: a view on the uns dictionary in this ViewVData.
@@ -416,34 +418,13 @@ class VDataView:
 
     # Special ------------------------------------------------------------
     @property
-    def file(self) -> ch.Group | NoFile:
-        return self._parent.file
+    def data(self) -> ch.H5Dict[VDataFrame | TemporalDataFrame] | NoData:
+        return self._parent.data
 
     # Aliases ------------------------------------------------------------
-    @property
-    def cells(self) -> TemporalDataFrameView:
-        """
-        Alias for the obs attribute.
-        :return: a view on the obs TemporalDataFrame.
-        """
-        return self.obs
-
-    @cells.setter
-    def cells(self, df: TemporalDataFrameBase) -> None:
-        self.obs = df
-
-    @property
-    def genes(self) -> ViewVDataFrame:
-        """
-        Alias for the var attribute.
-        :return: a view on the var DataFrame.
-        """
-        return self.var
-
-    @genes.setter
-    def genes(self, df: pd.DataFrame) -> None:
-        self.var = df
-
+    cells = obs
+    genes = var
+    
     # endregion
 
     # region methods
@@ -451,7 +432,7 @@ class VDataView:
     def _mean_min_max_func(self, 
                            func: Literal['mean', 'min', 'max'], 
                            axis: Literal[0, 1]) \
-            -> tuple[dict[str, TemporalDataFrame], TimePointArray, npt.NDArray[IFS_NP]]:
+            -> tuple[dict[str, TemporalDataFrame], TimePointArray, NDArray_IFS]:
         """
         Compute mean, min or max of the values over the requested axis.
         """

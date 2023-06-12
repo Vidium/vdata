@@ -6,12 +6,11 @@
 # imports
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, SupportsIndex, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, SupportsIndex, Union, cast
 
 import numpy as np
-import numpy.typing as npt
 
-from vdata._typing import IFS, IFS_NP
+from vdata._typing import IFS, NDArrayLike_IFS
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 
 # ====================================================
 # code
-_I_LOC_INDEX = Union[int, slice, SupportsIndex, Collection[int], Collection[bool]]
+_I_LOC_INDEX = Union[int, slice, SupportsIndex, Iterable[int], Iterable[bool]]
 
 
 class VAtIndexer:
@@ -37,13 +36,14 @@ class VAtIndexer:
         self._TDF = TDF
 
     def __getitem__(self,
-                    key: tuple[Any, Any]) -> float | str:
+                    key: tuple[Any, Any]) -> np.int_ | np.float_ | np.str_:
         index, column = key
 
         if column in self._TDF.columns_num:
-            return self._TDF[:, index, column].values_num[0, 0]
+            return cast(Union[np.int_, np.float_], 
+                        self._TDF[:, index, column].values_num[0, 0])
 
-        return self._TDF[:, index, column].values_str[0, 0]
+        return cast(np.str_, self._TDF[:, index, column].values_str[0, 0])
 
     def __setitem__(self,
                     key: tuple[Any, Any],
@@ -68,14 +68,16 @@ class ViAtIndexer:
         self._TDF = TDF
 
     def __getitem__(self,
-                    key: tuple[int, int]) -> TemporalDataFrameView:
+                    key: tuple[int, int]) -> np.int_ | np.float_ | np.str_:
         index_id, column_id = key
         column = self._TDF.columns[column_id]
 
         if column in self._TDF.columns_num:
-            return self._TDF[:, self._TDF.index[index_id], column].values_num[0, 0]
+            return cast(Union[np.int_, np.float_], 
+                        self._TDF[:, self._TDF.index[index_id], column].values_num[0, 0])
 
-        return self._TDF[:, self._TDF.index[index_id], column].values_str[0, 0]
+        return cast(np.str_,
+                    self._TDF[:, self._TDF.index[index_id], column].values_str[0, 0])
 
     def __setitem__(self,
                     key: tuple[int, int],
@@ -110,7 +112,7 @@ class VLocIndexer:
 
     @staticmethod
     def _parse_slicer(values: IFS | Collection[IFS],
-                      reference: npt.NDArray[IFS_NP]) -> npt.NDArray[IFS_NP] | IFS:
+                      reference: NDArrayLike_IFS) -> NDArrayLike_IFS | np.int_ | np.float_ | np.str_:
         if not isCollection(values):
             return values                       # type: ignore[return-value]
 
@@ -119,7 +121,8 @@ class VLocIndexer:
         if values.dtype != bool:
             return values
 
-        return reference[values]
+        return cast(Union[NDArrayLike_IFS, np.int_, np.float_, np.str_], 
+                    reference[values])
 
     def __getitem__(self,
                     key: Any | Collection[Any] | tuple[Any | Collection[Any], Any | Collection[Any]]) \
@@ -181,14 +184,15 @@ class ViLocIndexer:
 
     @staticmethod
     def _parse_slicer(values_index: _I_LOC_INDEX,
-                      reference: npt.NDArray[IFS_NP]) -> npt.NDArray[IFS_NP]:
-        if not isCollection(values_index):
-            return reference[values_index]                  # type: ignore[index]
-
-        return reference[np.array(values_index)]
+                      reference: NDArrayLike_IFS) -> NDArrayLike_IFS | np.int_ | np.float_ | np.str_:
+        if isCollection(values_index):
+            return reference[np.array(values_index)]
+        
+        return reference[values_index]      # type: ignore[index]
 
     def __getitem__(self,
-                    key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX]) -> TemporalDataFrameView:
+                    key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX]) \
+            -> TemporalDataFrameView | np.int_ | np.float_ | np.str_:
         if isinstance(key, tuple):
             indices, columns = key
 

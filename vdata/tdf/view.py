@@ -7,9 +7,8 @@ import numpy as np
 import numpy.typing as npt
 import numpy_indexed as npi
 
-from vdata._typing import IFS, IFS_NP
+from vdata._typing import IFS, AttrDict, NDArray_IFS, NDArrayLike, NDArrayLike_IFS, Slicer
 from vdata.array_view import NDArrayView
-from vdata.tdf._typing import SLICER, AttrDict, NDArrayLike
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
 from vdata.tdf.utils import parse_slicer, parse_values
@@ -40,8 +39,8 @@ class TemporalDataFrameView(TemporalDataFrameBase):
     def __init__(self,
                  parent: TemporalDataFrame,
                  index_positions: NDArrayLike[np.int_],
-                 columns_numerical: NDArrayLike[IFS_NP],
-                 columns_string: NDArrayLike[IFS_NP],
+                 columns_numerical: NDArrayLike_IFS,
+                 columns_string: NDArrayLike_IFS,
                  *,
                  inverted: bool = False):
         super().__init__(
@@ -79,11 +78,8 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         raise TypeError('Cannot delete columns from a view.')
 
     def __getitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
-            -> TemporalDataFrameView:
-        """
-        Get a subset.
-        """
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) -> TemporalDataFrameView:
+        """Get a subset."""
         _index_positions, _columns_numerical, _columns_string = self._parse_inverted(*parse_slicer(self, slicer))
         return type(self)(parent=self._parent,
                           index_positions=_index_positions,
@@ -92,7 +88,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
                           inverted=self._inverted)
 
     def __setitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
                     values: IFS | Collection[IFS] | TemporalDataFrameBase) -> None:
         """
         Set values in a subset.
@@ -186,6 +182,24 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """Get the parent TemporalDataFrame of this view."""
         return self._parent
 
+    @property
+    def index(self) -> NDArrayLike_IFS:
+        """
+        Get the index across all time-points.
+        """
+        return super().index
+
+    @index.setter
+    def index(self,
+              values: NDArray_IFS) -> None:
+        """
+        Set the index for rows across all time-points.
+        """
+        new_index = self._parent.index.copy()
+        new_index[self.index_positions] = values
+        
+        self._parent.index = new_index
+
     # endregion
 
     # region predicates
@@ -206,12 +220,28 @@ class TemporalDataFrameView(TemporalDataFrameBase):
     # endregion
 
     # region methods
+    def lock_indices(self) -> None:
+        """Lock the "index" axis to prevent modifications."""
+        self._parent.lock_indices()
+
+    def unlock_indices(self) -> None:
+        """Unlock the "index" axis to allow modifications."""
+        self._parent.unlock_indices()
+
+    def lock_columns(self) -> None:
+        """Lock the "columns" axis to prevent modifications."""
+        self._parent.lock_columns()
+
+    def unlock_columns(self) -> None:
+        """Unlock the "columns" axis to allow modifications."""
+        self._parent.unlock_columns()
+    
     def _parse_inverted(self,
                         index_slicer: npt.NDArray[np.int_],
-                        column_num_slicer: npt.NDArray[IFS_NP],
-                        column_str_slicer: npt.NDArray[IFS_NP],
-                        arrays: tuple[TimePointArray | None, npt.NDArray[IFS_NP] | None, npt.NDArray[IFS_NP] | None]) \
-            -> tuple[NDArrayLike[IFS_NP], npt.NDArray[IFS_NP], npt.NDArray[IFS_NP]]:
+                        column_num_slicer: NDArray_IFS,
+                        column_str_slicer: NDArray_IFS,
+                        arrays: tuple[TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None]) \
+            -> tuple[NDArrayLike_IFS, NDArray_IFS, NDArray_IFS]:
         tp_array, index_array, columns_array = arrays
 
         if self._inverted:

@@ -1,9 +1,3 @@
-# coding: utf-8
-# Created on 06/04/2022 11:32
-# Author : matteo
-
-# ====================================================
-# imports
 from __future__ import annotations
 
 import re
@@ -18,12 +12,11 @@ import numpy.typing as npt
 import pandas as pd
 
 import vdata.tdf as tdf
-from vdata._typing import IF, IFS, IFS_NP
+from vdata._typing import IF, IFS, AttrDict, NDArray_IFS, NDArrayLike, NDArrayLike_IFS, Slicer
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.tdf import indexer
 from vdata.tdf._parse import parse_data_h5
-from vdata.tdf._typing import SLICER, AttrDict, NDArrayLike
 from vdata.tdf.utils import equal_paths, underlined
 from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import are_equal, repr_array
@@ -39,11 +32,6 @@ if TYPE_CHECKING:
     from vdata.tdf.view import TemporalDataFrameView
 
 
-# ====================================================
-# code
-
-
-
 class TemporalDataFrameBase(ABC):
     """
     Abstract base class for all TemporalDataFrames.
@@ -53,14 +41,14 @@ class TemporalDataFrameBase(ABC):
 
     # region magic methods
     def __init__(self, 
-                 index: NDArrayLike[IFS_NP],
+                 index: NDArrayLike_IFS,
                  timepoints_array: TimePointArray,
                  numerical_array: NDArrayLike[np.int_ | np.float_],
                  string_array: NDArrayLike[np.str_],
-                 columns_numerical: NDArrayLike[IFS_NP],
-                 columns_string: NDArrayLike[IFS_NP],
+                 columns_numerical: NDArrayLike_IFS,
+                 columns_string: NDArrayLike_IFS,
                  attr_dict: AttrDict, 
-                 file: ch.H5Dict | None = None):
+                 file: ch.H5Dict[Any] | None = None):
         self._attr_dict = attr_dict
         self._index = index
         self._timepoints_array = timepoints_array
@@ -106,7 +94,7 @@ class TemporalDataFrameBase(ABC):
 
     @abstractmethod
     def __getitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) \
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) \
             -> TemporalDataFrameView:
         """
         Get a subset.
@@ -114,7 +102,7 @@ class TemporalDataFrameBase(ABC):
 
     @abstractmethod
     def __setitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
                     values: IFS | Collection[IFS] | TemporalDataFrame) -> None:
         """
         Set values in a subset.
@@ -429,7 +417,7 @@ class TemporalDataFrameBase(ABC):
         elif isinstance(other, (str, np.str_)):
             return self._string_array == other
 
-        raise ValueError(f"Cannot compare {type(self).__name__} object with object of class {type(other).__name__}.")
+        return False
 
     @abstractmethod
     def __invert__(self) -> TemporalDataFrameView:
@@ -540,18 +528,26 @@ class TemporalDataFrameBase(ABC):
         return self._attr_dict['timepoints_column_name']
 
     @property
-    def index(self) -> NDArrayLike[IFS_NP]:
+    def index(self) -> NDArrayLike_IFS:
         """
         Get the index across all time-points.
         """
         return self._index
+    
+    @index.setter
+    @abstractmethod
+    def index(self,
+              values: NDArray_IFS) -> None:
+        """
+        Set the index for rows across all time-points.
+        """
     
     @property
     def n_index(self) -> int:
         return len(self._index)
 
     @property
-    def columns_num(self) -> NDArrayLike[IFS_NP]:
+    def columns_num(self) -> NDArrayLike_IFS:
         """
         Get the list of column names for numerical data.
         """
@@ -559,7 +555,7 @@ class TemporalDataFrameBase(ABC):
 
     @columns_num.setter
     def columns_num(self,
-                    values: NDArrayLike[IFS_NP]) -> None:
+                    values: NDArrayLike_IFS) -> None:
         """
         Set the list of column names for numerical data.
         """
@@ -576,7 +572,7 @@ class TemporalDataFrameBase(ABC):
         return len(self._columns_numerical)
 
     @property
-    def columns_str(self) -> NDArrayLike[IFS_NP]:
+    def columns_str(self) -> NDArrayLike_IFS:
         """
         Get the list of column names for string data.
         """
@@ -584,7 +580,7 @@ class TemporalDataFrameBase(ABC):
 
     @columns_str.setter
     def columns_str(self,
-                    values: NDArrayLike[IFS_NP]) -> None:
+                    values: NDArrayLike_IFS) -> None:
         """
         Set the list of column names for string data.
         """
@@ -601,7 +597,7 @@ class TemporalDataFrameBase(ABC):
         return len(self._columns_string)
 
     @property
-    def columns(self) -> npt.NDArray[IFS_NP]:
+    def columns(self) -> NDArray_IFS:
         """
         Get the list of all column names.
         """
@@ -759,11 +755,27 @@ class TemporalDataFrameBase(ABC):
     # endregion
 
     # region methods
+    @abstractmethod
+    def lock_indices(self) -> None:
+        """Lock the "index" axis to prevent modifications."""
+
+    @abstractmethod
+    def unlock_indices(self) -> None:
+        """Unlock the "index" axis to allow modifications."""
+
+    @abstractmethod
+    def lock_columns(self) -> None:
+        """Lock the "columns" axis to prevent modifications."""
+
+    @abstractmethod
+    def unlock_columns(self) -> None:
+        """Unlock the "columns" axis to allow modifications."""
+    
     def _repr_single_array(self,
                         tp: TimePoint,
                         n: int,
-                        array: NDArrayLike[IFS_NP], 
-                        columns_: NDArrayLike[IFS_NP]) \
+                        array: NDArrayLike_IFS, 
+                        columns_: NDArrayLike_IFS) \
     -> tuple[pd.DataFrame, tuple[int, ...]]:
         tp_data_array_ = array[self.get_timepoint_mask(tp)]
 
@@ -934,7 +946,7 @@ class TemporalDataFrameBase(ABC):
         return self._timepoint_masks[timepoint]
 
     def index_at(self,
-                 timepoint: str | TimePoint) -> npt.NDArray[IFS_NP]:
+                 timepoint: str | TimePoint) -> NDArray_IFS:
         """
         Get the index of rows existing at the given time-point.
 

@@ -35,8 +35,8 @@ def test_delete_numerical_column(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  154.0  ｜  254  354\n" \
                         "[50 rows x 3 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point      col2    col3 col4\n" \
                         "0       1.0h  ｜  100.0  ｜  200  300\n" \
                         "1       1.0h  ｜  101.0  ｜  201  301\n" \
@@ -75,8 +75,8 @@ def test_delete_string_column(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  54.0  154.0  ｜  254\n" \
                         "[50 rows x 3 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col2    col3\n" \
                         "0       1.0h  ｜  0.0  100.0  ｜  200\n" \
                         "1       1.0h  ｜  1.0  101.0  ｜  201\n" \
@@ -112,8 +112,8 @@ def test_modify_numerical_values_of_existing_column(TDF: TemporalDataFrame) -> N
                         "54       0.0h  ｜  504.0  154.0  ｜  254  354\n" \
                         "[50 rows x 4 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point      col1   col2    col3 col4\n" \
                         "0       1.0h  ｜  550.0  100.0  ｜  200  300\n" \
                         "1       1.0h  ｜  551.0  101.0  ｜  201  301\n" \
@@ -143,8 +143,8 @@ def test_create_new_column_numerical(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  54.0  154.0  604.0  ｜  254  354\n" \
                         "[50 rows x 5 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col2   col7    col3 col4\n" \
                         "0       1.0h  ｜  0.0  100.0  650.0  ｜  200  300\n" \
                         "1       1.0h  ｜  1.0  101.0  651.0  ｜  201  301\n" \
@@ -174,8 +174,8 @@ def test_modify_string_values_of_existing_column(TDF: TemporalDataFrame) -> None
                         "54       0.0h  ｜  54.0  154.0  ｜  254  704\n" \
                         "[50 rows x 4 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col2    col3 col4\n" \
                         "0       1.0h  ｜  0.0  100.0  ｜  200  750\n" \
                         "1       1.0h  ｜  1.0  101.0  ｜  201  751\n" \
@@ -205,8 +205,8 @@ def test_create_new_column_string(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  54.0  154.0  ｜  254  354  804\n" \
                         "[50 rows x 5 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col2    col3 col4 col8\n" \
                         "0       1.0h  ｜  0.0  100.0  ｜  200  300  850\n" \
                         "1       1.0h  ｜  1.0  101.0  ｜  201  301  851\n" \
@@ -239,8 +239,8 @@ def test_insert_numerical_column(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  54.0  504.0  154.0  ｜  254  354\n" \
                         "[50 rows x 5 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col5   col2    col3 col4\n" \
                         "0       1.0h  ｜  0.0  550.0  100.0  ｜  200  300\n" \
                         "1       1.0h  ｜  1.0  551.0  101.0  ｜  201  301\n" \
@@ -273,8 +273,8 @@ def test_insert_string_column(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  54.0  154.0  ｜  254  354  704\n" \
                         "[50 rows x 5 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point    col1   col2    col3 col4 col6\n" \
                         "0       1.0h  ｜  0.0  100.0  ｜  200  300  750\n" \
                         "1       1.0h  ｜  1.0  101.0  ｜  201  301  751\n" \
@@ -310,8 +310,8 @@ def test_insert_into_empty_array(TDF: TemporalDataFrame) -> None:
                         "54       0.0h  ｜  804.0  ｜  254  354\n" \
                         "[50 rows x 3 columns]\n" \
                         "\n" \
-                        "Time point : 1.0 hours\n" \
-                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                        "Time point : 1.0 hour\n" \
+                        "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                         "  Time-point      col1    col3 col4\n" \
                         "0       1.0h  ｜  850.0  ｜  200  300\n" \
                         "1       1.0h  ｜  851.0  ｜  201  301\n" \
@@ -383,8 +383,8 @@ def test_add_numerical_value(TDF: TemporalDataFrame) -> None:
                             "54       0.0h  ｜  55.0  155.0  ｜  254  354\n" \
                             "[50 rows x 4 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "  Time-point    col1   col2    col3 col4\n" \
                             "0       1.0h  ｜  1.0  101.0  ｜  200  300\n" \
                             "1       1.0h  ｜  2.0  102.0  ｜  201  301\n" \
@@ -412,8 +412,8 @@ def test_add_numerical_value_to_view(TDF: TemporalDataFrame) -> None:
                             "54       0.0h  ｜  55.0  ｜  354\n" \
                             "[40 rows x 2 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "   Time-point     col1    col4\n" \
                             "10       1.0h  ｜  11.0  ｜  310\n" \
                             "11       1.0h  ｜  12.0  ｜  311\n" \
@@ -441,8 +441,8 @@ def test_add_string_value(TDF: TemporalDataFrame) -> None:
                                "54       0.0h  ｜  54.0  154.0  ｜  254_1  354_1\n" \
                                "[50 rows x 4 columns]\n" \
                                "\n" \
-                               "Time point : 1.0 hours\n" \
-                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                               "Time point : 1.0 hour\n" \
+                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                "  Time-point    col1   col2      col3   col4\n" \
                                "0       1.0h  ｜  0.0  100.0  ｜  200_1  300_1\n" \
                                "1       1.0h  ｜  1.0  101.0  ｜  201_1  301_1\n" \
@@ -470,8 +470,8 @@ def test_add_string_value_to_view(TDF: TemporalDataFrameView) -> None:
                                "54       0.0h  ｜  54.0  ｜  354_1\n" \
                                "[40 rows x 2 columns]\n" \
                                "\n" \
-                               "Time point : 1.0 hours\n" \
-                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                               "Time point : 1.0 hour\n" \
+                               "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                                "   Time-point     col1      col4\n" \
                                "10       1.0h  ｜  10.0  ｜  310_1\n" \
                                "11       1.0h  ｜  11.0  ｜  311_1\n" \
@@ -499,8 +499,8 @@ def test_subtract_value(TDF: TemporalDataFrame) -> None:
                             "54       0.0h  ｜  53.0  153.0  ｜  254  354\n" \
                             "[50 rows x 4 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "  Time-point    col1   col2    col3 col4\n" \
                             "0       1.0h  ｜ -1.0   99.0  ｜  200  300\n" \
                             "1       1.0h  ｜  0.0  100.0  ｜  201  301\n" \
@@ -528,8 +528,8 @@ def test_subtract_value_to_view(TDF: TemporalDataFrameView) -> None:
                             "54       0.0h  ｜  53.0  ｜  354\n" \
                             "[40 rows x 2 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "   Time-point     col1    col4\n" \
                             "10       1.0h  ｜   9.0  ｜  310\n" \
                             "11       1.0h  ｜  10.0  ｜  311\n" \
@@ -557,8 +557,8 @@ def test_mutliply_by_value(TDF: TemporalDataFrame) -> None:
                             "54       0.0h  ｜  108.0  308.0  ｜  254  354\n" \
                             "[50 rows x 4 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "  Time-point    col1   col2    col3 col4\n" \
                             "0       1.0h  ｜  0.0  200.0  ｜  200  300\n" \
                             "1       1.0h  ｜  2.0  202.0  ｜  201  301\n" \
@@ -586,8 +586,8 @@ def test_mutliply_by_value_to_view(TDF: TemporalDataFrameView) -> None:
                             "54       0.0h  ｜  108.0  ｜  354\n" \
                             "[40 rows x 2 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "   Time-point     col1    col4\n" \
                             "10       1.0h  ｜  20.0  ｜  310\n" \
                             "11       1.0h  ｜  22.0  ｜  311\n" \
@@ -615,8 +615,8 @@ def test_divide_by_value(TDF: TemporalDataFrame) -> None:
                             "54       0.0h  ｜  27.0  77.0  ｜  254  354\n" \
                             "[50 rows x 4 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "  Time-point    col1  col2    col3 col4\n" \
                             "0       1.0h  ｜  0.0  50.0  ｜  200  300\n" \
                             "1       1.0h  ｜  0.5  50.5  ｜  201  301\n" \
@@ -644,8 +644,8 @@ def test_divide_by_value_to_view(TDF: TemporalDataFrameView) -> None:
                             "54       0.0h  ｜  27.0  ｜  354\n" \
                             "[40 rows x 2 columns]\n" \
                             "\n" \
-                            "Time point : 1.0 hours\n" \
-                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
+                            "Time point : 1.0 hour\n" \
+                            "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n" \
                             "   Time-point    col1    col4\n" \
                             "10       1.0h  ｜  5.0  ｜  310\n" \
                             "11       1.0h  ｜  5.5  ｜  311\n" \

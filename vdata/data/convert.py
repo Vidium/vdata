@@ -1,12 +1,148 @@
+from __future__ import annotations
+
 # import os
 # import shutil
 from pathlib import Path
+from typing import Collection
+
+import numpy as np
+from anndata import AnnData
+
+import vdata
+from vdata.IO.logger import generalLogger
+from vdata.names import DEFAULT_TIME_COL_NAME
 
 # import ch5mpy as ch
 # import numpy as np
 # from vdata.IO import generalLogger
-from vdata.timepoint import TimePoint
+from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
+from vdata.utils import as_tp_list, match_timepoints, repr_array
 
+
+def convert_vdata_to_anndata(data: vdata.VData,
+                             timepoints_list: str | TimePoint | Collection[str | TimePoint] | None = None,
+                             into_one: bool = True,
+                             with_timepoints_column: bool = True,
+                             layer_as_X: str | None = None,
+                             layers_to_export: list[str] | None = None) -> AnnData | list[AnnData]:
+    """
+    Convert a VData object to an AnnData object.
+
+    Args:
+        timepoints_list: a list of time points for which to extract data to build the AnnData. If set to
+            None, all timepoints are selected.
+        into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
+            AnnData for each time point (False) ?
+        with_timepoints_column: store time points data in the obs DataFrame. This is only used when
+            concatenating the data into a single AnnData (i.e. into_one=True).
+        layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.
+        layers_to_export: if None export all layers
+
+    Returns:
+        An AnnData object with data for selected time points.
+    """
+    # TODO : obsp is not passed to AnnData
+
+    generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
+                        u'---------------------------------------------------------- ')
+
+    if timepoints_list is None:
+        _timepoints_list = data.timepoints_values
+
+    else:
+        _timepoints_list = TimePointArray(as_tp_list(timepoints_list))
+        _timepoints_list = atleast_1d(_timepoints_list[np.where(match_timepoints(_timepoints_list, 
+                                                                                 data.timepoints_values))])
+
+    generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
+
+    if into_one:
+        return _convert_vdata_into_one_anndata(data, 
+                                               with_timepoints_column,
+                                               _timepoints_list,
+                                               layer_as_X,
+                                               layers_to_export)
+
+    return _convert_vdata_into_many_anndatas(data, _timepoints_list, layer_as_X)
+    
+    
+def _convert_vdata_into_one_anndata(data: vdata.VData,
+                                    with_timepoints_column: bool,
+                                    timepoints_list: TimePointArray,
+                                    layer_as_X: str | None,
+                                    layers_to_export: list[str] | None) -> AnnData:
+    generalLogger.debug("Convert to one AnnData object.")
+
+    if with_timepoints_column:
+        tp_col_name = data.obs.timepoints_column_name if data.obs.timepoints_column_name is not None else \
+            DEFAULT_TIME_COL_NAME
+    else:
+        tp_col_name = None
+
+    view = data[timepoints_list]
+    if layer_as_X is None:
+        layer_as_X = list(view.layers.keys())[0]
+
+    elif layer_as_X not in view.layers.keys():
+        raise ValueError(f"Layer '{layer_as_X}' was not found.")
+
+    X = view.layers[layer_as_X].to_pandas()
+    X.index = X.index.astype(str)
+    X.columns = X.columns.astype(str)
+    if layers_to_export is None:
+        layers_to_export = view.layers.keys()
+        
+    anndata = AnnData(X=X,
+                    layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
+                    obs=view.obs.to_pandas(with_timepoints=tp_col_name,
+                                            str_index=True),
+                    obsm={key: arr.values_num for key, arr in view.obsm.items()},
+                    obsp={key: arr.values for key, arr in view.obsp.items()},
+                    var=view.var.to_pandas(),
+                    varm={key: arr for key, arr in view.varm.items()},
+                    varp={key: arr for key, arr in view.varp.items()},
+                    uns=view.uns.copy())
+    
+    generalLogger.debug('\u23BF VData conversion to AnnData : end '
+                        '---------------------------------------------------------- ')
+    
+    return anndata
+    
+
+
+def _convert_vdata_into_many_anndatas(data: vdata.VData,
+                                      timepoints_list: TimePointArray,
+                                      layer_as_X: str | None) -> list[AnnData]:
+    generalLogger.debug("Convert to many AnnData objects.")
+
+    result = []
+    for time_point in timepoints_list:
+        view = data[time_point]
+        
+        if layer_as_X is None:
+            layer_as_X = list(view.layers.keys())[0]
+
+        elif layer_as_X not in view.layers.keys():
+            raise ValueError(f"Layer '{layer_as_X}' was not found.")
+
+        X = view.layers[layer_as_X].to_pandas()
+        X.index = X.index.astype(str)
+        X.columns = X.columns.astype(str)
+
+        result.append(AnnData(X=X,
+                              layers={key: layer.to_pandas(str_index=True)
+                                      for key, layer in view.layers.items()},
+                              obs=view.obs.to_pandas(str_index=True),
+                              obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
+                              var=view.var.to_pandas(),
+                              varm={key: arr for key, arr in view.varm.items()},
+                              varp={key: arr for key, arr in view.varp.items()},
+                              uns=view.uns))
+
+    generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
+                        u'---------------------------------------------------------- ')
+
+    return result
 
 def convert_anndata_to_vdata(file: Path | str,
                              time_point: int | float | str | TimePoint = '0h',

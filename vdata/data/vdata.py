@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Collection, Iterator, Literal, MutableMapping, Sequence, TypeVar
+from typing import Any, Collection, Iterator, Literal, Mapping, Sequence
 
 import ch5mpy as ch
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from anndata import AnnData
 
-from vdata._typing import IFS, IFS_NP, PreSlicer
+from vdata._typing import IFS, DictLike, NDArray_IFS, PreSlicer
 from vdata.data._parse import ParsingDataIn, ParsingDataOut, parse_AnnData, parse_objects
 from vdata.data.arrays import (
     VLayersArrayContainer,
@@ -18,7 +17,8 @@ from vdata.data.arrays import (
     VVarmArrayContainer,
     VVarpArrayContainer,
 )
-from vdata.data.file import NoFile
+from vdata.data.convert import convert_vdata_to_anndata
+from vdata.data.file import NoData
 from vdata.data.read import read_from_csv
 from vdata.data.view import VDataView
 from vdata.data.write import write_vdata, write_vdata_to_csv
@@ -28,13 +28,11 @@ from vdata.IO import (
     VReadOnlyError,
     generalLogger,
 )
-from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
+from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 from vdata.timepoint import TimePoint, TimePointArray
-from vdata.utils import as_tp_list, match_timepoints, reformat_index, repr_array, repr_index
+from vdata.utils import as_tp_list, reformat_index, repr_index
 from vdata.vdataframe import VDataFrame
-
-DF = TypeVar('DF', pd.DataFrame, VDataFrame, TemporalDataFrame)
 
 
 class VData:
@@ -51,17 +49,18 @@ class VData:
                        pd.DataFrame |
                        VDataFrame |
                        TemporalDataFrameBase |
-                       dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] |
-                       ch.H5Dict[VDataFrame | TemporalDataFrameBase] |
+                       Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] |
+                       ch.H5Dict[VDataFrame | TemporalDataFrame] |
                        None = None,
                  obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None = None,
-                 obsm: dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None = None,
-                 obsp: MutableMapping[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None = None,
+                 obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
+                       None = None,
+                 obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None = None,
                  var: pd.DataFrame | VDataFrame | None = None,
-                 varm: dict[str, pd.DataFrame | VDataFrame] | None = None,
-                 varp: dict[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None = None,
+                 varm: Mapping[str, pd.DataFrame | VDataFrame] | None = None,
+                 varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None = None,
                  timepoints: pd.DataFrame | VDataFrame | None = None,
-                 uns: dict[str, Any] | ch.H5Dict[Any] | None = None,
+                 uns: DictLike[Any] | None = None,
                  time_col_name: str | None = None,
                  time_list: Sequence[str | TimePoint] | None = None,
                  name: str = ''):
@@ -87,7 +86,7 @@ class VData:
         generalLogger.debug(f"\u23BE VData '{name}' creation : begin "
                             f"-------------------------------------------------------- ")
 
-        self._data = None
+        self._data: ch.H5Dict[VDataFrame | TemporalDataFrame] | None = None
         
         # create from h5 file
         if isinstance(data, ch.H5Dict):
@@ -125,11 +124,11 @@ class VData:
         self._obs = data.obs
         self._var = data.var
         self._timepoints = data.timepoints
-        self._layers = VLayersArrayContainer(self, data.layers)
-        self._obsm = VObsmArrayContainer(self, data.obsm)
-        self._obsp = VObspArrayContainer(self, data.obsp)
-        self._varm = VVarmArrayContainer(self, data.varm)
-        self._varp = VVarpArrayContainer(self, data.varp)
+        self._layers = VLayersArrayContainer(data=data.layers, vdata=self)
+        self._obsm = VObsmArrayContainer(data=data.obsm, vdata=self)
+        self._obsp = VObspArrayContainer(data=data.obsp, vdata=self)
+        self._varm = VVarmArrayContainer(data=data.varm, vdata=self)
+        self._varp = VVarpArrayContainer(data=data.varp, vdata=self)
         self._uns = data.uns
 
     def __repr__(self) -> str:
@@ -203,7 +202,10 @@ class VData:
         generalLogger.debug('VData sub-setting - - - - - - - - - - - - - - ')
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
-        formatted_index = reformat_index(index, self.timepoints.value.values, self.obs.index, self.var.index)
+        formatted_index = reformat_index(index, 
+                                         TimePointArray(self.timepoints.value),
+                                         self.obs.index,
+                                         self.var.index.values)
 
         generalLogger.debug(f"  Refactored index to \n{repr_index(formatted_index)}")
 
@@ -229,7 +231,7 @@ class VData:
         Is this VData object backed on an h5 file and writable ?
         :return: Is this VData object backed on an h5 file and writable ?
         """
-        return self._data is not None and self._data.mode == 'r+'
+        return self._data is not None and self._data.mode == ch.H5Mode.READ_WRITE
 
     @property
     def is_closed(self) -> bool:
@@ -262,9 +264,9 @@ class VData:
 
     # region attributes
     @property
-    def file(self) -> ch.Group | NoFile:
+    def data(self) -> ch.H5Dict[VDataFrame | TemporalDataFrame] | NoData:
         """Get this VData's h5 file."""
-        return NoFile._ if self._data is None else self._data.file
+        return NoData._ if self._data is None else self._data
 
     @property
     def name(self) -> str:
@@ -367,10 +369,9 @@ class VData:
         elif 'value' not in df.columns:
             raise ValueError("Time points DataFrame should contain a 'value' column.")
 
-        else:
-            # cast time points to TimePoint objects
-            df['value'] = as_tp_list(df['value'])
-            self._timepoints = df
+        # cast time points to TimePoint objects
+        df['value'] = as_tp_list(df['value'])
+        self._timepoints = VDataFrame(df)
 
     @property
     def timepoints_values(self) -> TimePointArray:
@@ -379,7 +380,7 @@ class VData:
 
         :return: the list of time points values (with the unit if possible).
         """
-        return self.timepoints.value.values
+        return TimePointArray(self.timepoints.value)
 
     @property
     def timepoints_strings(self) -> Iterator[str]:
@@ -476,11 +477,10 @@ class VData:
         elif df.shape[0] != self.n_var:
             raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
 
-        else:
-            self._var = df
+        self._var = VDataFrame(df)
 
     @property
-    def uns(self) -> dict[str, Any]:
+    def uns(self) -> DictLike[Any]:
         """
         Get the uns dictionary in this VData.
         :return: the uns dictionary in this VData.
@@ -488,12 +488,12 @@ class VData:
         return self._uns
 
     @uns.setter
-    def uns(self, data: dict[str, Any] | ch.H5Dict[Any]) -> None:
+    def uns(self, data: DictLike[Any]) -> None:
         if self.is_read_only:
             raise VReadOnlyError
 
         if isinstance(data, ch.H5Dict):
-            self._uns = data
+            self._uns = data                # type: ignore[assignment]
 
         elif isinstance(data, dict):
             self._uns = dict(zip([str(k) for k in data.keys()], data.values()))
@@ -544,37 +544,8 @@ class VData:
     # endregion
 
     # region aliases
-    @property
-    def cells(self) -> TemporalDataFrame:
-        """
-        Alias for the obs attribute.
-        :return: the obs TemporalDataFrame.
-        """
-        return self._obs
-
-    @cells.setter
-    def cells(self, df: pd.DataFrame | VDataFrame | TemporalDataFrame) -> None:
-        """
-        Set cells (= obs) data.
-        :param df: a pandas DataFrame or a TemporalDataFrame.
-        """
-        self.obs = df
-
-    @property
-    def genes(self) -> VDataFrame:
-        """
-        Alias for the var attribute.
-        :return: the var DataFrame.
-        """
-        return self._var
-
-    @genes.setter
-    def genes(self, df: VDataFrame) -> None:
-        """
-        Set the var (= genes) data.
-        :param df: a pandas DataFrame.
-        """
-        self.var = df
+    cells = obs
+    genes = var
 
     @property
     def timepoints_names(self) -> pd.Index:
@@ -619,25 +590,13 @@ class VData:
             values: collection of new index values.
             repeating_index: does the index repeat itself at all time-points ? (default: False)
         """
-        if self.is_read_only:
-            raise VReadOnlyError
-
-        values = np.array(values)
-
-        for layer in self.layers.values():
-            layer.unlock_indices()
-            layer.set_index(values, repeating_index)
-            layer.lock_indices()
-
+        self.layers.set_index(values, repeating_index)
+        
         self.obs.unlock_indices()
-        self.obs.set_index(values, repeating_index)
+        self.obs.set_index(np.array(values), repeating_index)
         self.obs.lock_indices()
 
-        for TDF in self.obsm.values():
-            TDF.unlock_indices()
-            TDF.set_index(values, repeating_index)
-            TDF.lock_indices()
-
+        self.obsm.set_index(values, repeating_index)
         self.obsp.set_index(values)
 
     def make_unique_obs_index(self) -> None:
@@ -652,19 +611,9 @@ class VData:
         Args:
             values: collection of new index values.
         """
-        if self.is_read_only:
-            raise VReadOnlyError
-
-        for layer in self.layers.values():
-            layer.unlock_columns()
-            layer.columns = np.array(values)
-            layer.lock_columns()
-
-        self.var.index = values
-
-        for df in self.varm.values():
-            df.index = values
-
+        self.layers.set_columns(values)
+        self.var.index = pd.Index(values)
+        self.varm.set_index(values)
         self.varp.set_index(values)
 
     def _mean_min_max_func(self, 
@@ -683,7 +632,7 @@ class VData:
 
         elif axis == 1:
             _time_list = self._obs.timepoints_column
-            _index = self.obs.index
+            _index = pd.Index(self.obs.index)
             
             return _data, _time_list, _index, self.obs.has_repeating_index
 
@@ -866,87 +815,12 @@ class VData:
         Returns:
             An AnnData object with data for selected time points.
         """
-        # TODO : obsp is not passed to AnnData
-
-        generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
-                            u'---------------------------------------------------------- ')
-
-        if timepoints_list is None:
-            _timepoints_list = np.array(self.timepoints_values)
-
-        else:
-            _timepoints_list = as_tp_list(timepoints_list)
-            _timepoints_list = np.array(_timepoints_list)[np.where(match_timepoints(_timepoints_list,
-                                                                                    self.timepoints_values))]
-
-        generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
-
-        if into_one:
-            generalLogger.debug("Convert to one AnnData object.")
-
-            generalLogger.debug('\u23BF VData conversion to AnnData : end '
-                                '---------------------------------------------------------- ')
-
-            if with_timepoints_column:
-                tp_col_name = self.obs.timepoints_column_name if self.obs.timepoints_column_name is not None else \
-                    DEFAULT_TIME_COL_NAME
-            else:
-                tp_col_name = None
-
-            view = self[_timepoints_list]
-            if layer_as_X is None:
-                layer_as_X = list(view.layers.keys())[0]
-
-            elif layer_as_X not in view.layers.keys():
-                raise ValueError(f"Layer '{layer_as_X}' was not found.")
-
-            X = view.layers[layer_as_X].to_pandas()
-            X.index = X.index.astype(str)
-            X.columns = X.columns.astype(str)
-            if layers_to_export is None:
-                layers_to_export = view.layers.keys()
-
-            return AnnData(X=X,
-                           layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
-                           obs=view.obs.to_pandas(with_timepoints=tp_col_name,
-                                                  str_index=True),
-                           obsm={key: arr.values_num for key, arr in view.obsm.items()},
-                           obsp={key: arr.values for key, arr in view.obsp.items()},
-                           var=view.var.to_pandas(),
-                           varm={key: arr for key, arr in view.varm.items()},
-                           varp={key: arr for key, arr in view.varp.items()},
-                           uns=view.uns.copy())
-
-        else:
-            generalLogger.debug("Convert to many AnnData objects.")
-
-            result = []
-            for time_point in _timepoints_list:
-                view = self[time_point]
-                if layer_as_X is None:
-                    layer_as_X = list(view.layers.keys())[0]
-
-                elif layer_as_X not in view.layers.keys():
-                    raise ValueError(f"Layer '{layer_as_X}' was not found.")
-
-                X = view.layers[layer_as_X].to_pandas()
-                X.index = X.index.astype(str)
-                X.columns = X.columns.astype(str)
-
-                result.append(AnnData(X=X,
-                                      layers={key: layer.to_pandas(str_index=True)
-                                              for key, layer in view.layers.items()},
-                                      obs=view.obs.to_pandas(str_index=True),
-                                      obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
-                                      var=view.var.to_pandas(),
-                                      varm={key: arr for key, arr in view.varm.items()},
-                                      varp={key: arr for key, arr in view.varp.items()},
-                                      uns=view.uns))
-
-            generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
-                                u'---------------------------------------------------------- ')
-
-            return result
+        return convert_vdata_to_anndata(self,
+                                        timepoints_list=timepoints_list,
+                                        into_one=into_one,
+                                        with_timepoints_column=with_timepoints_column,
+                                        layer_as_X=layer_as_X,
+                                        layers_to_export=layers_to_export)
 
     def close(self) -> None:
         if self._data is None:

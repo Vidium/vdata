@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, MutableMapping, Sequence
+from typing import Any, Mapping, Sequence
 
 import ch5mpy as ch
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from anndata import AnnData
 from attrs import define, field
 from scipy.sparse import spmatrix
 
-from vdata._typing import IFS_NP
+from vdata._typing import NDArray_IFS
 from vdata.data._parse.objects import get_obs_index, get_var_index
 from vdata.data._parse.time import parse_time_list, parse_timepoints
 from vdata.IO.errors import IncoherenceError
@@ -42,7 +41,7 @@ def _get_time_list(time_list: TimePointArray | None,
             return df.timepoints_column
         
         elif isinstance(df, (pd.DataFrame, VDataFrame)) and time_col_name is not None:
-            return df[time_col_name]
+            return TimePointArray(df[time_col_name])
     
     return None
     
@@ -115,13 +114,17 @@ def _valid_var(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[st
 
 @define
 class ParsingDataIn:
-    data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None
+    data: pd.DataFrame | \
+          VDataFrame | \
+          TemporalDataFrameBase | \
+          Mapping[str, pd.DataFrame | VDataFrame, TemporalDataFrameBase] | \
+          None
     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase
-    obsm: dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
-    obsp: MutableMapping[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] = field(converter=_at_least_empty_dict)
+    obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
+    obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
     var: pd.DataFrame | VDataFrame
-    varm: dict[str, pd.DataFrame | VDataFrame] = field(converter=_at_least_empty_dict)
-    varp: dict[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] = field(converter=_at_least_empty_dict)
+    varm: Mapping[str, pd.DataFrame | VDataFrame] = field(converter=_at_least_empty_dict)
+    varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
     timepoints: VDataFrame
     time_col_name: str | None
     time_list: TimePointArray | None
@@ -136,14 +139,14 @@ class ParsingDataIn:
                      data: pd.DataFrame | 
                            VDataFrame | 
                            TemporalDataFrameBase | 
-                           dict[str, pd.DataFrame | VDataFrame | TemporalDataFrame] | 
+                           Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
                            None,
                      obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
-                     obsm: dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None,
-                     obsp: MutableMapping[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None,
+                     obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None,
+                     obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
                      var: pd.DataFrame | VDataFrame | None,
-                     varm: dict[str, pd.DataFrame | VDataFrame] | None,
-                     varp: dict[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None,
+                     varm: Mapping[str, pd.DataFrame | VDataFrame] | None,
+                     varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
                      timepoints: pd.DataFrame | VDataFrame | None,
                      time_col_name: str | None,
                      time_list: Sequence[str | TimePoint] | None,
@@ -165,15 +168,15 @@ class ParsingDataIn:
     @classmethod
     def from_anndata(cls, 
                      adata: AnnData,
-                     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
-                     obsm: dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None,
-                     obsp: MutableMapping[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None,
-                     var: pd.DataFrame | VDataFrame | None,
-                     varm: dict[str, pd.DataFrame | VDataFrame] | None,
-                     varp: dict[str, pd.DataFrame | npt.NDArray[IFS_NP] | VDataFrame] | None,
-                     timepoints: pd.DataFrame | VDataFrame | None,
-                     time_col_name: str | None,
-                     time_list: Sequence[str | TimePoint] | None,
+                     obs: Any,
+                     obsm: Any,
+                     obsp: Any,
+                     var: Any,
+                     varm: Any,
+                     varp: Any,
+                     timepoints: Any,
+                     time_col_name: Any,
+                     time_list: Any,
                      uns: Any) -> ParsingDataIn:
         if isinstance(adata.X, spmatrix):
             # adata.X = adata.X.toarray()

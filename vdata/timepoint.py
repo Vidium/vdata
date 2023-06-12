@@ -1,41 +1,38 @@
-# coding: utf-8
-# Created on 01/04/2022 09:39
-# Author : matteo
-
-# ====================================================
-# imports
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, Iterator, Literal, Sequence, cast, overload
+from enum import Enum
+from types import EllipsisType
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, SupportsIndex, cast, overload
 
 import numpy as np
 import numpy.typing as npt
 from numpy import _NoValue as _NP_NOVALUE  # type: ignore[attr-defined]
+from numpy._typing import _ArrayLikeInt_co
 
 from vdata._meta import PrettyRepr
 from vdata.names import Number
 
 if TYPE_CHECKING:
     from vdata._typing import NumberType
+    
 
-# ====================================================
-# code
 _UNIT_TYPE = Literal['s', 'm', 'h', 'D', 'M', 'Y']
 
-_TIMEPOINT_UNITS = {'s': 'seconds',
-                    'm': 'minutes',
-                    'h': 'hours',
-                    'D': 'days',
-                    'M': 'months',
-                    'Y': 'years'}
+_TIMEPOINT_UNITS = {'s': 'second',
+                    'm': 'minute',
+                    'h': 'hour',
+                    'D': 'day',
+                    'M': 'month',
+                    'Y': 'year'}
 
-_SECONDS_IN_UNIT = {'s': 1,
-                    'm': 60,
-                    'h': 3_600,
-                    'D': 86_400,
-                    'M': 2_592_000,
-                    'Y': 31_536_000}
-
+class _SECONDS_IN_UNIT(float, Enum):
+    second = 1
+    minute = 60
+    hour = 3_600
+    day = 86_400
+    month = 2_592_000
+    year = 31_536_000
+    
 
 class Unit:
     """Simple class for storing a time point's unit."""
@@ -80,14 +77,14 @@ class Unit:
         return self.value
 
     def __gt__(self,
-               other: 'Unit') -> bool:
+               other: Unit) -> bool:
         """
         Compare units with 'greater than'.
         """
         return Unit.units_order[self.value] > Unit.units_order[other.value]
 
     def __lt__(self,
-               other: 'Unit') -> bool:
+               other: Unit) -> bool:
         """
         Compare units with 'lesser than'.
         """
@@ -104,14 +101,14 @@ class Unit:
         return self.value == other.value
 
     def __ge__(self,
-               other: 'Unit') -> bool:
+               other: Unit) -> bool:
         """
         Compare units with 'greater or equal'.
         """
         return Unit.units_order[self.value] >= Unit.units_order[other.value]
 
     def __le__(self,
-               other: 'Unit') -> bool:
+               other: Unit) -> bool:
         """
         Compare units with 'lesser or equal'.
         """
@@ -126,7 +123,7 @@ class TimePoint(metaclass=PrettyRepr):
 
     # region magic methods
     def __init__(self,
-                 value: TimePoint | NumberType | str,
+                 value: TimePoint | NumberType | bool | str,
                  unit: Unit | _UNIT_TYPE | None = None):
         """
         Args:
@@ -154,7 +151,7 @@ class TimePoint(metaclass=PrettyRepr):
                 self.value = float(value)
                 self.unit = Unit(unit) if unit is not None else Unit('h')
 
-        elif isinstance(value, Number):
+        elif isinstance(value, (Number, bool)):
             self.value = float(value)
             self.unit = Unit(unit) if unit is not None else Unit('h')
 
@@ -166,7 +163,7 @@ class TimePoint(metaclass=PrettyRepr):
         A string representation of this time point.
         :return: a string representation of this time point.
         """
-        return f"{self.value} {repr(self.unit)}"
+        return f"{self.value} {repr(self.unit)}{'' if self.value == 1 else 's'}"
 
     def __str__(self) -> str:
         """
@@ -225,22 +222,22 @@ class TimePoint(metaclass=PrettyRepr):
         
         value = self.value_as('s') + other.value_as('s')
         
-        if value < _SECONDS_IN_UNIT['m']:
+        if value < _SECONDS_IN_UNIT.minute:
             return TimePoint(value, 's')
 
-        elif value < _SECONDS_IN_UNIT['h']:
-            return TimePoint(value / _SECONDS_IN_UNIT['m'], 'm')
+        elif value < _SECONDS_IN_UNIT.hour:
+            return TimePoint(value / _SECONDS_IN_UNIT.minute, 'm')
 
-        elif value < _SECONDS_IN_UNIT['D']:
-            return TimePoint(value / _SECONDS_IN_UNIT['h'], 'h')
+        elif value < _SECONDS_IN_UNIT.day:
+            return TimePoint(value / _SECONDS_IN_UNIT.hour, 'h')
 
-        elif value < _SECONDS_IN_UNIT['M']:
-            return TimePoint(value / _SECONDS_IN_UNIT['D'], 'D')
+        elif value < _SECONDS_IN_UNIT.month:
+            return TimePoint(value / _SECONDS_IN_UNIT.day, 'D')
 
-        elif value < _SECONDS_IN_UNIT['Y']:
-            return TimePoint(value / _SECONDS_IN_UNIT['M'], 'M')
+        elif value < _SECONDS_IN_UNIT.year:
+            return TimePoint(value / _SECONDS_IN_UNIT.month, 'M')
 
-        return TimePoint(value / _SECONDS_IN_UNIT['Y'], 'Y')
+        return TimePoint(value / _SECONDS_IN_UNIT.year, 'Y')
     
     def __truediv__(self, other: int) -> TimePoint:
         return TimePoint(self.value / other, unit=self.unit)
@@ -261,7 +258,8 @@ class TimePoint(metaclass=PrettyRepr):
         """
         Get this TimePoint has a number of <unit>.
         """
-        return self.value * _SECONDS_IN_UNIT[self.unit.value] / _SECONDS_IN_UNIT[unit]
+        return self.value * _SECONDS_IN_UNIT[_TIMEPOINT_UNITS[self.unit.value]] / \
+            _SECONDS_IN_UNIT[_TIMEPOINT_UNITS[unit]]
 
     # endregion
     
@@ -325,17 +323,26 @@ def _no_0_dim(arr: TimePointArray) -> TimePointArray | TimePoint:
 class TimePointArray(np.ndarray[Any, Any], Sequence[TimePoint]):
     
     # region magic methods
-    def __new__(cls, arr: Collection[TimePoint]) -> TimePointArray:
+    def __new__(cls, arr: Iterable[Any]) -> TimePointArray:
         return np.asarray([TimePoint(tp) for tp in arr]).view(cls)
     
     def __iter__(self) -> Iterator[TimePoint]:
         return cast(Iterator[TimePoint], super().__iter__())
     
-    @overload                                                           # type: ignore[override]
-    def __getitem__(self, key: int | np.int_ | tuple[int | np.int_, ...]) -> TimePoint: ...
+    @overload                                                                           # type: ignore[override]
+    def __getitem__(self, key: int | SupportsIndex) -> TimePoint: ...
     @overload
-    def __getitem__(self, key: slice | list[int | np.int_] | npt.NDArray[np.int_ | np.bool_]) -> TimePointArray: ...
-    def __getitem__(self, key: Any) -> TimePoint | TimePointArray:
+    def __getitem__(self, key: tuple[()] | None | EllipsisType | slice | range) -> TimePointArray: ...
+    @overload
+    def __getitem__(self, key: _ArrayLikeInt_co) -> TimePoint | TimePointArray: ...
+    def __getitem__(self, key: int | 
+                               SupportsIndex |
+                               tuple[()] | 
+                               None |
+                               EllipsisType |
+                               slice |
+                               range |
+                               _ArrayLikeInt_co) -> TimePoint | TimePointArray:
         return cast(TimePoint | TimePointArray, super().__getitem__(key))
     
     # endregion
@@ -366,5 +373,11 @@ class TimePointArray(np.ndarray[Any, Any], Sequence[TimePoint]):
             where: bool | npt.NDArray[np.bool_] = True) -> TimePointArray | TimePoint:
         return _no_0_dim(super().max(axis, out, keepdims, initial, where))     # type: ignore[arg-type]
     
-    
     # endregion
+
+
+def atleast_1d(obj: Any) -> TimePointArray:
+    if isinstance(obj, Iterable):
+        return TimePointArray(obj)
+    
+    return TimePointArray([obj])

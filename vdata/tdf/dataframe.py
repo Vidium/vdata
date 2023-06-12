@@ -11,16 +11,14 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal
 
 import ch5mpy as ch
 import numpy as np
-import numpy.typing as npt
 import numpy_indexed as npi
 import pandas as pd
 
 import vdata.tdf as tdf
-from vdata._typing import IFS, IFS_NP
+from vdata._typing import IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS, Slicer
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
 from vdata.tdf._parse import parse_data
-from vdata.tdf._typing import SLICER, AttrDict, NDArrayLike
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.utils import parse_slicer, parse_slicer_s, parse_values
 from vdata.timepoint import TimePoint
@@ -40,8 +38,8 @@ class TemporalDataFrame(TemporalDataFrameBase):
     
     # region magic methods
     def __init__(self,
-                 data: dict[str, npt.NDArray[IFS_NP]] | pd.DataFrame | None = None,
-                 index: Collection[IFS] | None = None,
+                 data: dict[str, NDArray_IFS] | pd.DataFrame | None = None,
+                 index: Collection_IFS | None = None,
                  repeating_index: bool = False,
                  columns: Collection[IFS] | None = None,
                  time_list: Collection[IFS | TimePoint] | IFS | TimePoint | None = None,
@@ -95,7 +93,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     def __setattr__(self,
                     name: IFS,
-                    values: npt.NDArray[IFS_NP]) -> None:
+                    values: NDArray_IFS) -> None:
         """
         Set values of a single column. If the column does not already exist in this TemporalDataFrame, it is created
             at the end.
@@ -150,7 +148,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
 
     def __getitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER]) -> TemporalDataFrameView:
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) -> TemporalDataFrameView:
         index_slicer, column_num_slicer, column_str_slicer = parse_slicer_s(self, slicer)
 
         return tdf.TemporalDataFrameView(parent=self, 
@@ -159,8 +157,8 @@ class TemporalDataFrame(TemporalDataFrameBase):
                                          columns_string=column_str_slicer)
 
     def __setitem__(self,
-                    slicer: SLICER | tuple[SLICER, SLICER] | tuple[SLICER, SLICER, SLICER],
-                    values: IFS | Collection[IFS] | TemporalDataFrame) -> None:
+                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
+                    values: IFS | Collection[IFS] | TemporalDataFrameBase) -> None:
         """
         Set values in a subset.
         """
@@ -326,7 +324,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         return ' '.join(parts)
 
     @property
-    def index(self) -> NDArrayLike[IFS_NP]:
+    def index(self) -> NDArrayLike_IFS:
         """
         Get the index across all time-points.
         """
@@ -334,7 +332,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     
     @index.setter
     def index(self,
-              values: npt.NDArray[IFS_NP]) -> None:
+              values: NDArray_IFS) -> None:
         """
         Set the index for rows across all time-points.
         """
@@ -346,7 +344,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         self.index[:] = values
 
     @property
-    def columns(self) -> npt.NDArray[IFS_NP]:
+    def columns(self) -> NDArray_IFS:
         """
         Get the list of all column names.
         """
@@ -354,7 +352,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     @columns.setter
     def columns(self,
-                values: NDArrayLike[IFS_NP]) -> None:
+                values: NDArrayLike_IFS) -> None:
         """
         Set the list of all column names.
         """
@@ -397,7 +395,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         self._attr_dict['locked_columns'] = False
 
     def _check_valid_index(self,
-                           values: npt.NDArray[IFS_NP],
+                           values: NDArray_IFS,
                            repeating_index: bool) -> None:
         if not values.shape == self._index.shape:
             raise ValueError(f"Shape mismatch, new 'index' values have shape {values.shape}, "
@@ -417,7 +415,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             raise ValueError("Index values must be all unique.")
 
     def set_index(self,
-                  values: npt.NDArray[IFS_NP],
+                  values: NDArray_IFS,
                   repeating_index: bool = False) -> None:
         """Set new index values."""
         if self.has_locked_indices:
@@ -437,8 +435,8 @@ class TemporalDataFrame(TemporalDataFrameBase):
         self._attr_dict['repeating_index'] = repeating_index
 
     def _get_index_positions(self,
-                             index_: npt.NDArray[IFS_NP],
-                             repeating_values: bool = False) -> npt.NDArray[IFS_NP]:
+                             index_: NDArray_IFS,
+                             repeating_values: bool = False) -> NDArray_IFS:
         if not self.has_repeating_index:
             return npi.indices(self.index, index_)
             
@@ -465,7 +463,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         return np.concatenate(total_index)
 
     def reindex(self,
-                order: npt.NDArray[IFS_NP],
+                order: NDArray_IFS,
                 repeating_index: bool = False) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
         # check all values in index
@@ -487,7 +485,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     def _check_before_insert(self,
                              name: IFS,
-                             values: npt.NDArray[IFS_NP] | Iterable[IFS] | IFS) -> npt.NDArray[IFS_NP]:
+                             values: NDArray_IFS | Iterable[IFS] | IFS) -> NDArray_IFS:
         if self.has_locked_columns:
             raise VLockError("Cannot insert columns in tdf with locked columns.")
 
@@ -507,7 +505,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     def insert(self,
                loc: int,
                name: IFS,
-               values: npt.NDArray[IFS_NP] | Iterable[IFS] | IFS) -> None:
+               values: NDArray_IFS | Iterable[IFS] | IFS) -> None:
         """
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.

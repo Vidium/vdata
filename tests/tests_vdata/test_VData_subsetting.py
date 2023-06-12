@@ -181,3 +181,9 @@ def test_vdata_subset_on_timepoints_should_set_new_values_in_obs(VData: vdata.VD
     subset.obsm['new_data'] = new_data
 
     assert 'new_data' in subset.obsm.keys()
+    
+
+def test_vdata_subset_timepoints_range(VData: vdata.VData) -> None:
+    v = VData[1:3]
+    
+    assert list(v.timepoints.values.flatten().astype(str)) == ['1.0h', '2.0h']

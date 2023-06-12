@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 
-from vdata._typing import IFS_NP
+from vdata._typing import NDArray_IFS
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrameBase
 from vdata.utils import first, obj_as_str
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def get_var_index(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None,
-                  var: pd.DataFrame | VDataFrame | None) -> npt.NDArray[IFS_NP] | None:
+                  var: pd.DataFrame | VDataFrame | None) -> NDArray_IFS | None:
     if var is not None:
         return obj_as_str(np.array(var.index))
     

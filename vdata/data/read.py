@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, Sequence, cast
 
 import pandas as pd
 
@@ -24,9 +24,9 @@ def _get_time_col_name(time_list: Sequence[str | TimePoint] | Literal['*'] | Non
         return None
     
     for key in metadata_keys:
-        metadata = metadata[key]
+        metadata = cast(dict[str, Any], metadata[key])
         
-    return metadata['timepoints_column_name']
+    return str(metadata['timepoints_column_name'])
     
 
 def read_from_csv(path: str | Path,

@@ -55,8 +55,8 @@ class NDArrayView(Generic[_T]):
     def __iter__(self) -> Iterator[_T]:
         return iter(self._view())
     
-    def __eq__(self, __value: object) -> npt.NDArray[np.bool_]:
-        return self._view().__eq__(__value)
+    def __eq__(self, __value: object) -> npt.NDArray[np.bool_]:     # type: ignore[override]
+        return self._view().__eq__(__value)                         # type: ignore[no-any-return]
     
     def __lt__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__lt__(__value)
