@@ -80,7 +80,7 @@ def get_backed_TDF(name: str,
     
     
 def clean(tdf: TemporalDataFrameBase) -> None:
-    filename = tdf.file.file.filename
+    filename = tdf.data.file.filename
     
     if tdf.is_view:
         tdf.parent.close()

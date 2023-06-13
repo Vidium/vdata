@@ -82,7 +82,7 @@ def _sort_and_get_tp(data: pd.DataFrame | None,
     data[col_name] = timepoints
     data.sort_values(by=col_name, inplace=True, kind='mergesort')
 
-    time_values_ = TimePointArray(list(data[col_name]))
+    time_values_ = TimePointArray(data[col_name])
     del data[col_name]
     data.columns = data.columns.astype(_dtype)
 
@@ -155,7 +155,7 @@ def parse_data(data: dict[str, NDArray_IFS] | pd.DataFrame | None,
                time_col_name: str | None,
                lock: tuple[bool, bool] | None,
                name: str) -> tuple[
-                   npt.NDArray[np.int_ | np.float_], 
+                   npt.NDArray[np.int_] | npt.NDArray[np.float_], 
                    npt.NDArray[np.str_],
                    TimePointArray,
                    NDArray_IFS,

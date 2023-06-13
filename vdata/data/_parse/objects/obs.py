@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,8 @@ from vdata.data._parse.time import check_time_match
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
+from vdata.timepoint import TimePointArray
 from vdata.utils import first
 from vdata.vdataframe import VDataFrame
 
@@ -26,7 +27,7 @@ def _index(obj: pd.DataFrame | VDataFrame | TemporalDataFrameBase) -> tuple[NDAr
 def get_obs_index(data: pd.DataFrame | 
                         VDataFrame | 
                         TemporalDataFrameBase | 
-                        dict[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
+                        Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
                         None,
                   obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) \
     -> tuple[NDArray_IFS | None, bool]:
@@ -47,10 +48,13 @@ def parse_obs(data: ParsingDataIn) -> TemporalDataFrameBase:
     check_time_match(data)
     log_timepoints(data.timepoints)
     
+    if isinstance(data.obs, (pd.DataFrame, VDataFrame)):
+        return TemporalDataFrame(data.obs)
+    
     return data.obs
 
 
-def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame]:
+def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame | TemporalDataFrameView]:
     if not len(data.obsm):
         generalLogger.debug("    3. \u2717 'obsm' was not given.")
         return {}
@@ -63,13 +67,13 @@ def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame]:
     if not isinstance(data.obsm, dict):
         raise TypeError("'obsm' must be a dictionary of DataFrames.")
 
-    valid_obsm: dict[str, TemporalDataFrame] = {}
+    valid_obsm: dict[str, TemporalDataFrame | TemporalDataFrameView] = {}
 
     for key, value in data.obsm.items():
         if isinstance(value, (pd.DataFrame, VDataFrame)):
             if data.time_list is None:
                 if data.obs is not None:
-                    data.time_list = data.obs.timepoints_column
+                    data.time_list = TimePointArray(data.obs.timepoints_column)
                 else:
                     data.time_list = first(data.layers).timepoints_column
 
@@ -92,7 +96,7 @@ def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame]:
         if not np.all(np.isin(valid_obsm[str(key)].index, data.obs.index)):
             raise ValueError(f"Index of 'obsm' '{key}' does not match 'obs' and 'layers' indexes.")
         
-        valid_obsm[str(key)].reindex(data.obs.index)
+        valid_obsm[str(key)].reindex(np.array(data.obs.index))
 
     return valid_obsm
 
@@ -123,11 +127,11 @@ def parse_obsp(data: ParsingDataIn) -> dict[str, VDataFrame]:
             if not all(value.columns.isin(data.obs.index)):
                 raise ValueError("Column names of 'obsp' do not match 'obs' and 'layers' indexes.")
             
-            value.reindex(data.obs.index)
-            value = value[data.obs.index]
+            value.reindex(np.array(data.obs.index))
+            value = VDataFrame(value[np.array(data.obs.index)])
 
         else:
-            value = VDataFrame(value, index=data.obs.index, columns=data.obs.index)
+            value = VDataFrame(value, index=np.array(data.obs.index), columns=np.array(data.obs.index))
 
         valid_obsp[str(key)] = value
 

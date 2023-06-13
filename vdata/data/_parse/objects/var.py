@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,11 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def get_var_index(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None,
+def get_var_index(data: pd.DataFrame | 
+                        VDataFrame | 
+                        TemporalDataFrameBase | 
+                        Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
+                        None,
                   var: pd.DataFrame | VDataFrame | None) -> NDArray_IFS | None:
     if var is not None:
         return obj_as_str(np.array(var.index))
@@ -30,8 +34,7 @@ def get_var_index(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict
 
 
 def parse_var(data: ParsingDataIn) -> VDataFrame:
-    # FIXME
-    return data.var
+    return VDataFrame(data.var)
 
 
 def parse_varm(data: ParsingDataIn) -> dict[str, VDataFrame]:
@@ -56,7 +59,7 @@ def parse_varm(data: ParsingDataIn) -> dict[str, VDataFrame]:
         if not np.all(np.isin(value.index, data.var.index)):
             raise ValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
 
-        valid_varm[str(key)] = value
+        valid_varm[str(key)] = VDataFrame(value)
         valid_varm[str(key)].reindex(data.var.index)
 
     return valid_varm
@@ -92,7 +95,7 @@ def parse_varp(data: ParsingDataIn) -> dict[str, VDataFrame]:
             value = value[data.var.index]
 
         else:
-            value = VDataFrame(value, index=data.var_index, columns=data.var_index)
+            value = VDataFrame(value, index=data.var.index, columns=data.var.index)
 
         valid_varp[str(key)] = value
 

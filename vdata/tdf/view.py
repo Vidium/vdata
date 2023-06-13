@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from typing import Any, Collection, Literal, NoReturn
+from typing import Any, Collection, Literal, NoReturn, cast
 
 import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
 import numpy_indexed as npi
 
-from vdata._typing import IFS, AttrDict, NDArray_IFS, NDArrayLike, NDArrayLike_IFS, Slicer
+from vdata._typing import (
+    IFS,
+    AnyNDArrayLike,
+    AnyNDArrayLike_IFS,
+    AttrDict,
+    NDArray_IFS,
+    Slicer,
+)
 from vdata.array_view import NDArrayView
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
@@ -15,14 +22,18 @@ from vdata.tdf.utils import parse_slicer, parse_values
 from vdata.timepoint import TimePointArray
 
 
-def _indices(this: npt.NDArray[Any], 
-             that: npt.NDArray[Any]) -> npt.NDArray[np.int_]:
-    return npi.indices(this, that) if len(that) else np.array([], dtype=np.int64)       # type: ignore[no-any-return]
+def _indices(this: AnyNDArrayLike[Any], 
+             that: AnyNDArrayLike[Any]) -> npt.NDArray[np.int_]:
+    if not len(that):
+        return np.array([], dtype=np.int64)
+    
+    return npi.indices(np.array(this), np.array(that))      # type: ignore[no-any-return]
 
 
 def _array_view(container: Any,
                 accession: str,
-                index: NDArrayLike[np.int_]) -> NDArrayLike[Any]:
+                index: AnyNDArrayLike[np.int_] | tuple[AnyNDArrayLike[np.int_], ...]) \
+        -> ch.H5Array[Any] | NDArrayView[Any]:
     if isinstance(getattr(container, accession), ch.H5Array):
         return getattr(container, accession)[index]                                     # type: ignore[no-any-return]
     
@@ -38,9 +49,9 @@ class TemporalDataFrameView(TemporalDataFrameBase):
     # region magic methods
     def __init__(self,
                  parent: TemporalDataFrame,
-                 index_positions: NDArrayLike[np.int_],
-                 columns_numerical: NDArrayLike_IFS,
-                 columns_string: NDArrayLike_IFS,
+                 index_positions: AnyNDArrayLike[np.int_],
+                 columns_numerical: AnyNDArrayLike_IFS,
+                 columns_string: AnyNDArrayLike_IFS,
                  *,
                  inverted: bool = False):
         super().__init__(
@@ -59,7 +70,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
                                locked_indices=parent.has_locked_indices,
                                locked_columns=parent.has_locked_columns,
                                repeating_index=parent.has_repeating_index),
-            file=parent.file
+            data=parent.data
         )
         
         self._parent = parent
@@ -96,11 +107,12 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         index_positions, column_num_slicer, column_str_slicer, (tp_array, index_array, columns_array) = \
             parse_slicer(self, slicer)
 
-        index_positions, columns_numerical, columns_string = \
-            self._parse_inverted(index_positions,
-                                 column_num_slicer,
-                                 column_str_slicer,
-                                 (tp_array, index_array, columns_array))
+        index_positions, columns_numerical, columns_string = self._parse_inverted(
+            index_positions,
+            column_num_slicer,
+            column_str_slicer,
+            (tp_array, index_array, columns_array)
+        )
 
         if self._inverted:
             columns_array = np.concatenate((columns_numerical, columns_string))
@@ -183,7 +195,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         return self._parent
 
     @property
-    def index(self) -> NDArrayLike_IFS:
+    def index(self) -> AnyNDArrayLike_IFS:
         """
         Get the index across all time-points.
         """
@@ -236,12 +248,24 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """Unlock the "columns" axis to allow modifications."""
         self._parent.unlock_columns()
     
+    def set_index(self,
+                  values: NDArray_IFS,
+                  repeating_index: bool = False) -> None:
+        """Set new index values."""
+        raise NotImplementedError
+    
+    def reindex(self,
+                order: NDArray_IFS,
+                repeating_index: bool = False) -> None:
+        """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
+        raise NotImplementedError
+    
     def _parse_inverted(self,
                         index_slicer: npt.NDArray[np.int_],
-                        column_num_slicer: NDArray_IFS,
-                        column_str_slicer: NDArray_IFS,
-                        arrays: tuple[TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None]) \
-            -> tuple[NDArrayLike_IFS, NDArray_IFS, NDArray_IFS]:
+                        column_num_slicer: AnyNDArrayLike_IFS,
+                        column_str_slicer: AnyNDArrayLike_IFS,
+                        arrays: tuple[TimePointArray | None, AnyNDArrayLike_IFS | None, AnyNDArrayLike_IFS | None]) \
+            -> tuple[npt.NDArray[np.int_], AnyNDArrayLike_IFS, AnyNDArrayLike_IFS]:
         tp_array, index_array, columns_array = arrays
 
         if self._inverted:
@@ -252,16 +276,18 @@ class TemporalDataFrameView(TemporalDataFrameBase):
                 _index_positions = self._index_positions[~np.isin(self._index_positions, index_slicer)]
 
             if columns_array is None:
-                _columns_numerical = column_num_slicer
-                _columns_string = column_str_slicer
+                _columns_numerical: AnyNDArrayLike_IFS = column_num_slicer
+                _columns_string: AnyNDArrayLike_IFS = column_str_slicer
 
             else:
-                _columns_numerical = self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)]
-                _columns_string = self._columns_string[~np.isin(self._columns_string, column_str_slicer)]
+                _columns_numerical = cast(AnyNDArrayLike_IFS,
+                                          self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)])
+                _columns_string = cast(AnyNDArrayLike_IFS,
+                                       self._columns_string[~np.isin(self._columns_string, column_str_slicer)])
 
-            return _index_positions, _columns_numerical, _columns_string
+            return np.array(_index_positions), _columns_numerical, _columns_string
 
-        return self._index_positions[index_slicer], column_num_slicer, column_str_slicer
+        return np.array(self._index_positions[index_slicer]), column_num_slicer, column_str_slicer
 
     # endregion
 

@@ -2,26 +2,25 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Collection, ItemsView, Iterator, KeysView, MutableMapping, TypeVar, ValuesView
+from typing import Collection, Generic, ItemsView, Iterator, KeysView, MutableMapping, TypeVar, Union, ValuesView
 
 import ch5mpy as ch
 import numpy as np
+import pandas as pd
 
 import vdata
-from vdata._typing import IFS, DictLike
+from vdata._typing import IFS, AnyDictLike, DictLike
 from vdata.IO import VClosedFileError, generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
-from vdata.timedict import TimeDict
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first
 from vdata.vdataframe import VDataFrame
 
-_T = TypeVar('_T')
-D = TypeVar('D', TemporalDataFrame, VDataFrame)
-D_any = TypeVar('D_any', TemporalDataFrame, TemporalDataFrameView, VDataFrame)
+D = TypeVar('D', Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, VDataFrame)
+D_copy = TypeVar('D_copy', TemporalDataFrame, pd.DataFrame)
 
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-class ArrayContainerMixin(MutableMapping[str, D_any]):
+class ArrayContainerMixin(MutableMapping[str, D], Generic[D, D_copy]):
         
     # region predicates
     @property
@@ -47,7 +46,7 @@ class ArrayContainerMixin(MutableMapping[str, D_any]):
         """
 
     @abstractmethod
-    def values(self) -> ValuesView[D_any]:
+    def values(self) -> ValuesView[D]:
         """
         ValuesView of data items in this ArrayContainer.
 
@@ -56,7 +55,7 @@ class ArrayContainerMixin(MutableMapping[str, D_any]):
         """
 
     @abstractmethod
-    def items(self) -> ItemsView[str, D_any]:
+    def items(self) -> ItemsView[str, D]:
         """
         ItemsView of pairs of keys and data items in this ArrayContainer.
 
@@ -64,9 +63,9 @@ class ArrayContainerMixin(MutableMapping[str, D_any]):
             ItemsView of this ArrayContainer.
         """
 
-    def dict_copy(self) -> dict[str, D_any]:
+    def dict_copy(self) -> dict[str, D_copy]:
         """Dictionary of keys and data items in this view."""
-        return {k: v.copy() for k, v in self.items()}
+        return {k: v.copy() for k, v in self.items()}       # type: ignore[misc]
     
     def to_csv(self, 
                directory: Path,
@@ -96,7 +95,7 @@ class ArrayContainerMixin(MutableMapping[str, D_any]):
     # endregion
 
 
-class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
+class VBaseArrayContainer(ABC, ArrayContainerMixin[D, D_copy]):
     """
     Base abstract class for ArrayContainers linked to a VData object (obsm, obsp, varm, varp, layers).
     All Arrays have a '_parent' attribute for linking them to a VData and a '_data' dictionary
@@ -119,10 +118,10 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
         generalLogger.debug(f"== Creating {type(self).__name__}. ==========================")
 
         self._vdata = vdata
-        self._data = self._check_init_data(data)
+        self._data: AnyDictLike[D] = self._check_init_data(data)
 
     @abstractmethod
-    def _check_init_data(self, data: DictLike[D]) -> DictLike[D] | TimeDict:
+    def _check_init_data(self, data: AnyDictLike[D]) -> AnyDictLike[D]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format.
 
@@ -156,7 +155,7 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
         if item not in self.keys():
             raise AttributeError(f"This {type(self).__name__} has no attribute '{item}'")
 
-        return self.data[item]
+        return self.data[item]      # type: ignore[return-value]
 
     @abstractmethod
     def __setitem__(self, key: str, value: D) -> None:
@@ -225,7 +224,7 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
         pass
 
     @property
-    def data(self) -> DictLike[D] | TimeDict:
+    def data(self) -> AnyDictLike[D]:
         """
         Data of this ArrayContainer.
 
@@ -256,7 +255,7 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
         Returns:
             ValuesView of this ArrayContainer.
         """
-        return self._data.values()
+        return self._data.values()          # type: ignore[return-value]
 
     def items(self) -> ItemsView[str, D]:
         """
@@ -265,22 +264,24 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D]):
         Returns:
             ItemsView of this ArrayContainer.
         """
-        return self._data.items()
+        return self._data.items()           # type: ignore[return-value]
 
     # endregion
 
 
 # 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame], ABC):
+class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame], ABC):
     """
     Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers).
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 
+    data: DictLike[TemporalDataFrame | TemporalDataFrameView]
+
     # region methods
     def __init__(self, 
                  *,
-                 data: DictLike[TemporalDataFrame] | None,
+                 data: DictLike[TemporalDataFrame | TemporalDataFrameView],
                  vdata: vdata.VData):
         """
         Args:
@@ -291,7 +292,7 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame], ABC):
 
     def __setitem__(self, 
                     key: str,
-                    value: TemporalDataFrameBase) -> None:
+                    value: TemporalDataFrame | TemporalDataFrameView) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
 
@@ -332,11 +333,8 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame], ABC):
         if not len(self):
             return 0, 0, [], []
 
-        f = first(self._data)
-        f.shape
-
-        _shape_TDF = first(self._data).shape
-        return len(self._data), _shape_TDF[0], _shape_TDF[1], [d.shape[2] for d in self._data.values()]
+        _shape_TDF = first(self.data).shape
+        return len(self.data), _shape_TDF[0], _shape_TDF[1], [d.shape[2] for d in self.values()]
 
     # endregion
     

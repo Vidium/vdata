@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from typing import Union, cast
+
+import ch5mpy as ch
 import numpy as np
 
-from vdata._typing import DictLike
+from vdata._typing import AnyDictLike, DictLike
 from vdata.data.arrays.base import VTDFArrayContainer
 from vdata.data.arrays.view import VTDFArrayContainerView
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 
 
 class VLayersArrayContainer(VTDFArrayContainer):
@@ -19,7 +22,8 @@ class VLayersArrayContainer(VTDFArrayContainer):
 
     # region magic methods
     def _check_init_data(self,
-                         data: DictLike[TemporalDataFrame]) -> DictLike[TemporalDataFrame]:
+                         data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]) \
+        -> DictLike[TemporalDataFrame | TemporalDataFrameView]:
         """
         Function for checking, at VLayerArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
@@ -41,11 +45,12 @@ class VLayersArrayContainer(VTDFArrayContainer):
         generalLogger.debug("  Data was found.")
 
         _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], self._vdata.var.shape[0])
-        _data: DictLike[TemporalDataFrame] = {} if isinstance(data, dict) else data
+        _data: DictLike[TemporalDataFrame | TemporalDataFrameView] = {} if not isinstance(data, ch.H5Dict) else data
 
         generalLogger.debug(f"  Reference shape is {_shape}.")
 
         for TDF_index, tdf in data.items():
+            tdf = cast(Union[TemporalDataFrame, TemporalDataFrameView], tdf)
             TDF_shape = tdf.shape
 
             generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")

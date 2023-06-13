@@ -20,13 +20,16 @@ def parse_time_list(time_list: Sequence[str | TimePoint] | None,
                     time_col_name: str | None,
                     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) -> TimePointArray | None:
     if time_list is not None:
-        return TimePointArray([TimePoint(tp) for tp in time_list])
+        return TimePointArray(time_list)
 
     elif obs is not None and time_col_name is not None:
         if time_col_name not in obs.columns:
             raise ValueError(f"Could not find column '{time_col_name}' in obs.")
         
-        return TimePointArray([TimePoint(tp) for tp in obs[time_col_name]])
+        if isinstance(obs, TemporalDataFrameBase):
+            return TimePointArray(obs[time_col_name].values)
+        
+        return TimePointArray(obs[time_col_name])
     
     return None
         
@@ -71,10 +74,12 @@ def check_time_match(data: ParsingDataIn) -> None:
         return
 
     # check that timepoints and _time_list and _time_col_name match
-    if data.time_list is not None and not all(match_timepoints(data.time_list, data.timepoints.value)):
+    if data.time_list is not None and not all(match_timepoints(data.time_list, 
+                                                               TimePointArray(data.timepoints.value))):
         raise ValueError("There are values in 'time_list' unknown in 'timepoints'.")
 
-    elif data.time_col_name is not None and not all(match_timepoints(data.obs.timepoints, data.timepoints.value)):
+    elif data.time_col_name is not None and not all(match_timepoints(TimePointArray(data.obs.timepoints), 
+                                                                     TimePointArray(data.timepoints.value))):
         raise ValueError(f"There are values in obs['{data.time_col_name}'] unknown in 'timepoints'.")
 
     data.timepoints = VDataFrame(data.timepoints)

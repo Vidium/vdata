@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Collection
+from typing import Collection, cast
 
+import ch5mpy as ch
 import pandas as pd
 
-from vdata._typing import IFS, DictLike, NDArray_IFS
+from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer
-from vdata.data.arrays.view import VBaseArrayContainerView
+from vdata.data.arrays.view import VBaseArrayContainerView, get_var_hash
 from vdata.IO import (
     IncoherenceError,
     ShapeError,
@@ -16,7 +17,7 @@ from vdata.utils import first
 from vdata.vdataframe import VDataFrame
 
 
-class VVarmArrayContainer(VBaseArrayContainer[VDataFrame]):
+class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     """
     Class for varm.
     This object contains any number of DataFrames, with shape (n_var, any).
@@ -25,7 +26,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: DictLike[VDataFrame]) -> DictLike[VDataFrame]:
+    def _check_init_data(self, data: AnyDictLike[VDataFrame]) -> AnyDictLike[VDataFrame]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -37,7 +38,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame]):
         generalLogger.debug("  Data was found.")
         
         _index = self._vdata.var.index
-        _data: DictLike[VDataFrame] = {} if isinstance(data, dict) else data
+        _data: DictLike[VDataFrame] = {} if not isinstance(data, ch.H5Dict) else data
 
         for DF_index, DF in data.items():
             if not _index.equals(DF.index):
@@ -98,17 +99,18 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame]):
     # endregion
 
 
-class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
+class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
 
     # region magic methods
     def __init__(self, 
                  array_container: VVarmArrayContainer,
                  var_slicer: NDArray_IFS):
-        super().__init__(data={key: VDataFrame(vdf.loc[var_slicer]) 
+        super().__init__(data={key: cast(VDataFrame, vdf.loc[var_slicer])
                                for key, vdf in array_container.items()},
                          array_container=array_container)
         
         self._var_slicer = var_slicer
+        self._vdata_var_hash = get_var_hash(array_container)
     
     def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
         """
@@ -146,6 +148,10 @@ class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
     # endregion
     
     # region methods
+    def _check_data_has_not_changed(self) -> None:
+        if get_var_hash(self._array_container) != self._vdata_var_hash:
+            raise ValueError("View no longer valid since parent's VData has changed.")
+    
     def set_index(self, values: Collection[IFS]) -> None:
         """
         Set a new index for rows and columns.
@@ -158,7 +164,7 @@ class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
 
     # endregion
 
-class VVarpArrayContainer(VBaseArrayContainer[VDataFrame]):
+class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     """
     Class for varp.
     This object contains any number of DataFrames, with shape (n_var, n_var).
@@ -167,7 +173,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: DictLike[VDataFrame]) -> DictLike[VDataFrame]:
+    def _check_init_data(self, data: AnyDictLike[VDataFrame]) -> AnyDictLike[VDataFrame]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -180,7 +186,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame]):
         generalLogger.debug("  Data was found.")
         
         _index = self._vdata.var.index
-        _data: DictLike[VDataFrame] = {} if isinstance(data, dict) else data
+        _data: DictLike[VDataFrame] = {} if not isinstance(data, ch.H5Dict) else data
 
         for DF_index, DF in data.items():
             if not _index.equals(DF.index):
@@ -243,17 +249,18 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame]):
 
     # endregion
 
-class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
+class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
 
     # region magic methods
     def __init__(self,
                  array_container: VVarpArrayContainer,
                  var_slicer: NDArray_IFS):
-        super().__init__(data={key: VDataFrame(vdf.loc[var_slicer, var_slicer])
+        super().__init__(data={key: cast(VDataFrame, vdf.loc[var_slicer, var_slicer])
                                for key, vdf in array_container.items()}, 
                          array_container=array_container)
         
         self._var_slicer = var_slicer
+        self._vdata_var_hash = get_var_hash(array_container)
 
     def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
         """
@@ -290,6 +297,14 @@ class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
         """
         return len(self), len(self._var_slicer), len(self._var_slicer)
 
+    # endregion
+
+    # region methods
+    def _check_data_has_not_changed(self) -> None:
+        if get_var_hash(self._array_container) != self._vdata_var_hash:
+            raise ValueError("View no longer valid since parent's VData has changed.")
+    
+    
     def set_index(self, values: Collection[IFS]) -> None:
         """Set a new index for rows and columns."""
         for arr in self.values():

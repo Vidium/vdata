@@ -7,15 +7,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, cast
 
 import ch5mpy as ch
 import numpy as np
+import numpy.typing as npt
 import numpy_indexed as npi
 import pandas as pd
 
 import vdata.tdf as tdf
-from vdata._typing import IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS, Slicer
+from vdata._typing import IFS, AnyNDArrayLike_IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS, Slicer
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
 from vdata.tdf._parse import parse_data
@@ -231,7 +232,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
                                             locked_indices=values.attributes['locked_indices'],
                                             locked_columns=values.attributes['locked_columns'],
                                             repeating_index=values.attributes['repeating_index']),
-                         file=values)
+                         data=values)
         return obj
     
     @classmethod
@@ -255,7 +256,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
                          columns_numerical=file["columns_numerical"],
                          columns_string=file["columns_string"],
                          attr_dict=file.attributes,
-                         file=file)
+                         data=file)
         return tdf
     
     @classmethod
@@ -324,7 +325,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         return ' '.join(parts)
 
     @property
-    def index(self) -> NDArrayLike_IFS:
+    def index(self) -> AnyNDArrayLike_IFS:
         """
         Get the index across all time-points.
         """
@@ -426,8 +427,8 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if values.dtype == self._index.dtype:
             self._index[:] = values
 
-        elif self._file is not None:
-            self._file['index'] = values
+        elif self._data is not None:
+            self._data['index'] = values
             
         else:
             self._index = values
@@ -435,10 +436,11 @@ class TemporalDataFrame(TemporalDataFrameBase):
         self._attr_dict['repeating_index'] = repeating_index
 
     def _get_index_positions(self,
-                             index_: NDArray_IFS,
+                             index_: AnyNDArrayLike_IFS,
                              repeating_values: bool = False) -> NDArray_IFS:
         if not self.has_repeating_index:
-            return npi.indices(self.index, index_)
+            return cast(npt.NDArray[np.int_], 
+                        npi.indices(self.index, index_))
             
         if repeating_values:
             index_offset = 0
@@ -460,7 +462,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             total_index[tpi] = npi.indices(i_at_tp, index_) + index_len_count
             index_len_count += len(i_at_tp)
 
-        return np.concatenate(total_index)
+        return total_index.flatten()
 
     def reindex(self,
                 order: NDArray_IFS,
@@ -530,14 +532,14 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     def close(self) -> None:
         """Close the file this TemporalDataFrame is backed on."""
-        if self._file is not None:
-            self._file.close()
+        if self._data is not None:
+            self._data.close()
 
     # endregion
 
     # region data methods
     def merge(self,
-              other: TemporalDataFrame,
+              other: TemporalDataFrameBase,
               name: str | None = None) -> TemporalDataFrame:
         """
         Merge two TemporalDataFrames together, by rows. The column names and time points must match.
@@ -572,14 +574,15 @@ class TemporalDataFrame(TemporalDataFrameBase):
             _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
         else:
-            _data = None
+            _check_merge_index(self, other, self.tp0)
+            _data = pd.concat((self[self.tp0].to_pandas(), 
+                               other[self.tp0].to_pandas()))
 
-            for time_point in self.timepoints:
-                if np.any(np.isin(other.index_at(time_point), self.index_at(time_point))):
-                    raise ValueError(f"TemporalDataFrames to merge have index values in common at time point "
-                                     f"'{time_point}'.")
-
-                _data = pd.concat((_data, self[time_point].to_pandas(), other[time_point].to_pandas()))
+            for time_point in self.timepoints[1:]:
+                _check_merge_index(self, other, time_point)
+                _data = pd.concat((_data,
+                                   self[time_point].to_pandas(), 
+                                   other[time_point].to_pandas()))
 
             _data.columns = _data.columns.astype(self.columns.dtype)
 
@@ -600,16 +603,21 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # endregion
 
 
-def _valid_mode(file,
+def _valid_mode(file: str | Path | ch.Group | ch.H5Dict[Any],
                 mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] | None) \
         -> Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE]:
     if mode is None:
         if isinstance(file, (str, Path)):
             return ch.H5Mode.READ
             
-        return file.file.mode
+        return file.file.file.mode
 
     elif mode not in (ch.H5Mode.READ, ch.H5Mode.READ_WRITE):
         raise ValueError("Only 'r' and 'r+' are valid modes.")
     
     return mode
+
+
+def _check_merge_index(tdf1: TemporalDataFrameBase, tdf2: TemporalDataFrameBase, timepoint: TimePoint) -> None:
+    if np.any(np.isin(tdf1.index_at(timepoint), tdf2.index_at(timepoint))):
+        raise ValueError(f"TemporalDataFrames to merge have index values in common at time point '{timepoint}'.")

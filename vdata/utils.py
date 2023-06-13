@@ -8,7 +8,7 @@ import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
 
-from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
+from vdata._typing import IFS, AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
 from vdata.array_view import NDArrayView
 from vdata.IO.errors import ShapeError
 from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
@@ -56,7 +56,7 @@ def obj_as_str(arr: npt.NDArray[Any]) -> npt.NDArray[Any]:
 
 
 # region Representation --------------------------------------------------------------
-def repr_array(arr: npt.DTypeLike | Collection[Any] | range | slice | EllipsisType) -> str:
+def repr_array(arr: Any) -> str:
     """Get a short string representation of an array."""
     if isinstance(arr, slice) or arr is Ellipsis or not isCollection(arr):
         return str(arr)
@@ -145,7 +145,7 @@ def slice_or_range_to_list(s: slice | range, _c: Collection[Any]) -> list[Any]:
 
 
 def slicer_to_array(slicer: PreSlicer,
-                    reference_index: NDArrayLike_IFS) -> NDArray_IFS | None:
+                    reference_index: AnyNDArrayLike_IFS) -> NDArray_IFS | None:
     """
     Format a slicer into an array of allowed values given in the 'reference_index' parameter.
 
@@ -202,7 +202,7 @@ def reformat_index(index: PreSlicer |
                           tuple[PreSlicer, PreSlicer] |
                           tuple[PreSlicer, PreSlicer, PreSlicer],
                    timepoints_reference: TimePointArray,
-                   obs_reference: NDArrayLike_IFS,
+                   obs_reference: AnyNDArrayLike_IFS,
                    var_reference: NDArrayLike_IFS) \
         -> tuple[TimePointArray | None, 
                  NDArray_IFS | None,
@@ -343,7 +343,7 @@ def match_timepoints(tp_list: TimePointArray,
         A list of booleans of the same length as tp_list, where True indicates that a value in tp_list matched
         a value in tp_index.
     """
-    tp_index = TimePointArray(list(unique_in_list(tp_index)))
+    tp_index = TimePointArray(unique_in_list(tp_index))
     _tp_list = as_tp_list(tp_list)
 
     mask = np.array([False for _ in range(len(_tp_list))], dtype=bool)
@@ -363,17 +363,13 @@ def match_timepoints(tp_list: TimePointArray,
 
 
 # Representation ---------------------------------------------------------
-def repr_index(index: PreSlicer |
-                      tuple[PreSlicer] |
-                      tuple[PreSlicer, PreSlicer] |
-                      tuple[PreSlicer, PreSlicer, PreSlicer] |
-                      tuple[NDArray_IFS, NDArray_IFS, NDArray_IFS]) \
+def repr_index(index: None |
+                      PreSlicer |
+                      tuple[PreSlicer | None] |
+                      tuple[PreSlicer | None, PreSlicer | None] |
+                      tuple[PreSlicer | None, PreSlicer | None, PreSlicer | None]) \
         -> str:
-    """
-    Get a short string representation of a sub-setting index.
-    :param index: a sub-setting index to represent.
-    :return: a short string representation of the sub-setting index.
-    """
+    """Get a short string representation of a sub-setting index."""
     if isinstance(index, tuple):
         repr_string = f"Index of {len(index)} element{'' if len(index) == 1 else 's'} : "
 
@@ -382,7 +378,6 @@ def repr_index(index: PreSlicer |
 
         return repr_string
 
-    else:
-        return f"Index of 1 element : \n" \
-               f"  \u2022 {repr_array(index) if isCollection(index) else index}"
+    return f"Index of 1 element : \n" \
+            f"  \u2022 {repr_array(index) if isCollection(index) else index}"
 

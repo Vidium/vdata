@@ -7,7 +7,8 @@ import pandas as pd
 import pandas.core.indexing
 
 import vdata.vdataframe as vdf
-from vdata._typing import IFS
+
+IFS = Union[int, np.int_, float, np.float_, str, np.str_]
 
 
 class _LocIndexer(pandas.core.indexing._LocIndexer):

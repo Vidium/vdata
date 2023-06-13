@@ -15,13 +15,13 @@ from vdata.data._parse.time import parse_time_list, parse_timepoints
 from vdata.IO.errors import IncoherenceError
 from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import first
 from vdata.vdataframe import VDataFrame
 
 
-def _at_least_empty_dict(d: dict[Any, Any] | None) -> dict[Any, Any]:
+def _at_least_empty_dict(d: Mapping[Any, Any] | None) -> Mapping[Any, Any]:
     return {} if d is None else d
 
 
@@ -49,7 +49,7 @@ def _get_time_list(time_list: TimePointArray | None,
 def _valid_obs(data: pd.DataFrame | 
                      VDataFrame | 
                      TemporalDataFrameBase | 
-                     dict[str, pd.DataFrame | VDataFrame | TemporalDataFrame] | 
+                     Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
                      None,
                obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
                time_list: TimePointArray | None,
@@ -92,7 +92,11 @@ def _valid_obs(data: pd.DataFrame |
     raise TypeError("'obs' must be a DataFrame or a TemporalDataFrame.")
     
 
-def _valid_var(data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | dict[str, pd.DataFrame | VDataFrame] | None,
+def _valid_var(data: pd.DataFrame | 
+                     VDataFrame |
+                     TemporalDataFrameBase | 
+                     Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
+                     None,
                var: pd.DataFrame | VDataFrame | None,
                time_col_name: str | None) -> VDataFrame:    
     if var is None:
@@ -117,7 +121,7 @@ class ParsingDataIn:
     data: pd.DataFrame | \
           VDataFrame | \
           TemporalDataFrameBase | \
-          Mapping[str, pd.DataFrame | VDataFrame, TemporalDataFrameBase] | \
+          Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | \
           None
     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase
     obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
@@ -129,7 +133,7 @@ class ParsingDataIn:
     time_col_name: str | None
     time_list: TimePointArray | None
     uns: dict[str, Any] | ch.H5Dict[Any] = field(converter=_at_least_empty_dict)
-    layers: dict[str, TemporalDataFrameBase] = field(init=False)
+    layers: dict[str, TemporalDataFrame | TemporalDataFrameView] = field(init=False)
     
     def __attrs_post_init__(self) -> None:
         self.layers = {}
@@ -216,9 +220,9 @@ class ParsingDataIn:
 @define
 class ParsingDataOut:
     """Output class of the parsing logic. It checks for incoherence in the arrays."""
-    layers: dict[str, TemporalDataFrame]
-    obs: TemporalDataFrame
-    obsm: dict[str, TemporalDataFrame]
+    layers: dict[str, TemporalDataFrame | TemporalDataFrameView]
+    obs: TemporalDataFrameBase
+    obsm: dict[str, TemporalDataFrame | TemporalDataFrameView]
     obsp: dict[str, VDataFrame]
     var: VDataFrame
     varm: dict[str, VDataFrame]

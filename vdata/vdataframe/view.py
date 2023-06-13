@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Literal
 
 import pandas as pd
 
-from vdata._typing import NDArray_IFS
-
 if TYPE_CHECKING:
+    from vdata._typing import NDArray_IFS
     from vdata.vdataframe.vdataframe import VDataFrame
 
 

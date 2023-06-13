@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, cast
 
 import ch5mpy as ch
 import numpy as np
@@ -12,13 +12,23 @@ import numpy.typing as npt
 import pandas as pd
 
 import vdata.tdf as tdf
-from vdata._typing import IF, IFS, AttrDict, NDArray_IFS, NDArrayLike, NDArrayLike_IFS, Slicer
+from vdata._typing import (
+    IF,
+    IFS,
+    AnyNDArrayLike,
+    AnyNDArrayLike_IF,
+    AnyNDArrayLike_IFS,
+    AttrDict,
+    NDArray_IFS,
+    NDArrayLike_IFS,
+    Slicer,
+)
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.tdf import indexer
 from vdata.tdf._parse import parse_data_h5
 from vdata.tdf.utils import equal_paths, underlined
-from vdata.timepoint import TimePoint, TimePointArray
+from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
 from vdata.utils import are_equal, repr_array
 
 if TYPE_CHECKING:
@@ -37,18 +47,18 @@ class TemporalDataFrameBase(ABC):
     Abstract base class for all TemporalDataFrames.
     """
     _attributes = {'_attr_dict', '_index', '_timepoints_array', '_columns_numerical', '_columns_string', 
-                   '_numerical_array', '_string_array', '_file', '_timepoint_masks'}
+                   '_numerical_array', '_string_array', '_data', '_timepoint_masks'}
 
     # region magic methods
     def __init__(self, 
-                 index: NDArrayLike_IFS,
+                 index: AnyNDArrayLike_IFS,
                  timepoints_array: TimePointArray,
-                 numerical_array: NDArrayLike[np.int_ | np.float_],
-                 string_array: NDArrayLike[np.str_],
-                 columns_numerical: NDArrayLike_IFS,
-                 columns_string: NDArrayLike_IFS,
-                 attr_dict: AttrDict, 
-                 file: ch.H5Dict[Any] | None = None):
+                 numerical_array: AnyNDArrayLike_IF,
+                 string_array: AnyNDArrayLike[np.str_],
+                 columns_numerical: AnyNDArrayLike_IFS,
+                 columns_string: AnyNDArrayLike_IFS,
+                 attr_dict: AttrDict | ch.AttributeManager, 
+                 data: ch.H5Dict[Any] | None = None):
         self._attr_dict = attr_dict
         self._index = index
         self._timepoints_array = timepoints_array
@@ -56,7 +66,7 @@ class TemporalDataFrameBase(ABC):
         self._columns_string = columns_string
         self._numerical_array = numerical_array
         self._string_array = string_array
-        self._file = file
+        self._data = data
         
         self._timepoint_masks: dict[TimePoint, npt.NDArray[np.bool_]] = dict()
     
@@ -70,7 +80,7 @@ class TemporalDataFrameBase(ABC):
     def _get_view(self,
                   column_name: str,
                   parent: TemporalDataFrame,
-                  index_positions: NDArrayLike[np.int_]) -> TemporalDataFrameView:
+                  index_positions: AnyNDArrayLike[np.int_]) -> TemporalDataFrameView:
         if column_name in self._columns_numerical:
             return tdf.TemporalDataFrameView(parent=parent, 
                                              index_positions=index_positions, 
@@ -103,7 +113,7 @@ class TemporalDataFrameBase(ABC):
     @abstractmethod
     def __setitem__(self,
                     slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
-                    values: IFS | Collection[IFS] | TemporalDataFrame) -> None:
+                    values: IFS | Collection[IFS] | TemporalDataFrameBase) -> None:
         """
         Set values in a subset.
         """
@@ -127,14 +137,14 @@ class TemporalDataFrameBase(ABC):
             if self._numerical_array.size == 0:
                 raise ValueError("No numerical data to add to.")
 
-            values_num = self._numerical_array + value
+            values_num = cast(AnyNDArrayLike_IF, self._numerical_array + value)
             values_str = self._string_array
             value_name: IFS = value
 
         elif isinstance(value, tdf.TemporalDataFrameBase):
             self._check_compatibility(value)
 
-            values_num = self._numerical_array + value.values_num
+            values_num = cast(AnyNDArrayLike_IF, self._numerical_array + value.values_num)
             values_str = np.char.add(self._string_array, value.values_str)
             value_name = value.full_name
 
@@ -150,9 +160,14 @@ class TemporalDataFrameBase(ABC):
             raise ValueError(f"Cannot add value with unknown type '{type(value)}'.")
 
         if self.timepoints_column_name is None:
-            df_data = pd.concat((pd.DataFrame(values_num, index=self._index, columns=self._columns_numerical),
-                                 pd.DataFrame(values_str, index=self._index, columns=self._columns_string)),
-                                axis=1)
+            df_data = pd.concat((
+                pd.DataFrame(np.array(values_num), 
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(values_str),
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_string))
+            ), axis=1)
 
             return tdf.TemporalDataFrame(df_data,
                                          time_list=self.timepoints_column,
@@ -160,11 +175,17 @@ class TemporalDataFrameBase(ABC):
                                          name=f"{self.full_name} + {value_name}")
 
         else:
-            df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                              index=self._index, columns=[str(self.timepoints_column_name)]),
-                                 pd.DataFrame(values_num, index=self._index, columns=self._columns_numerical),
-                                 pd.DataFrame(values_str, index=self._index, columns=self._columns_string)),
-                                axis=1)
+            df_data = pd.concat((
+                pd.DataFrame(self.timepoints_column_str[:, None], 
+                             index=np.array(self._index), 
+                             columns=[str(self.timepoints_column_name)]),
+                pd.DataFrame(np.array(values_num), 
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(values_str), 
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_string))
+            ), axis=1)
 
             return tdf.TemporalDataFrame(df_data,
                                          time_col_name=self.timepoints_column_name,
@@ -212,7 +233,7 @@ class TemporalDataFrameBase(ABC):
             if self._numerical_array.size == 0:
                 raise ValueError("No numerical data to add to.")
 
-            self._numerical_array += value
+            self._numerical_array += value      # type: ignore[assignment]
             return self
 
         raise NotImplementedError
@@ -282,21 +303,32 @@ class TemporalDataFrameBase(ABC):
             raise ValueError(f"Unknown operation '{operation}'.")
 
         if self.timepoints_column_name is None:
-            df_data = pd.concat((pd.DataFrame(values_num, index=self._index, columns=self._columns_numerical),
-                                 pd.DataFrame(self._string_array, index=self._index, columns=self._columns_string)),
-                                axis=1)
+            df_data = pd.concat((
+                pd.DataFrame(np.array(values_num), 
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(self._string_array), 
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_string))
+            ), axis=1)
 
             return tdf.TemporalDataFrame(df_data,
-                                                 time_list=self.timepoints_column,
-                                                 lock=self.lock,
-                                                 name=f"{self.full_name} {op} {value_name}")
+                                         time_list=self.timepoints_column,
+                                         lock=self.lock,
+                                         name=f"{self.full_name} {op} {value_name}")
 
         else:
-            df_data = pd.concat((pd.DataFrame(self.timepoints_column_str[:, None],
-                                              index=self._index, columns=[str(self.timepoints_column_name)]),
-                                 pd.DataFrame(values_num, index=self._index, columns=self._columns_numerical),
-                                 pd.DataFrame(self._string_array, index=self._index, columns=self._columns_string)),
-                                axis=1)
+            df_data = pd.concat((
+                pd.DataFrame(self.timepoints_column_str[:, None],
+                             index=np.array(self._index), 
+                             columns=[str(self.timepoints_column_name)]),
+                pd.DataFrame(np.array(values_num),
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(self._string_array),
+                             index=np.array(self._index),
+                             columns=np.array(self._columns_string))
+            ), axis=1)
 
             return tdf.TemporalDataFrame(df_data,
                                                  time_col_name=self.timepoints_column_name,
@@ -329,7 +361,7 @@ class TemporalDataFrameBase(ABC):
             raise ValueError("No numerical data to subtract.")
 
         if isinstance(value, (int, float, np.int_, np.float_)):
-            self._numerical_array -= value
+            self._numerical_array -= value          # type: ignore[assignment]
             return self
         
         raise ValueError(f"Cannot subtract value with unknown type '{type(value)}'.")
@@ -360,7 +392,7 @@ class TemporalDataFrameBase(ABC):
             raise ValueError("No numerical data to multiply.")
 
         if isinstance(value, (int, float, np.int_, np.float_)):
-            self._numerical_array *= value
+            self._numerical_array *= value          # type: ignore[assignment]
             return self
         
         raise ValueError(f"Cannot subtract value with unknown type '{type(value)}'.")
@@ -391,7 +423,7 @@ class TemporalDataFrameBase(ABC):
             raise ValueError("No numerical data to divide.")
 
         if isinstance(value, (int, float, np.int_, np.float_)):
-            self._numerical_array /= value
+            self._numerical_array /= value          # type: ignore[assignment]
             return self
         
         raise ValueError(f"Cannot subtract value with unknown type '{type(value)}'.")
@@ -412,10 +444,12 @@ class TemporalDataFrameBase(ABC):
             return True
 
         if isinstance(other, (int, float, np.number)):
-            return self._numerical_array == other
+            return cast(npt.NDArray[np.bool_],
+                        self._numerical_array == other)
 
         elif isinstance(other, (str, np.str_)):
-            return self._string_array == other
+            return cast(npt.NDArray[np.bool_],
+                        self._string_array == other)
 
         return False
 
@@ -425,8 +459,8 @@ class TemporalDataFrameBase(ABC):
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
 
-    def __h5_write__(self, values: ch.H5Dict) -> None:
-        if self._file is not None and equal_paths(self._file.filename, values.filename):
+    def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
+        if self._data is not None and equal_paths(self._data.filename, values.filename):
             return
         
         values.attributes.set(name=self.name,
@@ -464,9 +498,9 @@ class TemporalDataFrameBase(ABC):
         """
 
     @property
-    def file(self) -> ch.H5Dict | None:
+    def data(self) -> ch.H5Dict[Any] | None:
         """Get the file backing this TemporalDataFrame."""
-        return self._file
+        return self._data
 
     @property
     def lock(self) -> tuple[bool, bool]:
@@ -493,7 +527,7 @@ class TemporalDataFrameBase(ABC):
         Get the list of unique time points in this TemporalDataFrame.
         """
         unique_timepoints_idx = np.unique(self._timepoints_array, return_index=True)[1]
-        return self._timepoints_array[sorted(unique_timepoints_idx)]
+        return atleast_1d(self._timepoints_array[sorted(unique_timepoints_idx)])
 
     @property
     def timepoints_column(self) -> TimePointArray:
@@ -528,7 +562,7 @@ class TemporalDataFrameBase(ABC):
         return self._attr_dict['timepoints_column_name']
 
     @property
-    def index(self) -> NDArrayLike_IFS:
+    def index(self) -> AnyNDArrayLike_IFS:
         """
         Get the index across all time-points.
         """
@@ -547,7 +581,7 @@ class TemporalDataFrameBase(ABC):
         return len(self._index)
 
     @property
-    def columns_num(self) -> NDArrayLike_IFS:
+    def columns_num(self) -> AnyNDArrayLike_IFS:
         """
         Get the list of column names for numerical data.
         """
@@ -555,7 +589,7 @@ class TemporalDataFrameBase(ABC):
 
     @columns_num.setter
     def columns_num(self,
-                    values: NDArrayLike_IFS) -> None:
+                    values: AnyNDArrayLike_IFS) -> None:
         """
         Set the list of column names for numerical data.
         """
@@ -572,7 +606,7 @@ class TemporalDataFrameBase(ABC):
         return len(self._columns_numerical)
 
     @property
-    def columns_str(self) -> NDArrayLike_IFS:
+    def columns_str(self) -> AnyNDArrayLike_IFS:
         """
         Get the list of column names for string data.
         """
@@ -580,7 +614,7 @@ class TemporalDataFrameBase(ABC):
 
     @columns_str.setter
     def columns_str(self,
-                    values: NDArrayLike_IFS) -> None:
+                    values: AnyNDArrayLike_IFS) -> None:
         """
         Set the list of column names for string data.
         """
@@ -598,17 +632,24 @@ class TemporalDataFrameBase(ABC):
 
     @property
     def columns(self) -> NDArray_IFS:
-        """
-        Get the list of all column names.
-        """
+        """Get the list of all column names."""
         return np.concatenate((self._columns_numerical, self._columns_string))
+    
+    @columns.setter
+    def columns(self, values: NDArray_IFS) -> None:
+        """Set new column names."""
+        if len(values) != self.n_columns:
+            raise ValueError(f'Cannot set {self.n_columns}, {len(values)} provided.')
+        
+        self._columns_numerical[:] = values[:self.n_columns_num]
+        self._columns_string[:] = values[self.n_columns_num:]
 
     @property
     def n_columns(self) -> int:
         return self.n_columns_num + self.n_columns_str
 
     @property
-    def values_num(self) -> NDArrayLike[np.int_ | np.float_]:
+    def values_num(self) -> AnyNDArrayLike_IF:
         """
         Get the numerical data.
         """
@@ -616,14 +657,14 @@ class TemporalDataFrameBase(ABC):
     
     @values_num.setter
     def values_num(self,
-                   values: NDArrayLike[np.int_ | np.float_]) -> None:
+                   values: AnyNDArrayLike_IF) -> None:
         """
         Set the numerical data.
         """
         self._numerical_array[:] = values
         
     @property
-    def values_str(self) -> NDArrayLike[np.str_]:
+    def values_str(self) -> AnyNDArrayLike[np.str_]:
         """
         Get the string data.
         """
@@ -631,7 +672,7 @@ class TemporalDataFrameBase(ABC):
     
     @values_str.setter
     def values_str(self,
-                   values: NDArrayLike[np.str_]) -> None:
+                   values: AnyNDArrayLike[np.str_]) -> None:
         """
         Set the string data.
         """
@@ -743,14 +784,14 @@ class TemporalDataFrameBase(ABC):
         """
         Is this TemporalDataFrame backed on a file ?
         """
-        return self._file is not None
+        return self._data is not None
 
     @property
     def is_closed(self) -> bool:
         """
         Is the h5 file (this TemporalDataFrame is backed on) closed ?
         """
-        return self._file is not None and not bool(self._file.is_closed)
+        return self._data is not None and not bool(self._data.is_closed)
 
     # endregion
 
@@ -771,25 +812,37 @@ class TemporalDataFrameBase(ABC):
     def unlock_columns(self) -> None:
         """Unlock the "columns" axis to allow modifications."""
     
+    @abstractmethod
+    def set_index(self,
+                  values: NDArray_IFS,
+                  repeating_index: bool = False) -> None:
+        """Set new index values."""
+    
+    @abstractmethod
+    def reindex(self,
+                order: NDArray_IFS,
+                repeating_index: bool = False) -> None:
+        """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
+    
     def _repr_single_array(self,
-                        tp: TimePoint,
-                        n: int,
-                        array: NDArrayLike_IFS, 
-                        columns_: NDArrayLike_IFS) \
+                           tp: TimePoint,
+                           n: int,
+                           array: AnyNDArrayLike_IFS, 
+                           columns_: AnyNDArrayLike_IFS) \
     -> tuple[pd.DataFrame, tuple[int, ...]]:
-        tp_data_array_ = array[self.get_timepoint_mask(tp)]
+        tp_data_array_ = cast(NDArrayLike_IFS, array[self.get_timepoint_mask(tp)])
 
         tp_array_ = np.array([[tp] for _ in range(min(n, tp_data_array_.shape[0]))])
 
         spacer_ = np.array([['\uff5c'] for _ in range(min(n, tp_data_array_.shape[0]))])
 
-        columns_ = np.concatenate(([self.timepoints_column_name, ''], columns_)) if \
-            self.timepoints_column_name is not None else np.concatenate(([DEFAULT_TIME_COL_NAME, ''],
-                                                                            columns_))
+        columns_ = np.concatenate(([self.timepoints_column_name, ''], columns_)) \
+            if self.timepoints_column_name is not None else \
+            np.concatenate(([DEFAULT_TIME_COL_NAME, ''], columns_))
 
         tp_df_ = pd.DataFrame(np.concatenate((tp_array_,
-                                                spacer_,
-                                                tp_data_array_[:n]), axis=1),
+                                              spacer_,
+                                              np.array(tp_data_array_[:n])), axis=1),
                                 index=self.index_at(tp)[:n],
                                 columns=columns_)
 
@@ -820,8 +873,8 @@ class TemporalDataFrameBase(ABC):
             if not self._empty_numerical() and not self._empty_string():
                 tp_mask = self.get_timepoint_mask(tp)
 
-                tp_numerical_array = self._numerical_array[tp_mask]
-                tp_string_array = self._string_array[tp_mask]
+                tp_numerical_array = cast(AnyNDArrayLike_IF, self._numerical_array[tp_mask])
+                tp_string_array = cast(AnyNDArrayLike[np.str_], self._string_array[tp_mask])
 
                 tp_array = np.array([[tp] for _ in range(min(n, tp_numerical_array.shape[0]))])
 
@@ -836,9 +889,9 @@ class TemporalDataFrameBase(ABC):
 
                 tp_df = pd.DataFrame(np.concatenate((tp_array,
                                                      spacer,
-                                                     tp_numerical_array[:n],
+                                                     np.array(tp_numerical_array[:n]),
                                                      spacer,
-                                                     tp_string_array[:n]), axis=1),
+                                                     np.array(tp_string_array[:n])), axis=1),
                                      index=self.index_at(tp)[:n],
                                      columns=columns)
                 tp_shape: tuple[int, ...] = (tp_numerical_array.shape[0], 
@@ -913,7 +966,7 @@ class TemporalDataFrameBase(ABC):
     def _fast_compare(self,
                       comparison_tp: TimePoint) -> npt.NDArray[np.bool_]:
         if not len(self._timepoint_masks):
-            return self._timepoints_array == comparison_tp
+            return self._timepoints_array == comparison_tp              # type: ignore[no-any-return]
 
         tp_mask = np.zeros(len(self._timepoints_array), dtype=bool)
 
@@ -956,7 +1009,7 @@ class TemporalDataFrameBase(ABC):
         Returns:
             The index of rows existing at that time-point.
         """
-        return self._index[self.get_timepoint_mask(timepoint)]
+        return np.atleast_1d(self._index[self.get_timepoint_mask(timepoint)])
 
     def n_index_at(self,
                    timepoint: str | TimePoint) -> int:
@@ -969,7 +1022,7 @@ class TemporalDataFrameBase(ABC):
                       axis: int | None,
                       func: Literal['min', 'max', 'mean']) -> float | TemporalDataFrame:
         if axis is None:
-            return getattr(self._numerical_array, func)()
+            return float(getattr(self._numerical_array, func)())
 
         elif axis == 0:
             i0 = self.index_at(self.tp0)
@@ -985,7 +1038,7 @@ class TemporalDataFrameBase(ABC):
                 getattr(np, func)([self._numerical_array[self.get_timepoint_mask(tp)] 
                                    for tp in self.timepoints], axis=0),
                 index=i0,
-                columns=self._columns_numerical,
+                columns=np.array(self._columns_numerical),
             ),
                 time_list=[mmm_tp for _ in enumerate(i0)],
                 time_col_name=self.timepoints_column_name)
@@ -996,7 +1049,7 @@ class TemporalDataFrameBase(ABC):
                     for tp in self.timepoints
                 ],
                 index=[func for _ in enumerate(self.timepoints)],
-                columns=self._columns_numerical[:]
+                columns=np.array(self._columns_numerical)
             ),
                 repeating_index=True,
                 time_list=self.timepoints,
@@ -1005,7 +1058,7 @@ class TemporalDataFrameBase(ABC):
         elif axis == 2:
             return tdf.TemporalDataFrame(data=pd.DataFrame(
                 getattr(np, func)(self._numerical_array, axis=1),
-                index=self._index,
+                index=np.array(self._index),
                 columns=[func],
             ),
                 time_list=self.timepoints_column,
@@ -1060,31 +1113,41 @@ class TemporalDataFrameBase(ABC):
                 or 'numerical'). (default: 'string')
             str_index: cast index as string ?
         """
-        index_ = self._index.astype(str) if str_index else self._index
+        index_ = np.array(self._index.astype(str) if str_index else self._index)
         
         if with_timepoints is None:
-            return pd.concat((pd.DataFrame(self._numerical_array if self._numerical_array.size else None,
-                                           index=index_, columns=self._columns_numerical),
-                              pd.DataFrame(self._string_array if self._string_array.size else None,
-                                           index=index_, columns=self._columns_string[:])),
+            return pd.concat((pd.DataFrame(np.array(self._numerical_array) if self._numerical_array.size else None,
+                                           index=index_, 
+                                           columns=np.array(self._columns_numerical)),
+                              pd.DataFrame(np.array(self._string_array) if self._string_array.size else None,
+                                           index=index_, 
+                                           columns=np.array(self._columns_string))),
                              axis=1)
 
         if timepoints_type == 'string':
             return pd.concat((
-                pd.DataFrame(self.timepoints_column_str[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self._numerical_array if self._numerical_array.size else None,
-                             index=index_, columns=self._columns_numerical[:]),
-                pd.DataFrame(self._string_array if self._string_array.size else None,
-                             index=index_, columns=self._columns_string[:])
+                pd.DataFrame(self.timepoints_column_str[:, None], 
+                             index=index_, 
+                             columns=[str(with_timepoints)]),
+                pd.DataFrame(np.array(self._numerical_array) if self._numerical_array.size else None,
+                             index=index_, 
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(self._string_array) if self._string_array.size else None,
+                             index=index_, 
+                             columns=np.array(self._columns_string))
             ), axis=1)
 
         elif timepoints_type == 'numerical':
             return pd.concat((
-                pd.DataFrame(self.timepoints_column_numerical[:, None], index=index_, columns=[str(with_timepoints)]),
-                pd.DataFrame(self._numerical_array if self._numerical_array.size else None,
-                             index=index_, columns=self._columns_numerical[:]),
-                pd.DataFrame(self._string_array if self._numerical_array.size else None,
-                             index=index_, columns=self._columns_string[:])
+                pd.DataFrame(self.timepoints_column_numerical[:, None], 
+                             index=index_, 
+                             columns=[str(with_timepoints)]),
+                pd.DataFrame(np.array(self._numerical_array) if self._numerical_array.size else None,
+                             index=index_, 
+                             columns=np.array(self._columns_numerical)),
+                pd.DataFrame(np.array(self._string_array) if self._numerical_array.size else None,
+                             index=index_, 
+                             columns=np.array(self._columns_string))
             ), axis=1)
 
         raise ValueError(f"Invalid timepoints_type argument '{timepoints_type}'. Should be 'string' or 'numerical'.")
@@ -1108,7 +1171,7 @@ class TemporalDataFrameBase(ABC):
                                        str_index=str_index)
 
     def write(self,
-              file: str | Path | ch.File | ch.Group | ch.H5Dict) -> None:
+              file: str | Path | ch.File | ch.Group | ch.H5Dict[Any]) -> None:
         """
         Save in HDF5 file format.
 
@@ -1116,7 +1179,7 @@ class TemporalDataFrameBase(ABC):
             file: path to save the data.
         """
         if not isinstance(file, (ch.H5Dict, ch.Group)):
-            file = ch.File(file, mode=ch.H5Mode.READ_WRITE_CREATE)
+            file = ch.File(file, mode=ch.H5Mode.WRITE_TRUNCATE)
             
         if not isinstance(file, ch.H5Dict):
             file = ch.H5Dict(file)
@@ -1125,13 +1188,13 @@ class TemporalDataFrameBase(ABC):
         
         if not self.is_backed:
             self._attr_dict = parse_data_h5(file, self.lock, self.name)
-            self._index = file['index']
-            self._timepoints_array = file["timepoints_array"].maptype(TimePoint)
-            self._columns_numerical = file["columns_numerical"]
-            self._columns_string = file["columns_string"]
-            self._numerical_array = file["numerical_array"]
-            self._string_array = file["string_array"]
-            self._file = file
+            self._index = cast(AnyNDArrayLike_IFS, file['index'])
+            self._timepoints_array = cast(TimePointArray, file["timepoints_array"].maptype(TimePoint))
+            self._numerical_array = cast(AnyNDArrayLike_IF, file["numerical_array"])
+            self._string_array = cast(AnyNDArrayLike[np.str_], file["string_array"])
+            self._columns_numerical = cast(AnyNDArrayLike_IFS, file["columns_numerical"])
+            self._columns_string = cast(AnyNDArrayLike_IFS, file["columns_string"])
+            self._data = file
         
     def to_csv(self, 
                path: str | Path,

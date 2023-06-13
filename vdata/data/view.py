@@ -77,7 +77,7 @@ class VDataView:
 
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = parent.timepoints.value.values if timepoints_slicer is None else timepoints_slicer
-        self._timepoints_slicer = TimePointArray([e for e in _tp_slicer if e in self._obs.timepoints])
+        self._timepoints_slicer = TimePointArray((e for e in _tp_slicer if e in self._obs.timepoints))
         self._timepoints = ViewVDataFrame(self._parent.timepoints,
                                           index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
 
@@ -93,7 +93,7 @@ class VDataView:
                                     [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
                                      for tp in self._obs.timepoints])
 
-        self._obs_slicer_flat: NDArray_IFS = np.concatenate(self._obs_slicer)       # type: ignore[assignment]
+        self._obs_slicer_flat: NDArray_IFS = np.concatenate(self._obs_slicer)
 
         generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
                             f"({len(self._obs_slicer_flat)} value{'' if len(self._obs_slicer_flat) == 1 else 's'}"
@@ -101,7 +101,7 @@ class VDataView:
 
         # then store var : we get a sub-set of the parent's var VDataFrame
         # this is needed to recompute the var slicer
-        _var_slicer = slice(None) if var_slicer is None else var_slicer
+        _var_slicer: slice | NDArray_IFS = slice(None) if var_slicer is None else var_slicer
         self._var = ViewVDataFrame(self._parent.var, index_slicer=_var_slicer)
 
         # recompute var slicer
@@ -358,7 +358,7 @@ class VDataView:
             raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
 
         else:
-            df.index = self._parent.var.loc[self._var_slicer].index
+            df.index = cast(VDataFrame, self._parent.var.loc[self._var_slicer]).index
             self._parent.var.loc[self._var_slicer] = df
 
     @property

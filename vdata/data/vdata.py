@@ -401,7 +401,7 @@ class VData:
         return [tp.value for tp in self.timepoints.value]
 
     @property
-    def obs(self) -> TemporalDataFrame:
+    def obs(self) -> TemporalDataFrameBase:
         """
         Get the obs data.
         :return: the obs TemporalDataFrame.

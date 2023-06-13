@@ -12,14 +12,13 @@ import numpy.typing as npt
 import pandas as pd
 from pandas._typing import Axes, Dtype
 
-from vdata._typing import IFS, H5Array_IFS
 from vdata.vdataframe.indexing import _iLocIndexer, _LocIndexer
 
 
 def _get_column(name: np.int_ | np.float_ | np.str_, 
-                order: H5Array_IFS,
-                data_num: ch.H5Array[np.float_],
-                data_str: ch.H5Array[np.str_]) -> H5Array_IFS:
+                order: ch.H5Array[np.int_ | np.float_ | np.str_],
+                data_num: ch.H5Array[np.int_ | np.float_],
+                data_str: ch.H5Array[np.str_]) -> ch.H5Array[np.int_ | np.float_ | np.str_]:
     idx = np.where(order == name)[0][0]
     if idx < data_num.shape[1]:
         return data_num[:, idx]                     # type: ignore[return-value]
@@ -100,19 +99,6 @@ class VDataFrame(pd.DataFrame):
         """
         return self._file
 
-    # @file.setter
-    # def file(self, new_file: ch.Group) -> None:
-    #     """
-    #     Set the h5 file to back this VDataFrame on.
-
-    #     Args:
-    #         new_file: a h5 file to back this VDataFrame on.
-    #     """
-    #     if not isinstance(new_file, ch.Group):
-    #         raise TypeError(f"Cannot back this VDataFrame with an object of type '{type(new_file)}'.")
-
-    #     self._file = new_file
-
     @property
     def index(self) -> pd.Index:
         """
@@ -121,7 +107,7 @@ class VDataFrame(pd.DataFrame):
         return super().index
 
     @index.setter
-    def index(self, values: Collection[IFS]) -> None:
+    def index(self, values: Collection[int | np.int_ | float | np.float_ | str | np.str_]) -> None:
         """
         Set the index (and write modifications to h5 file if backed).
         Args:
@@ -141,7 +127,7 @@ class VDataFrame(pd.DataFrame):
         return super().columns
 
     @columns.setter
-    def columns(self, values: Collection[IFS]) -> None:
+    def columns(self, values: Collection[int | np.int_ | float | np.float_ | str | np.str_]) -> None:
         """
         Set the columns (and write modifications to h5 file if backed).
 

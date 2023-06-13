@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
 import numpy_indexed as npi
 
 import vdata.tdf
-from vdata._typing import NDArray_IFS, NDArrayLike_IFS, Slicer
+from vdata._typing import AnyNDArrayLike_IFS, NDArrayLike_IFS, Slicer
 from vdata.names import Number
 from vdata.timepoint import TimePoint, TimePointArray, TimePointRange, atleast_1d
 from vdata.utils import isCollection, repr_array
@@ -51,18 +51,18 @@ def _parse_timepoints_slicer(slicer: Slicer,
 
 
 def _parse_axis_slicer(slicer: Slicer,
-                       possible_values: NDArrayLike_IFS) -> NDArrayLike_IFS | None:
+                       possible_values: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | None:
     cast_type = possible_values.dtype.type
     
     if slicer is Ellipsis or (isinstance(slicer, slice) and slicer == slice(None)):
         return None
 
     if isinstance(slicer, slice):
-        if cast_type == np.str_:
+        if np.issubdtype(cast_type, (np.str_, np.float_)):
             raise ValueError(f'Cannot take slice from axis with {cast_type} dtype.')
         
-        start = cast_type(possible_values[0] if slicer.start is None else slicer.start)
-        stop = cast_type(possible_values[-1] if slicer.stop is None else slicer.stop)
+        start = cast(np.int_, possible_values[0] if slicer.start is None else cast_type(slicer.start))
+        stop = cast(np.int_, possible_values[-1] if slicer.stop is None else cast_type(slicer.stop))
         step = 1 if slicer.step is None else int(slicer.step)
             
         return np.array(list(range(start, stop, step)))
@@ -71,18 +71,18 @@ def _parse_axis_slicer(slicer: Slicer,
         return np.atleast_1d(possible_values[slicer.flatten()])
 
     if isinstance(slicer, range) or isCollection(slicer):
-        return np.array(list(slicer)).astype(cast_type)
+        return cast(NDArrayLike_IFS, np.array(list(slicer)).astype(cast_type))
 
-    return np.array([slicer]).astype(cast_type)
+    return cast(NDArrayLike_IFS, np.array([slicer]).astype(cast_type))
 
 
 def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
                  slicers: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) \
     -> tuple[
         npt.NDArray[np.int_], 
-        NDArray_IFS,
-        NDArray_IFS,
-        tuple[TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None]
+        AnyNDArrayLike_IFS,
+        AnyNDArrayLike_IFS,
+        tuple[TimePointArray | None, AnyNDArrayLike_IFS | None, AnyNDArrayLike_IFS | None]
     ]:
     """
     Given a TemporalDataFrame and a slicer, get the list of indices, columns str and num and the sliced index and
@@ -162,21 +162,21 @@ def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
             raise ValueError(f"Some columns were not found in this TemporalDataFrame "
                              f"({repr_array(columns_array[~valid_columns])})")
 
-        selected_columns_num = columns_array[np.in1d(columns_array, TDF.columns_num)]
-        selected_columns_str = columns_array[np.in1d(columns_array, TDF.columns_str)]
+        selected_columns_num = np.atleast_1d(columns_array[np.in1d(columns_array, TDF.columns_num)])
+        selected_columns_str = np.atleast_1d(columns_array[np.in1d(columns_array, TDF.columns_str)])
 
     return selected_index_pos, selected_columns_num, selected_columns_str, (tp_array, index_array, columns_array)
 
 
 def parse_slicer_s(TDF: vdata.tdf.TemporalDataFrameBase,
                    slicers: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) \
-        -> tuple[npt.NDArray[np.int_], NDArray_IFS, NDArray_IFS]:
+        -> tuple[npt.NDArray[np.int_], AnyNDArrayLike_IFS, AnyNDArrayLike_IFS]:
     return parse_slicer(TDF, slicers)[:3]
 
 
 def parse_values(values: Any,
                  len_index: int,
-                 len_columns: int) -> np.ndarray:
+                 len_columns: int) -> npt.NDArray[Any]:
     """
     When setting values in a TemporalDataFrame, check those values roughly have the correct shape and reshape 
     them if possible.

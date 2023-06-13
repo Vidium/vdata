@@ -8,7 +8,7 @@ import numpy.typing as npt
 from ch5mpy.indexing import Selection
 from numpy._typing import _ArrayLikeInt_co, _ArrayLikeObject_co
 
-_T = TypeVar('_T', bound=np.generic)
+_T = TypeVar('_T', bound=np.generic, covariant=True)
 _NP_INDEX = Union[None, slice, EllipsisType, SupportsIndex, _ArrayLikeInt_co, 
                   tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...]]
 
@@ -45,6 +45,12 @@ class NDArrayView(Generic[_T]):
             return NDArrayView(self._container, self._accession, sel)
 
         return cast(_T, self._array[sel.get()])
+    
+    def __setitem__(self, index: _NP_INDEX, values: Any) -> None:
+        sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
+        
+        self._array[sel.get()] = values
+        
             
     def __len__(self) -> int:
         return len(self._view())

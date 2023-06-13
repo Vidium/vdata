@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, SupportsIndex, Unio
 
 import numpy as np
 
-from vdata._typing import IFS, NDArrayLike_IFS
+from vdata._typing import IFS, AnyNDArrayLike_IFS
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -112,16 +112,16 @@ class VLocIndexer:
 
     @staticmethod
     def _parse_slicer(values: IFS | Collection[IFS],
-                      reference: NDArrayLike_IFS) -> NDArrayLike_IFS | np.int_ | np.float_ | np.str_:
+                      reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
         if not isCollection(values):
-            return values                       # type: ignore[return-value]
+            return cast(IFS, values)
 
         values = np.array(values)
 
         if values.dtype != bool:
             return values
 
-        return cast(Union[NDArrayLike_IFS, np.int_, np.float_, np.str_], 
+        return cast(Union[AnyNDArrayLike_IFS, IFS], 
                     reference[values])
 
     def __getitem__(self,
@@ -184,7 +184,7 @@ class ViLocIndexer:
 
     @staticmethod
     def _parse_slicer(values_index: _I_LOC_INDEX,
-                      reference: NDArrayLike_IFS) -> NDArrayLike_IFS | np.int_ | np.float_ | np.str_:
+                      reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
         if isCollection(values_index):
             return reference[np.array(values_index)]
         

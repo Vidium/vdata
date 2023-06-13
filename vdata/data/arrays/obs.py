@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Collection
+from typing import Any, Collection, Union, cast
 
+import ch5mpy as ch
 import numpy as np
 import pandas as pd
 
-from vdata._typing import IFS, DictLike, NDArray_IFS
+from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer, VTDFArrayContainer
-from vdata.data.arrays.view import VBaseArrayContainerView, VTDFArrayContainerView
+from vdata.data.arrays.view import VBaseArrayContainerView, VTDFArrayContainerView, get_obs_hash
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
 from vdata.timedict import TimeDict
 from vdata.vdataframe import VDataFrame
 
@@ -23,7 +24,8 @@ class VObsmArrayContainer(VTDFArrayContainer):
     """
 
     # region magic methods
-    def _check_init_data(self, data: DictLike[TemporalDataFrame]) -> DictLike[TemporalDataFrame]:
+    def _check_init_data(self, data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]) \
+        -> AnyDictLike[TemporalDataFrame | TemporalDataFrameView]:
         """
         Function for checking, at VObsmArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
@@ -45,11 +47,12 @@ class VObsmArrayContainer(VTDFArrayContainer):
         generalLogger.debug("  Data was found.")
         
         _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], 'Any')
-        _data: DictLike[TemporalDataFrame] = {} if isinstance(data, dict) else data
+        _data: DictLike[TemporalDataFrame | TemporalDataFrameView] = {} if not isinstance(data, ch.H5Dict) else data
 
         generalLogger.debug(f"  Reference shape is {_shape}.")
 
         for TDF_index, tdf in data.items():
+            tdf = cast(Union[TemporalDataFrame, TemporalDataFrameView], tdf)
             TDF_shape = tdf.shape
 
             generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
@@ -84,7 +87,7 @@ class VObsmArrayContainer(VTDFArrayContainer):
         generalLogger.debug("  Data was OK.")
         return _data
 
-    def __setitem__(self, key: str, value: TemporalDataFrameBase) -> None:
+    def __setitem__(self, key: str, value: TemporalDataFrame | TemporalDataFrameView) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
 
@@ -120,7 +123,7 @@ class VObsmArrayContainerView(VTDFArrayContainerView):
     """Class for views on obsm."""
 
 
-class VObspArrayContainer(VBaseArrayContainer[VDataFrame]):
+class VObspArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     """
     Class for obsp.
     This object contains sets of <nb time points> 2D square DataFrames of shapes (<n_obs>, <n_obs>) for each time point.
@@ -129,7 +132,7 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: DictLike[VDataFrame]) -> TimeDict:
+    def _check_init_data(self, data: AnyDictLike[VDataFrame]) -> TimeDict:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
             - the shape of the DataFrames in 'data' match the parent VData object's index length.
@@ -251,7 +254,7 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame]):
     # endregion
     
 
-class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
+class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
     """
     Class for views of obsp.
     """
@@ -265,11 +268,12 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
         """
-        super().__init__(data={key: VDataFrame(vdf.loc[obs_slicer, obs_slicer])
+        super().__init__(data={key: cast(VDataFrame, vdf.loc[obs_slicer, obs_slicer])
                                for key, vdf in array_container.items()},
                          array_container=array_container)
         
         self._obs_slicer = obs_slicer
+        self._vdata_obs_hash = get_obs_hash(array_container)
 
     def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
         """
@@ -282,7 +286,7 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
         if not isinstance(value, VDataFrame):
             value = VDataFrame(value)
             
-        _index = self._array_container[key].loc[self._obs_slicer, self._obs_slicer].index
+        _index = cast(VDataFrame, self._array_container[key].loc[self._obs_slicer, self._obs_slicer]).index
 
         if not value.shape == (len(_index), len(_index)):
             raise ShapeError(f"DataFrame at key '{key}' should have shape ({len(_index)}, {len(_index)}).")
@@ -312,6 +316,10 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, VDataFrame]):
     # endregion
     
     # region methods
+    def _check_data_has_not_changed(self) -> None:
+        if get_obs_hash(self._array_container) != self._vdata_obs_hash:
+            raise ValueError("View no longer valid since parent's VData has changed.")
+    
     def set_index(self, values: Collection[Any]) -> None:
         """
         Set a new index for rows and columns.
