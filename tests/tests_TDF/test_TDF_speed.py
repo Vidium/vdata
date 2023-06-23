@@ -1,9 +1,4 @@
-# coding: utf-8
-# Created on 06/04/2022 12:04
-# Author : matteo
-
-# ====================================================
-# imports
+import pickle
 from pathlib import Path
 from time import perf_counter
 from typing import Generator
@@ -15,9 +10,8 @@ from h5py import string_dtype
 
 from vdata import TemporalDataFrame
 from vdata.tdf import TemporalDataFrameBase
+from vdata.timepoint import TimePointArray
 
-# ====================================================
-# code
 MAX_ELAPSED_TIME_SECONDS = 1
 
 
@@ -32,7 +26,6 @@ def large_TDF(request: pytest.FixtureRequest) -> Generator[TemporalDataFrameBase
     if 'backed' in which:
         with File('backed_large_TDF', H5Mode.WRITE_TRUNCATE) as h5_file:
             # write data to h5 file directly
-            h5_file.attrs['type'] = 'tdf'
             h5_file.attrs['name'] = 'large TDF'
             h5_file.attrs['locked_indices'] = False
             h5_file.attrs['locked_columns'] = False
@@ -40,18 +33,14 @@ def large_TDF(request: pytest.FixtureRequest) -> Generator[TemporalDataFrameBase
             h5_file.attrs['repeating_index'] = False
 
             h5_file.create_dataset('index', data=np.arange(20_000))
+            
             h5_file.create_dataset('columns_numerical', data=np.array(['col1', 'col2'], dtype=np.dtype('O')),
                                    chunks=True, maxshape=(None,), dtype=string_dtype())
+            h5_file['columns_numerical'].attrs['dtype'] = '<U4'
+            
             h5_file.create_dataset('columns_string', data=np.array(['col3', 'col4'], dtype=np.dtype('O')),
                                    chunks=True, maxshape=(None,), dtype=string_dtype())
-            h5_file.create_dataset('timepoints_array', data=['0.0h' for _ in range(2500)] +
-                                                            ['1.0h' for _ in range(2500)] +
-                                                            ['2.0h' for _ in range(2500)] +
-                                                            ['3.0h' for _ in range(2500)] +
-                                                            ['4.0h' for _ in range(2500)] +
-                                                            ['5.0h' for _ in range(2500)] +
-                                                            ['6.0h' for _ in range(2500)] +
-                                                            ['7.0h' for _ in range(2500)], dtype=string_dtype())
+            h5_file['columns_string'].attrs['dtype'] = '<U4'
 
             h5_file.create_dataset('numerical_array', data=np.arange(40_000).reshape(20_000, 2),
                                    chunks=True, maxshape=(None, None))
@@ -59,12 +48,20 @@ def large_TDF(request: pytest.FixtureRequest) -> Generator[TemporalDataFrameBase
             h5_file.create_dataset('string_array',
                                    data=np.arange(40_000, 80_000).astype(str).astype('O').reshape(20_000, 2),
                                    dtype=string_dtype(), chunks=True, maxshape=(None, None))
+            h5_file['string_array'].attrs['dtype'] = '<U21'
+
+            h5_file.create_group('timepoints_array')
+            h5_file['timepoints_array'].attrs['__h5_type__'] = 'object'
+            h5_file['timepoints_array'].attrs['__h5_class__'] = np.void(pickle.dumps(TimePointArray, 
+                                                                                     protocol=pickle.HIGHEST_PROTOCOL))
+            h5_file['timepoints_array'].attrs['unit'] = 'h'
+            h5_file['timepoints_array'].create_dataset('array', data=np.repeat(np.arange(8), 2500))
 
         # read tdf from file
         TDF: TemporalDataFrameBase = TemporalDataFrame.read('backed_large_TDF', mode=H5Mode.READ_WRITE)
 
         if 'view' in which:
-            yield TDF
+            yield TDF[:]
 
         else:
             yield TDF

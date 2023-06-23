@@ -8,3 +8,7 @@
 *__pycache__
 venv_vdata
 .vscode
+*.png
+*.dot
+*.csv
+*.json

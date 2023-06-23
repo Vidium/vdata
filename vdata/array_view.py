@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import EllipsisType
-from typing import Any, Generic, Iterator, SupportsIndex, TypeVar, Union, cast
+from typing import Any, Generic, Iterable, Iterator, SupportsIndex, TypeVar, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -12,37 +12,52 @@ _T = TypeVar('_T', bound=np.generic, covariant=True)
 _NP_INDEX = Union[None, slice, EllipsisType, SupportsIndex, _ArrayLikeInt_co, 
                   tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...]]
 
+_RESERVED_ATTRIBUTES = {'_container', '_accession', '_index', '_exposed_attr', 
+                        'size', 'shape', 'dtype', '_array', 'array_type'}
+
 
 class NDArrayView(Generic[_T]):
     """View on a numpy ndarray."""
     
-    __slots__ = '_container', '_accession', '_index'
+    __slots__ = '_container', '_accession', '_index', '_exposed_attr'
     
     # region magic methods
     def __init__(self,
                  container: Any,
                  accession: str,
-                 index: _NP_INDEX | Selection) -> None:
+                 index: _NP_INDEX | Selection,
+                 exposed_attributes: Iterable[str] = ()) -> None:
         self._container = container
         self._accession = accession
         self._index = index if isinstance(index, Selection) else Selection.from_selector(
             index, getattr(container, accession).shape
         )
+        self._exposed_attr = set(exposed_attributes)
+        
+        if _RESERVED_ATTRIBUTES.intersection(self._exposed_attr):
+            raise ValueError(f'Cannot expose reserved attributes : '
+                             f'{_RESERVED_ATTRIBUTES.intersection(self._exposed_attr)}.')
 
     def __repr__(self) -> str:
         return repr(self._view()) + '*'
         
-    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[_T]:        
+    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[_T]:
         if dtype is None:
             return self._view()
         
         return self._view().astype(dtype)
-            
+      
+    def __getattribute__(self, key: str) -> Any:
+        if key in object.__getattribute__(self, '_exposed_attr'):
+            return getattr(self._array, key)
+        
+        return super().__getattribute__(key)
+                  
     def __getitem__(self, index: _NP_INDEX) -> NDArrayView[_T] | _T:
         sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
         
         if sel.size(self._array.shape):
-            return NDArrayView(self._container, self._accession, sel)
+            return NDArrayView(self._container, self._accession, sel, exposed_attributes=self._exposed_attr)
 
         return cast(_T, self._array[sel.get()])
     
@@ -50,7 +65,6 @@ class NDArrayView(Generic[_T]):
         sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
         
         self._array[sel.get()] = values
-        
             
     def __len__(self) -> int:
         return len(self._view())
@@ -109,6 +123,10 @@ class NDArrayView(Generic[_T]):
     @property
     def _array(self) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], getattr(self._container, self._accession))
+    
+    @property
+    def array_type(self) -> type[Any]:
+        return type(self._array)
     
     # endregion
     

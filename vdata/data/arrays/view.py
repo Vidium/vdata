@@ -10,7 +10,7 @@ from vdata.data.arrays.base import ArrayContainerMixin, D, D_copy, VBaseArrayCon
 from vdata.IO import generalLogger
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
-from vdata.utils import first
+from vdata.utils import first_in
 
 
 class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
@@ -153,7 +153,7 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
         if self.empty:
             return False
 
-        return first(self.data).has_repeating_index
+        return first_in(self.data).has_repeating_index
 
     @property
     def shape(self) -> tuple[int, int, list[int], int]:
@@ -164,7 +164,7 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
         if not len(self):
             return 0, 0, [], 0
         
-        return len(self), *first(self.data).shape
+        return len(self), *first_in(self.data).shape
 
     # endregion
     

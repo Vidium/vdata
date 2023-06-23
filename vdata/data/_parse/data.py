@@ -17,7 +17,7 @@ from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePoint, TimePointArray
-from vdata.utils import first
+from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
 
@@ -35,7 +35,7 @@ def _get_time_list(time_list: TimePointArray | None,
         return data.timepoints_column
     
     if isinstance(data, dict):
-        df = first(data)
+        df = first_in(data)
         
         if isinstance(df, TemporalDataFrameBase):
             return df.timepoints_column
@@ -237,9 +237,9 @@ class ParsingDataOut:
         # check coherence with number of time points in VData
         for attr in ('layers', 'obsm'):
             dataset = getattr(self, attr)
-            if len(dataset) and first(dataset).shape[0] != n_timepoints:
-                raise IncoherenceError(f"{attr} has {first(dataset).shape[0]} time point"
-                                       f"{'' if first(dataset).shape[0] == 1 else 's'} but {n_timepoints}"
+            if len(dataset) and first_in(dataset).shape[0] != n_timepoints:
+                raise IncoherenceError(f"{attr} has {first_in(dataset).shape[0]} time point"
+                                       f"{'' if first_in(dataset).shape[0] == 1 else 's'} but {n_timepoints}"
                                        f" {'was' if n_timepoints == 1 else 'were'} given.")
 
         generalLogger.debug("Time points were coherent across arrays.")
@@ -261,20 +261,20 @@ class ParsingDataOut:
                                        f"{layer.shape[2]}, should be {n_var}.")
 
         # check coherence between obs, obsm and obsp shapes
-        if len(self.obsm) and first(self.obsm).shape[1] != n_obs:
+        if len(self.obsm) and first_in(self.obsm).shape[1] != n_obs:
             raise IncoherenceError(f"'obs' and 'obsm' have different lengths ({n_obs} vs "
-                                   f"{first(self.obsm).shape[1]})")
+                                   f"{first_in(self.obsm).shape[1]})")
 
-        if len(self.obsp) and first(self.obsp).shape[1] != self.obs.n_index:
+        if len(self.obsp) and first_in(self.obsp).shape[1] != self.obs.n_index:
             raise IncoherenceError(f"'obs' and 'obsp' have different lengths ({n_obs} vs "
-                                   f"{first(self.obsp).shape[1]})")
+                                   f"{first_in(self.obsp).shape[1]})")
 
         # check coherence between var, varm, varp shapes
         for attr in ('varm', 'varp'):
             dataset = getattr(self, attr)
-            if len(dataset) and first(dataset).shape[0] != n_var:
+            if len(dataset) and first_in(dataset).shape[0] != n_var:
                 raise IncoherenceError(f"'var' and 'varm' have different lengths ({n_var} vs "
-                                       f"{first(dataset).shape[0]})")
+                                       f"{first_in(dataset).shape[0]})")
 
     @classmethod
     def from_h5(cls, data: ch.H5Dict[Any]) -> ParsingDataOut:        

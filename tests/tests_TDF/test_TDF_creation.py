@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import vdata.timepoint as tp
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 
 
@@ -521,10 +522,10 @@ class TestCreationFromUnsortedData:
         assert np.all(self.TDF.columns == np.array(['col1', 'col2']))
 
     def test_timepoints(self) -> None:
-        assert np.all(self.TDF.timepoints == np.array(['0h', '5h', '10h']))
+        assert np.all(self.TDF.timepoints == tp.TimePointArray([0, 5, 10], unit='h'))
 
     def test_timepoints_column(self) -> None:
-        assert np.all(self.TDF.timepoints_column == np.array(['0h', '0h', '0h', '5h', '5h', '5h', '10h', '10h', '10h']))
+        assert np.all(self.TDF.timepoints_column == tp.TimePointArray([0, 0, 0, 5, 5, 5, 10, 10, 10], unit='h'))
 
     def test_values_numerical_in_correct_order(self) -> None:
         assert np.all(self.TDF.values_num == np.array([[4], [5], [6], [7], [8], [9], [1], [2], [3]]))

@@ -13,7 +13,7 @@ from vdata.IO import (
     ShapeError,
     generalLogger,
 )
-from vdata.utils import first
+from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
 
@@ -81,7 +81,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         if not len(self):
             return 0, self._vdata.n_var, []
                         
-        return len(self), first(self).shape[0], [DF.shape[1] for DF in self.values()]   
+        return len(self), first_in(self).shape[0], [DF.shape[1] for DF in self.values()]   
         
     # endregion
     
@@ -236,7 +236,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         if not len(self):
             return 0, self._vdata.n_var, self._vdata.n_var
             
-        return len(self), first(self).shape[0], first(self).shape[1]
+        return len(self), first_in(self).shape[0], first_in(self).shape[1]
 
     # endregion
     

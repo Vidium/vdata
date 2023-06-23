@@ -4,7 +4,9 @@
 
 # ====================================================
 # imports
+import cProfile
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 import pandas as pd
@@ -17,19 +19,27 @@ REF_DIR = Path(__file__).parent.parent / 'ref'
 
 
 def test_VData_modification() -> None:
+    start = perf_counter()
     v1 = vdata.VData.read(REF_DIR / "vdata.vd", mode='r+')
+    print('READ:', perf_counter() - start)
 
     # set once
-    v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': range(v1.n_obs_total)}),
-                                           time_list=v1.obs.timepoints_column,
-                                           index=v1.obs.index)
+    start = perf_counter()
+    with cProfile.Profile() as prof:
+        v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': range(v1.n_obs_total)}),
+                                               time_list=v1.obs.timepoints_column,
+                                               index=v1.obs.index)
+    prof.dump_stats('/home/mbouvier/Desktop/vdata_modification.prof')
+    print('SET 1:', perf_counter() - start)
     
     assert 'X' in v1.obsm.keys()
 
     # set a second time
+    start = perf_counter()
     v1.obsm['X'] = vdata.TemporalDataFrame(data=pd.DataFrame({'col1': 2*np.arange(v1.n_obs_total)}),
                                            time_list=v1.obs.timepoints_column,
                                            index=v1.obs.index)
+    print('SET 2:', perf_counter() - start)
 
     assert 'X' in v1.obsm.keys()
     del v1.obsm['X']

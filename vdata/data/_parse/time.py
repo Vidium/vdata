@@ -9,7 +9,7 @@ from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrameBase
 from vdata.timepoint import TimePoint, TimePointArray
-from vdata.utils import as_tp_list, first, match_timepoints
+from vdata.utils import as_tp_list, first_in, match_timepoints
 from vdata.vdataframe import VDataFrame
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ def parse_time_list(time_list: Sequence[str | TimePoint] | None,
                     time_col_name: str | None,
                     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) -> TimePointArray | None:
     if time_list is not None:
-        return TimePointArray(time_list)
+        return TimePointArray.from_objects(time_list)
 
     elif obs is not None and time_col_name is not None:
         if time_col_name not in obs.columns:
@@ -29,7 +29,7 @@ def parse_time_list(time_list: Sequence[str | TimePoint] | None,
         if isinstance(obs, TemporalDataFrameBase):
             return TimePointArray(obs[time_col_name].values)
         
-        return TimePointArray(obs[time_col_name])
+        return TimePointArray.from_objects(obs[time_col_name])
     
     return None
         
@@ -66,11 +66,11 @@ def check_time_match(data: ParsingDataIn) -> None:
     
     # build timepoints DataFrame from time_list or time_col_name
     if data.timepoints.empty and data.time_list is not None:
-        data.timepoints = VDataFrame({'value': np.unique(data.time_list)})
+        data.timepoints = VDataFrame({'value': list(np.unique(data.time_list, equal_nan=False))})
         return
 
     if data.timepoints.empty and len(data.layers):
-        data.timepoints = VDataFrame({'value': first(data.layers).timepoints})
+        data.timepoints = VDataFrame({'value': first_in(data.layers).timepoints})
         return
 
     # check that timepoints and _time_list and _time_col_name match

@@ -70,8 +70,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         """        
         _numerical_array, _string_array, _timepoints_array, _index, _columns_numerical, _columns_string, \
             _lock, _timepoints_column_name, _name, repeating_index = \
-            parse_data(data, index, repeating_index, columns, time_list, time_col_name, lock,
-                       name)
+            parse_data(data, index, repeating_index, columns, time_list, time_col_name, lock, name)
             
         super().__init__(index=_index, 
                          timepoints_array=_timepoints_array,
@@ -227,11 +226,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
                          string_array=values['string_array'],
                          columns_numerical=values['columns_numerical'],
                          columns_string=values['columns_string'],
-                         attr_dict=AttrDict(name=values.attributes['name'],
-                                            timepoints_column_name=values.attributes['timepoints_column_name'],
-                                            locked_indices=values.attributes['locked_indices'],
-                                            locked_columns=values.attributes['locked_columns'],
-                                            repeating_index=values.attributes['repeating_index']),
+                         attr_dict=values.attributes,
                          data=values)
         return obj
     
@@ -239,7 +234,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     def read(cls,
              file: str | Path | ch.Group | ch.H5Dict[Any],
              mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] | None = None) -> TemporalDataFrame:        
-        _mode = _valid_mode(file, mode)
+        _mode = _get_valid_mode(file, mode)
 
         if isinstance(file, ch.Group) and file.file.mode != _mode:
             raise ValueError(f'Cannot read TemporalDataFrame in {_mode} mode from file open in {file.file.mode} mode.')
@@ -247,17 +242,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if not isinstance(file, ch.H5Dict):
             file = ch.H5Dict.read(file, mode=_mode)
             
-        tdf = TemporalDataFrame.__new__(TemporalDataFrame)
-        super().__init__(tdf, 
-                         index=file['index'],
-                         timepoints_array=file["timepoints_array"].maptype(TimePoint),
-                         numerical_array=file["numerical_array"],
-                         string_array=file["string_array"],
-                         columns_numerical=file["columns_numerical"],
-                         columns_string=file["columns_string"],
-                         attr_dict=file.attributes,
-                         data=file)
-        return tdf
+        return TemporalDataFrame.__h5_read__(file)
     
     @classmethod
     def read_from_csv(cls,
@@ -603,7 +588,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # endregion
 
 
-def _valid_mode(file: str | Path | ch.Group | ch.H5Dict[Any],
+def _get_valid_mode(file: str | Path | ch.Group | ch.H5Dict[Any],
                 mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] | None) \
         -> Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE]:
     if mode is None:

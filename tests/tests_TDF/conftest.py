@@ -1,6 +1,4 @@
-# coding: utf-8
-# Created on 16/10/2022 10:36
-# Author : matteo
+import pickle
 from pathlib import Path
 from typing import Any, Generator
 
@@ -10,12 +8,8 @@ from ch5mpy import File, H5Mode
 from h5py import string_dtype
 
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.timepoint import TimePointArray
 
-# ====================================================
-# imports
-
-# ====================================================
-# code
 REFERENCE_BACKED_DATA = {
     'type': 'tdf',
     'locked_indices': False,
@@ -25,7 +19,7 @@ REFERENCE_BACKED_DATA = {
     'repeating_index': False,
     'columns_numerical': np.array(['col1', 'col2'], dtype=np.dtype('O')),
     'columns_string': np.array(['col3', 'col4'], dtype=np.dtype('O')),
-    'timepoints': np.array(['0.0h' for _ in range(50)] + ['1.0h' for _ in range(50)], dtype=np.dtype('O')),
+    'timepoints': np.array([0 for _ in range(50)] + [1 for _ in range(50)], dtype=float),
     'values_numerical': np.vstack((np.concatenate((np.arange(50, 100), np.arange(0, 50))),
                                    np.concatenate((np.arange(150, 200), np.arange(100, 150))))).T.astype(float),
     'values_string': np.vstack((np.concatenate((np.arange(250, 300), np.arange(200, 250))),
@@ -60,8 +54,6 @@ def get_backed_TDF(name: str,
         h5_file.create_dataset('columns_string', data=REFERENCE_BACKED_DATA['columns_string'],
                                chunks=True, maxshape=(None,), dtype=string_dtype())
         h5_file['columns_string'].attrs['dtype'] = '<U4'
-        
-        h5_file.create_dataset('timepoints_array', data=REFERENCE_BACKED_DATA['timepoints'], dtype=string_dtype())
 
         h5_file.create_dataset('numerical_array', data=REFERENCE_BACKED_DATA['values_numerical'],
                                chunks=True, maxshape=(None, None))
@@ -69,7 +61,14 @@ def get_backed_TDF(name: str,
         h5_file.create_dataset('string_array', data=REFERENCE_BACKED_DATA['values_string'], dtype=string_dtype(),
                                chunks=True, maxshape=(None, None))
         h5_file['string_array'].attrs['dtype'] = '<U4'
-
+        
+        h5_file.create_group('timepoints_array')
+        h5_file['timepoints_array'].attrs['__h5_type__'] = 'object'
+        h5_file['timepoints_array'].attrs['__h5_class__'] = np.void(pickle.dumps(TimePointArray, 
+                                                                                 protocol=pickle.HIGHEST_PROTOCOL))
+        h5_file['timepoints_array'].attrs['unit'] = 'h'
+        h5_file['timepoints_array'].create_dataset('array', data=REFERENCE_BACKED_DATA['timepoints'])
+ 
     # read tdf from file
     tdf = TemporalDataFrame.read('backed_TDF_' + name, mode=H5Mode.READ_WRITE)
     

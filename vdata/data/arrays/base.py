@@ -12,7 +12,7 @@ import vdata
 from vdata._typing import IFS, AnyDictLike, DictLike
 from vdata.IO import VClosedFileError, generalLogger
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
-from vdata.utils import first
+from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
 D = TypeVar('D', Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, VDataFrame)
@@ -333,7 +333,7 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFra
         if not len(self):
             return 0, 0, [], []
 
-        _shape_TDF = first(self.data).shape
+        _shape_TDF = first_in(self.data).shape
         return len(self.data), _shape_TDF[0], _shape_TDF[1], [d.shape[2] for d in self.values()]
 
     # endregion

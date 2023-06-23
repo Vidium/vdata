@@ -12,7 +12,7 @@ from vdata.vdataframe import VDataFrame
 def _valid_timepoints(data: ParsingDataIn, obs: TemporalDataFrameBase) -> VDataFrame:
     if data.timepoints.empty:        
         generalLogger.debug("Default empty DataFrame for time points.")
-        data.timepoints['value'] = obs.timepoints
+        data.timepoints['value'] = list(obs.timepoints)
     
     log_timepoints(data.timepoints)
     return data.timepoints

@@ -9,9 +9,10 @@ import numpy.typing as npt
 import numpy_indexed as npi
 
 import vdata.tdf
+import vdata.timepoint as tp
 from vdata._typing import AnyNDArrayLike_IFS, NDArrayLike_IFS, Slicer
 from vdata.names import Number
-from vdata.timepoint import TimePoint, TimePointArray, TimePointRange, atleast_1d
+from vdata.timepoint import get_time_array
 from vdata.utils import isCollection, repr_array
 
 
@@ -23,31 +24,28 @@ class SlicerData:
     
     def __post_init__(self) -> None:
         for s in (self.tp, self.idx, self.col):
-            if not isinstance(s, (Number, str, TimePoint, range, slice)) \
+            if not isinstance(s, (Number, str, tp.TimePoint, range, slice)) \
                 and s is not Ellipsis \
-                and not (isCollection(s) and all([isinstance(e, (Number, str, TimePoint)) for e in s])):
+                and not (isCollection(s) and all([isinstance(e, (Number, str, tp.TimePoint)) for e in s])):
                 raise ValueError(f"Invalid slicing element '{s}'.")
 
 
 def _parse_timepoints_slicer(slicer: Slicer, 
-                             timepoints: TimePointArray) -> TimePointArray | None:
+                             timepoints: tp.tp.TimePointArray) -> tp.tp.TimePointArray | None:
     if slicer is Ellipsis or (isinstance(slicer, slice) and slicer == slice(None)):
         return None
     
     if isinstance(slicer, slice):
-        start: TimePoint = timepoints[0] if slicer.start is None else TimePoint(slicer.start)
-        stop: TimePoint = timepoints[-1] if slicer.stop is None else TimePoint(slicer.stop)
-        step = TimePoint(1, start.unit) if slicer.step is None else TimePoint(slicer.step)
+        start: tp.TimePoint = timepoints[0] if slicer.start is None else tp.TimePoint(slicer.start)
+        stop: tp.TimePoint = timepoints[-1] if slicer.stop is None else tp.TimePoint(slicer.stop)
+        step = tp.TimePoint(1, start.unit) if slicer.step is None else tp.TimePoint(slicer.step)
 
-        return TimePointArray(TimePointRange(start, stop, step))
+        return tp.TimePointArray.from_range(tp.TimePointRange(start, stop, step))
 
     if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-        return atleast_1d(timepoints[slicer.flatten()])
+        return timepoints[slicer.flatten()]
 
-    if isinstance(slicer, range) or isCollection(slicer):
-        return TimePointArray(slicer)
-    
-    return TimePointArray([slicer])
+    return get_time_array(slicer)
 
 
 def _parse_axis_slicer(slicer: Slicer,
@@ -82,7 +80,7 @@ def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
         npt.NDArray[np.int_], 
         AnyNDArrayLike_IFS,
         AnyNDArrayLike_IFS,
-        tuple[TimePointArray | None, AnyNDArrayLike_IFS | None, AnyNDArrayLike_IFS | None]
+        tuple[tp.TimePointArray | None, AnyNDArrayLike_IFS | None, AnyNDArrayLike_IFS | None]
     ]:
     """
     Given a TemporalDataFrame and a slicer, get the list of indices, columns str and num and the sliced index and
@@ -109,8 +107,8 @@ def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
             indices = []
             cumulated_length = 0
 
-            for tp in TDF.timepoints:
-                itp = TDF.index_at(tp)
+            for timepoint in TDF.timepoints:
+                itp = TDF.index_at(timepoint)
                 indices.append(npi.indices(itp, index_array[np.isin(index_array, itp)]) + cumulated_length)
                 cumulated_length += len(itp)
 
@@ -141,10 +139,10 @@ def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
         indices = []
         cumulated_length = 0
 
-        for tp in TDF.timepoints:
-            itp = TDF.index_at(tp)
+        for timepoint in TDF.timepoints:
+            itp = TDF.index_at(timepoint)
 
-            if tp in tp_array:
+            if timepoint in tp_array:
                 indices.append(npi.indices(itp, index_array[np.isin(index_array, itp)]) + cumulated_length)
 
             cumulated_length += len(itp)

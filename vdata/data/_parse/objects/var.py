@@ -8,7 +8,7 @@ import pandas as pd
 from vdata._typing import NDArray_IFS
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrameBase
-from vdata.utils import first, obj_as_str
+from vdata.utils import first_in, obj_as_str
 from vdata.vdataframe import VDataFrame
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ def get_var_index(data: pd.DataFrame |
         return obj_as_str(np.array(data.columns))
         
     if isinstance(data, dict):
-        return obj_as_str(np.array(first(data).columns))
+        return obj_as_str(np.array(first_in(data).columns))
     
     return None
 

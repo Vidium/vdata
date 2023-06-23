@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Collection, Literal, NoReturn, cast
+from typing import Any, Collection, Iterable, Literal, NoReturn, cast
 
 import ch5mpy as ch
 import numpy as np
@@ -32,12 +32,12 @@ def _indices(this: AnyNDArrayLike[Any],
 
 def _array_view(container: Any,
                 accession: str,
-                index: AnyNDArrayLike[np.int_] | tuple[AnyNDArrayLike[np.int_], ...]) \
-        -> ch.H5Array[Any] | NDArrayView[Any]:
+                index: AnyNDArrayLike[np.int_] | tuple[AnyNDArrayLike[np.int_], ...],
+                exposed_attributes: Iterable[str] = ()) -> ch.H5Array[Any] | NDArrayView[Any]:
     if isinstance(getattr(container, accession), ch.H5Array):
         return getattr(container, accession)[index]                                     # type: ignore[no-any-return]
     
-    return NDArrayView(container, accession, index)
+    return NDArrayView(container, accession, index, exposed_attributes)
     
 
 class TemporalDataFrameView(TemporalDataFrameBase):
@@ -56,7 +56,8 @@ class TemporalDataFrameView(TemporalDataFrameBase):
                  inverted: bool = False):
         super().__init__(
             index=_array_view(parent, 'index', index_positions),
-            timepoints_array=_array_view(parent, 'timepoints_column', index_positions),  # type: ignore[arg-type]
+            timepoints_array=_array_view(parent, 'timepoints_column', index_positions,      # type: ignore[arg-type]
+                                         ('unit',)),
             numerical_array=_array_view(parent, 'values_num', 
                                         np.ix_(index_positions, 
                                                _indices(parent.columns_num, columns_numerical))),

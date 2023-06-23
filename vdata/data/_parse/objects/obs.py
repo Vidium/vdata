@@ -12,7 +12,7 @@ from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
-from vdata.utils import first
+from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ def get_obs_index(data: pd.DataFrame |
         return _index(data)
         
     if isinstance(data, dict):
-        return _index(first(data))
+        return _index(first_in(data))
     
     return None, False
     
@@ -75,7 +75,7 @@ def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame | TemporalDat
                 if data.obs is not None:
                     data.time_list = TimePointArray(data.obs.timepoints_column)
                 else:
-                    data.time_list = first(data.layers).timepoints_column
+                    data.time_list = first_in(data.layers).timepoints_column
 
             valid_obsm[str(key)] = TemporalDataFrame(value, 
                                                      time_list=data.time_list,

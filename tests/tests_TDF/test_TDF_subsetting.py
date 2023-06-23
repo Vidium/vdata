@@ -47,7 +47,7 @@ class TestSubGetting:
             repr(self.TDF['1s'])
 
         assert str(exc_info.value) == "Some time-points were not found in this TemporalDataFrame " \
-                                      "([1.0 second] (1 value long))"
+                                      "([1.0s] (1 value long))"
 
     def test_subset_multiple_timepoints(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
@@ -88,7 +88,7 @@ class TestSubGetting:
             repr(self.TDF[['0h', '1h', '2h']])
 
         assert str(exc_info.value) == "Some time-points were not found in this TemporalDataFrame " \
-                                      "([2.0 hours] (1 value long))"
+                                      "([2.0h] (1 value long))"
 
     def test_subset_single_row(self) -> None:
         backed = 'backed ' if self.TDF.is_backed else ''
@@ -646,7 +646,7 @@ class TestSubSetting:
             self.TDF[['0h', '2h'], 10:70:2, ['col4', 'col1']] = np.array([['a', -1]])
 
         assert str(exc_info.value) == 'Some time-points were not found in this TemporalDataFrame ' \
-                                      '([2.0 hours] (1 value long))'
+                                      '([2.0h] (1 value long))'
 
     def test_set_values_for_rows_not_in_tdf_should_fail(self) -> None:
         with pytest.raises(ValueError) as exc_info:

@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import builtins
 from types import EllipsisType
-from typing import Any, Collection, Mapping, TypeGuard, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Mapping, TypeGuard, TypeVar, Union, cast
 
 import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
 
-from vdata._typing import IFS, AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
+import vdata.timepoint as tp
 from vdata.array_view import NDArrayView
 from vdata.IO.errors import ShapeError
-from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
+
+if TYPE_CHECKING:
+    from vdata._typing import IFS, AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
+    
 
 _builtin_names = dir(builtins)
 _builtin_names.remove('False')
@@ -21,7 +24,7 @@ _builtin_names.remove('None')
 _V = TypeVar('_V')
 
 # region misc -----------------------------------------------------------------
-def first(d: Mapping[Any, _V]) -> _V:
+def first_in(d: Mapping[Any, _V]) -> _V:
     return next(iter(d.values()))
 
 
@@ -175,24 +178,25 @@ def slicer_to_array(slicer: PreSlicer,
     raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
 
-def slicer_to_array_timepoints(slicer: PreSlicer,
-                               reference_index: TimePointArray) -> TimePointArray | None:
+def slicer_to_timepoints_array(slicer: PreSlicer,
+                               reference_index: tp.TimePointArray) -> tp.TimePointArray | None:
     if not isinstance(slicer, (slice, EllipsisType)):
         if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-            return atleast_1d(reference_index[np.where(slicer.flatten())])
+            return tp.atleast_1d(reference_index[np.where(slicer.flatten())])
 
         elif isCollection(slicer):
             slicer_list = as_tp_list(slicer)
-            return atleast_1d(np.array(slicer_list)[np.where(smart_isin(slicer_list, reference_index))])
+            return tp.atleast_1d(np.array(slicer_list)[np.where(smart_isin(slicer_list, reference_index))])
             
-        slicer = cast(Union[IFS, TimePoint], slicer)
-        return TimePointArray([slicer]) if smart_isin(TimePoint(slicer), reference_index) else TimePointArray([])
+        slicer = cast(Union[IFS, tp.TimePoint], slicer)
+        return tp.TimePointArray([slicer]) if smart_isin(tp.TimePoint(slicer), reference_index) \
+            else tp.TimePointArray([])
 
     elif slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
         return None
 
     elif isinstance(slicer, (slice, range)):
-        return TimePointArray(slice_or_range_to_list(slicer, reference_index))
+        return tp.TimePointArray(slice_or_range_to_list(slicer, reference_index))
 
     raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
 
@@ -201,10 +205,10 @@ def reformat_index(index: PreSlicer |
                           tuple[PreSlicer] |
                           tuple[PreSlicer, PreSlicer] |
                           tuple[PreSlicer, PreSlicer, PreSlicer],
-                   timepoints_reference: TimePointArray,
+                   timepoints_reference: tp.TimePointArray,
                    obs_reference: AnyNDArrayLike_IFS,
                    var_reference: NDArrayLike_IFS) \
-        -> tuple[TimePointArray | None, 
+        -> tuple[tp.TimePointArray | None, 
                  NDArray_IFS | None,
                  NDArray_IFS | None]:
     """
@@ -225,31 +229,12 @@ def reformat_index(index: PreSlicer |
         
     index = index + (...,) * (3 - len(index))
     
-    return slicer_to_array_timepoints(index[0], timepoints_reference), \
+    return slicer_to_timepoints_array(index[0], timepoints_reference), \
         slicer_to_array(index[1], obs_reference), \
         slicer_to_array(index[2], var_reference)
 
 
 # Identification ---------------------------------------------------------
-def unique_in_list(c: Collection[Any]) -> set[Any]:
-    """
-    Get the set of unique elements in a (nested) collection of elements.
-
-    Args:
-        c: the (nested) collection of elements.
-    """
-    unique_values: set[Any] = set()
-
-    for value in c:
-        if isCollection(value):
-            unique_values = unique_values.union(unique_in_list(value))
-
-        else:
-            unique_values.add(value)
-
-    return unique_values
-
-
 def smart_isin(element: Any, 
                target_collection: Collection[Any]) -> bool | npt.NDArray[np.bool_]:
     """
@@ -293,7 +278,7 @@ def as_list(value: Any) -> list[Any]:
 
 
 def as_tp_list(item: Any, 
-               reference_timepoints: TimePointArray | None = None) -> list[TimePoint | list[TimePoint]]:
+               reference_timepoints: tp.TimePointArray | None = None) -> list[tp.TimePoint | list[tp.TimePoint]]:
     """
     Converts a given object to a list of TimePoints (or list of list of TimePoints ...).
 
@@ -302,16 +287,16 @@ def as_tp_list(item: Any,
 
     :return: a (nested) list of TimePoints.
     """
-    new_tp_list: list[TimePoint | list[TimePoint]] = []
-    ref = TimePointArray([TimePoint('0h')]) if reference_timepoints is None or not len(reference_timepoints) \
+    new_tp_list: list[tp.TimePoint | list[tp.TimePoint]] = []
+    ref = tp.TimePointArray([tp.TimePoint('0h')]) if reference_timepoints is None or not len(reference_timepoints) \
         else reference_timepoints
 
     for v in as_list(item):
-        if isinstance(v, TimePoint):
+        if isinstance(v, tp.TimePoint):
             new_tp_list.append(v)
             
         elif isCollection(v):
-            new_tp_list.append([TimePoint(tp) for tp in v])
+            new_tp_list.append([tp.TimePoint(tp) for tp in v])
 
         elif v == '*':
             if len(ref) == 1:
@@ -321,16 +306,16 @@ def as_tp_list(item: Any,
                 new_tp_list.append(ref.tolist())
 
         elif isinstance(v, (int, float, np.int_, np.float_)):
-            new_tp_list.append(TimePoint(str(v) + 'h'))
+            new_tp_list.append(tp.TimePoint(str(v) + 'h'))
 
         else:
-            new_tp_list.append(TimePoint(v))
+            new_tp_list.append(tp.TimePoint(v))
 
     return new_tp_list
 
 
-def match_timepoints(tp_list: TimePointArray, 
-                     tp_index: TimePointArray) -> npt.NDArray[np.bool_]:
+def match_timepoints(tp_list: tp.TimePointArray, 
+                     tp_index: tp.TimePointArray) -> npt.NDArray[np.bool_]:
     """
     Find where in the tp_list the values in tp_index are present. This function parses the tp_list to understand the
         '*' character (meaning the all values in tp_index match) and tuples of time points.
@@ -343,7 +328,7 @@ def match_timepoints(tp_list: TimePointArray,
         A list of booleans of the same length as tp_list, where True indicates that a value in tp_list matched
         a value in tp_index.
     """
-    tp_index = TimePointArray(unique_in_list(tp_index))
+    tp_index = np.unique(tp_index, equal_nan=False)
     _tp_list = as_tp_list(tp_list)
 
     mask = np.array([False for _ in range(len(_tp_list))], dtype=bool)
