@@ -30,7 +30,7 @@ def _parse_data_from_tdf(tdf: TemporalDataFrame,
     tdf.unlock_columns()
 
     if data.timepoints.empty:
-        data.timepoints = VDataFrame({'value': list(tdf.timepoints)}, file=None)
+        data.timepoints = VDataFrame({'value': tdf.timepoints}, file=None)
         
     elif np.any(data.timepoints.value != tdf.timepoints):
         raise ValueError("'time points' found in DataFrame do not match 'layers' time points.")

@@ -17,7 +17,7 @@ import pandas as pd
 import vdata.timepoint as tp
 from vdata._typing import IFS, NDArray_IFS
 from vdata.names import NO_NAME
-from vdata.timepoint import get_time_array
+from vdata.timepoint import as_timepointarray
 from vdata.utils import isCollection, obj_as_str
 
 
@@ -108,7 +108,7 @@ def _get_timed_index(index: Collection[IFS] | None,
         if time_col_name not in data.columns:
             raise ValueError(f"'time_col_name' ('{time_col_name}') is not in the data's columns.")
 
-        _time_list = _sort_and_get_tp(data, time_col_name, tp.TimePointArray(data[time_col_name]))
+        _time_list = _sort_and_get_tp(data, time_col_name, tp.as_timepointarray(data[time_col_name]))
     
     elif time_list is not None:
         if time_col_name is not None:
@@ -118,7 +118,7 @@ def _get_timed_index(index: Collection[IFS] | None,
             _time_list = _sort_and_get_tp(data, time_col_name, time_list)
             
         elif isinstance(time_list, (tp.TimePoint, float, int, str, np.int_, np.float_)):
-            _time_list = tp.TimePointArray([tp.TimePoint(time_list)])
+            _time_list = tp.as_timepointarray([time_list])
             
         else:
             raise TypeError(f"Unexpected type '{type(time_list)}' for 'time_list', should be a collection of "
@@ -206,7 +206,7 @@ def parse_data(data: dict[str, NDArray_IFS] | pd.DataFrame | None,
         data = data.copy()
         
     timed_index = _get_timed_index(index, 
-                                   None if time_list is None else get_time_array(time_list), 
+                                   None if time_list is None else as_timepointarray(time_list), 
                                    time_col_name, 
                                    data,
                                    repeating_index)

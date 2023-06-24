@@ -18,7 +18,7 @@ from vdata._typing import (
 from vdata.array_view import NDArrayView
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
-from vdata.tdf.utils import parse_slicer, parse_values
+from vdata.tdf.utils import parse_slicer_full, parse_values
 from vdata.timepoint import TimePointArray
 
 
@@ -92,7 +92,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
     def __getitem__(self,
                     slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) -> TemporalDataFrameView:
         """Get a subset."""
-        _index_positions, _columns_numerical, _columns_string = self._parse_inverted(*parse_slicer(self, slicer))
+        _index_positions, _columns_numerical, _columns_string = self._parse_inverted(*parse_slicer_full(self, slicer))
         return type(self)(parent=self._parent,
                           index_positions=_index_positions,
                           columns_numerical=_columns_numerical,
@@ -106,7 +106,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         Set values in a subset.
         """
         index_positions, column_num_slicer, column_str_slicer, (tp_array, index_array, columns_array) = \
-            parse_slicer(self, slicer)
+            parse_slicer_full(self, slicer)
 
         index_positions, columns_numerical, columns_string = self._parse_inverted(
             index_positions,

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 import vdata
+import vdata.timepoint as tp
 from vdata._typing import DictLike, NDArray_IFS, PreSlicer
 from vdata.data.arrays import (
     VLayersArrayContainerView,
@@ -22,7 +23,6 @@ from vdata.data.write import write_vdata, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
-from vdata.timepoint import TimePointArray
 from vdata.utils import reformat_index, repr_array, repr_index
 from vdata.vdataframe import VDataFrame, ViewVDataFrame
 
@@ -51,7 +51,7 @@ class VDataView:
     # region magic methods
     def __init__(self,
                  parent: vdata.VData,
-                 timepoints_slicer: TimePointArray | None,
+                 timepoints_slicer: tp.TimePointArray | None,
                  obs_slicer: NDArray_IFS | None,
                  var_slicer: NDArray_IFS | None):
         """
@@ -77,9 +77,9 @@ class VDataView:
 
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = parent.timepoints.value.values if timepoints_slicer is None else timepoints_slicer
-        self._timepoints_slicer = TimePointArray([e for e in _tp_slicer if e in self._obs.timepoints])
+        self._timepoints_slicer = _tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)]
         self._timepoints = ViewVDataFrame(self._parent.timepoints,
-                                          index_slicer=self._parent.timepoints.value.isin(self._timepoints_slicer))
+                                          index_slicer=np.in1d(self._parent.timepoints.value, self._timepoints_slicer))
 
         generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
                             f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"
@@ -120,7 +120,6 @@ class VDataView:
                                                  self._timepoints_slicer, 
                                                  _obs_slicer_flat, 
                                                  self._var_slicer)
-
         self._obsm = VObsmArrayContainerView(self._parent.obsm, self._timepoints_slicer, _obs_slicer_flat, slice(None))
         self._obsp = VObspArrayContainerView(self._parent.obsp, np.array(self._obs.index))
         self._varm = VVarmArrayContainerView(self._parent.varm, self._var_slicer)
@@ -286,13 +285,13 @@ class VDataView:
         return self._timepoints
 
     @property
-    def timepoints_values(self) -> TimePointArray:
+    def timepoints_values(self) -> tp.TimePointArray:
         """
         Get the list of time points values (with the unit if possible).
 
         :return: the list of time points values (with the unit if possible).
         """
-        return TimePointArray(self.timepoints.value.values)
+        return tp.TimePointArray(self.timepoints.value.values)
 
     @property
     def timepoints_strings(self) -> Iterator[str]:
@@ -432,7 +431,7 @@ class VDataView:
     def _mean_min_max_func(self, 
                            func: Literal['mean', 'min', 'max'], 
                            axis: Literal[0, 1]) \
-            -> tuple[dict[str, TemporalDataFrame], TimePointArray, NDArray_IFS]:
+            -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray, NDArray_IFS]:
         """
         Compute mean, min or max of the values over the requested axis.
         """

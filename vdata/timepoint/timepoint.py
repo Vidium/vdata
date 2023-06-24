@@ -72,6 +72,9 @@ class TimePoint(metaclass=PrettyRepr):
     def __str__(self) -> str:
         return f"{self.value}{self._unit}"
     
+    def __format__(self, format_spec: str) -> str:
+        return f"{format(self.value, format_spec)}{self._unit}"
+    
     def __float__(self) -> float:
         return self.value
     

@@ -81,12 +81,13 @@ class VLayersArrayContainer(VTDFArrayContainer):
                 raise IncoherenceError(f"Column names of layer '{TDF_index}' ({tdf.columns}) do not match var's "
                                        f"index. ({self._vdata.var.index})")
 
-            if np.any(self._vdata.timepoints.value.values != tdf.timepoints):
+            if np.any(self._vdata.timepoints.value != tdf.timepoints):
                 raise IncoherenceError(f"Time points of layer '{TDF_index}' ({tdf.timepoints}) do not match "
                                        f"time_point's index. ({self._vdata.timepoints.value.values})")
 
-            tdf.lock_indices()
-            tdf.lock_columns()
+            if not tdf.is_backed or ch.H5Mode.has_write_intent(tdf.data.mode):
+                tdf.lock_indices()
+                tdf.lock_columns()
 
             if isinstance(data, dict):
                 _data[str(TDF_index)] = tdf

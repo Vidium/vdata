@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import builtins
 from types import EllipsisType
-from typing import TYPE_CHECKING, Any, Collection, Mapping, TypeGuard, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Mapping, TypeGuard, TypeVar
 
 import ch5mpy as ch
 import numpy as np
@@ -13,7 +13,7 @@ from vdata.array_view import NDArrayView
 from vdata.IO.errors import ShapeError
 
 if TYPE_CHECKING:
-    from vdata._typing import IFS, AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
+    from vdata._typing import AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
     
 
 _builtin_names = dir(builtins)
@@ -160,45 +160,23 @@ def slicer_to_array(slicer: PreSlicer,
     Returns:
         An array of allowed values in the slicer.
     """
-    if not isinstance(slicer, (slice, EllipsisType)):
-        if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-            return np.array(reference_index)[np.where(slicer.flatten())]
-
-        elif not isCollection(slicer):
-            return np.array([slicer]) if smart_isin(slicer, reference_index) else np.array([])
-
-        return np.array(slicer)[np.where(smart_isin(slicer, reference_index))]
-
-    elif slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
+    if slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
         return None
 
-    elif isinstance(slicer, (slice, range)):
+    if isinstance(slicer, (slice, range)):
         return np.array(slice_or_range_to_list(slicer, reference_index))
+    
+    if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
+        return np.array(reference_index)[np.where(slicer.flatten())]
 
-    raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
+    if not isCollection(slicer):
+        slicer = [slicer]
+
+    return np.array(slicer)[np.where(np.in1d(slicer, reference_index))]
 
 
-def slicer_to_timepoints_array(slicer: PreSlicer,
-                               reference_index: tp.TimePointArray) -> tp.TimePointArray | None:
-    if not isinstance(slicer, (slice, EllipsisType)):
-        if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-            return tp.atleast_1d(reference_index[np.where(slicer.flatten())])
-
-        elif isCollection(slicer):
-            slicer_list = as_tp_list(slicer)
-            return tp.atleast_1d(np.array(slicer_list)[np.where(smart_isin(slicer_list, reference_index))])
-            
-        slicer = cast(Union[IFS, tp.TimePoint], slicer)
-        return tp.TimePointArray([slicer]) if smart_isin(tp.TimePoint(slicer), reference_index) \
-            else tp.TimePointArray([])
-
-    elif slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
-        return None
-
-    elif isinstance(slicer, (slice, range)):
-        return tp.TimePointArray(slice_or_range_to_list(slicer, reference_index))
-
-    raise TypeError(f"Invalid type {type(slicer)} for function 'slicer_to_array()'.")
+def as_timepointarray(obj: NDArray_IFS | None) -> tp.TimePointArray | None:
+    return None if obj is None else tp.as_timepointarray(obj)
 
 
 def reformat_index(index: PreSlicer |
@@ -228,8 +206,8 @@ def reformat_index(index: PreSlicer |
         index = (index,)
         
     index = index + (...,) * (3 - len(index))
-    
-    return slicer_to_timepoints_array(index[0], timepoints_reference), \
+        
+    return as_timepointarray(slicer_to_array(index[0], timepoints_reference)), \
         slicer_to_array(index[1], obs_reference), \
         slicer_to_array(index[2], var_reference)
 
@@ -247,21 +225,17 @@ def smart_isin(element: Any,
         element: 1D array of elements to test.
         target_collection: 1D array of allowed elements.
     """
+    raise NotImplementedError('probably useless')
+
     if not isCollection(target_collection):
         raise TypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
 
-    target_collection = set(e for e in target_collection)
+    target_collection = set(target_collection)
 
     if not isCollection(element):
-        element = [element]
-
-    result = np.array([False for _ in range(len(element))])
-
-    for i, e in enumerate(element):
-        if len({e} & target_collection):
-            result[i] = True
-
-    return result if len(result) > 1 else result[0]
+        return bool(len({element} & target_collection))
+    
+    return np.array([len({e} & target_collection) for e in element], dtype=bool)
 
 
 def as_list(value: Any) -> list[Any]:
@@ -341,7 +315,7 @@ def match_timepoints(tp_list: tp.TimePointArray,
                         mask[tp_i] = True
                         break
 
-            elif smart_isin(tp_value, tp_index):
+            elif np.in1d(tp_value, tp_index):
                 mask[tp_i] = True
 
     return mask

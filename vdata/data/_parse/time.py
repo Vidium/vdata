@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Sequence
 import numpy as np
 import pandas as pd
 
+import vdata.timepoint as tp
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrameBase
-from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import as_tp_list, first_in, match_timepoints
 from vdata.vdataframe import VDataFrame
 
@@ -16,20 +16,20 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def parse_time_list(time_list: Sequence[str | TimePoint] | None,
+def parse_time_list(time_list: Sequence[str | tp.TimePoint] | None,
                     time_col_name: str | None,
-                    obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) -> TimePointArray | None:
+                    obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) -> tp.TimePointArray | None:
     if time_list is not None:
-        return TimePointArray.from_objects(time_list)
+        return tp.as_timepointarray(time_list)
 
     elif obs is not None and time_col_name is not None:
         if time_col_name not in obs.columns:
             raise ValueError(f"Could not find column '{time_col_name}' in obs.")
         
         if isinstance(obs, TemporalDataFrameBase):
-            return TimePointArray(obs[time_col_name].values)
+            return tp.as_timepointarray(obs[time_col_name].values)
         
-        return TimePointArray.from_objects(obs[time_col_name])
+        return tp.as_timepointarray(obs[time_col_name])
     
     return None
         
@@ -47,6 +47,7 @@ def parse_timepoints(timepoints: pd.DataFrame | VDataFrame | None) -> VDataFrame
     if 'value' not in timepoints.columns:
         raise ValueError("'time points' must have at least a column 'value' to store time points value.")
 
+    # FIXME : remove as_tp_list()
     timepoints["value"] = sorted(as_tp_list(timepoints["value"]))
 
     timepoints = VDataFrame(timepoints)
@@ -66,20 +67,18 @@ def check_time_match(data: ParsingDataIn) -> None:
     
     # build timepoints DataFrame from time_list or time_col_name
     if data.timepoints.empty and data.time_list is not None:
-        data.timepoints = VDataFrame({'value': list(np.unique(data.time_list, equal_nan=False))})
+        data.timepoints['value'] = list(np.unique(data.time_list, equal_nan=False))
         return
 
     if data.timepoints.empty and len(data.layers):
-        data.timepoints = VDataFrame({'value': first_in(data.layers).timepoints})
+        data.timepoints['value'] = list(first_in(data.layers).timepoints)
         return
 
     # check that timepoints and _time_list and _time_col_name match
     if data.time_list is not None and not all(match_timepoints(data.time_list, 
-                                                               TimePointArray(data.timepoints.value))):
+                                                               tp.as_timepointarray(data.timepoints.value))):
         raise ValueError("There are values in 'time_list' unknown in 'timepoints'.")
 
-    elif data.time_col_name is not None and not all(match_timepoints(TimePointArray(data.obs.timepoints), 
-                                                                     TimePointArray(data.timepoints.value))):
+    elif data.time_col_name is not None and not all(match_timepoints(tp.as_timepointarray(data.obs.timepoints), 
+                                                                     tp.as_timepointarray(data.timepoints.value))):
         raise ValueError(f"There are values in obs['{data.time_col_name}'] unknown in 'timepoints'.")
-
-    data.timepoints = VDataFrame(data.timepoints)

@@ -12,7 +12,7 @@ import vdata.tdf
 import vdata.timepoint as tp
 from vdata._typing import AnyNDArrayLike_IFS, NDArrayLike_IFS, Slicer
 from vdata.names import Number
-from vdata.timepoint import get_time_array
+from vdata.timepoint import as_timepointarray
 from vdata.utils import isCollection, repr_array
 
 
@@ -45,7 +45,7 @@ def _parse_timepoints_slicer(slicer: Slicer,
     if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
         return timepoints[slicer.flatten()]
 
-    return get_time_array(slicer)
+    return as_timepointarray(slicer)
 
 
 def _parse_axis_slicer(slicer: Slicer,
@@ -74,7 +74,7 @@ def _parse_axis_slicer(slicer: Slicer,
     return cast(NDArrayLike_IFS, np.array([slicer]).astype(cast_type))
 
 
-def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
+def parse_slicer_full(TDF: vdata.tdf.TemporalDataFrameBase,
                  slicers: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) \
     -> tuple[
         npt.NDArray[np.int_], 
@@ -166,10 +166,10 @@ def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
     return selected_index_pos, selected_columns_num, selected_columns_str, (tp_array, index_array, columns_array)
 
 
-def parse_slicer_s(TDF: vdata.tdf.TemporalDataFrameBase,
+def parse_slicer(TDF: vdata.tdf.TemporalDataFrameBase,
                    slicers: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) \
         -> tuple[npt.NDArray[np.int_], AnyNDArrayLike_IFS, AnyNDArrayLike_IFS]:
-    return parse_slicer(TDF, slicers)[:3]
+    return parse_slicer_full(TDF, slicers)[:3]
 
 
 def parse_values(values: Any,

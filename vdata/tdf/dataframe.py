@@ -16,13 +16,13 @@ import numpy_indexed as npi
 import pandas as pd
 
 import vdata.tdf as tdf
+import vdata.timepoint as tp
 from vdata._typing import IFS, AnyNDArrayLike_IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS, Slicer
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
 from vdata.tdf._parse import parse_data
 from vdata.tdf.base import TemporalDataFrameBase
-from vdata.tdf.utils import parse_slicer, parse_slicer_s, parse_values
-from vdata.timepoint import TimePoint
+from vdata.tdf.utils import parse_slicer, parse_slicer_full, parse_values
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
                  index: Collection_IFS | None = None,
                  repeating_index: bool = False,
                  columns: Collection[IFS] | None = None,
-                 time_list: Collection[IFS | TimePoint] | IFS | TimePoint | None = None,
+                 time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
                  time_col_name: str | None = None,
                  lock: tuple[bool, bool] | None = None,
                  name: str = NO_NAME):
@@ -149,7 +149,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     def __getitem__(self,
                     slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) -> TemporalDataFrameView:
-        index_slicer, column_num_slicer, column_str_slicer = parse_slicer_s(self, slicer)
+        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
 
         return tdf.TemporalDataFrameView(parent=self, 
                                          index_positions=index_slicer,
@@ -165,7 +165,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         # TODO : setattr if setting a single column
 
         index_positions, column_num_slicer, column_str_slicer, (_, index_array, columns_array) = \
-            parse_slicer(self, slicer)
+            parse_slicer_full(self, slicer)
 
         if columns_array is None:
             columns_array = self.columns
@@ -221,7 +221,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
                
         super().__init__(obj,
                          index=values['index'], 
-                         timepoints_array=values['timepoints_array'],
+                         timepoints_array=tp.TimePointArray(values['timepoints_array']),
                          numerical_array=values['numerical_array'],
                          string_array=values['string_array'],
                          columns_numerical=values['columns_numerical'],
@@ -248,7 +248,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     def read_from_csv(cls,
                       file: Path,
                       sep: str = ',',
-                      time_list: Collection[IFS | TimePoint] | IFS | TimePoint | None = None,
+                      time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
                       time_col_name: str | None = None) -> TemporalDataFrame:
         """
         Read a .csv file into a TemporalDataFrame.
@@ -390,11 +390,11 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if repeating_index:
             first_index = values[self.timepoints_column == self.timepoints[0]]
 
-            for tp in self.timepoints[1:]:
-                index_tp = values[self.timepoints_column == tp]
+            for timepoint in self.timepoints[1:]:
+                index_tp = values[self.timepoints_column == timepoint]
 
                 if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
-                    raise ValueError(f"Index at time-point {tp} is not equal to index at time-point "
+                    raise ValueError(f"Index at time-point {timepoint} is not equal to index at time-point "
                                      f"{self.timepoints[0]}.")
 
         elif not self.n_index == len(np.unique(values)):
@@ -442,8 +442,8 @@ class TemporalDataFrame(TemporalDataFrameBase):
         index_len_count = 0
         total_index = np.zeros((self.n_timepoints, len(index_)), dtype=int)
 
-        for tpi, tp in enumerate(self.timepoints):
-            i_at_tp = self.index_at(tp)
+        for tpi, timepoint in enumerate(self.timepoints):
+            i_at_tp = self.index_at(timepoint)
             total_index[tpi] = npi.indices(i_at_tp, index_) + index_len_count
             index_len_count += len(i_at_tp)
 
@@ -551,10 +551,10 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         if self.empty:
             combined_index = np.array([])
-            for tp in self.timepoints:
+            for timepoint in self.timepoints:
                 combined_index = np.concatenate((combined_index,
-                                                 self.index_at(tp),
-                                                 other.index_at(tp)))
+                                                 self.index_at(timepoint),
+                                                 other.index_at(timepoint)))
 
             _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
@@ -603,6 +603,6 @@ def _get_valid_mode(file: str | Path | ch.Group | ch.H5Dict[Any],
     return mode
 
 
-def _check_merge_index(tdf1: TemporalDataFrameBase, tdf2: TemporalDataFrameBase, timepoint: TimePoint) -> None:
+def _check_merge_index(tdf1: TemporalDataFrameBase, tdf2: TemporalDataFrameBase, timepoint: tp.TimePoint) -> None:
     if np.any(np.isin(tdf1.index_at(timepoint), tdf2.index_at(timepoint))):
         raise ValueError(f"TemporalDataFrames to merge have index values in common at time point '{timepoint}'.")

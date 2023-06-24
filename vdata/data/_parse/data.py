@@ -9,6 +9,7 @@ from anndata import AnnData
 from attrs import define, field
 from scipy.sparse import spmatrix
 
+import vdata.timepoint as tp
 from vdata._typing import NDArray_IFS
 from vdata.data._parse.objects import get_obs_index, get_var_index
 from vdata.data._parse.time import parse_time_list, parse_timepoints
@@ -16,7 +17,6 @@ from vdata.IO.errors import IncoherenceError
 from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
-from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
@@ -25,9 +25,9 @@ def _at_least_empty_dict(d: Mapping[Any, Any] | None) -> Mapping[Any, Any]:
     return {} if d is None else d
 
 
-def _get_time_list(time_list: TimePointArray | None,
+def _get_time_list(time_list: tp.TimePointArray | None,
                    data: Any,
-                   time_col_name: str | None) -> TimePointArray | None:
+                   time_col_name: str | None) -> tp.TimePointArray | None:
     if time_list is not None: 
         return time_list
     
@@ -41,7 +41,7 @@ def _get_time_list(time_list: TimePointArray | None,
             return df.timepoints_column
         
         elif isinstance(df, (pd.DataFrame, VDataFrame)) and time_col_name is not None:
-            return TimePointArray(df[time_col_name])
+            return tp.as_timepointarray(df[time_col_name])
     
     return None
     
@@ -52,7 +52,7 @@ def _valid_obs(data: pd.DataFrame |
                      Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | 
                      None,
                obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
-               time_list: TimePointArray | None,
+               time_list: tp.TimePointArray | None,
                time_col_name: str | None) \
     -> pd.DataFrame | VDataFrame | TemporalDataFrameBase:  
     if obs is None:
@@ -131,7 +131,7 @@ class ParsingDataIn:
     varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
     timepoints: VDataFrame
     time_col_name: str | None
-    time_list: TimePointArray | None
+    time_list: tp.TimePointArray | None
     uns: dict[str, Any] | ch.H5Dict[Any] = field(converter=_at_least_empty_dict)
     layers: dict[str, TemporalDataFrame | TemporalDataFrameView] = field(init=False)
     
@@ -153,7 +153,7 @@ class ParsingDataIn:
                      varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
                      timepoints: pd.DataFrame | VDataFrame | None,
                      time_col_name: str | None,
-                     time_list: Sequence[str | TimePoint] | None,
+                     time_list: Sequence[str | tp.TimePoint] | None,
                      uns: dict[str, Any] | ch.H5Dict[Any] | None) -> ParsingDataIn:    
         _time_list = parse_time_list(time_list, time_col_name, obs)
             
@@ -251,10 +251,10 @@ class ParsingDataOut:
                                         f"{layer.shape[0]}, should be {n_timepoints}.")
 
             elif layer.shape[1] != n_obs:
-                for tp_i, tp in enumerate(layer.timepoints):
-                    if layer.n_index_at(tp) != n_obs[tp_i]:
+                for tp_i, timepoint in enumerate(layer.timepoints):
+                    if layer.n_index_at(timepoint) != n_obs[tp_i]:
                         raise IncoherenceError(f"layer '{layer_name}' has incoherent number of observations "
-                                               f"{layer.n_index_at(tp)}, should be {n_obs[tp_i]}.")
+                                               f"{layer.n_index_at(timepoint)}, should be {n_obs[tp_i]}.")
 
             elif layer.shape[2] != n_var:
                 raise IncoherenceError(f"layer '{layer_name}' has incoherent number of variables "
@@ -279,6 +279,9 @@ class ParsingDataOut:
     @classmethod
     def from_h5(cls, data: ch.H5Dict[Any]) -> ParsingDataOut:        
         with ch.error_mode('raise'):
+            _timepoints = data['timepoints']
+            _timepoints.value = _timepoints.value.map(lambda x: tp.TimePoint(x))
+                        
             return ParsingDataOut(layers=data['layers'],
                                   obs=data['obs'],
                                   obsm=data['obsm'],
@@ -286,5 +289,5 @@ class ParsingDataOut:
                                   var=data['var'],
                                   varm=data['varm'],
                                   varp=data['varp'],
-                                  timepoints=data['timepoints'],
+                                  timepoints=_timepoints,
                                   uns=data['uns'])
