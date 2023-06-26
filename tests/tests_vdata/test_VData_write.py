@@ -1,98 +1,70 @@
-# coding: utf-8
-# Created on 11/20/20 11:04 AM
-# Author : matteo
-
-# ====================================================
-# imports
-import os
-import shutil
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import numpy as np
+import pytest
 import scanpy as sc
 from ch5mpy import H5Array, H5Dict
 
 import vdata
 
 
-# ====================================================
-# code
-def out_test_VData_write() -> None:
-    """
-    This test has the 'out_' prefix to exclude it from pytest since it is called by test_VData_read.
-    """
-    output_dir = Path(__file__).parent.parent / 'ref'
-
-    if os.path.exists(output_dir / 'vdata'):
-        shutil.rmtree(output_dir / 'vdata')
-
-    # create vdata
-    source_vdata_path = output_dir / 'sel_JB_scRNAseq'
-
-    adata = sc.read(source_vdata_path)
-
+@pytest.fixture
+def vdata_from_anndata() -> vdata.VData:
+    adata = sc.read(Path(__file__).parent.parent / 'ref' / 'sel_JB_scRNAseq.h5ad')
     adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
 
     v = vdata.VData(adata, time_col_name='tp', name='1')
-
-    uns = {"colors": ['blue', 'red', 'yellow'],
-           "date": '25/01/2021'}
-
-    v.uns = uns
-
-    # write vdata in h5 file format
-    v.write(output_dir / "vdata.vd")
-
-    # write vdata in csv files
-    v.write_to_csv(output_dir / "vdata")
-
-    v.close()
+    v.uns = {"colors": ['blue', 'red', 'yellow'],
+             "date": '25/01/2021'}
+    
+    return v
 
 
-def test_VData_view_write() -> None:
-    output_dir = Path(__file__).parent.parent / 'ref'
+def test_VData_can_write_in_h5(vdata_from_anndata) -> None:
+    with NamedTemporaryFile(mode='a', suffix='.vd') as file:
+        vdata_from_anndata.write(file.name)
 
-    if os.path.exists(output_dir / 'sub_vdata'):
-        shutil.rmtree(output_dir / 'sub_vdata')
 
-    # create vdata
-    source_vdata_path = output_dir / 'sel_JB_scRNAseq'
+def test_VData_can_write_in_csv(vdata_from_anndata) -> None:
+    with TemporaryDirectory() as dir:
+        vdata_from_anndata.write_to_csv(dir)
 
-    adata = sc.read(source_vdata_path)
 
-    adata.obs['tp'] = adata.obs.Time_hour.astype(str) + 'h'
-
-    v = vdata.VData(adata, time_col_name='tp')
-
+def test_VData_view_can_write_in_h5(vdata_from_anndata) -> None:
     list_cells = ['plate2_H12_G01_G10', 'plate1_A09_A09_A12', 'plate2_H12_D01_H10', 'plate1_A01_A01_B01']
     list_genes = ['ENSG00000260919.1', 'ENSG00000267586.6', 'ENSG00000268595.1', 'ENSG00000255794.7']
 
-    sub_v = v[:, list_cells, list_genes]
+    sub_v = vdata_from_anndata[:, list_cells, list_genes]
 
-    # write vdata in h5 file format
-    sub_v.write(output_dir / "sub_vdata.vd")
+    with NamedTemporaryFile(mode='a', suffix='.vd') as file:
+        sub_v.write(file.name)
 
-    # write vdata in csv files
-    sub_v.write_to_csv(output_dir / "sub_vdata")
+
+def test_VData_view_can_write_in_csv(vdata_from_anndata) -> None:
+    list_cells = ['plate2_H12_G01_G10', 'plate1_A09_A09_A12', 'plate2_H12_D01_H10', 'plate1_A01_A01_B01']
+    list_genes = ['ENSG00000260919.1', 'ENSG00000267586.6', 'ENSG00000268595.1', 'ENSG00000255794.7']
+
+    sub_v = vdata_from_anndata[:, list_cells, list_genes]
+    
+    with TemporaryDirectory() as dir:
+        sub_v.write_to_csv(dir)
 
 
 def test_VData_write_should_convert_uns_to_BackedDict() -> None:
     v = vdata.VData(uns={'test': np.array([1, 2, 3])})
 
-    tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
-    v.write(tmp_file.name)
-
-    assert isinstance(v.uns, H5Dict)
+    with NamedTemporaryFile(mode='w+b', suffix='.vd') as tmp_file:
+        v.write(tmp_file.name)
+        assert isinstance(v.uns, H5Dict)
 
 
 def test_VData_write_should_convert_uns_arrays_to_datasetProxies() -> None:
     v = vdata.VData(uns={'test': np.array([1, 2, 3])})
 
-    tmp_file = NamedTemporaryFile(mode='w+b', suffix='.vd')
-    v.write(tmp_file.name)
-
-    assert isinstance(v.uns['test'], H5Array)
+    with NamedTemporaryFile(mode='w+b', suffix='.vd') as tmp_file:
+        v.write(tmp_file.name)
+        assert isinstance(v.uns['test'], H5Array)
 
 
 def test_backed_VData_new_layer_should_be_backed(backed_VData: vdata.VData) -> None:
