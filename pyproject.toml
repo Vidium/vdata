@@ -1,3 +1,53 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vdata"
+description = "Annotated multivariate observation of timestamped data"
+version = "1.0rc1"
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Matteo Bouvier", email = "m.bouvier@vidium-solutions.com"}
+]
+maintainers = [
+    {name = "Matteo Bouvier", email = "m.bouvier@vidium-solutions.com"}
+]
+readme = {file = "README.md", content-type="text/markdown"}
+dependencies = [
+    "ch5mpy",
+    "numpy",
+    "tqdm"
+]
+keywords = [
+    "h5df",
+    "h5py",
+    "data storage",
+    "data manipulation",
+    "anndata"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: CeCILL-B Free Software License Agreement (CECILL-B)",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: File Formats",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed"
+]
+
+[project.urls]
+Documentation = "https://vdata.readthedocs.io/"
+Source = "https://github.com/Vidium/vdata"
+
 [tool.ruff]
 line-length = 120
 

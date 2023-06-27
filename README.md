@@ -1,4 +1,4 @@
-# VData - Annotated multivariate observation data with time dimension.
+# VData - Annotated multivariate observation of timestamped data.
 
 VData provides a container for simulated data across time points, heavily inspired by the AnnData project 
 (https://anndata.readthedocs.io/en/latest/).
