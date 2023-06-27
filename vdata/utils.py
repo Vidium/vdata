@@ -175,10 +175,6 @@ def slicer_to_array(slicer: PreSlicer,
     return np.array(slicer)[np.where(np.in1d(slicer, reference_index))]     # type: ignore[arg-type]
 
 
-def as_timepointarray(obj: NDArray_IFS | None) -> tp.TimePointArray | None:
-    return None if obj is None else tp.as_timepointarray(obj)
-
-
 def reformat_index(index: PreSlicer |
                           tuple[PreSlicer] |
                           tuple[PreSlicer, PreSlicer] |
@@ -206,120 +202,12 @@ def reformat_index(index: PreSlicer |
         index = (index,)
         
     index = index + (...,) * (3 - len(index))
+    _tp_slicer = slicer_to_array(index[0], timepoints_reference)
         
-    return as_timepointarray(slicer_to_array(index[0], timepoints_reference)), \
+    return None if _tp_slicer is None else tp.as_timepointarray(_tp_slicer), \
         slicer_to_array(index[1], obs_reference), \
         slicer_to_array(index[2], var_reference)
-
-
-# Identification ---------------------------------------------------------
-def smart_isin(element: Any, 
-               target_collection: Collection[Any]) -> bool | npt.NDArray[np.bool_]:
-    """
-    Returns a boolean array of the same length as 'element' that is True where an element of 'element' is in
-    'target_collection' and False otherwise.
-    Here, elements are parsed to ints and floats when possible to assess equality. This allows to recognize that '0'
-    is the same as 0.0 .
     
-    Args:
-        element: 1D array of elements to test.
-        target_collection: 1D array of allowed elements.
-    """
-    raise NotImplementedError('probably useless')
-
-    if not isCollection(target_collection):
-        raise TypeError(f"Invalid type {type(target_collection)} for 'target_collection' parameter.")
-
-    target_collection = set(target_collection)
-
-    if not isCollection(element):
-        return bool(len({element} & target_collection))
-    
-    return np.array([len({e} & target_collection) for e in element], dtype=bool)
-
-
-def as_list(value: Any) -> list[Any]:
-    """
-    Convert any object to a list.
-    :param value: an object to convert to a list.
-    :return: a list.
-    """
-    if isCollection(value):
-        return list(value)
-
-    else:
-        return [value]
-
-
-def as_tp_list(item: Any, 
-               reference_timepoints: tp.TimePointArray | None = None) -> list[tp.TimePoint | list[tp.TimePoint]]:
-    """
-    Converts a given object to a list of TimePoints (or list of list of TimePoints ...).
-
-    :param item: an object to convert to tuple of TimePoints.
-    :param reference_timepoints: an optional list of TimePoints that can exist. Used to parse the '*' character.
-
-    :return: a (nested) list of TimePoints.
-    """
-    new_tp_list: list[tp.TimePoint | list[tp.TimePoint]] = []
-    ref = tp.TimePointArray([0], unit='h') if reference_timepoints is None or not len(reference_timepoints) \
-        else reference_timepoints
-
-    for v in as_list(item):
-        if isinstance(v, tp.TimePoint):
-            new_tp_list.append(v)
-            
-        elif isCollection(v):
-            new_tp_list.append([tp.TimePoint(tp) for tp in v])
-
-        elif v == '*':
-            if len(ref) == 1:
-                new_tp_list.append(ref[0])
-
-            else:
-                new_tp_list.append(ref.tolist())
-
-        elif isinstance(v, (int, float, np.int_, np.float_)):
-            new_tp_list.append(tp.TimePoint(str(v) + 'h'))
-
-        else:
-            new_tp_list.append(tp.TimePoint(v))
-
-    return new_tp_list
-
-
-def match_timepoints(tp_list: tp.TimePointArray, 
-                     tp_index: tp.TimePointArray) -> npt.NDArray[np.bool_]:
-    """
-    Find where in the tp_list the values in tp_index are present. This function parses the tp_list to understand the
-        '*' character (meaning the all values in tp_index match) and tuples of time points.
-        
-    Args:
-        tp_list: the time points columns in a TemporalDataFrame.
-        tp_index: a collection of target time points to match in tp_list.
-    
-    Returns:
-        A list of booleans of the same length as tp_list, where True indicates that a value in tp_list matched
-        a value in tp_index.
-    """
-    tp_index = np.unique(tp_index, equal_nan=False)     # type: ignore[assignment]
-    _tp_list = as_tp_list(tp_list)
-
-    mask = np.array([False for _ in range(len(_tp_list))], dtype=bool)
-
-    if len(tp_index):
-        for tp_i, tp_value in enumerate(_tp_list):
-            if isCollection(tp_value):
-                for one_tp_value in tp_value:
-                    if smart_isin(one_tp_value, tp_index):
-                        mask[tp_i] = True
-                        break
-
-            elif np.in1d(tp_value, tp_index):           # type: ignore[arg-type]
-                mask[tp_i] = True
-
-    return mask
-
 
 # Representation ---------------------------------------------------------
 def repr_index(index: None |

@@ -10,7 +10,7 @@ import vdata
 import vdata.timepoint as tp
 from vdata.IO.logger import generalLogger
 from vdata.names import DEFAULT_TIME_COL_NAME
-from vdata.utils import as_tp_list, match_timepoints, repr_array
+from vdata.utils import repr_array
 
 
 def convert_vdata_to_anndata(data: vdata.VData,
@@ -44,9 +44,8 @@ def convert_vdata_to_anndata(data: vdata.VData,
         _timepoints_list = data.timepoints_values
 
     else:
-        _timepoints_list = tp.TimePointArray(as_tp_list(timepoints_list))
-        _timepoints_list = tp.atleast_1d(_timepoints_list[np.where(match_timepoints(_timepoints_list, 
-                                                                                 data.timepoints_values))])
+        _timepoints_list = tp.as_timepointarray(timepoints_list)
+        _timepoints_list = tp.atleast_1d(_timepoints_list[np.where(np.in1d(_timepoints_list, data.timepoints_values))])
 
     generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
 

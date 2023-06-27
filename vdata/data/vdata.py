@@ -31,7 +31,7 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
-from vdata.utils import as_tp_list, reformat_index, repr_index
+from vdata.utils import reformat_index, repr_index
 from vdata.vdataframe import VDataFrame
 
 
@@ -369,8 +369,7 @@ class VData:
         elif 'value' not in df.columns:
             raise ValueError("Time points DataFrame should contain a 'value' column.")
 
-        # cast time points to TimePoint objects
-        df['value'] = as_tp_list(df['value'])
+        df['value'] = tp.as_timepointarray(df['value'])
         self._timepoints = VDataFrame(df)
 
     @property

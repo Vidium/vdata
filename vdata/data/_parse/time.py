@@ -9,7 +9,7 @@ import vdata.timepoint as tp
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrameBase
-from vdata.utils import as_tp_list, first_in, match_timepoints
+from vdata.utils import first_in
 from vdata.vdataframe import VDataFrame
 
 if TYPE_CHECKING:
@@ -47,9 +47,7 @@ def parse_timepoints(timepoints: pd.DataFrame | VDataFrame | None) -> VDataFrame
     if 'value' not in timepoints.columns:
         raise ValueError("'time points' must have at least a column 'value' to store time points value.")
 
-    # FIXME : remove as_tp_list()
-    timepoints["value"] = sorted(as_tp_list(timepoints["value"]))
-
+    timepoints["value"] = sorted(tp.as_timepointarray(timepoints["value"]))
     timepoints = VDataFrame(timepoints)
     log_timepoints(timepoints)
     
@@ -75,10 +73,10 @@ def check_time_match(data: ParsingDataIn) -> None:
         return
 
     # check that timepoints and _time_list and _time_col_name match
-    if data.time_list is not None and not all(match_timepoints(data.time_list, 
-                                                               tp.as_timepointarray(data.timepoints.value))):
+    if data.time_list is not None and not np.all(np.in1d(data.time_list, 
+                                                         tp.as_timepointarray(data.timepoints.value))):
         raise ValueError("There are values in 'time_list' unknown in 'timepoints'.")
 
-    elif data.time_col_name is not None and not all(match_timepoints(tp.as_timepointarray(data.obs.timepoints), 
-                                                                     tp.as_timepointarray(data.timepoints.value))):
+    elif data.time_col_name is not None and not np.all(np.in1d(tp.as_timepointarray(data.obs.timepoints), 
+                                                               tp.as_timepointarray(data.timepoints.value))):
         raise ValueError(f"There are values in obs['{data.time_col_name}'] unknown in 'timepoints'.")
