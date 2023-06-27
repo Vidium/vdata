@@ -19,11 +19,12 @@ from vdata.data.arrays import (
     VVarpArrayContainerView,
 )
 from vdata.data.file import NoData
+from vdata.data.utils import reformat_index
 from vdata.data.write import write_vdata, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
-from vdata.utils import reformat_index, repr_array, repr_index
+from vdata.utils import repr_array, repr_index
 from vdata.vdataframe import VDataFrame, ViewVDataFrame
 
 

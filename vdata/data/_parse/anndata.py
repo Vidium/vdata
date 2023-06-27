@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Collection
 
 import numpy as np
 import numpy.typing as npt
@@ -9,7 +9,6 @@ from scipy.sparse import spmatrix
 from vdata.data._parse.data import ParsingDataIn, ParsingDataOut
 from vdata.data._parse.time import check_time_match
 from vdata.data._parse.utils import log_timepoints
-from vdata.data.utils import array_isin
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import deep_dict_convert
@@ -24,6 +23,21 @@ def _no_dense_data(_data: npt.NDArray[Any] | spmatrix) -> npt.NDArray[Any]:
         raise NotImplementedError
 
     return _data
+
+
+def array_isin(array: npt.NDArray[Any], 
+               list_arrays: npt.NDArray[Any] | Collection[npt.NDArray[Any]]) -> bool:
+    """
+    Whether a given array is in a collection of arrays.
+    :param array: an array.
+    :param list_arrays: a collection of arrays.
+    :return: whether the array is in the collection of arrays.
+    """
+    for target_array in list_arrays:
+        if np.array_equal(array, target_array):
+            return True
+
+    return False
 
 
 def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:

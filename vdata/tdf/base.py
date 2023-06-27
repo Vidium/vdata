@@ -28,7 +28,6 @@ from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.tdf import indexer
 from vdata.tdf._parse import parse_data_h5
-from vdata.tdf.utils import equal_paths, underlined
 from vdata.utils import are_equal, first_in, repr_array
 
 if TYPE_CHECKING:
@@ -41,6 +40,14 @@ if TYPE_CHECKING:
     )
     from vdata.tdf.view import TemporalDataFrameView
 
+
+def underlined(text: str) -> str:
+    return text + "\n" + "\u203e" * len(text)
+
+
+def equal_paths(p1: str | Path, p2: str | Path) -> bool:
+    return Path(p1).expanduser().resolve() == Path(p2).expanduser().resolve()
+        
 
 class TemporalDataFrameBase(ABC):
     """
@@ -866,7 +873,7 @@ class TemporalDataFrameBase(ABC):
 
         repr_string = ""
 
-        for timepoint in self.timepoints[:5]:
+        for timepoint in self.timepoints[:5]:            
             # display the first n rows of the first 5 timepoints in this TemporalDataFrame
             repr_string += underlined(f"Time point : {repr(timepoint)}") + "\n"
 

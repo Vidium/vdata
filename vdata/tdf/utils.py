@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
@@ -206,11 +205,3 @@ def parse_values(values: Any,
         return values.reshape((len(values), 1))
 
     raise ValueError(f"Can't set {len_index} x {len_columns} values from {values.shape} array.")
-
-
-def underlined(text: str) -> str:
-    return text + "\n" + "\u203e" * len(text)
-
-
-def equal_paths(p1: str | Path, p2: str | Path) -> bool:
-    return Path(p1).expanduser().resolve() == Path(p2).expanduser().resolve()

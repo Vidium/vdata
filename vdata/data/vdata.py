@@ -21,6 +21,7 @@ from vdata.data.arrays import (
 from vdata.data.convert import convert_vdata_to_anndata
 from vdata.data.file import NoData
 from vdata.data.read import read_from_csv
+from vdata.data.utils import reformat_index
 from vdata.data.view import VDataView
 from vdata.data.write import write_vdata, write_vdata_to_csv
 from vdata.IO import (
@@ -31,7 +32,7 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
-from vdata.utils import reformat_index, repr_index
+from vdata.utils import repr_index
 from vdata.vdataframe import VDataFrame
 
 
