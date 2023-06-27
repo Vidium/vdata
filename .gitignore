@@ -12,3 +12,4 @@ venv_vdata
 *.dot
 *.csv
 *.json
+vdata.egg-info/
