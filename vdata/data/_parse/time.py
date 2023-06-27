@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def parse_time_list(time_list: Sequence[str | tp.TimePoint] | None,
+def parse_time_list(time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None,
                     time_col_name: str | None,
                     obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None) -> tp.TimePointArray | None:
     if time_list is not None:

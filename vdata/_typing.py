@@ -5,9 +5,9 @@ import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
 
+import vdata.timepoint as tp
 from vdata.array_view import NDArrayView
 from vdata.timedict import TimeDict
-from vdata.timepoint import TimePoint
 
 _T = TypeVar('_T')
 _T_NP = TypeVar('_T_NP', bound=np.generic)
@@ -32,8 +32,8 @@ Collection_IFS = Collection[np.int_ | int | np.float_ | float | np.str_ | str]
 DictLike = Union[dict[str, _T], ch.H5Dict[_T]]
 AnyDictLike = Union[dict[str, _T], ch.H5Dict[_T], TimeDict]
 
-Slicer = Union[IFS, TimePoint, Collection[Union[IFS, TimePoint]], range, slice, EllipsisType]
-PreSlicer = Union[IFS, TimePoint, Collection[Union[IFS, bool, TimePoint]], range, slice, EllipsisType]
+Slicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, tp.TimePoint]], range, slice, EllipsisType]
+PreSlicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, bool, tp.TimePoint]], range, slice, EllipsisType]
 
 NumberType = Union[int, float, np.int_, np.float_]
 

@@ -148,7 +148,7 @@ def slice_or_range_to_list(s: slice | range, _c: Collection[Any]) -> list[Any]:
 
 
 def slicer_to_array(slicer: PreSlicer,
-                    reference_index: AnyNDArrayLike_IFS) -> NDArray_IFS | None:
+                    reference_index: AnyNDArrayLike_IFS | tp.TimePointArray) -> NDArray_IFS | None:
     """
     Format a slicer into an array of allowed values given in the 'reference_index' parameter.
 
@@ -170,9 +170,9 @@ def slicer_to_array(slicer: PreSlicer,
         return np.array(reference_index)[np.where(slicer.flatten())]
 
     if not isCollection(slicer):
-        slicer = [slicer]
-
-    return np.array(slicer)[np.where(np.in1d(slicer, reference_index))]
+        return np.array([slicer]) if slicer in reference_index else np.array([])
+        
+    return np.array(slicer)[np.where(np.in1d(slicer, reference_index))]     # type: ignore[arg-type]
 
 
 def as_timepointarray(obj: NDArray_IFS | None) -> tp.TimePointArray | None:
@@ -262,7 +262,7 @@ def as_tp_list(item: Any,
     :return: a (nested) list of TimePoints.
     """
     new_tp_list: list[tp.TimePoint | list[tp.TimePoint]] = []
-    ref = tp.TimePointArray([tp.TimePoint('0h')]) if reference_timepoints is None or not len(reference_timepoints) \
+    ref = tp.TimePointArray([0], unit='h') if reference_timepoints is None or not len(reference_timepoints) \
         else reference_timepoints
 
     for v in as_list(item):
@@ -302,7 +302,7 @@ def match_timepoints(tp_list: tp.TimePointArray,
         A list of booleans of the same length as tp_list, where True indicates that a value in tp_list matched
         a value in tp_index.
     """
-    tp_index = np.unique(tp_index, equal_nan=False)
+    tp_index = np.unique(tp_index, equal_nan=False)     # type: ignore[assignment]
     _tp_list = as_tp_list(tp_list)
 
     mask = np.array([False for _ in range(len(_tp_list))], dtype=bool)
@@ -315,7 +315,7 @@ def match_timepoints(tp_list: tp.TimePointArray,
                         mask[tp_i] = True
                         break
 
-            elif np.in1d(tp_value, tp_index):
+            elif np.in1d(tp_value, tp_index):           # type: ignore[arg-type]
                 mask[tp_i] = True
 
     return mask

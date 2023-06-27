@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from numbers import Number
-
 import numpy as np
 
 from vdata._meta import PrettyRepr
@@ -31,7 +29,7 @@ class TimePoint(metaclass=PrettyRepr):
 
     # region magic methods
     def __init__(self, 
-                 value: TimePoint | Number | bool | str | bytes,
+                 value: TimePoint | int | float | np.int_ | np.float_ | bool | str | bytes,
                  unit: _TIME_UNIT | None = None) -> None:
         """
         Args:
@@ -48,20 +46,20 @@ class TimePoint(metaclass=PrettyRepr):
 
         if isinstance(value, TimePoint):
             self.value: float = value.value
-            self._unit = value._unit if unit is None else 'h'
+            self._unit: _TIME_UNIT = value._unit if unit is None else unit
 
-        elif isinstance(value, (Number, bool)):
+        elif isinstance(value, (int, float, np.int_, np.float_, bool)):
             self.value = float(value)
-            self._unit = unit if unit is not None else 'h'
+            self._unit = 'h' if unit is None else unit
 
         elif isinstance(value, str):
             if value.endswith(('s', 'm', 'h', 'D', 'M', 'Y')):
                 self.value = float(value[:-1])
-                self._unit = value[-1] if unit is None else 'h'
+                self._unit = value[-1] if unit is None else unit        # type: ignore[assignment]
 
             else:
                 self.value = float(value)
-                self._unit = unit if unit is not None else 'h'
+                self._unit = 'h' if unit is None else unit
 
         else:
             raise ValueError(f"Invalid value '{value}' with type '{type(value)}'.")
@@ -88,13 +86,13 @@ class TimePoint(metaclass=PrettyRepr):
         return self.value_as('s') < other.value_as('s')
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, TimePoint):
-            if not isinstance(other, (Number, str)):
-                return False
-
+        if isinstance(other, TimePoint):
+            return self.value_as('s') == other.value_as('s')
+        
+        if isinstance(other, (int, float, np.int_, np.float_, str)):
             other = TimePoint(other)
-
-        return self.value_as('s') == other.value_as('s')
+        
+        return False        
 
     def __ge__(self, other: TimePoint) -> bool:
         return self.value_as('s') >= other.value_as('s')
@@ -102,19 +100,19 @@ class TimePoint(metaclass=PrettyRepr):
     def __le__(self, other: TimePoint) -> bool:
         return self.value_as('s') <= other.value_as('s')
     
-    def __add__(self, other: TimePoint | Number) -> TimePoint:
-        if isinstance(other, Number):
-            return TimePoint(self.value + other, self.unit)
+    def __add__(self, other: TimePoint | int | float | np.int_ | np.float_) -> TimePoint:
+        if isinstance(other, (int, float, np.int_, np.float_)):
+            return TimePoint(self.value + float(other), self.unit)
             
         if _TIME_UNIT_ORDER[self._unit] > _TIME_UNIT_ORDER[other._unit]:
             return TimePoint(self.value + other.value_as(self._unit), self._unit)
         
         return TimePoint(self.value_as(other._unit) + other.value, other._unit)
     
-    def __mul__(self, other: Number) -> TimePoint:
+    def __mul__(self, other: int | float | np.int_ | np.float_) -> TimePoint:
         return TimePoint(self.value * other, unit=self.unit)
     
-    def __truediv__(self, other: Number) -> TimePoint:
+    def __truediv__(self, other: int | float | np.int_ | np.float_) -> TimePoint:
         return TimePoint(self.value / other, unit=self.unit)
     
     # endregion

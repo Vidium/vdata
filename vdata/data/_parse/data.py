@@ -153,7 +153,7 @@ class ParsingDataIn:
                      varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
                      timepoints: pd.DataFrame | VDataFrame | None,
                      time_col_name: str | None,
-                     time_list: Sequence[str | tp.TimePoint] | None,
+                     time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None,
                      uns: dict[str, Any] | ch.H5Dict[Any] | None) -> ParsingDataIn:    
         _time_list = parse_time_list(time_list, time_col_name, obs)
             

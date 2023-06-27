@@ -527,7 +527,7 @@ class TemporalDataFrameBase(ABC):
         Get the list of unique time points in this TemporalDataFrame.
         """
         unique_timepoints_idx = np.unique(self._timepoints_array, equal_nan=False, return_index=True)[1].astype(int)
-        return self._timepoints_array[sorted(unique_timepoints_idx)]
+        return tp.atleast_1d(self._timepoints_array[sorted(unique_timepoints_idx)])
 
     @property
     def timepoints_column(self) -> tp.TimePointArray:

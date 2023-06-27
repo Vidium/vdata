@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from functools import partial
 from types import EllipsisType
-from typing import Any, Callable, Sequence, SupportsIndex, TypeVar, overload
+from typing import Any, Callable, Collection, Iterable, Mapping, SupportsIndex, cast, overload
 
 import ch5mpy as ch
 import numpy as np
@@ -18,40 +18,38 @@ from vdata.timepoint.range import TimePointRange
 from vdata.timepoint.timepoint import _TIME_UNIT_ORDER, TimePoint
 from vdata.utils import isCollection
 
-_T_NP = TypeVar('_T_NP', bound=np.generic)
 
-
-def _add_unit(match: re.Match, unit: _TIME_UNIT) -> str:
-    number = match.group(0)
+def _add_unit(match: re.Match[Any], unit: _TIME_UNIT) -> str:
+    number = str(match.group(0))
     if number.endswith('.'):
         number += '0'
     return number + unit
 
 
-class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
+class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
     
     # region magic methods
     def __new__(cls, 
-                arr: Sequence[np.number], 
+                arr: Collection[int | float | np.int_ | np.float_], 
                 /, *, 
                 unit: _TIME_UNIT | None = None) -> TimePointArray:       
         if isinstance(arr, TimePointArray):
             unit = arr.unit
         
-        arr = np.asarray(arr, dtype=np.float64).view(cls)
-        arr._unit = unit or 'h'
-        return arr
+        np_arr = np.asarray(arr, dtype=np.float64).view(cls)
+        np_arr._unit = unit or 'h'
+        return np_arr
                     
     @classmethod
     def __h5_read__(self, values: ch.H5Dict[Any]) -> TimePointArray:
         return TimePointArray(values['array'], unit=values.attributes['unit'])
     
-    def __array_finalize__(self, obj: TimePointArray | None) -> None:
+    def __array_finalize__(self, obj: npt.NDArray[np.float_] | None) -> None:
         if self.ndim == 0:
             self.shape = (1,)
             
         if obj is not None:                 
-            self._unit = getattr(obj, '_unit', None)
+            self._unit: _TIME_UNIT = getattr(obj, '_unit', 'h')
     
     def __repr__(self) -> str:
         if self.size:
@@ -64,7 +62,7 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
                         partial(_add_unit, unit=self._unit), 
                         str(self.__array__()))
     
-    @overload
+    @overload                                               # type: ignore[override]
     def __getitem__(self, key: SupportsIndex) -> TimePoint: ...
     @overload
     def __getitem__(self, key: tuple[()] | EllipsisType | slice | range) -> TimePointArray: ...
@@ -81,7 +79,7 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
         if isinstance(res, TimePointArray):
             return res
         
-        return TimePoint(res, unit=self._unit)
+        return TimePoint(cast(np.float64, res), unit=self._unit)
     
     def __array_ufunc__(self, 
                         ufunc: np.ufunc,
@@ -101,10 +99,10 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
     def __array_function__(
         self,
         func: Callable[..., Any],
-        types: tuple[type, ...],
-        args: tuple[Any, ...],
-        kwargs: dict[str, Any],
-    ) -> npt.NDArray[Any]:
+        types: Iterable[type],
+        args: Iterable[Any],
+        kwargs: Mapping[str, Any],
+    ) -> Any:
         if func not in HANDLED_FUNCTIONS:
             return super().__array_function__(func, types, args, kwargs)
 
@@ -124,18 +122,19 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
     # endregion
     
     # region methods
-    def astype(self, dtype: npt.DTypeLike[_T_NP], copy: bool = True) -> npt.NDArray[_T_NP]:
+    def astype(self, dtype: npt.DTypeLike, copy: bool = True) -> npt.NDArray[Any]:     # type: ignore[override]
         return np.array(self, dtype=dtype)
-    
-    def min(self, 
+        
+    def min(self,       # type: ignore[override]
             axis: Any = None,
             out: Any = None,
             keepdims: Any = None,
             initial: int | float | NoValue = NoValue,
             where: bool | npt.NDArray[np.bool_] = True) -> TimePoint:
+        np.ndarray.min
         return TimePoint(np.min(np.array(self), initial=initial, where=where), unit=self._unit)
     
-    def max(self, 
+    def max(self,       # type: ignore[override] 
             axis: Any = None,
             out: Any = None,
             keepdims: Any = None,
@@ -143,7 +142,7 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
             where: bool | npt.NDArray[np.bool_] = True) -> TimePoint:
         return TimePoint(np.max(np.array(self), initial=initial, where=where), unit=self._unit)
     
-    def mean(self, 
+    def mean(self,       # type: ignore[override] 
              axis: Any = None,
              dtype: Any = None,
              out: Any = None,
@@ -154,7 +153,10 @@ class TimePointArray(np.ndarray[Any, np.float64], metaclass=PrettyRepr):
     # endregion
 
 def atleast_1d(obj: Any) -> TimePointArray:
-    if isinstance(obj, Sequence):
+    if isinstance(obj, TimePointArray):
+        return obj
+    
+    if isinstance(obj, Collection):
         return TimePointArray(obj)
     
     return TimePointArray([obj])
@@ -167,8 +169,10 @@ def as_timepointarray(time_list: Any,
         return time_list
     
     if isinstance(time_list, TimePointRange):
-        return TimePointArray(np.arange(float(range.start), float(range.stop), float(range.step)),
-                              unit=range.unit)
+        return TimePointArray(
+            np.arange(float(time_list.start), float(time_list.stop), float(time_list.step)),
+            unit=time_list.unit
+        )
     
     if not isCollection(time_list):
         time_list = [time_list]

@@ -7,10 +7,10 @@ import numpy.typing as npt
 
 import vdata.timepoint as tp
 
-HANDLED_FUNCTIONS: dict[np.ufunc, Callable[..., Any]] = {}
+HANDLED_FUNCTIONS: dict[Callable[..., Any], Callable[..., Any]] = {}
 
 
-def implements(np_function: np.ufunc) -> Callable[..., Any]:
+def implements(np_function: Callable[..., Any]) -> Callable[..., Any]:
     """Register an __array_function__ implementation for H5Array objects."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:

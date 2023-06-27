@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-# import os
-# import shutil
 from pathlib import Path
 from typing import Collection
 
@@ -9,18 +7,14 @@ import numpy as np
 from anndata import AnnData
 
 import vdata
+import vdata.timepoint as tp
 from vdata.IO.logger import generalLogger
 from vdata.names import DEFAULT_TIME_COL_NAME
-
-# import ch5mpy as ch
-# import numpy as np
-# from vdata.IO import generalLogger
-from vdata.timepoint import TimePoint, TimePointArray, atleast_1d
 from vdata.utils import as_tp_list, match_timepoints, repr_array
 
 
 def convert_vdata_to_anndata(data: vdata.VData,
-                             timepoints_list: str | TimePoint | Collection[str | TimePoint] | None = None,
+                             timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
                              into_one: bool = True,
                              with_timepoints_column: bool = True,
                              layer_as_X: str | None = None,
@@ -50,8 +44,8 @@ def convert_vdata_to_anndata(data: vdata.VData,
         _timepoints_list = data.timepoints_values
 
     else:
-        _timepoints_list = TimePointArray(as_tp_list(timepoints_list))
-        _timepoints_list = atleast_1d(_timepoints_list[np.where(match_timepoints(_timepoints_list, 
+        _timepoints_list = tp.TimePointArray(as_tp_list(timepoints_list))
+        _timepoints_list = tp.atleast_1d(_timepoints_list[np.where(match_timepoints(_timepoints_list, 
                                                                                  data.timepoints_values))])
 
     generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
@@ -68,7 +62,7 @@ def convert_vdata_to_anndata(data: vdata.VData,
     
 def _convert_vdata_into_one_anndata(data: vdata.VData,
                                     with_timepoints_column: bool,
-                                    timepoints_list: TimePointArray,
+                                    timepoints_list: tp.TimePointArray,
                                     layer_as_X: str | None,
                                     layers_to_export: list[str] | None) -> AnnData:
     generalLogger.debug("Convert to one AnnData object.")
@@ -111,7 +105,7 @@ def _convert_vdata_into_one_anndata(data: vdata.VData,
 
 
 def _convert_vdata_into_many_anndatas(data: vdata.VData,
-                                      timepoints_list: TimePointArray,
+                                      timepoints_list: tp.TimePointArray,
                                       layer_as_X: str | None) -> list[AnnData]:
     generalLogger.debug("Convert to many AnnData objects.")
 
@@ -145,7 +139,7 @@ def _convert_vdata_into_many_anndatas(data: vdata.VData,
     return result
 
 def convert_anndata_to_vdata(file: Path | str,
-                             time_point: int | float | str | TimePoint = '0h',
+                             time_point: int | float | str | tp.TimePoint = '0h',
                              time_column_name: str | None = None,
                              inplace: bool = False) -> None:
     """

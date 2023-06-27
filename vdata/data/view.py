@@ -76,8 +76,8 @@ class VDataView:
                                      slice(None) if obs_slicer is None else obs_slicer]
 
         # recompute time points and obs slicers since there could be empty subsets
-        _tp_slicer = parent.timepoints.value.values if timepoints_slicer is None else timepoints_slicer
-        self._timepoints_slicer = _tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)]
+        _tp_slicer = tp.as_timepointarray(parent.timepoints.value) if timepoints_slicer is None else timepoints_slicer
+        self._timepoints_slicer = tp.atleast_1d(_tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)])
         self._timepoints = ViewVDataFrame(self._parent.timepoints,
                                           index_slicer=np.in1d(self._parent.timepoints.value, self._timepoints_slicer))
 

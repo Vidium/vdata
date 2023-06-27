@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from numbers import Number
+import numpy as np
 
 from vdata.timepoint._typing import _TIME_UNIT
 from vdata.timepoint.timepoint import TimePoint
@@ -43,9 +43,9 @@ class TimePointRange:
 
     # region magic methods
     def __init__(self,
-                 start: str | Number | TimePoint,
-                 stop: str | Number | TimePoint,
-                 step: str | Number | TimePoint | None = None,
+                 start: np.int_ | int | np.float_ | float | np.str_ | str | TimePoint,
+                 stop: np.int_ | int | np.float_ | float | np.str_ | str | TimePoint,
+                 step: np.int_ | int | np.float_ | float | np.str_ | str | TimePoint | None = None,
                  unit: _TIME_UNIT | None = None):        
         self._start = TimePoint(start, unit=unit)
         self._stop = TimePoint(stop, unit=unit)

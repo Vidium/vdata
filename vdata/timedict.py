@@ -5,7 +5,7 @@ from typing import Iterator, MutableMapping
 import numpy as np
 
 import vdata
-from vdata.timepoint import TimePoint
+import vdata.timepoint as tp
 from vdata.vdataframe import VDataFrame
 
 
@@ -21,7 +21,7 @@ class TimeDict(MutableMapping[str, VDataFrame]):
     def __getitem__(self, key: str) -> VDataFrame:
         return self._dict[key]
 
-    def get_timepoint(self, key: str, timepoint: TimePoint | str) -> VDataFrame | np.int_ | np.float_ | np.str_:
+    def get_timepoint(self, key: str, timepoint: tp.TimePoint | str) -> VDataFrame | np.int_ | np.float_ | np.str_:
         index = self._vdata.obs.index_at(timepoint)
         return self._dict[key].loc[index, index]
 

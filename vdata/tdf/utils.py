@@ -12,7 +12,6 @@ import vdata.tdf
 import vdata.timepoint as tp
 from vdata._typing import AnyNDArrayLike_IFS, NDArrayLike_IFS, Slicer
 from vdata.names import Number
-from vdata.timepoint import as_timepointarray
 from vdata.utils import isCollection, repr_array
 
 
@@ -31,7 +30,7 @@ class SlicerData:
 
 
 def _parse_timepoints_slicer(slicer: Slicer, 
-                             timepoints: tp.tp.TimePointArray) -> tp.tp.TimePointArray | None:
+                             timepoints: tp.TimePointArray) -> tp.TimePointArray | None:
     if slicer is Ellipsis or (isinstance(slicer, slice) and slicer == slice(None)):
         return None
     
@@ -40,12 +39,12 @@ def _parse_timepoints_slicer(slicer: Slicer,
         stop: tp.TimePoint = timepoints[-1] if slicer.stop is None else tp.TimePoint(slicer.stop)
         step = tp.TimePoint(1, start.unit) if slicer.step is None else tp.TimePoint(slicer.step)
 
-        return tp.TimePointArray.from_range(tp.TimePointRange(start, stop, step))
+        return tp.as_timepointarray(tp.TimePointRange(start, stop, step))
 
     if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
-        return timepoints[slicer.flatten()]
+        return tp.atleast_1d(timepoints[slicer.flatten()])
 
-    return as_timepointarray(slicer)
+    return tp.as_timepointarray(slicer)
 
 
 def _parse_axis_slicer(slicer: Slicer,

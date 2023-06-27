@@ -90,7 +90,7 @@ def _sort_and_get_tp(data: pd.DataFrame | None,
     del data[col_name]
     data.columns = data.columns.astype(_dtype)
 
-    return np.sort(timepoints)
+    return np.sort(timepoints)          # type: ignore[return-value]
 
 
 def _get_timed_index(index: Collection[IFS] | None,
@@ -114,16 +114,9 @@ def _get_timed_index(index: Collection[IFS] | None,
         if time_col_name is not None:
             warn("'time_list' parameter already supplied, 'time_col_name' parameter is ignored.")
         
-        if isCollection(time_list):
-            _time_list = _sort_and_get_tp(data, time_col_name, time_list)
-            
-        elif isinstance(time_list, (tp.TimePoint, float, int, str, np.int_, np.float_)):
-            _time_list = tp.as_timepointarray([time_list])
-            
-        else:
-            raise TypeError(f"Unexpected type '{type(time_list)}' for 'time_list', should be a collection of "
-                            f"time-points.")
-            
+        # if isCollection(time_list):
+        _time_list = _sort_and_get_tp(data, time_col_name, time_list)
+                        
     else:
         _time_list = None
         

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
+import vdata.timepoint as tp
 from vdata._typing import IFS, DictLike, NDArray_IFS, PreSlicer
 from vdata.data._parse import ParsingDataIn, ParsingDataOut, parse_AnnData, parse_objects
 from vdata.data.arrays import (
@@ -30,7 +31,6 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
-from vdata.timepoint import TimePoint, TimePointArray
 from vdata.utils import as_tp_list, reformat_index, repr_index
 from vdata.vdataframe import VDataFrame
 
@@ -62,7 +62,7 @@ class VData:
                  timepoints: pd.DataFrame | VDataFrame | None = None,
                  uns: DictLike[Any] | None = None,
                  time_col_name: str | None = None,
-                 time_list: Sequence[str | TimePoint] | None = None,
+                 time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None = None,
                  name: str = ''):
         """
         Args:
@@ -203,7 +203,7 @@ class VData:
         generalLogger.debug(f'  Got index \n{repr_index(index)}')
 
         formatted_index = reformat_index(index, 
-                                         TimePointArray(self.timepoints.value),
+                                         tp.as_timepointarray(self.timepoints.value),
                                          self.obs.index,
                                          self.var.index.values)
 
@@ -374,13 +374,13 @@ class VData:
         self._timepoints = VDataFrame(df)
 
     @property
-    def timepoints_values(self) -> TimePointArray:
+    def timepoints_values(self) -> tp.TimePointArray:
         """
         Get the list of time points values (with the unit if possible).
 
         :return: the list of time points values (with the unit if possible).
         """
-        return TimePointArray(self.timepoints.value)
+        return tp.as_timepointarray(self.timepoints.value)
 
     @property
     def timepoints_strings(self) -> Iterator[str]:
@@ -618,7 +618,7 @@ class VData:
 
     def _mean_min_max_func(self, 
                            func: Literal['mean', 'min', 'max'], 
-                           axis: int) -> tuple[dict[str, TemporalDataFrame], TimePointArray, pd.Index, bool]:
+                           axis: int) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray, pd.Index, bool]:
         """
         Compute mean, min or max of the values over the requested axis.
         """       
@@ -735,7 +735,7 @@ class VData:
     @classmethod
     def read_from_csv(cls,
                       path: str | Path,
-                      time_list: Sequence[str | TimePoint] | Literal['*'] | None = None,
+                      time_list: Sequence[str | tp.TimePoint] | Literal['*'] | None = None,
                       time_col_name: str | None = None,
                       name: str = '') -> VData:
         """
@@ -794,7 +794,7 @@ class VData:
                      name=f"{self._name}_copy")
 
     def to_AnnData(self,
-                   timepoints_list: str | TimePoint | Collection[str | TimePoint] | None = None,
+                   timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
                    into_one: bool = True,
                    with_timepoints_column: bool = True,
                    layer_as_X: str | None = None,
