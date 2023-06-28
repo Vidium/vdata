@@ -8,91 +8,107 @@ import numpy.typing as npt
 from ch5mpy.indexing import Selection
 from numpy._typing import _ArrayLikeInt_co, _ArrayLikeObject_co
 
-_T = TypeVar('_T', bound=np.generic, covariant=True)
-_NP_INDEX = Union[None, slice, EllipsisType, SupportsIndex, _ArrayLikeInt_co, 
-                  tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...]]
+_T = TypeVar("_T", bound=np.generic, covariant=True)
+_NP_INDEX = Union[
+    None,
+    slice,
+    EllipsisType,
+    SupportsIndex,
+    _ArrayLikeInt_co,
+    tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...],
+]
 
-_RESERVED_ATTRIBUTES = {'_container', '_accession', '_index', '_exposed_attr', 
-                        'size', 'shape', 'dtype', '_array', 'array_type'}
+_RESERVED_ATTRIBUTES = {
+    "_container",
+    "_accession",
+    "_index",
+    "_exposed_attr",
+    "size",
+    "shape",
+    "dtype",
+    "_array",
+    "array_type",
+}
 
 
 class NDArrayView(Generic[_T]):
     """View on a numpy ndarray."""
-    
-    __slots__ = '_container', '_accession', '_index', '_exposed_attr'
-    
+
+    __slots__ = "_container", "_accession", "_index", "_exposed_attr"
+
     # region magic methods
-    def __init__(self,
-                 container: Any,
-                 accession: str,
-                 index: _NP_INDEX | Selection,
-                 exposed_attributes: Iterable[str] = ()) -> None:
+    def __init__(
+        self, container: Any, accession: str, index: _NP_INDEX | Selection, exposed_attributes: Iterable[str] = ()
+    ) -> None:
         self._container = container
         self._accession = accession
-        self._index = index if isinstance(index, Selection) else Selection.from_selector(
-            index, getattr(container, accession).shape
+        self._index = (
+            index
+            if isinstance(index, Selection)
+            else Selection.from_selector(index, getattr(container, accession).shape)
         )
         self._exposed_attr = set(exposed_attributes)
-        
+
         if _RESERVED_ATTRIBUTES.intersection(self._exposed_attr):
-            raise ValueError(f'Cannot expose reserved attributes : '
-                             f'{_RESERVED_ATTRIBUTES.intersection(self._exposed_attr)}.')
+            raise ValueError(
+                f"Cannot expose reserved attributes : " f"{_RESERVED_ATTRIBUTES.intersection(self._exposed_attr)}."
+            )
 
     def __repr__(self) -> str:
-        return repr(self._view()) + '*'
-        
+        return repr(self._view()) + "*"
+
     def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[_T]:
         if dtype is None:
             return self._view()
-        
+
         return self._view().astype(dtype)
-      
+
     def __getattribute__(self, key: str) -> Any:
-        if key in object.__getattribute__(self, '_exposed_attr'):
+        if key in object.__getattribute__(self, "_exposed_attr"):
             return getattr(self._array, key)
-        
+
         return super().__getattribute__(key)
-                  
+
     def __getitem__(self, index: _NP_INDEX) -> NDArrayView[_T] | _T:
         sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
-        
+
         if sel.size(self._array.shape):
             return NDArrayView(self._container, self._accession, sel, exposed_attributes=self._exposed_attr)
 
         return cast(_T, self._array[sel.get()])
-    
+
     def __setitem__(self, index: _NP_INDEX, values: Any) -> None:
         sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
-        
+
         self._array[sel.get()] = values
-            
+
     def __len__(self) -> int:
         return len(self._view())
-    
+
     def __contains__(self, key: Any) -> bool:
         return key in self._view()
-    
+
     def __iter__(self) -> Iterator[_T]:
         return iter(self._view())
-    
-    def __eq__(self, __value: object) -> npt.NDArray[np.bool_]:     # type: ignore[override]
-        return self._view().__eq__(__value)                         # type: ignore[no-any-return]
-    
+
+    def __eq__(self, __value: object) -> npt.NDArray[np.bool_]:  # type: ignore[override]
+        return self._view().__eq__(__value)  # type: ignore[no-any-return]
+
     def __lt__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__lt__(__value)
-    
+
     def __le__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__le__(__value)
-    
+
     def __gt__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__gt__(__value)
-    
+
     def __ge__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__ge__(__value)
-        
+
     def __add__(self, other: Any) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], self._view() + other)
-    
+
     def __sub__(self, other: Any) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], self._view() - other)
 
@@ -101,62 +117,60 @@ class NDArrayView(Generic[_T]):
 
     def __truediv__(self, other: Any) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], self._view() / other)
-        
+
     def __pow__(self, other: Any) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], self._view() ** other)
-    
+
     # endregion
-    
+
     # region predicates
     @property
     def size(self) -> int:
         return self._view().size
-    
+
     @property
     def shape(self) -> tuple[int, ...]:
         return self._view().shape
-    
+
     @property
     def dtype(self) -> np.dtype[_T]:
         return self._view().dtype
-    
+
     @property
     def _array(self) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], getattr(self._container, self._accession))
-    
-    @property
-    def array_type(self) -> type[Any]:
-        return type(self._array)
-    
+
     # endregion
-    
+
     # region methods
     def _view(self) -> npt.NDArray[_T]:
         return cast(npt.NDArray[_T], self._array[self._index.get()])
-    
+
     def copy(self) -> npt.NDArray[_T]:
         return self._view().copy()
-        
+
     def astype(self, dtype: npt.DTypeLike) -> npt.NDArray[Any]:
         return self._view().astype(dtype)
-    
-    def min(self, 
-            axis: int | tuple[int, ...] | None = None,
-            out: npt.NDArray[Any] | None = None) -> _T | npt.NDArray[_T]:
+
+    def min(
+        self, axis: int | tuple[int, ...] | None = None, out: npt.NDArray[Any] | None = None
+    ) -> _T | npt.NDArray[_T]:
         return self._view().min(axis=axis, out=out)
-    
-    def max(self, 
-            axis: int | tuple[int, ...] | None = None,
-            out: npt.NDArray[Any] | None = None) -> _T | npt.NDArray[_T]:
+
+    def max(
+        self, axis: int | tuple[int, ...] | None = None, out: npt.NDArray[Any] | None = None
+    ) -> _T | npt.NDArray[_T]:
         return self._view().max(axis=axis, out=out)
-    
-    def mean(self, 
-             axis: int | tuple[int, ...] | None = None,
-             dtype: npt.DTypeLike | None = None,
-             out: npt.NDArray[Any] | None = None) -> _T | npt.NDArray[_T]:
-        return self._view().mean(axis=axis, dtype=dtype, out=out)         # type: ignore[arg-type, misc, no-any-return]
-       
+
+    def mean(
+        self,
+        axis: int | tuple[int, ...] | None = None,
+        dtype: npt.DTypeLike | None = None,
+        out: npt.NDArray[Any] | None = None,
+    ) -> _T | npt.NDArray[_T]:
+        return self._view().mean(axis=axis, dtype=dtype, out=out)  # type: ignore[arg-type, misc, no-any-return]
+
     def flatten(self) -> npt.NDArray[_T]:
         return self._view().flatten()
-       
+
     # endregion

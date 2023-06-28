@@ -24,10 +24,10 @@ repos:
         language_version: python3.9
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.2.0
+    rev: v1.4.1
     hooks:
       - id: mypy
-        exclude: ^tests/
+        exclude: (^tests/)|(vulture_whitelist.py)|(^docs/)
         args: [--strict]
-        additional_dependencies: [numpy]
-        language_version: python3.9
+        additional_dependencies: [attrs, numpy, pandas-stubs, ch5mpy, types-tqdm]
+        language_version: python3.10

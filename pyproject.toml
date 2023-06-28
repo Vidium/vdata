@@ -55,6 +55,9 @@ Source = "https://github.com/Vidium/vdata"
 [tool.setuptools.packages.find]
 include = ["vdata*"]
 
+[tool.vulture]
+paths = ["vdata", "vulture_whitelist.py"]
+
 [tool.ruff]
 line-length = 120
 

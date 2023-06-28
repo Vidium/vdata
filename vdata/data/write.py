@@ -15,11 +15,35 @@ from vdata.utils import spacer
 if TYPE_CHECKING:
     from vdata.data.vdata import VData
     from vdata.data.view import VDataView
-    
 
-def write_vdata(data: VData | VDataView,
-                file: str | Path | None = None,
-                verbose: bool = True) -> ch.H5Dict[Any]:
+
+def write_vdata_in_h5dict(data: VData | VDataView, values: ch.H5Dict[Any], verbose: bool = True) -> None:
+    nb_items_to_write = (
+        len(data.layers) + len(data.obsm) + len(data.obsp) + len(data.varm) + len(data.varp) + len(data.uns) + 9
+    )
+    progressBar = tqdm(total=nb_items_to_write, desc=f"writing VData {data.name}", unit="object") if verbose else None
+
+    values.attributes["name"] = data.name
+
+    ch.write_objects(
+        values,
+        progress=progressBar,
+        layers=data.layers.data,
+        obs=data.obs,
+        obsm=data.obsm.data,
+        obsp=data.obsp,
+        var=data.var,
+        varm=data.varm,
+        varp=data.varp,
+        timepoints=data.timepoints,
+        uns=data.uns,
+    )
+
+    if progressBar is not None:
+        progressBar.close()
+
+
+def write_vdata(data: VData | VDataView, file: str | Path | None = None, verbose: bool = True) -> ch.H5Dict[Any]:
     """
     Save a VData object in HDF5 file format.
 
@@ -29,7 +53,7 @@ def write_vdata(data: VData | VDataView,
     """
     if data.data is not NoData._:
         if data.data.mode == ch.H5Mode.READ_WRITE:
-            raise NotImplementedError('Should not be necessary')
+            raise NotImplementedError("Should not be necessary")
 
         raise ValueError("Cannot save backed VData in 'r' mode !")
 
@@ -37,49 +61,32 @@ def write_vdata(data: VData | VDataView,
         raise ValueError("No file path was provided for writing this VData.")
 
     file = Path(file).expanduser()
-    if file.suffix != '.vd':
+    if file.suffix != ".vd":
         generalLogger.warning("Invalid file suffix, it has been changed to '.vd'.")
-        file = file.with_suffix('.vd')
+        file = file.with_suffix(".vd")
 
     # make sure the path exists
     file.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # TODO : better handling of already existing files
     if file.exists():
         file.unlink()
-        
+
     h5_data = ch.H5Dict.read(file, mode=ch.H5Mode.READ_WRITE_CREATE)
 
-    nb_items_to_write = len(data.layers) + len(data.obsm) + len(data.obsp) + len(data.varm) + \
-        len(data.varp) + len(data.uns) + 9
-    progressBar = tqdm(total=nb_items_to_write, desc=f'writing VData {data.name}', unit='object') \
-        if verbose else None
+    write_vdata_in_h5dict(data, h5_data, verbose=verbose)
 
-    h5_data.attributes['name'] = data.name
-
-    ch.write_objects(h5_data, 
-                     progress=progressBar,
-                     layers=data.layers.data,
-                     obs=data.obs,
-                     obsm=data.obsm.data,
-                     obsp=data.obsp,
-                     var=data.var,
-                     varm=data.varm,
-                     varp=data.varp,
-                     timepoints=data.timepoints,
-                     uns=data.uns)
-
-    if progressBar is not None:
-        progressBar.close()
-        
     return h5_data
 
-def write_vdata_to_csv(data: VData | VDataView,
-                       directory: str | Path,
-                       sep: str = ",",
-                       na_rep: str = "",
-                       index: bool = True,
-                       header: bool = True) -> None:
+
+def write_vdata_to_csv(
+    data: VData | VDataView,
+    directory: str | Path,
+    sep: str = ",",
+    na_rep: str = "",
+    index: bool = True,
+    header: bool = True,
+) -> None:
     """
     Save layers, timepoints, obs, obsm, obsp, var, varm and varp to csv files in a directory.
 
@@ -94,21 +101,34 @@ def write_vdata_to_csv(data: VData | VDataView,
 
     # make sure the directory exists and is empty
     directory.mkdir(parents=True, exist_ok=True)
-    
+
     if len(list(directory.iterdir())):
         raise IOError("The directory is not empty.")
 
     # save metadata
-    with open(directory / ".metadata.json", 'w') as metadata:
-        json.dump({"obs": {"timepoints_column_name": data.obs.timepoints_column_name},
-                   "obsm": {obsm_TDF_name: 
-                        {"timepoints_column_name": obsm_TDF.timepoints_column_name if
-                            obsm_TDF.timepoints_column_name is not None else DEFAULT_TIME_COL_NAME}
-                            for obsm_TDF_name, obsm_TDF in data.obsm.items()},
-                   "layers": {layer_TDF_name:
-                        {"timepoints_column_name": layer_TDF.timepoints_column_name if
-                            layer_TDF.timepoints_column_name is not None else DEFAULT_TIME_COL_NAME}
-                            for layer_TDF_name, layer_TDF in data.layers.items()}}, metadata)
+    with open(directory / ".metadata.json", "w") as metadata:
+        json.dump(
+            {
+                "obs": {"timepoints_column_name": data.obs.timepoints_column_name},
+                "obsm": {
+                    obsm_TDF_name: {
+                        "timepoints_column_name": obsm_TDF.timepoints_column_name
+                        if obsm_TDF.timepoints_column_name is not None
+                        else DEFAULT_TIME_COL_NAME
+                    }
+                    for obsm_TDF_name, obsm_TDF in data.obsm.items()
+                },
+                "layers": {
+                    layer_TDF_name: {
+                        "timepoints_column_name": layer_TDF.timepoints_column_name
+                        if layer_TDF.timepoints_column_name is not None
+                        else DEFAULT_TIME_COL_NAME
+                    }
+                    for layer_TDF_name, layer_TDF in data.layers.items()
+                },
+            },
+            metadata,
+        )
 
     # save matrices
     generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame obs")

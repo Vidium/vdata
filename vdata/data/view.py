@@ -20,7 +20,7 @@ from vdata.data.arrays import (
 )
 from vdata.data.file import NoData
 from vdata.data.utils import reformat_index
-from vdata.data.write import write_vdata, write_vdata_to_csv
+from vdata.data.write import write_vdata, write_vdata_in_h5dict, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
@@ -30,9 +30,11 @@ from vdata.vdataframe import VDataFrame, ViewVDataFrame
 
 def _check_parent_has_not_changed(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self: VDataView, *args: Any, **kwargs: Any) -> Any:
-        if hash(tuple(self._parent.timepoints.value.values)) != self._timepoints_hash or \
-                hash(tuple(self._parent.obs.index)) != self._obs_hash or \
-                hash(tuple(self._parent.var.index)) != self._var_hash:
+        if (
+            hash(tuple(self._parent.timepoints.value.values)) != self._timepoints_hash
+            or hash(tuple(self._parent.obs.index)) != self._obs_hash
+            or hash(tuple(self._parent.var.index)) != self._var_hash
+        ):
             raise ValueError("View no longer valid since parent's VData has changed.")
 
         return func(self, *args, **kwargs)
@@ -45,16 +47,35 @@ class VDataView:
     A view of a VData object.
     """
 
-    __slots__ = 'name', '_parent', '_timepoints_hash', '_obs_hash', '_var_hash', \
-                '_timepoints', '_timepoints_slicer', '_obs', '_obs_slicer', '_obs_slicer_flat', '_var', '_var_slicer',\
-                '_layers', '_obsm', '_obsp', '_varm', '_varp', '_uns'
+    __slots__ = (
+        "name",
+        "_parent",
+        "_timepoints_hash",
+        "_obs_hash",
+        "_var_hash",
+        "_timepoints",
+        "_timepoints_slicer",
+        "_obs",
+        "_obs_slicer",
+        "_obs_slicer_flat",
+        "_var",
+        "_var_slicer",
+        "_layers",
+        "_obsm",
+        "_obsp",
+        "_varm",
+        "_varp",
+        "_uns",
+    )
 
     # region magic methods
-    def __init__(self,
-                 parent: vdata.VData,
-                 timepoints_slicer: tp.TimePointArray | None,
-                 obs_slicer: NDArray_IFS | None,
-                 var_slicer: NDArray_IFS | None):
+    def __init__(
+        self,
+        parent: vdata.VData,
+        timepoints_slicer: tp.TimePointArray | None,
+        obs_slicer: NDArray_IFS | None,
+        var_slicer: NDArray_IFS | None,
+    ):
         """
         Args:
             parent: a VData object to build a view of
@@ -63,7 +84,7 @@ class VDataView:
             timepoints_slicer: the list of time points to view
         """
         self.name = f"{parent.name}_view"
-        generalLogger.debug(u'\u23BE ViewVData creation : start ----------------------------------------------------- ')
+        generalLogger.debug("\u23BE ViewVData creation : start ----------------------------------------------------- ")
 
         self._parent = parent
 
@@ -73,32 +94,40 @@ class VDataView:
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[slice(None) if timepoints_slicer is None else timepoints_slicer, 
-                                     slice(None) if obs_slicer is None else obs_slicer]
+        self._obs = self._parent.obs[
+            slice(None) if timepoints_slicer is None else timepoints_slicer,
+            slice(None) if obs_slicer is None else obs_slicer,
+        ]
 
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = tp.as_timepointarray(parent.timepoints.value) if timepoints_slicer is None else timepoints_slicer
         self._timepoints_slicer = tp.atleast_1d(_tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)])
-        self._timepoints = ViewVDataFrame(self._parent.timepoints,
-                                          index_slicer=np.in1d(self._parent.timepoints.value, self._timepoints_slicer))
+        self._timepoints = ViewVDataFrame(
+            self._parent.timepoints, index_slicer=np.in1d(self._parent.timepoints.value, self._timepoints_slicer)
+        )
 
-        generalLogger.debug(f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
-                            f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"
-                            f" selected)")
+        generalLogger.debug(
+            f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
+            f"({len(self._timepoints_slicer)} value{'' if len(self._timepoints_slicer) == 1 else 's'}"
+            f" selected)"
+        )
 
         if obs_slicer is None:
             self._obs_slicer: list[NDArray_IFS] = [self._obs.index_at(tp) for tp in self._obs.timepoints]
 
         else:
-            self._obs_slicer = cast(list[NDArray_IFS],
-                                    [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))]
-                                     for tp in self._obs.timepoints])
+            self._obs_slicer = cast(
+                list[NDArray_IFS],
+                [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))] for tp in self._obs.timepoints],
+            )
 
         self._obs_slicer_flat: NDArray_IFS = np.concatenate(self._obs_slicer)
 
-        generalLogger.debug(f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
-                            f"({len(self._obs_slicer_flat)} value{'' if len(self._obs_slicer_flat) == 1 else 's'}"
-                            f" selected)")
+        generalLogger.debug(
+            f"  2'. Recomputed obs slicer to : {repr_array(self._obs_slicer_flat)} "
+            f"({len(self._obs_slicer_flat)} value{'' if len(self._obs_slicer_flat) == 1 else 's'}"
+            f" selected)"
+        )
 
         # then store var : we get a sub-set of the parent's var VDataFrame
         # this is needed to recompute the var slicer
@@ -111,16 +140,14 @@ class VDataView:
             self._var_slicer: NDArray_IFS = self._var.index
 
         else:
-            self._var_slicer = cast(NDArray_IFS,
-                                    np.array(var_slicer)[np.isin(var_slicer, self._var.index)])
+            self._var_slicer = cast(NDArray_IFS, np.array(var_slicer)[np.isin(var_slicer, self._var.index)])
 
         # subset and store arrays
         _obs_slicer_flat = self._obs_slicer[0] if self.has_repeated_obs_index else self._obs_slicer_flat
 
-        self._layers = VLayersArrayContainerView(self._parent.layers,
-                                                 self._timepoints_slicer, 
-                                                 _obs_slicer_flat, 
-                                                 self._var_slicer)
+        self._layers = VLayersArrayContainerView(
+            self._parent.layers, self._timepoints_slicer, _obs_slicer_flat, self._var_slicer
+        )
         self._obsm = VObsmArrayContainerView(self._parent.obsm, self._timepoints_slicer, _obs_slicer_flat, slice(None))
         self._obsp = VObspArrayContainerView(self._parent.obsp, np.array(self._obs.index))
         self._varm = VVarmArrayContainerView(self._parent.varm, self._var_slicer)
@@ -131,7 +158,7 @@ class VDataView:
 
         generalLogger.debug(f"Guessed dimensions are : {self.shape}")
 
-        generalLogger.debug(u'\u23BF ViewVData creation : end ------------------------------------------------------- ')
+        generalLogger.debug("\u23BF ViewVData creation : end ------------------------------------------------------- ")
 
     @_check_parent_has_not_changed
     def __repr__(self) -> str:
@@ -142,12 +169,16 @@ class VDataView:
         _n_obs = self.n_obs if len(self.n_obs) > 1 else self.n_obs[0]
 
         if self.empty:
-            repr_str = f"Empty view of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over " \
-                       f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
+            repr_str = (
+                f"Empty view of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over "
+                f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
+            )
 
         else:
-            repr_str = f"View of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over " \
-                       f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
+            repr_str = (
+                f"View of VData '{self._parent.name}' ({_n_obs} obs x {self.n_var} vars over "
+                f"{self.n_timepoints} time point{'' if self.n_timepoints == 1 else 's'})."
+            )
 
         for attr_name in ["layers", "obs", "var", "timepoints", "obsm", "varm", "obsp", "varp"]:
             attr = getattr(self, attr_name)
@@ -165,16 +196,15 @@ class VDataView:
         return repr_str
 
     @_check_parent_has_not_changed
-    def __getitem__(self, 
-                    index: PreSlicer | \
-                           tuple[PreSlicer, PreSlicer] | \
-                           tuple[PreSlicer, PreSlicer, PreSlicer]) -> VDataView:
+    def __getitem__(
+        self, index: PreSlicer | tuple[PreSlicer, PreSlicer] | tuple[PreSlicer, PreSlicer, PreSlicer]
+    ) -> VDataView:
         """
         Get a subset of a view of a VData object.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
         """
-        generalLogger.debug('ViewVData sub-setting - - - - - - - - - - - - - - ')
-        generalLogger.debug(f'  Got index \n{repr_index(index)}')
+        generalLogger.debug("ViewVData sub-setting - - - - - - - - - - - - - - ")
+        generalLogger.debug(f"  Got index \n{repr_index(index)}")
 
         # convert to a 3-tuple
         _index = reformat_index(index, self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
@@ -182,6 +212,9 @@ class VDataView:
         generalLogger.debug(f"  1. Refactored index to \n{repr_index(_index)}")
 
         return VDataView(self._parent, _index[0], _index[1], _index[2])
+
+    def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
+        write_vdata_in_h5dict(self, values, verbose=False)
 
     # endregion
 
@@ -210,7 +243,7 @@ class VDataView:
     @_check_parent_has_not_changed
     def has_repeated_obs_index(self) -> bool:
         return self._parent.has_repeated_obs_index
-    
+
     @property
     @_check_parent_has_not_changed
     def empty(self) -> bool:
@@ -226,7 +259,7 @@ class VDataView:
 
     # endregion
 
-    # region attributes    
+    # region attributes
     # Shapes -------------------------------------------------------------
     @property
     @_check_parent_has_not_changed
@@ -363,7 +396,7 @@ class VDataView:
 
     @property
     @_check_parent_has_not_changed
-    def uns(self) ->  DictLike[Any]:
+    def uns(self) -> DictLike[Any]:
         """
         Get a view on the uns dictionary in this ViewVData.
         :return: a view on the uns dictionary in this ViewVData.
@@ -424,23 +457,23 @@ class VDataView:
     # Aliases ------------------------------------------------------------
     cells = obs
     genes = var
-    
+
     # endregion
 
     # region methods
     # functions ----------------------------------------------------------
-    def _mean_min_max_func(self, 
-                           func: Literal['mean', 'min', 'max'], 
-                           axis: Literal[0, 1]) \
-            -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray, NDArray_IFS]:
+    def _mean_min_max_func(
+        self, func: Literal["mean", "min", "max"], axis: Literal[0, 1]
+    ) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray, NDArray_IFS]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
         if axis == 0:
-            _data: dict[str, TemporalDataFrame] = {layer: getattr(self.layers[layer], func)(axis=axis).T 
-                                                   for layer in self.layers}
+            _data: dict[str, TemporalDataFrame] = {
+                layer: getattr(self.layers[layer], func)(axis=axis).T for layer in self.layers
+            }
             _time_list = self.timepoints_values
-            _index = np.array(['mean' for _ in range(self.n_timepoints)])
+            _index = np.array(["mean" for _ in range(self.n_timepoints)])
 
         elif axis == 1:
             _data = {layer: getattr(self.layers[layer], func)(axis=axis) for layer in self.layers}
@@ -460,9 +493,9 @@ class VDataView:
         :param axis: compute mean over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with mean values.
         """
-        _data, _time_list, _index = self._mean_min_max_func('mean', axis)
+        _data, _time_list, _index = self._mean_min_max_func("mean", axis)
 
-        _name = f"Mean of {self.name}" if self.name != NO_NAME else 'Mean'
+        _name = f"Mean of {self.name}" if self.name != NO_NAME else "Mean"
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     @_check_parent_has_not_changed
@@ -473,9 +506,9 @@ class VDataView:
         :param axis: compute minimum over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with minimum values.
         """
-        _data, _time_list, _index = self._mean_min_max_func('min', axis)
+        _data, _time_list, _index = self._mean_min_max_func("min", axis)
 
-        _name = f"Minimum of {self.name}" if self.name != NO_NAME else 'Minimum'
+        _name = f"Minimum of {self.name}" if self.name != NO_NAME else "Minimum"
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     @_check_parent_has_not_changed
@@ -486,16 +519,14 @@ class VDataView:
         :param axis: compute maximum over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with maximum values.
         """
-        _data, _time_list, _index = self._mean_min_max_func('max', axis)
+        _data, _time_list, _index = self._mean_min_max_func("max", axis)
 
-        _name = f"Maximum of {self.name}" if self.name != NO_NAME else 'Maximum'
+        _name = f"Maximum of {self.name}" if self.name != NO_NAME else "Maximum"
         return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
 
     # writing ------------------------------------------------------------
     @_check_parent_has_not_changed
-    def write(self,
-              file: str | Path,
-              verbose: bool = True) -> None:
+    def write(self, file: str | Path, verbose: bool = True) -> None:
         """
         Save this view of a VData in HDF5 file format.
 
@@ -506,12 +537,9 @@ class VDataView:
         write_vdata(self, file)
 
     @_check_parent_has_not_changed
-    def write_to_csv(self,
-                     directory: str | Path,
-                     sep: str = ",",
-                     na_rep: str = "",
-                     index: bool = True,
-                     header: bool = True) -> None:
+    def write_to_csv(
+        self, directory: str | Path, sep: str = ",", na_rep: str = "", index: bool = True, header: bool = True
+    ) -> None:
         """
         Save layers, timepoints, obs, obsm, obsp, var, varm and varp to csv files in a directory.
 
@@ -530,15 +558,17 @@ class VDataView:
         """
         Build an actual VData object from this view.
         """
-        return vdata.VData(data=self.layers.dict_copy(),
-                           obs=self.obs.copy(),
-                           obsm=self.obsm.dict_copy(), 
-                           obsp=self.obsp.dict_copy(),
-                           var=self.var.copy(),
-                           varm=self.varm.dict_copy(), 
-                           varp=self.varp.dict_copy(),
-                           timepoints=self.timepoints.copy(),
-                           uns=deepcopy(self.uns),
-                           name=f"{self.name}_copy")
+        return vdata.VData(
+            data=self.layers.dict_copy(),
+            obs=self.obs.copy(),
+            obsm=self.obsm.dict_copy(),
+            obsp=self.obsp.dict_copy(),
+            var=self.var.copy(),
+            varm=self.varm.dict_copy(),
+            varp=self.varp.dict_copy(),
+            timepoints=self.timepoints.copy(),
+            uns=deepcopy(self.uns),
+            name=f"{self.name}_copy",
+        )
 
     # endregion

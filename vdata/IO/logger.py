@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging.config
 import os
 import sys
@@ -10,7 +12,8 @@ from typing import Any, Callable, Optional, Type
 
 from vdata.IO import errors
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 class LoggingLevel(Enum):
     DEBUG = 10
@@ -21,12 +24,12 @@ class LoggingLevel(Enum):
 
 
 class Color:
-    TCYAN = '\033[36m'
-    TORANGE = '\033[33m'
-    TRED = '\033[31m'
-    BBLACK = '\033[40m'
-    BGREY = '\033[100m'
-    ENDC = '\033[0m'
+    TCYAN = "\033[36m"
+    TORANGE = "\033[33m"
+    TRED = "\033[31m"
+    BBLACK = "\033[40m"
+    BGREY = "\033[100m"
+    ENDC = "\033[0m"
 
 
 class Tb:
@@ -53,12 +56,14 @@ class _VLogger:
         :param logger_level: minimal log level for the logger. (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         # load configuration from logging.conf
-        logging.config.fileConfig(Path(os.path.dirname(__file__)) / "logger.conf", 
-                                  defaults={'log_level': logger_level.name},
-                                  disable_existing_loggers=False)
+        logging.config.fileConfig(
+            Path(os.path.dirname(__file__)) / "logger.conf",
+            defaults={"log_level": logger_level.name},
+            disable_existing_loggers=False,
+        )
 
         # get logger
-        self.logger = logging.getLogger('vdata.vlogger')
+        self.logger = logging.getLogger("vdata.vlogger")
 
     @property
     def level(self) -> LoggingLevel:
@@ -164,8 +169,9 @@ class _VLogger:
             last = Tb.trace.tb_frame
             Tb.trace = Tb.trace.tb_next
 
-        self.logger.error(f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} :"
-                          f" {Tb.exception.__name__}] {msg}")
+        self.logger.error(
+            f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} :" f" {Tb.exception.__name__}] {msg}"
+        )
 
     def critical(self, msg: str) -> None:
         """
@@ -183,11 +189,12 @@ def _as_log_level(log_level: LoggingLevel | str) -> LoggingLevel:
     if not isinstance(log_level, LoggingLevel):
         try:
             return LoggingLevel[log_level]
-        
+
         except KeyError as e:
-            raise KeyError(f"Incorrect logging level '{log_level}', " 
-                        f"should be in {[ll.value for ll in LoggingLevel]}") from e
-            
+            raise KeyError(
+                f"Incorrect logging level '{log_level}', " f"should be in {[ll.value for ll in LoggingLevel]}"
+            ) from e
+
     return log_level
 
 
@@ -209,10 +216,10 @@ def getLoggingLevel() -> LoggingLevel:
 
 # disable traceback messages, except if the logging level is set to DEBUG
 def exception_handler(
-    exception_type: Type[BaseException], 
+    exception_type: Type[BaseException],
     exception: BaseException,
     traceback_: TracebackType,
-    debug_hook: Callable[[type[BaseException], BaseException, TracebackType | None], Any] = sys.excepthook
+    debug_hook: Callable[[type[BaseException], BaseException, TracebackType | None], Any] = sys.excepthook,
 ) -> None:
     Tb.trace = traceback_
     Tb.exception = exception_type
