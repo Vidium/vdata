@@ -24,8 +24,9 @@ class VObsmArrayContainer(VTDFArrayContainer):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]) \
-        -> AnyDictLike[TemporalDataFrame | TemporalDataFrameView]:
+    def _check_init_data(
+        self, data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]
+    ) -> AnyDictLike[TemporalDataFrame | TemporalDataFrameView]:
         """
         Function for checking, at VObsmArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
@@ -45,8 +46,8 @@ class VObsmArrayContainer(VTDFArrayContainer):
             return dict()
 
         generalLogger.debug("  Data was found.")
-        
-        _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], 'Any')
+
+        _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], "Any")
         _data: DictLike[TemporalDataFrame | TemporalDataFrameView] = {} if not isinstance(data, ch.H5Dict) else data
 
         generalLogger.debug(f"  Reference shape is {_shape}.")
@@ -59,31 +60,40 @@ class VObsmArrayContainer(VTDFArrayContainer):
 
             # check that shapes match
             if _shape[0] != TDF_shape[0]:
-                raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' has {TDF_shape[0]} "
-                                        f"time point{'s' if TDF_shape[0] > 1 else ''}, "
-                                        f"should have {_shape[0]}.")
+                raise IncoherenceError(
+                    f"TemporalDataFrame '{TDF_index}' has {TDF_shape[0]} "
+                    f"time point{'s' if TDF_shape[0] > 1 else ''}, "
+                    f"should have {_shape[0]}."
+                )
 
             elif _shape[1] != TDF_shape[1]:
                 for i in range(len(tdf.timepoints)):
                     if _shape[1][i] != TDF_shape[1][i]:
-                        raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' at time point {i} has"
-                                                f" {TDF_shape[1][i]} rows, "
-                                                f"should have {_shape[1][i]}.")
+                        raise IncoherenceError(
+                            f"TemporalDataFrame '{TDF_index}' at time point {i} has"
+                            f" {TDF_shape[1][i]} rows, "
+                            f"should have {_shape[1][i]}."
+                        )
 
             # check that indexes match
             if np.any(self._vdata.obs.index != tdf.index):
-                raise IncoherenceError(f"Index of TemporalDataFrame '{TDF_index}' ({tdf.index}) does not match "
-                                        f"obs' index. ({self._vdata.obs.index})")
+                raise IncoherenceError(
+                    f"Index of TemporalDataFrame '{TDF_index}' ({tdf.index}) does not match "
+                    f"obs' index. ({self._vdata.obs.index})"
+                )
 
             if np.any(self._vdata.timepoints.value.values != tdf.timepoints):
-                raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({tdf.timepoints}) "
-                                        f"do not match time_point's index. ({self._vdata.timepoints.value.values})")
+                raise IncoherenceError(
+                    f"Time points of TemporalDataFrame '{TDF_index}' ({tdf.timepoints}) "
+                    f"do not match time_point's index. ({self._vdata.timepoints.value.values})"
+                )
 
-            tdf.lock_indices()
-            
+            if tdf.data is None or ch.H5Mode.has_write_intent(tdf.data.mode):
+                tdf.lock_indices()
+
             if isinstance(data, dict):
                 _data[str(TDF_index)] = tdf
-                
+
         generalLogger.debug("  Data was OK.")
         return _data
 
@@ -104,18 +114,18 @@ class VObsmArrayContainer(VTDFArrayContainer):
         value_copy = value.copy()
         value_copy.name = key
         value_copy.lock_indices()
-        
+
         super().__setitem__(key, value_copy)
 
     # endregion
-    
+
     # region magic methods
     def set_index(self, values: Collection[IFS], repeating_index: bool) -> None:
         for TDF in self.values():
             TDF.unlock_indices()
             TDF.set_index(np.array(values), repeating_index)
             TDF.lock_indices()
-    
+
     # endregion
 
 
@@ -166,12 +176,14 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
 
             # check that indexes match
             if not np.all(_index == df.index):
-                raise IncoherenceError(f"Index of DataFrame at key '{key}' ({df.index}) does not "
-                                        f"match obs' index. ({_index})")
+                raise IncoherenceError(
+                    f"Index of DataFrame at key '{key}' ({df.index}) does not " f"match obs' index. ({_index})"
+                )
 
             if not np.all(_index == df.columns):
-                raise IncoherenceError(f"Column names of DataFrame at key '{key}' ({df.columns}) "
-                                        f"do not match obs' index. ({_index})")
+                raise IncoherenceError(
+                    f"Column names of DataFrame at key '{key}' ({df.columns}) " f"do not match obs' index. ({_index})"
+                )
 
             # checks passed, store as VDataFrame
             _data[str(key)] = df
@@ -219,7 +231,7 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -234,11 +246,11 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
 
         if not len(self):
             return 0, len_index, len_index
-            
+
         return len(self), len_index, len_index
 
     # endregion
-    
+
     # region methods
     def set_index(self, values: Collection[IFS]) -> None:
         """
@@ -252,7 +264,7 @@ class VObspArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
             vdf.columns = pd.Index(values)
 
     # endregion
-    
+
 
 class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
     """
@@ -260,18 +272,17 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
     """
 
     # region magic methods
-    def __init__(self,
-                 array_container: VObspArrayContainer,
-                 obs_slicer: NDArray_IFS):
+    def __init__(self, array_container: VObspArrayContainer, obs_slicer: NDArray_IFS):
         """
         Args:
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
         """
-        super().__init__(data={key: cast(VDataFrame, vdf.loc[obs_slicer, obs_slicer])
-                               for key, vdf in array_container.items()},
-                         array_container=array_container)
-        
+        super().__init__(
+            data={key: cast(VDataFrame, vdf.loc[obs_slicer, obs_slicer]) for key, vdf in array_container.items()},
+            array_container=array_container,
+        )
+
         self._obs_slicer = obs_slicer
         self._vdata_obs_hash = get_obs_hash(array_container)
 
@@ -285,7 +296,7 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         """
         if not isinstance(value, VDataFrame):
             value = VDataFrame(value)
-            
+
         _index = cast(VDataFrame, self._array_container[key].loc[self._obs_slicer, self._obs_slicer]).index
 
         if not value.shape == (len(_index), len(_index)):
@@ -300,7 +311,7 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -314,12 +325,12 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         return len(self), len(self._obs_slicer), len(self._obs_slicer)
 
     # endregion
-    
+
     # region methods
     def _check_data_has_not_changed(self) -> None:
         if get_obs_hash(self._array_container) != self._vdata_obs_hash:
             raise ValueError("View no longer valid since parent's VData has changed.")
-    
+
     def set_index(self, values: Collection[Any]) -> None:
         """
         Set a new index for rows and columns.
@@ -332,4 +343,3 @@ class VObspArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
             vdf.columns = pd.Index(values)
 
     # endregion
-    

@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any
 import ch5mpy as ch
 from tqdm.auto import tqdm
 
-from vdata.data.file import NoData
+from vdata.data._file import NoData
 from vdata.IO.logger import generalLogger
-from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.utils import spacer
 
 if TYPE_CHECKING:
@@ -111,19 +110,11 @@ def write_vdata_to_csv(
             {
                 "obs": {"timepoints_column_name": data.obs.timepoints_column_name},
                 "obsm": {
-                    obsm_TDF_name: {
-                        "timepoints_column_name": obsm_TDF.timepoints_column_name
-                        if obsm_TDF.timepoints_column_name is not None
-                        else DEFAULT_TIME_COL_NAME
-                    }
+                    obsm_TDF_name: {"timepoints_column_name": obsm_TDF.get_timepoints_column_name()}
                     for obsm_TDF_name, obsm_TDF in data.obsm.items()
                 },
                 "layers": {
-                    layer_TDF_name: {
-                        "timepoints_column_name": layer_TDF.timepoints_column_name
-                        if layer_TDF.timepoints_column_name is not None
-                        else DEFAULT_TIME_COL_NAME
-                    }
+                    layer_TDF_name: {"timepoints_column_name": layer_TDF.get_timepoints_column_name()}
                     for layer_TDF_name, layer_TDF in data.layers.items()
                 },
             },

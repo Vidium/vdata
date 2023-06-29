@@ -33,7 +33,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # region magic methods
     def __init__(
         self,
-        data: dict[str, NDArray_IFS] | pd.DataFrame | None = None,
+        data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None = None,
         index: Collection_IFS | None = None,
         repeating_index: bool = False,
         columns: Collection[IFS] | None = None,

@@ -1,9 +1,3 @@
-# coding: utf-8
-# Created on 29/03/2022 11:43
-# Author : matteo
-
-# ====================================================
-# imports
 from __future__ import annotations
 
 from typing import Any, Collection
@@ -15,46 +9,42 @@ import numpy.typing as npt
 import pandas as pd
 
 import vdata.timepoint as tp
-from vdata._typing import IFS, NDArray_IFS
+from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.names import NO_NAME
 from vdata.timepoint import as_timepointarray
-from vdata.utils import isCollection, obj_as_str
+from vdata.utils import obj_as_str
 
 
-# ====================================================
-# code
 class TimedArray:
-    
-    __slots__ = 'arr', 'time', 'repeating_index'
-    
+
+    __slots__ = "arr", "time", "repeating_index"
+
     # region magic methods
-    def __init__(self,
-                 arr: npt.NDArray[Any] | None,
-                 time: tp.TimePointArray | None,
-                 repeating_index: bool):
+    def __init__(self, arr: npt.NDArray[Any] | None, time: tp.TimePointArray | None, repeating_index: bool):
         if arr is None and isinstance(time, tp.TimePointArray):
             self.arr = np.arange(len(time))
             self.time = time
-            
+
         elif arr is not None and time is None:
             self.arr = arr
-            self.time = tp.TimePointArray(np.repeat(0, len(arr)), unit='h')
-            
+            self.time = tp.TimePointArray(np.repeat(0, len(arr)), unit="h")
+
         elif isinstance(arr, np.ndarray) and isinstance(time, tp.TimePointArray):
             if len(arr) != len(time):
-                raise ValueError(f"Length of 'time_list' ({len(time)}) did not match length of 'index' " \
-                                 f"({len(arr)}).")
-                
+                raise ValueError(
+                    f"Length of 'time_list' ({len(time)}) did not match length of 'index' " f"({len(arr)})."
+                )
+
             self.arr = arr
             self.time = time
-                
+
         elif arr is None and time is None:
             self.arr = np.empty(0, dtype=np.float64)
             self.time = tp.TimePointArray(np.empty(0, dtype=object))
-            
+
         else:
             raise NotImplementedError
-        
+
         if repeating_index:
             unique_timepoints = np.unique(self.time, equal_nan=False)
 
@@ -64,105 +54,109 @@ class TimedArray:
                 index_tp = self.arr[self.time == timepoint]
 
                 if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
-                    raise ValueError(f"Index at time-point {timepoint} is not equal to index at time-point "
-                                     f"{unique_timepoints[0]}.")
+                    raise ValueError(
+                        f"Index at time-point {timepoint} is not equal to index at time-point "
+                        f"{unique_timepoints[0]}."
+                    )
 
         elif len(self.arr) != len(np.unique(self.arr)):
             raise ValueError("Index values must be all unique.")
-        
+
         self.repeating_index = repeating_index
-        
+
     # endregion
-        
-        
-def _sort_and_get_tp(data: pd.DataFrame | None, 
-                     col_name: str | None,
-                     timepoints: tp.TimePointArray) -> tp.TimePointArray:
+
+
+def _sort_and_get_tp(
+    data: pd.DataFrame | None, col_name: str | None, timepoints: tp.TimePointArray
+) -> tp.TimePointArray:
     if data is None:
         return timepoints
-    
+
     if col_name is None:
-        col_name = '__TDF_TMP_COLUMN__'
-    
+        col_name = "__TDF_TMP_COLUMN__"
+
     _dtype = data.columns.dtype
     data[col_name] = np.array(timepoints)
-    data.sort_values(by=col_name, inplace=True, kind='mergesort')
+    data.sort_values(by=col_name, inplace=True, kind="mergesort")
     del data[col_name]
     data.columns = data.columns.astype(_dtype)
 
-    return np.sort(timepoints)          # type: ignore[return-value]
+    return np.sort(timepoints)  # type: ignore[return-value]
 
 
-def _get_timed_index(index: Collection[IFS] | None,
-                     time_list: tp.TimePointArray | None,
-                     time_col_name: str | None,
-                     data: pd.DataFrame | None,
-                     repeating_index: bool) -> TimedArray:
+def _get_timed_index(
+    index: Collection[IFS] | None,
+    time_list: tp.TimePointArray | None,
+    time_col_name: str | None,
+    data: pd.DataFrame | None,
+    repeating_index: bool,
+) -> TimedArray:
     if isinstance(data, pd.DataFrame) and index is not None:
         data.index = pd.Index(index)
-    
+
     if time_list is None and time_col_name is not None:
         if not isinstance(data, pd.DataFrame):
             raise ValueError("'time_col_name' parameter was given without data.")
-        
+
         if time_col_name not in data.columns:
             raise ValueError(f"'time_col_name' ('{time_col_name}') is not in the data's columns.")
 
         _time_list = _sort_and_get_tp(data, time_col_name, tp.as_timepointarray(data[time_col_name]))
-    
+
     elif time_list is not None:
         if time_col_name is not None:
             warn("'time_list' parameter already supplied, 'time_col_name' parameter is ignored.")
-        
+
         # if isCollection(time_list):
         _time_list = _sort_and_get_tp(data, time_col_name, time_list)
-                        
+
     else:
         _time_list = None
-        
+
     if isinstance(data, pd.DataFrame):
         _index = data.index.values
-        
+
     elif index is not None:
         _index = np.array(index)
-        
+
     else:
         _index = None
-    
-    return TimedArray(_index, _time_list, repeating_index)
-            
 
-def parse_data_h5(data: ch.H5Dict[Any],
-                  lock: tuple[bool, bool] | None,
-                  name: str) -> ch.AttributeManager:
+    return TimedArray(_index, _time_list, repeating_index)
+
+
+def parse_data_h5(data: ch.H5Dict[Any], lock: tuple[bool, bool] | None, name: str) -> ch.AttributeManager:
     if lock is not None:
-        data.attributes['locked_indices'], data.attributes['locked_columns'] = bool(lock[0]), bool(lock[1])
+        data.attributes["locked_indices"], data.attributes["locked_columns"] = bool(lock[0]), bool(lock[1])
 
     if name != NO_NAME:
-        data.attributes['name'] = str(name)
+        data.attributes["name"] = str(name)
 
     return data.attributes
 
 
-def parse_data(data: dict[str, NDArray_IFS] | pd.DataFrame | None,
-               index: Collection[IFS] | None,
-               repeating_index: bool,
-               columns: Collection[IFS] | None,
-               time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None,
-               time_col_name: str | None,
-               lock: tuple[bool, bool] | None,
-               name: str) -> tuple[
-                   npt.NDArray[np.int_] | npt.NDArray[np.float_], 
-                   npt.NDArray[np.str_],
-                   tp.TimePointArray,
-                   NDArray_IFS,
-                   NDArray_IFS,
-                   NDArray_IFS,
-                   tuple[bool, bool],
-                   str | None,
-                   str,
-                   bool
-                ]:
+def parse_data(
+    data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None,
+    index: Collection[IFS] | None,
+    repeating_index: bool,
+    columns: Collection[IFS] | None,
+    time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None,
+    time_col_name: str | None,
+    lock: tuple[bool, bool] | None,
+    name: str,
+) -> tuple[
+    npt.NDArray[np.int_] | npt.NDArray[np.float_],
+    npt.NDArray[np.str_],
+    tp.TimePointArray,
+    NDArray_IFS,
+    NDArray_IFS,
+    NDArray_IFS,
+    tuple[bool, bool],
+    str | None,
+    str,
+    bool,
+]:
     """
     Parse the user-given data to create a TemporalDataFrame.
 
@@ -192,95 +186,57 @@ def parse_data(data: dict[str, NDArray_IFS] | pd.DataFrame | None,
         the name
         whether the index is repeating
     """
-    if isinstance(data, dict):
-        data = pd.DataFrame(data)
-        
     if data is not None:
-        data = data.copy()
-        
-    timed_index = _get_timed_index(index, 
-                                   None if time_list is None else as_timepointarray(time_list), 
-                                   time_col_name, 
-                                   data,
-                                   repeating_index)
-    
+        data = pd.DataFrame(data).copy()  # type: ignore[arg-type]
+
+    timed_index = _get_timed_index(
+        index, None if time_list is None else as_timepointarray(time_list), time_col_name, data, repeating_index
+    )
+
     # TODO : test for when data is None but other parameters are given
     if data is None:
         if time_col_name is not None:
             warn("No data supplied, 'time_col_name' parameter is ignored.")
 
-        return np.empty((len(timed_index.arr), 
-                         0 if columns is None else len(columns))), \
-            np.empty((len(timed_index.arr), 0), dtype=str), \
-            timed_index.time, \
-            timed_index.arr, \
-            np.empty(0) if columns is None else np.array(columns), \
-            np.empty(0),\
-            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), \
-            None, \
-            str(name), \
-            timed_index.repeating_index
+        return (
+            np.empty((len(timed_index.arr), 0 if columns is None else len(columns))),
+            np.empty((len(timed_index.arr), 0), dtype=str),
+            timed_index.time,
+            timed_index.arr,
+            np.empty(0) if columns is None else np.array(columns),
+            np.empty(0),
+            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])),
+            None,
+            str(name),
+            timed_index.repeating_index,
+        )
 
-    if isinstance(data, pd.DataFrame):
-        numerical_array, string_array, columns_numerical, columns_string = parse_data_df(data, columns)
+    numerical_array, string_array, columns_numerical, columns_string = parse_data_df(data, columns)
 
-        return numerical_array, \
-            string_array, \
-            timed_index.time,\
-            obj_as_str(np.array(data.index)),\
-            columns_numerical, \
-            columns_string, \
-            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), \
-            time_col_name, \
-            str(name), \
-            timed_index.repeating_index
+    return (
+        numerical_array,
+        string_array,
+        timed_index.time,
+        obj_as_str(np.array(data.index)),
+        columns_numerical,
+        columns_string,
+        (False, False) if lock is None else (bool(lock[0]), bool(lock[1])),
+        time_col_name,
+        str(name),
+        timed_index.repeating_index,
+    )
 
-    if not isCollection(data):
-        if timed_index.arr is not None and columns is not None:
-            numerical_array = np.empty((len(timed_index.arr), len(columns)), dtype=float)
-            numerical_array[:] = np.nan
 
-        else:
-            numerical_array = np.empty((0, 0))
+def parse_data_df(
+    data: pd.DataFrame, columns: Collection[IFS] | None
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.str_], NDArray_IFS, NDArray_IFS]:
+    numerical_df = data.select_dtypes(include="number")
+    string_df = data.select_dtypes(exclude="number")
 
-        if timed_index.arr is not None:
-            string_array = np.empty((len(timed_index.arr), 0), dtype=str)
-            string_array[:] = np.nan
-
-        else:
-            string_array = np.empty((0, 0), dtype=str)
-
-        return numerical_array, \
-            string_array, \
-            timed_index.time, \
-            timed_index.arr, \
-            np.empty(0) if columns is None else np.array(columns), \
-            np.empty(0), \
-            (False, False) if lock is None else (bool(lock[0]), bool(lock[1])), \
-            time_col_name, \
-            str(name), \
-            timed_index.repeating_index
-
-    raise ValueError("Invalid 'data' supplied for creating a TemporalDataFrame. 'data' can be :\n"
-                     " - a dictionary of ['column_name': [values]], where [values] has always the same length \n"
-                     " - a pandas DataFrame \n"
-                     " - a H5 File or Group containing numerical and string data")
-    
-
-def parse_data_df(data: pd.DataFrame,
-                  columns: Collection[IFS] | None) -> tuple[
-                      npt.NDArray[np.float64], 
-                      npt.NDArray[np.str_], 
-                      NDArray_IFS,
-                      NDArray_IFS
-                  ]:
-    numerical_df = data.select_dtypes(include='number')
-    string_df = data.select_dtypes(exclude='number')
-    
     if columns is not None:
-        columns_numerical = np.array(columns)[:numerical_df.shape[1]]
-        columns_string = np.array(columns)[numerical_df.shape[1]:]
-        
+        columns_numerical = np.array(columns)[: numerical_df.shape[1]]
+        columns_string = np.array(columns)[numerical_df.shape[1] :]
+
     else:
         columns_numerical = np.array(numerical_df.columns.values)
         columns_string = np.array(string_df.columns.values)

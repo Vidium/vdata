@@ -10,7 +10,11 @@ import pandas as pd
 from anndata import AnnData
 
 import vdata.timepoint as tp
+from vdata._meta import PrettyRepr
 from vdata._typing import IFS, DictLike, NDArray_IFS, PreSlicer
+from vdata.anndata_proxy import AnnDataProxy
+from vdata.data._file import NoData
+from vdata.data._indexing import reformat_index
 from vdata.data._parse import ParsingDataIn, ParsingDataOut, parse_AnnData, parse_objects
 from vdata.data.arrays import (
     VLayersArrayContainer,
@@ -19,10 +23,8 @@ from vdata.data.arrays import (
     VVarmArrayContainer,
     VVarpArrayContainer,
 )
-from vdata.data.convert import convert_vdata_to_anndata
-from vdata.data.file import NoData
+from vdata.data.convert import convert_anndata_to_vdata, convert_vdata_to_anndata
 from vdata.data.read import read_from_csv
-from vdata.data.utils import reformat_index
 from vdata.data.view import VDataView
 from vdata.data.write import write_vdata, write_vdata_in_h5dict, write_vdata_to_csv
 from vdata.IO import (
@@ -33,11 +35,11 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
-from vdata.utils import repr_index
+from vdata.utils import repr_array, repr_index
 from vdata.vdataframe import VDataFrame
 
 
-class VData:
+class VData(metaclass=PrettyRepr):
     """
     A VData object stores data points in matrices of observations x variables in the same way as the AnnData object,
     but also accounts for the time information. The 2D matrices in AnnData are replaced by 3D matrices here.
@@ -166,13 +168,13 @@ class VData:
             obj = getattr(self, attr)
             if not obj.empty:
                 if isinstance(obj, TemporalDataFrameBase):
-                    repr_str += f"\n\t{attr}: {str(list(obj.columns))[1:-1]}"
+                    repr_str += f"\n\t{attr}: {repr_array(obj.columns, n_max=100, print_length=False)[1:-1]}"
 
                 else:
-                    repr_str += f"\n\t{attr}: {str(list(obj.keys()))[1:-1]}"
+                    repr_str += f"\n\t{attr}: {repr_array(obj.keys(), n_max=100, print_length=False)[1:-1]}"
 
         if len(self.uns):
-            repr_str += f"\n\tuns: {str(list(self.uns.keys()))[1:-1]}"
+            repr_str += f"\n\tuns: {repr_array(self.uns.keys(), n_max=100, print_length=False)[1:-1]}"
 
         return repr_str
 
@@ -788,12 +790,21 @@ class VData:
 
     @classmethod
     def read_from_anndata(
-        cls, path: str | Path, mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] = ch.H5Mode.READ
+        cls,
+        path: str | Path,
+        timepoint: IFS | tp.TimePoint = tp.TimePoint("0h"),
+        timepoints_column_name: str | None = None,
+        inplace: bool = False,
     ) -> VData:
-        # TODO : copy h5 file of Anndata to VData format and open VData from that file
-        # data = ch.H5Dict(...)
-        # return _parse_h5(data, ...)
-        raise NotImplementedError
+        """
+        Args:
+            path: path to the anndata h5 file to convert.
+            time_point: a unique timepoint to set for the data in the anndata.
+            time_column_name: the name of the column in anndata's obs to use as indicator of time point for the data.
+            inplace: perform file conversion directly on the anndata h5 file ? (default False)
+        """
+        data = convert_anndata_to_vdata(path, timepoint, timepoints_column_name, inplace=inplace)
+        return VData.__h5_read__(data)
 
     def copy(self) -> VData:
         """
@@ -815,7 +826,7 @@ class VData:
             name=f"{self._name}_copy",
         )
 
-    def to_AnnData(
+    def to_anndata(
         self,
         timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
         into_one: bool = True,
@@ -847,6 +858,9 @@ class VData:
             layer_as_X=layer_as_X,
             layers_to_export=layers_to_export,
         )
+
+    def as_anndata(self, X: str | None = None) -> AnnDataProxy:
+        return AnnDataProxy(self, X=X)
 
     def close(self) -> None:
         if self._data is None:

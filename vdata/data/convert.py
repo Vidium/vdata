@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
-from typing import Collection
+from typing import Any, Collection
 
+import ch5mpy as ch
 import numpy as np
 from anndata import AnnData
+from tqdm.auto import tqdm
 
 import vdata
 import vdata.timepoint as tp
+from vdata._typing import IFS
 from vdata.IO.logger import generalLogger
-from vdata.names import DEFAULT_TIME_COL_NAME
+from vdata.tdf import TemporalDataFrame
 from vdata.utils import repr_array
+from vdata.vdataframe import VDataFrame
 
 
-def convert_vdata_to_anndata(data: vdata.VData,
-                             timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
-                             into_one: bool = True,
-                             with_timepoints_column: bool = True,
-                             layer_as_X: str | None = None,
-                             layers_to_export: list[str] | None = None) -> AnnData | list[AnnData]:
+def convert_vdata_to_anndata(
+    data: vdata.VData,
+    timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+    into_one: bool = True,
+    with_timepoints_column: bool = True,
+    layer_as_X: str | None = None,
+    layers_to_export: list[str] | None = None,
+) -> AnnData | list[AnnData]:
     """
     Convert a VData object to an AnnData object.
 
@@ -37,8 +44,9 @@ def convert_vdata_to_anndata(data: vdata.VData,
     """
     # TODO : obsp is not passed to AnnData
 
-    generalLogger.debug(u'\u23BE VData conversion to AnnData : begin '
-                        u'---------------------------------------------------------- ')
+    generalLogger.debug(
+        "\u23BE VData conversion to AnnData : begin " "---------------------------------------------------------- "
+    )
 
     if timepoints_list is None:
         _timepoints_list = data.timepoints_values
@@ -50,27 +58,23 @@ def convert_vdata_to_anndata(data: vdata.VData,
     generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
 
     if into_one:
-        return _convert_vdata_into_one_anndata(data, 
-                                               with_timepoints_column,
-                                               _timepoints_list,
-                                               layer_as_X,
-                                               layers_to_export)
+        return _convert_vdata_into_one_anndata(
+            data, with_timepoints_column, _timepoints_list, layer_as_X, layers_to_export
+        )
 
     return _convert_vdata_into_many_anndatas(data, _timepoints_list, layer_as_X)
-    
-    
-def _convert_vdata_into_one_anndata(data: vdata.VData,
-                                    with_timepoints_column: bool,
-                                    timepoints_list: tp.TimePointArray,
-                                    layer_as_X: str | None,
-                                    layers_to_export: list[str] | None) -> AnnData:
+
+
+def _convert_vdata_into_one_anndata(
+    data: vdata.VData,
+    with_timepoints_column: bool,
+    timepoints_list: tp.TimePointArray,
+    layer_as_X: str | None,
+    layers_to_export: list[str] | None,
+) -> AnnData:
     generalLogger.debug("Convert to one AnnData object.")
 
-    if with_timepoints_column:
-        tp_col_name = data.obs.timepoints_column_name if data.obs.timepoints_column_name is not None else \
-            DEFAULT_TIME_COL_NAME
-    else:
-        tp_col_name = None
+    tp_col_name = data.obs.get_timepoints_column_name() if with_timepoints_column else None
 
     view = data[timepoints_list]
     if layer_as_X is None:
@@ -84,34 +88,35 @@ def _convert_vdata_into_one_anndata(data: vdata.VData,
     X.columns = X.columns.astype(str)
     if layers_to_export is None:
         layers_to_export = view.layers.keys()
-        
-    anndata = AnnData(X=X,
-                    layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
-                    obs=view.obs.to_pandas(with_timepoints=tp_col_name,
-                                            str_index=True),
-                    obsm={key: arr.values_num for key, arr in view.obsm.items()},
-                    obsp={key: arr.values for key, arr in view.obsp.items()},
-                    var=view.var.to_pandas(),
-                    varm={key: arr for key, arr in view.varm.items()},
-                    varp={key: arr for key, arr in view.varp.items()},
-                    uns=view.uns.copy())
-    
-    generalLogger.debug('\u23BF VData conversion to AnnData : end '
-                        '---------------------------------------------------------- ')
-    
+
+    anndata = AnnData(
+        X=X,
+        layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
+        obs=view.obs.to_pandas(with_timepoints=tp_col_name, str_index=True),
+        obsm={key: arr.values_num for key, arr in view.obsm.items()},
+        obsp={key: arr.values for key, arr in view.obsp.items()},
+        var=view.var.to_pandas(),
+        varm={key: arr for key, arr in view.varm.items()},
+        varp={key: arr for key, arr in view.varp.items()},
+        uns=view.uns.copy(),
+    )
+
+    generalLogger.debug(
+        "\u23BF VData conversion to AnnData : end " "---------------------------------------------------------- "
+    )
+
     return anndata
-    
 
 
-def _convert_vdata_into_many_anndatas(data: vdata.VData,
-                                      timepoints_list: tp.TimePointArray,
-                                      layer_as_X: str | None) -> list[AnnData]:
+def _convert_vdata_into_many_anndatas(
+    data: vdata.VData, timepoints_list: tp.TimePointArray, layer_as_X: str | None
+) -> list[AnnData]:
     generalLogger.debug("Convert to many AnnData objects.")
 
     result = []
     for time_point in timepoints_list:
         view = data[time_point]
-        
+
         if layer_as_X is None:
             layer_as_X = list(view.layers.keys())[0]
 
@@ -122,354 +127,173 @@ def _convert_vdata_into_many_anndatas(data: vdata.VData,
         X.index = X.index.astype(str)
         X.columns = X.columns.astype(str)
 
-        result.append(AnnData(X=X,
-                              layers={key: layer.to_pandas(str_index=True)
-                                      for key, layer in view.layers.items()},
-                              obs=view.obs.to_pandas(str_index=True),
-                              obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
-                              var=view.var.to_pandas(),
-                              varm={key: arr for key, arr in view.varm.items()},
-                              varp={key: arr for key, arr in view.varp.items()},
-                              uns=view.uns))
+        result.append(
+            AnnData(
+                X=X,
+                layers={key: layer.to_pandas(str_index=True) for key, layer in view.layers.items()},
+                obs=view.obs.to_pandas(str_index=True),
+                obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
+                var=view.var.to_pandas(),
+                varm={key: arr for key, arr in view.varm.items()},
+                varp={key: arr for key, arr in view.varp.items()},
+                uns=view.uns,
+            )
+        )
 
-    generalLogger.debug(u'\u23BF VData conversion to AnnData : end '
-                        u'---------------------------------------------------------- ')
+    generalLogger.debug(
+        "\u23BF VData conversion to AnnData : end " "---------------------------------------------------------- "
+    )
 
     return result
 
-def convert_anndata_to_vdata(file: Path | str,
-                             time_point: int | float | str | tp.TimePoint = '0h',
-                             time_column_name: str | None = None,
-                             inplace: bool = False) -> None:
+
+def convert_anndata_to_vdata(
+    path: Path | str,
+    timepoint: IFS | tp.TimePoint = tp.TimePoint("0h"),
+    timepoints_column_name: str | None = None,
+    inplace: bool = False,
+    drop_X: bool = False,
+) -> ch.H5Dict[Any]:
     """
     Convert an anndata h5 file into a valid vdata h5 file.
     /!\\ WARNING : if done inplace, you won't be able to open the file as an anndata anymore !
 
     Args:
-        file: path to the anndata h5 file to convert.
-        time_point: a time point to set for the data in the anndata.
-        time_column_name: the name of the column in anndata's obs to use as indicator of time point for the data.
-        inplace: perform file conversion directly on the anndata h5 file ? (default False)
+        path: path to the anndata h5 file to convert.
+        timepoint: a unique timepoint to set for the data in the anndata.
+        timepoints_column_name: the name of the column in anndata's obs to use as indicator of time point for the data.
+        inplace: perform file conversion directly on the anndata h5 file ? (default: False)
+        drop_X: do not preserve the 'X' dataset ? (default: False)
     """
-    raise NotImplementedError
-    
-#     working_on_file = Path(file).with_suffix('.vd')
-
-#     if not inplace:
-#         generalLogger.info('Working on file copy.')
-#         # copy file
-#         shutil.copy(file, working_on_file)
-
-#     else:
-#         generalLogger.info('Working on file inplace.')
-#         # rename file
-#         os.rename(file, working_on_file)
-
-#     # reformat copied file
-#     data = ch.H5Dict.read(working_on_file, 
-#                           mode=ch.H5Mode.READ_WRITE if inplace else ch.H5Mode.READ)
-
-#     # -------------------------------------------------------------------------
-#     # 1. remove X
-#     generalLogger.info("Removing 'X' layer.")
-#     if 'layers' not in data.keys():
-#         data['layers'] = dict(X = data['X'])
-        
-#     del data['X']
-
-#     # -------------------------------------------------------------------------
-#     # 2. get time information
-#     valid_columns = list(set(data['obs'].keys()) - {'__categories', '_index'})
-
-#     if time_column_name is not None:
-#         if time_column_name not in valid_columns:
-#             raise ValueError(f"Could not find column '{time_column_name}' in obs ({valid_columns}).")
-
-#         timepoints_in_data = set(data['obs'][time_column_name][()])
-#         timepoints_masks = {tp: np.where(data['obs'][time_column_name][()] == tp)[0] for tp in timepoints_in_data}
-
-#     else:
-#         timepoints_masks = {time_point: np.arange(data['obs'][valid_columns[0]].shape[0])}
-
-#     # -------------------------------------------------------------------------
-#     # 3. convert layers to chunked TDFs
-#     # set group type
-#     obs_index_name = h5_file['obs'].attrs['_index']
-#     obs_index = h5_file['obs'][obs_index_name]
-#     var_index_name = h5_file['var'].attrs['_index']
-#     var_index = h5_file['var'][var_index_name]
-
-#     for layer in h5_file['layers'].keys():
-#         generalLogger.info(f"Converting layer '{layer}'.")
-
-#         h5_file['layers'].move(layer, f"{layer}_data")
-#         h5_file['layers'].create_group(layer)
-
-#         # save index
-#         h5_file[f'layers/{layer}'].create_dataset_like('index', obs_index)
-#         h5_file[f'layers/{layer}/index'][()] = obs_index
-#         h5_file['layers'][layer]['index'].attrs['type'] = 'array'
-
-#         # save time_col_name
-#         write_data(time_column_name, h5_file['layers'][layer], 'time_col_name', key_level=1)
-
-#         # create group for storing the data
-#         data_group = h5_file['layers'][layer].create_group('data', track_order=True)
+    path = Path(path)
 
-#         # set group type
-#         h5_file['layers'][layer].attrs['type'] = 'CHUNKED_TDF'
+    if not inplace:
+        print("Copying file ...")
+        # TODO maybe implement https://stackoverflow.com/a/49684845
+        shutil.copy(path, path.with_suffix(".vd"))
 
-#         # save columns
-#         h5_file[f'layers/{layer}'].create_dataset_like('columns', var_index)
-#         h5_file[f'layers/{layer}/columns'][()] = var_index
-#         h5_file['layers'][layer]['columns'].attrs['type'] = 'array'
+    else:
+        shutil.move(path, path.with_suffix(".vd"))
 
-#         # save data, per time point, in DataSets
-#         for time_point in timepoints_masks.keys():
-#             # TODO : support for reading a sparse matrix
-#             data_group.create_dataset(
-#                 str(TimePoint(time_point)),
-#                 data=h5_file['layers'][f"{layer}_data"][timepoints_masks[time_point]],
-#                 chunks=True, maxshape=(None, None)
-#             )
-
-#         # remove old data
-#         del h5_file['layers'][f"{layer}_data"]
-
-#     # -------------------------------------------------------------------------
-#     # 4.1 convert obs
-#     generalLogger.info("Converting 'obs'.")
-
-#     h5_file.move('obs', 'obs_data')
-#     h5_file.create_group('obs')
-
-#     # save index
-#     h5_file['obs'].create_dataset_like('index', obs_index)
-#     h5_file['obs/index'][()] = obs_index
-#     h5_file['obs']['index'].attrs['type'] = 'array'
-
-#     # save time_col_name
-#     write_data(time_column_name, h5_file['obs'], 'time_col_name', key_level=1)
-
-#     # save time_list
-#     write_data(list(np.repeat([TimePoint(tp) for tp in timepoints_masks.keys()],
-#                               [len(i) for i in timepoints_masks.values()])),
-#                h5_file['obs'], 'time_list', key_level=1)
-
-#     # create group for storing the data
-#     data_group = h5_file['obs'].create_group('data', track_order=True)
-
-#     # set group type
-#     h5_file['obs'].attrs['type'] = 'tdf'
-
-#     # save data, per column, in arrays
-#     for col in h5_file['obs_data'].keys():
-#         if col in ('_index', '__categories'):
-#             continue
-
-#         values = h5_file['obs_data'][col][()]
-
-#         write_data(values, data_group, col, key_level=1)
-
-#     # remove old data
-#     del h5_file['obs_data']
-
-#     # -------------------------------------------------------------------------
-#     # 4.2 convert obsm
-#     generalLogger.info("Converting 'obsm'.")
-
-#     if 'obsm' in h5_file.keys():
-#         h5_file.move('obsm', 'obsm_data')
-#         h5_file.create_group('obsm')
-
-#         # set group type
-#         h5_file['obsm'].attrs['type'] = 'dict'
-
-#         for df_name in h5_file['obsm_data'].keys():
-#             generalLogger.info(f"\tConverting dataframe '{df_name}'.")
-#             h5_file['obsm'].create_group(df_name)
-
-#             # save index
-#             h5_file['obs'].copy('index', f'/obsm/{df_name}/index')
-#             h5_file['obsm'][df_name]['index'].attrs['type'] = 'array'
-
-#             # save time_col_name
-#             write_data(time_column_name, h5_file['obsm'][df_name], 'time_col_name', key_level=1)
-
-#             # create group for storing the data
-#             data_group = h5_file['obsm'][df_name].create_group('data', track_order=True)
-
-#             # set group type
-#             h5_file['obsm'][df_name].attrs['type'] = 'CHUNKED_TDF'
-
-#             # save columns
-#             write_data(np.arange(h5_file['obsm_data'][df_name].shape[1]), h5_file['obsm'][df_name], 'columns',
-#                        key_level=1)
-
-#             # save data, per time point, in DataSets
-#             for time_point in timepoints_masks.keys():
-#                 data_group.create_dataset(str(TimePoint(time_point)),
-#                                          data=h5_file['obsm_data'][df_name][timepoints_masks[time_point][:, None], :],
-#                                          chunks=True, maxshape=(None, None))
-
-#         # remove old data
-#         del h5_file['obsm_data']
-
-#     else:
-#         h5_file.create_group('obsm')
-
-#         # set group type
-#         h5_file['obsm'].attrs['type'] = 'None'
-
-#     # -------------------------------------------------------------------------
-#     # 4.3 convert obsp
-#     generalLogger.info("Converting 'obsp'.")
-
-#     if 'obsp' in h5_file.keys():
-#         h5_file.move('obsp', 'obsp_data')
-#         h5_file.create_group('obsp')
-
-#         # set group type
-#         h5_file['obsp'].attrs['type'] = 'None'
-#         # h5_file['obsp'].attrs['type'] = 'dict'
-#         #
-#         # for df_name in h5_file['obsp_data'].keys():
-#         #     generalLogger.info(f"\tConverting dataframe '{df_name}'.")
-#         #     h5_file['obsp'].create_group(df_name)
-#         #
-#         #     # set group type
-#         #     h5_file['obsp'][df_name].attrs['type'] = 'dict'
-#         #
-#         #     for tp in timepoints_masks.keys():
-#         #         generalLogger.info(f"\t\tConverting for time point '{tp}'.")
-#         #         h5_file['obsp'][df_name].create_group(str(TimePoint(tp)))
-#         #
-#         #         # save index
-#         #         write_data(h5_file['obs']['index'][timepoints_masks[tp]],
-#         #                    h5_file['obsp'][df_name][str(TimePoint(tp))], 'index', key_level=2)
-#         #
-#         #         # create group for storing the data
-#         #         data_group = h5_file['obsp'][df_name][str(TimePoint(tp))].create_group('data', track_order=True)
-#         #
-#         #         # set group type
-#         #         h5_file['obsp'][df_name][str(TimePoint(tp))].attrs['type'] = 'VDF'
-#         #
-#         #         # save data, per column, in arrays
-#         #         for col in range(h5_file[f'obsp_data'][df_name].shape[1]):
-#         #             pass
-#         # TODO : here save the data (/!\ we need to handle sparse matrices)
+    data = ch.H5Dict.read(path.with_suffix(".vd"), mode=ch.H5Mode.READ_WRITE)
 
-#         # remove old data
-#         del h5_file['obsp_data']
+    # X -----------------------------------------------------------------------
+    if not drop_X:
+        data["layers"]["X"] = data["X"]
 
-#     else:
-#         h5_file.create_group('obsp')
+    del data["X"]
 
-#         # set group type
-#         h5_file['obsp'].attrs['type'] = 'None'
+    # progress bar ------------------------------------------------------------
+    nb_items_to_write = (
+        3
+        + len(data["layers"])
+        + len(data["obsm"])
+        + len(data["obsp"])
+        + len(data["varm"])
+        + len(data["varp"])
+        + int(not drop_X)
+    )
+    progressBar = tqdm(total=nb_items_to_write, desc="converting anndata to VData", unit="object")
+    progressBar.update()
 
-#     # -------------------------------------------------------------------------
-#     # 5.1 convert var
-#     generalLogger.info("Converting 'var'.")
+    # timepoints --------------------------------------------------------------
+    timepoint = tp.TimePoint(timepoint)
 
-#     h5_file.move('var', 'var_data')
-#     h5_file.create_group('var')
+    if timepoints_column_name is not None:
+        if timepoints_column_name not in data["obs"]:
+            raise ValueError(f"Could not find column '{timepoints_column_name}' in obs columns.")
 
-#     # save index
-#     h5_file['var'].create_dataset_like('index', var_index)
-#     h5_file['var/index'][()] = var_index
-#     h5_file['var']['index'].attrs['type'] = 'array'
+        timelist = tp.as_timepointarray(data["obs"][timepoints_column_name])
 
-#     # create group for storing the data
-#     data_group = h5_file['var'].create_group('data', track_order=True)
+    else:
+        timelist = tp.TimePointArray(
+            np.ones(data["obs"][next(iter(data["obs"]))].shape[0]) * timepoint.value, unit=timepoint.unit
+        )
 
-#     # set group type
-#     h5_file['var'].attrs['type'] = 'VDF'
+    ch.write_object(data, "timepoints", VDataFrame({"value": np.unique(timelist, equal_nan=False)}))
+    progressBar.update()
 
-#     # save data, per column, in arrays
-#     for col in h5_file['var_data'].keys():
-#         if col in ('_index', '__categories'):
-#             continue
+    # obs ---------------------------------------------------------------------
+    _obs_index = data["obs"]["_index"].astype(str)
 
-#         values = h5_file['var_data'][col][()]
+    obs_data = data["obs"].copy()
+    del obs_data["_index"]
 
-#         write_data(values, data_group, col, key_level=1)
+    del data["obs"]
 
-#     # remove old data
-#     del h5_file['var_data']
+    ch.write_object(
+        data, "obs", TemporalDataFrame(obs_data, index=_obs_index, time_list=timelist, lock=(True, False), name="obs")
+    )
 
-#     # -------------------------------------------------------------------------
-#     # 5.2 convert varm
-#     convert_VDFs(h5_file, 'varm')
+    progressBar.update()
 
-#     # -------------------------------------------------------------------------
-#     # 5.3 convert varp
-#     convert_VDFs(h5_file, 'varp')
+    # var ---------------------------------------------------------------------
+    _var_index = data["var"]["_index"].astype(str)
 
-#     # -------------------------------------------------------------------------
-#     # 6. copy uns
-#     generalLogger.info("Converting 'uns'.")
+    var_data = data["var"].copy()
+    del var_data["_index"]
 
-#     if 'uns' in h5_file.keys():
-#         set_type_to_dict(h5_file['uns'])
+    del data["var"]
 
-#     # -------------------------------------------------------------------------
-#     # 7. create time-points
-#     generalLogger.info("Creating 'time-points'.")
+    ch.write_object(data, "var", VDataFrame(var_data, index=_var_index))
 
-#     h5_file.create_group('timepoints')
+    progressBar.update()
 
-#     # set group type
-#     h5_file['timepoints'].attrs['type'] = 'VDF'
+    # layers ------------------------------------------------------------------
+    for layer_name, layer_data in data["layers"].items():
+        layer_data = layer_data.copy()
+        del data["layers"][layer_name]
 
-#     # create index
-#     write_data(np.arange(len(timepoints_masks)), h5_file['timepoints'], 'index', key_level=1)
+        ch.write_object(
+            data["layers"],
+            layer_name,
+            TemporalDataFrame(
+                layer_data, index=_obs_index, columns=_var_index, time_list=timelist, lock=(True, True), name=layer_name
+            ),
+        )
 
-#     # create data
-#     h5_file['timepoints'].create_group('data')
+        progressBar.update()
 
-#     values = [str(TimePoint(tp)) for tp in timepoints_masks.keys()]
+    # obsm --------------------------------------------------------------------
+    for array_name, array_data in data["obsm"].items():
+        array_data = array_data.copy()
+        del data["obsm"][array_name]
 
-#     write_data(values, h5_file['timepoints']['data'], 'value', key_level=1)
+        ch.write_object(
+            data["obsm"],
+            array_name,
+            TemporalDataFrame(array_data, index=_obs_index, time_list=timelist, lock=(True, False), name=array_name),
+        )
 
-#     # -------------------------------------------------------------------------
-#     h5_file.close()
+        progressBar.update()
 
+    # obsp --------------------------------------------------------------------
+    for array_name, array_data in data["obsp"].items():
+        array_data = array_data.copy()
+        del data["obsp"][array_name]
 
-# def convert_VDFs(file: File, key: str) -> None:
-#     generalLogger.info(f"Converting '{key}'.")
-#     if key in file.keys():
-#         file.move(key, f'{key}_data')
-#         file.create_group(key)
+        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_obs_index, columns=_obs_index))
 
-#         # set group type
-#         file[key].attrs['type'] = 'dict'
+        progressBar.update()
 
-#         for df_name in file[f'{key}_data'].keys():
-#             generalLogger.info(f"\tConverting dataframe '{df_name}'.")
-#             file[key].create_group(df_name)
+    # varm --------------------------------------------------------------------
+    for array_name, array_data in data["varm"].items():
+        array_data = array_data.copy()
+        del data["varm"][array_name]
 
-#             # save index
-#             file['var'].copy('index', f'/{key}/{df_name}/index')
-#             file[key][df_name]['index'].attrs['type'] = 'array'
+        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_var_index))
 
-#             # create group for storing the data
-#             data_group = file[key][df_name].create_group('data', track_order=True)
+        progressBar.update()
 
-#             # set group type
-#             file[key][df_name].attrs['type'] = 'VDF'
+    # varp --------------------------------------------------------------------
+    for array_name, array_data in data["varp"].items():
+        array_data = array_data.copy()
+        del data["varp"][array_name]
 
-#             # save data, per column, in arrays
-#             for col in range(file[f'{key}_data'][df_name].shape[1]):
-#                 values = file[f'{key}_data'][df_name][:, col]
+        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_var_index, columns=_var_index))
 
-#                 write_data(values, data_group, str(col), key_level=2)
+        progressBar.update()
 
-#         # remove old data
-#         del file[f'{key}_data']
+    progressBar.close()
 
-#     else:
-#         file.create_group(key)
-
-#         # set group type
-#         file[key].attrs['type'] = 'None'
+    return data

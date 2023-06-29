@@ -37,13 +37,14 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
     def __getitem__(self, key: str) -> D:
         """Get a specific data item stored in this view."""
         return self.data[key]
-    
+
     @abstractmethod
     def __setitem__(self, key: str, value: D) -> None:
         """Set a specific data item in this view. The given data item must have the correct shape."""
-    
-    def __delitem__(self, __key: str) -> None:
-        raise TypeError('Cannot delete data from view.')
+
+    def __delitem__(self, key: str) -> None:
+        del key
+        raise TypeError("Cannot delete data from view.")
 
     def __len__(self) -> int:
         """Length of this view : the number of data items in the VBaseArrayContainer."""
@@ -54,7 +55,7 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
         return iter(self.keys())
 
     # endregion
-    
+
     # region attributes
     @property
     def name(self) -> str:
@@ -63,10 +64,11 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
 
     @property
     @abstractmethod
-    def shape(self) -> tuple[int, int, int] | \
-        tuple[int, int, list[int]] | \
-        tuple[int, int, list[int], int] | \
-        tuple[int, int, list[int], list[int]]:
+    def shape(
+        self,
+    ) -> tuple[int, int, int] | tuple[int, int, list[int]] | tuple[int, int, list[int], int] | tuple[
+        int, int, list[int], list[int]
+    ]:
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -80,12 +82,12 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
         return self._data
 
     # endregion
-    
+
     # region methods
     @abstractmethod
     def _check_data_has_not_changed(self) -> None:
         pass
-    
+
     def keys(self) -> KeysView[str]:
         """KeysView of keys for getting the data items in this view."""
         return self.data.keys()
@@ -99,8 +101,8 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
         return self.data.items()
 
     # endregion
-    
-    
+
+
 def get_tp_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
     return hash(tuple(array_container._vdata.timepoints.value.values))
 
@@ -108,10 +110,9 @@ def get_tp_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
 def get_obs_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
     return hash(tuple(array_container._vdata.obs.index))
 
-    
+
 def get_var_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
     return hash(tuple(array_container._vdata.var.index))
-
 
 
 class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame]):
@@ -121,11 +122,13 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     """
 
     # region magic methods
-    def __init__(self, 
-                 array_container: VBaseArrayContainer[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame],
-                 timepoints_slicer: TimePointArray,
-                 obs_slicer: NDArray_IFS,
-                 var_slicer: NDArray_IFS | slice):
+    def __init__(
+        self,
+        array_container: VBaseArrayContainer[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame],
+        timepoints_slicer: TimePointArray,
+        obs_slicer: NDArray_IFS,
+        var_slicer: NDArray_IFS | slice,
+    ):
         """
         Args:
             array_container: a VBaseArrayContainer object to build a view on.
@@ -133,10 +136,11 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
             obs_slicer: the list of observations to view.
             var_slicer: the list of variables to view.
         """
-        super().__init__(data={key: tdf[timepoints_slicer, obs_slicer, var_slicer]
-                               for key, tdf in array_container.items()},
-                         array_container=array_container)
-        
+        super().__init__(
+            data={key: tdf[timepoints_slicer, obs_slicer, var_slicer] for key, tdf in array_container.items()},
+            array_container=array_container,
+        )
+
         self._vdata_timepoints_hash = get_tp_hash(array_container)
         self._vdata_obs_hash = get_obs_hash(array_container)
         self._vdata_var_hash = get_var_hash(array_container)
@@ -146,7 +150,7 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
         self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def has_repeating_index(self) -> bool:
@@ -163,30 +167,32 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
         """
         if not len(self):
             return 0, 0, [], 0
-        
+
         return len(self), *first_in(self.data).shape
 
     # endregion
-    
+
     # region methods
     def _check_data_has_not_changed(self) -> None:
-        if get_tp_hash(self._array_container) != self._vdata_timepoints_hash or \
-                get_obs_hash(self._array_container) != self._vdata_obs_hash or \
-                get_var_hash(self._array_container) != self._vdata_var_hash:
+        if (
+            get_tp_hash(self._array_container) != self._vdata_timepoints_hash
+            or get_obs_hash(self._array_container) != self._vdata_obs_hash
+            or get_var_hash(self._array_container) != self._vdata_var_hash
+        ):
             raise ValueError("View no longer valid since parent's VData has changed.")
-    
+
     def set_index(self, values: NDArray_IFS, repeating_index: bool) -> None:
         """Set a new index for rows."""
         for layer in self.values():
             layer.unlock_indices()
             layer.set_index(values, repeating_index)
             layer.lock_indices()
-    
+
     def set_columns(self, values: NDArray_IFS) -> None:
         """Set a new index for columns."""
         for layer in self.values():
             layer.unlock_columns()
             layer.columns = np.array(values)
             layer.lock_columns()
-    
+
     # endregion

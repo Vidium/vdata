@@ -1,5 +1,7 @@
 """Annotated, temporal and multivariate observation data."""
 
+from ch5mpy import H5Mode
+
 from vdata.data import VData, VDataView, concatenate, convert_anndata_to_vdata
 from vdata.IO import (
     IncoherenceError,
@@ -16,6 +18,8 @@ read = VData.read
 read_from_csv = VData.read_from_csv
 read_from_anndata = VData.read_from_anndata
 
+mode = H5Mode
+
 __all__ = [
     "VData",
     "TemporalDataFrame",
@@ -29,5 +33,5 @@ __all__ = [
     "IncoherenceError",
     "VLockError",
     "VDataFrame",
-    "TimePoint"
+    "TimePoint",
 ]

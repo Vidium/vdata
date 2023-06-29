@@ -11,6 +11,8 @@ import pandas as pd
 import vdata
 import vdata.timepoint as tp
 from vdata._typing import DictLike, NDArray_IFS, PreSlicer
+from vdata.data._file import NoData
+from vdata.data._indexing import reformat_index
 from vdata.data.arrays import (
     VLayersArrayContainerView,
     VObsmArrayContainerView,
@@ -18,8 +20,6 @@ from vdata.data.arrays import (
     VVarmArrayContainerView,
     VVarpArrayContainerView,
 )
-from vdata.data.file import NoData
-from vdata.data.utils import reformat_index
 from vdata.data.write import write_vdata, write_vdata_in_h5dict, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
