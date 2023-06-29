@@ -289,6 +289,10 @@ class VData(metaclass=PrettyRepr):
 
         return False
 
+    @property
+    def is_view(self) -> Literal[False]:
+        return False
+
     # endregion
 
     # region attributes

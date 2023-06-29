@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 import numpy.typing as npt
+import pandas as pd
 from anndata import AnnData
+from scipy import sparse
 
-from vdata.anndata_proxy.dataframe import DataFrameproxy
-from vdata.anndata_proxy.layers import LayersProxy
+from vdata._typing import DictLike
+from vdata.anndata_proxy.containers import TemporalDataFrameContainerProxy, VDataFrameContainerProxy
+from vdata.anndata_proxy.dataframe import DataFrameproxy_TDF, DataFrameProxy_VDF
+from vdata.data._file import NoData
 
 if TYPE_CHECKING:
     from vdata.data import VData, VDataView
@@ -17,7 +22,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
     Class faking to be an anndata.AnnData object but actually wrapping a VData.
     """
 
-    __slots__ = "_vdata", "_X", "_layers", "_obs"
+    __slots__ = "_vdata", "_X", "_layers", "_obs", "_obsm", "_obsp", "_var", "_varm", "_varp", "_uns"
 
     # region magic methods
     def __init__(self, vdata: VData | VDataView, X: str | None = None) -> None:
@@ -28,10 +33,16 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         """
         self._vdata = vdata
         self._X = None if X is None else str(X)
-        self._layers = LayersProxy(vdata.layers)
-        self._obs: DataFrameproxy = DataFrameproxy(vdata.obs)
+        self._layers = TemporalDataFrameContainerProxy(vdata.layers, name="Layers")
+        self._obs = DataFrameproxy_TDF(vdata.obs)
+        self._obsm = TemporalDataFrameContainerProxy(vdata.obsm, name="Obsm")
+        self._obsp = VDataFrameContainerProxy(vdata.obsp, name="Obsp")
+        self._var = DataFrameProxy_VDF(vdata.var)
+        self._varm = VDataFrameContainerProxy(vdata.varm, name="Varm")
+        self._varp = VDataFrameContainerProxy(vdata.varp, name="Varp")
+        self._uns = vdata.uns
 
-        if self._X not in vdata.layers:
+        if self._X is not None and self._X not in vdata.layers:
             raise ValueError(f"Could not find layer '{self._X}' in the given VData.")
 
     def __repr__(self) -> str:
@@ -39,6 +50,16 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
 
     def __sizeof__(self, show_stratified: bool | None = None) -> int:
         del show_stratified
+        raise NotImplementedError
+
+    def __delitem__(self, index: Any) -> None:
+        raise NotImplementedError
+
+    def __getitem__(self, index: Any) -> None:
+        """Returns a sliced view of the object."""
+        raise NotImplementedError
+
+    def __setitem__(self, index: Any, val: int | float | npt.NDArray[Any] | sparse.spmatrix) -> None:
         raise NotImplementedError
 
     # endregion
@@ -66,10 +87,187 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
     def X(self) -> None:
         self._X = None
 
+    @property
+    def layers(self) -> TemporalDataFrameContainerProxy:
+        return self._layers
+
+    @layers.setter
+    def layers(self, value: Any) -> None:
+        del value
+        raise NotImplementedError
+
+    @layers.deleter
+    def layers(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def raw(self) -> None:
+        raise NotImplementedError
+
+    @raw.setter
+    def raw(self, value: AnnData) -> None:
+        raise NotImplementedError
+
+    @raw.deleter
+    def raw(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def obs(self) -> DataFrameproxy_TDF:
+        return self._obs
+
+    @obs.setter
+    def obs(self, value: pd.DataFrame) -> None:
+        raise NotImplementedError
+
+    @obs.deleter
+    def obs(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def obs_names(self) -> pd.Index:
+        """Names of observations (alias for `.obs.index`)."""
+        return self.obs.index
+
+    @obs_names.setter
+    def obs_names(self, names: Sequence[str]) -> None:
+        raise NotImplementedError
+
+    @property
+    def var(self) -> DataFrameProxy_VDF:
+        """One-dimensional annotation of variables/ features (`pd.DataFrame`)."""
+        return self._var
+
+    @var.setter
+    def var(self, value: pd.DataFrame) -> None:
+        raise NotImplementedError
+
+    @var.deleter
+    def var(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def var_names(self) -> pd.Index:
+        """Names of variables (alias for `.var.index`)."""
+        return self.var.index
+
+    @var_names.setter
+    def var_names(self, names: Sequence[str]) -> None:
+        raise NotImplementedError
+
+    @property
+    def uns(self) -> DictLike[Any]:
+        """Unstructured annotation (ordered dictionary)."""
+        return self._uns
+
+    @uns.setter
+    def uns(self, value: DictLike[Any]) -> None:
+        raise NotImplementedError
+
+    @uns.deleter
+    def uns(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def obsm(self) -> TemporalDataFrameContainerProxy:
+        return self._obsm
+
+    @obsm.setter
+    def obsm(self, value: Any) -> None:
+        raise NotImplementedError
+
+    @obsm.deleter
+    def obsm(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def varm(self) -> VDataFrameContainerProxy:
+        return self._varm
+
+    @varm.setter
+    def varm(self, value: Any) -> None:
+        raise NotImplementedError
+
+    @varm.deleter
+    def varm(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def obsp(self) -> VDataFrameContainerProxy:
+        return self._obsp
+
+    @obsp.setter
+    def obsp(self, value: Any) -> None:
+        raise NotImplementedError
+
+    @obsp.deleter
+    def obsp(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def varp(self) -> VDataFrameContainerProxy:
+        return self._varp
+
+    @varp.setter
+    def varp(self, value: Any) -> None:
+        raise NotImplementedError
+
+    @varp.deleter
+    def varp(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def filename(self) -> Path | None:
+        if self._vdata.data is NoData._:
+            return None
+        return Path(self._vdata.data.filename)
+
+    @filename.setter
+    def filename(self, filename: Path | None) -> None:
+        raise NotImplementedError
+
+    # endregion
+
+    # region predicates
+    @property
+    def isbacked(self) -> bool:
+        """`True` if object is backed on disk, `False` otherwise."""
+        return self._vdata.is_backed
+
+    @property
+    def is_view(self) -> bool:
+        """`True` if object is view of another AnnData object, `False` otherwise."""
+        return self._vdata.is_view
+
     # endregion
 
     # region methods
     def as_vdata(self) -> VData | VDataView:
         return self._vdata
+
+    def rename_categories(self, key: str, categories: Sequence[Any]) -> None:
+        raise NotImplementedError
+
+    def strings_to_categoricals(self, df: pd.DataFrame | None = None) -> None:
+        raise NotImplementedError
+
+    def _inplace_subset_var(self, index: Any) -> None:
+        raise NotImplementedError
+
+    def _inplace_subset_obs(self, index: Any) -> None:
+        raise NotImplementedError
+
+    def copy(self, filename: Path | None = None) -> None:
+        """Full copy, optionally on disk."""
+        raise NotImplementedError
+
+    def write_h5ad(
+        self,
+        filename: Path | None = None,
+        compression: Literal["gzip", "lzf"] | None = None,
+        compression_opts: Any = None,
+        as_dense: Sequence[str] = (),
+    ) -> None:
+        raise NotImplementedError
 
     # endregion

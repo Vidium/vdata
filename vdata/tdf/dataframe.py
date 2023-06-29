@@ -242,7 +242,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         super().__init__(
             obj,
             index=values["index"],
-            timepoints_array=tp.TimePointArray(values["timepoints_array"]),
+            timepoints_array=tp.as_timepointarray(values["timepoints_array"]),
             numerical_array=values["numerical_array"],
             string_array=values["string_array"],
             columns_numerical=values["columns_numerical"],

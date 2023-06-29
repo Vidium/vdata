@@ -257,6 +257,10 @@ class VDataView:
             return True
         return False
 
+    @property
+    def is_view(self) -> Literal[True]:
+        return True
+
     # endregion
 
     # region attributes

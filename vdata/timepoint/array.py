@@ -178,11 +178,12 @@ def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> T
     if not isCollection(time_list):
         time_list = [time_list]
 
-    try:
-        return TimePointArray(time_list)
+    if not any((isinstance(x, TimePoint) for x in time_list)):
+        try:
+            return TimePointArray(time_list)
 
-    except ValueError:
-        pass
+        except ValueError:
+            pass
 
     if unit is not None:
         return TimePointArray([TimePoint(tp, unit=unit).value_as(unit) for tp in np.atleast_1d(time_list)], unit=unit)
