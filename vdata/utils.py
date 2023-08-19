@@ -66,9 +66,9 @@ def repr_array(arr: Any, /, *, n_max: int = 4, print_length: bool = True) -> str
 
     repr_ = (
         "["
-        + " ".join(islice(arr, 0, ceil(n_max / 2)))
+        + " ".join((str(e) for e in islice(arr, 0, ceil(n_max / 2))))
         + " ... "
-        + " ".join(islice(arr, len(arr) - floor(n_max / 2), None))
+        + " ".join((str(e) for e in islice(arr, len(arr) - floor(n_max / 2), None)))
         + "]"
     )
 

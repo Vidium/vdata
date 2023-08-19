@@ -12,12 +12,12 @@ import pandas as pd
 
 import vdata.tdf as tdf
 import vdata.timepoint as tp
-from vdata._typing import IFS, AnyNDArrayLike_IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS, Slicer
+from vdata._typing import IFS, AnyNDArrayLike_IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
 from vdata.tdf._parse import parse_data
 from vdata.tdf.base import TemporalDataFrameBase
-from vdata.tdf.utils import parse_slicer, parse_slicer_full, parse_values
+from vdata.tdf.index import Index
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -34,11 +34,11 @@ class TemporalDataFrame(TemporalDataFrameBase):
     def __init__(
         self,
         data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None = None,
-        index: Collection_IFS | None = None,
-        repeating_index: bool = False,
+        index: Collection_IFS | Index | None = None,
         columns: Collection[IFS] | None = None,
-        time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
+        timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
         time_col_name: str | None = None,
+        sort_timepoints: bool = True,
         lock: tuple[bool, bool] | None = None,
         name: str = NO_NAME,
     ):
@@ -54,84 +54,35 @@ class TemporalDataFrame(TemporalDataFrameBase):
                 If False, the index must contain unique values.
                 If True, the index must be exactly equal at all time-points.
             columns: Optional column names.
-            time_list: Optional list of time values of the same length as the index, indicating for each row at which
+            timepoints: Optional list of time values of the same length as the index, indicating for each row at which
                 time point it exists.
             time_col_name: Optional column name in data (if data is a dictionary or a pandas DataFrame) to use as
                 time list. This parameter will be ignored if the 'time_list' parameter was set.
+            sort_timepoints: Sort time-points in ascending order ? (default: True).
             lock: Optional 2-tuple of booleans indicating which axes (index, columns) are locked.
                 If 'index' is locked, .index.setter() and .reindex() cannot be used.
                 If 'columns' is locked, .__delattr__(), .columns.setter() and .insert() cannot be used.
             name: a name for this TemporalDataFrame.
         """
-        (
-            _numerical_array,
-            _string_array,
-            _timepoints_array,
-            _index,
-            _columns_numerical,
-            _columns_string,
-            _lock,
-            _timepoints_column_name,
-            _name,
-            repeating_index,
-        ) = parse_data(data, index, repeating_index, columns, time_list, time_col_name, lock, name)
-
-        super().__init__(
-            index=_index,
-            timepoints_array=_timepoints_array,
-            numerical_array=_numerical_array,
-            string_array=_string_array,
-            columns_numerical=_columns_numerical,
-            columns_string=_columns_string,
-            attr_dict=AttrDict(
-                name=_name,
-                timepoints_column_name=_timepoints_column_name,
-                locked_indices=_lock[0],
-                locked_columns=_lock[1],
-                repeating_index=repeating_index,
-            ),
+        parsed_data = parse_data(
+            data, index, columns, timepoints, time_col_name, lock, name, sort_timepoints=sort_timepoints
         )
 
-    def __getattr__(self, column_name: str) -> TemporalDataFrameView:
-        """
-        Get a single column from this TemporalDataFrame.
-        """
-        return self._get_view(column_name, self, np.arange(self.n_index))
-
-    def __setattr__(self, name: IFS, values: NDArray_IFS) -> None:
-        """
-        Set values of a single column. If the column does not already exist in this TemporalDataFrame, it is created
-            at the end.
-        """
-        if isinstance(name, str) and (name in self._attributes or name in object.__dir__(self)):
-            object.__setattr__(self, name, values)
-            return
-
-        values = np.array(values)
-
-        if len(values) != self.n_index:
-            raise ValueError(f"Wrong number of values ({len(values)}) for column '{name}', expected {self.n_index}.")
-
-        if name in self.columns_num:
-            # set values for numerical column
-            self._numerical_array[:, np.where(self._columns_numerical == name)[0][0]] = values.astype(
-                self._numerical_array.dtype
-            )
-
-        elif name in self.columns_str:
-            # set values for string column
-            self._string_array[:, np.where(self._columns_string == name)[0][0]] = values.astype(str)
-
-        else:
-            if np.issubdtype(values.dtype, np.number):
-                # create numerical column
-                self._numerical_array = np.insert(self._numerical_array, self.n_columns_num, values, axis=1)
-                self._columns_numerical = np.insert(self._columns_numerical, self.n_columns_num, name)
-
-            else:
-                # create string column
-                self._string_array = np.insert(self._string_array, self.n_columns_str, values, axis=1)
-                self._columns_string = np.insert(self._columns_string, self.n_columns_str, name)
+        super().__init__(
+            index=parsed_data.index,
+            timepoints_array=parsed_data.timepoints_array,
+            numerical_array=parsed_data.numerical_array,
+            string_array=parsed_data.string_array,
+            columns_numerical=parsed_data.columns_numerical,
+            columns_string=parsed_data.columns_string,
+            attr_dict=AttrDict(
+                name=parsed_data.name,
+                timepoints_column_name=parsed_data.timepoints_column_name,
+                locked_indices=parsed_data.lock[0],
+                locked_columns=parsed_data.lock[1],
+                repeating_index=parsed_data.repeating_index,
+            ),
+        )
 
     def __delattr__(self, column_name: str) -> None:
         """Drop a column."""
@@ -150,66 +101,6 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         else:
             raise AttributeError(f"'{column_name}' not found in this TemporalDataFrame.")
-
-    def __getitem__(
-        self, slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]
-    ) -> TemporalDataFrameView:
-        index_slicer, column_num_slicer, column_str_slicer = parse_slicer(self, slicer)
-
-        return tdf.TemporalDataFrameView(
-            parent=self,
-            index_positions=index_slicer,
-            columns_numerical=column_num_slicer,
-            columns_string=column_str_slicer,
-        )
-
-    def __setitem__(
-        self,
-        slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
-        values: IFS | Collection[IFS] | TemporalDataFrameBase,
-    ) -> None:
-        """
-        Set values in a subset.
-        """
-        # TODO : setattr if setting a single column
-
-        index_positions, column_num_slicer, column_str_slicer, (_, index_array, columns_array) = parse_slicer_full(
-            self, slicer
-        )
-
-        if columns_array is None:
-            columns_array = self.columns
-
-        # parse values
-        lcn, lcs = len(column_num_slicer), len(column_str_slicer)
-
-        parsed_values = parse_values(values, len(index_positions), lcn + lcs)
-
-        if not lcn + lcs:
-            return
-
-        # reorder values to match original index
-        if index_array is None:
-            index_array = self.index_at(self.tp0) if self.has_repeating_index else self.index
-
-        index_positions.sort()
-
-        original_positions = self._get_index_positions(index_array)
-        parsed_values = parsed_values[
-            np.argsort(npi.indices(index_positions, original_positions[np.isin(original_positions, index_positions)]))
-        ]
-
-        if len(column_num_slicer):
-            self._numerical_array[
-                np.ix_(index_positions, npi.indices(self._columns_numerical, column_num_slicer))
-            ] = parsed_values[:, npi.indices(columns_array, column_num_slicer)]
-
-        if len(column_str_slicer):
-            values_str = parsed_values[:, npi.indices(columns_array, column_str_slicer)].astype(str)
-            if values_str.dtype > self._string_array.dtype:
-                self._string_array = self._string_array.astype(values_str.dtype)
-
-            self.values_str[np.ix_(index_positions, npi.indices(self._columns_string, column_str_slicer))] = values_str
 
     def __invert__(self) -> TemporalDataFrameView:
         """
@@ -298,7 +189,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             del df[time_col_name]
             time_col_name = None
 
-        return TemporalDataFrame(df, time_list=time_list, time_col_name=time_col_name)
+        return TemporalDataFrame(df, timepoints=time_list, time_col_name=time_col_name)
 
     # endregion
 
@@ -335,25 +226,6 @@ class TemporalDataFrame(TemporalDataFrameBase):
         return " ".join(parts)
 
     @property
-    def index(self) -> AnyNDArrayLike_IFS:
-        """
-        Get the index across all time-points.
-        """
-        return super().index
-
-    @index.setter
-    def index(self, values: NDArray_IFS) -> None:
-        """
-        Set the index for rows across all time-points.
-        """
-        if self.has_locked_indices:
-            raise VLockError("Cannot set index in tdf with locked index.")
-
-        self._check_valid_index(values, self.has_repeating_index)
-
-        self.index[:] = values
-
-    @property
     def columns(self) -> NDArray_IFS:
         """
         Get the list of all column names.
@@ -384,9 +256,23 @@ class TemporalDataFrame(TemporalDataFrameBase):
         """
         return False
 
+    @property
+    def is_inverted(self) -> Literal[False]:
+        """Is this an inverted view on a TemporalDataFrame ?"""
+        return False
+
     # endregion
 
     # region methods
+    def _append_column(self, column_name: IFS, values: NDArray_IFS):
+        if np.issubdtype(values.dtype, np.number):
+            self._numerical_array = np.insert(self._numerical_array, self.n_columns_num, values, axis=1)
+            self._columns_numerical = np.insert(self._columns_numerical, self.n_columns_num, column_name)
+
+        else:
+            self._string_array = np.insert(self._string_array, self.n_columns_str, values, axis=1)
+            self._columns_string = np.insert(self._columns_string, self.n_columns_str, column_name)
+
     def lock_indices(self) -> None:
         """Lock the "index" axis to prevent modifications."""
         self._attr_dict["locked_indices"] = True
@@ -423,21 +309,20 @@ class TemporalDataFrame(TemporalDataFrameBase):
         elif not self.n_index == len(np.unique(values)):
             raise ValueError("Index values must be all unique.")
 
-    def set_index(self, values: NDArray_IFS, repeating_index: bool = False) -> None:
+    def set_index(
+        self,
+        values: NDArray_IFS,
+        repeating_index: bool = False,
+        *,
+        force: bool = False,
+    ) -> None:
         """Set new index values."""
-        if self.has_locked_indices:
+        if self.has_locked_indices and not force:
             raise VLockError("Cannot set index in TemporalDataFrame with locked index.")
 
         self._check_valid_index(values, repeating_index)
-
-        if values.dtype == self._index.dtype:
-            self._index[:] = values
-
-        elif self._data is not None:
-            self._data["index"] = values
-
-        else:
-            self._index = values
+        self._index = _get_index_with_type(self._index, values.dtype)
+        self._index[:] = values
 
         self._attr_dict["repeating_index"] = repeating_index
 
@@ -503,7 +388,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         return values
 
-    def insert(self, loc: int, name: IFS, values: NDArray_IFS | Iterable[IFS] | IFS) -> None:
+    def insert(self, name: IFS, values: NDArray_IFS | Iterable[IFS] | IFS, *, loc: int = -1) -> None:
         """
         Insert a column in either the numerical data or the string data, depending on the type of the <values> array.
             The column is inserted at position <loc> with name <name>.
@@ -565,11 +450,11 @@ class TemporalDataFrame(TemporalDataFrameBase):
             _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
         else:
-            _check_merge_index(self, other, self.tp0)
+            _assert_can_merge(self, other, self.tp0)
             _data = pd.concat((self[self.tp0].to_pandas(), other[self.tp0].to_pandas()))
 
             for time_point in self.timepoints[1:]:
-                _check_merge_index(self, other, time_point)
+                _assert_can_merge(self, other, time_point)
                 _data = pd.concat((_data, self[time_point].to_pandas(), other[time_point].to_pandas()))
 
             _data.columns = _data.columns.astype(self.columns.dtype)
@@ -588,7 +473,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             data=_data,
             repeating_index=self.has_repeating_index,
             columns=self.columns,
-            time_list=_time_list,
+            timepoints=_time_list,
             time_col_name=self.timepoints_column_name,
             name=name or f"{self.name} + {other.name}",
         )
@@ -596,8 +481,16 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # endregion
 
 
+def _get_index_with_type(index: NDArrayLike_IFS, dtype: np.dtype[np.int_ | np.float_ | np.str_]) -> NDArrayLike_IFS:
+    if isinstance(index, ch.H5Array):
+        return index.astype(dtype)
+
+    return np.empty(index.shape, dtype=dtype)
+
+
 def _get_valid_mode(
-    file: str | Path | ch.Group | ch.H5Dict[Any], mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] | None
+    file: str | Path | ch.Group | ch.H5Dict[Any],
+    mode: Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE] | None,
 ) -> Literal[ch.H5Mode.READ, ch.H5Mode.READ_WRITE]:
     if mode is None:
         if isinstance(file, (str, Path)):
@@ -611,6 +504,10 @@ def _get_valid_mode(
     return mode
 
 
-def _check_merge_index(tdf1: TemporalDataFrameBase, tdf2: TemporalDataFrameBase, timepoint: tp.TimePoint) -> None:
+def _assert_can_merge(
+    tdf1: TemporalDataFrameBase,
+    tdf2: TemporalDataFrameBase,
+    timepoint: tp.TimePoint,
+) -> None:
     if np.any(np.isin(tdf1.index_at(timepoint), tdf2.index_at(timepoint))):
         raise ValueError(f"TemporalDataFrames to merge have index values in common at time point '{timepoint}'.")

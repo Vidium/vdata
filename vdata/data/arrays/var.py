@@ -1,23 +1,25 @@
 from __future__ import annotations
 
-from typing import Collection, cast
+from dataclasses import dataclass
+from typing import Collection
 
 import ch5mpy as ch
 import pandas as pd
+from h5dataframe import H5DataFrame
 
 from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer
-from vdata.data.arrays.view import VBaseArrayContainerView, get_var_hash
+from vdata.data.arrays.view import VBaseArrayContainerView
+from vdata.data.hash import VDataHash
 from vdata.IO import (
     IncoherenceError,
     ShapeError,
     generalLogger,
 )
 from vdata.utils import first_in
-from vdata.vdataframe import VDataFrame
 
 
-class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
+class VVarmArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     """
     Class for varm.
     This object contains any number of DataFrames, with shape (n_var, any).
@@ -26,7 +28,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[VDataFrame]) -> AnyDictLike[VDataFrame]:
+    def _check_init_data(self, data: AnyDictLike[H5DataFrame]) -> AnyDictLike[H5DataFrame]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -36,21 +38,21 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
             return dict()
 
         generalLogger.debug("  Data was found.")
-        
+
         _index = self._vdata.var.index
-        _data: DictLike[VDataFrame] = {} if not isinstance(data, ch.H5Dict) else data
+        _data: DictLike[H5DataFrame] = {} if not isinstance(data, ch.H5Dict) else data
 
         for DF_index, DF in data.items():
             if not _index.equals(DF.index):
                 raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
 
             if isinstance(data, dict):
-                _data[str(DF_index)] = VDataFrame(DF)
+                _data[str(DF_index)] = H5DataFrame(pd.DataFrame(DF))
 
         generalLogger.debug("  Data was OK.")
         return _data
 
-    def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
+    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
 
@@ -58,8 +60,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
             key: key for storing a DataFrame in this VVarmArrayContainer.
             value: a DataFrame to store.
         """
-        if not isinstance(value, VDataFrame):
-            value = VDataFrame(value)
+        value = H5DataFrame(value)
 
         if not self.shape[1] == value.shape[0]:
             raise ShapeError(f"Cannot set varm '{key}' because of shape mismatch.")
@@ -70,7 +71,7 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         self.data[key] = value
 
     # endregion
-    
+
     # region atributes
     @property
     def shape(self) -> tuple[int, int, list[int]]:
@@ -80,11 +81,11 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         """
         if not len(self):
             return 0, self._vdata.n_var, []
-                        
-        return len(self), first_in(self).shape[0], [DF.shape[1] for DF in self.values()]   
-        
+
+        return len(self), first_in(self).shape[0], [DF.shape[1] for DF in self.values()]
+
     # endregion
-    
+
     # region methods
     def set_index(self, values: Collection[IFS]) -> None:
         """
@@ -99,30 +100,63 @@ class VVarmArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     # endregion
 
 
-class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
+@dataclass
+class LazyLoc:
+    h5df: H5DataFrame
+    loc: NDArray_IFS | tuple[NDArray_IFS, NDArray_IFS]
+
+    # region attributes
+    @property
+    def shape(self) -> tuple[int, int]:
+        if not isinstance(self.loc, tuple):
+            return len(self.loc), self.h5df.shape[1]
+
+        if len(self.loc) == 1:
+            return len(self.loc[0]), self.h5df.shape[1]
+
+        return len(self.loc[0]), len(self.loc[1])
+
+    # endregion
+
+    # region methods
+    def get(self) -> H5DataFrame:
+        return self.h5df.loc[self.loc]
+
+    def copy(self) -> pd.DataFrame:
+        return pd.DataFrame(self.get())
+
+    # endregion
+
+
+class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]):
 
     # region magic methods
-    def __init__(self, 
-                 array_container: VVarmArrayContainer,
-                 var_slicer: NDArray_IFS):
-        super().__init__(data={key: cast(VDataFrame, vdf.loc[var_slicer])
-                               for key, vdf in array_container.items()},
-                         array_container=array_container)
-        
+    def __init__(self, array_container: VVarmArrayContainer, var_slicer: NDArray_IFS):
+        super().__init__(
+            data={key: LazyLoc(vdf, var_slicer) for key, vdf in array_container.items()},
+            array_container=array_container,
+            hash=VDataHash(array_container._vdata, var=True),
+        )
+
         self._var_slicer = var_slicer
-        self._vdata_var_hash = get_var_hash(array_container)
-    
-    def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
+
+    def __getitem__(self, key: str) -> H5DataFrame:
+        """Get a specific data item stored in this view."""
+        if isinstance(self.data[key], LazyLoc):
+            self.data[key] = self.data[key].get()
+
+        return self.data[key]
+
+    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
-        
+
         Args:
             key: key for storing a data item in this view.
             value: a data item to store.
         """
-        if not isinstance(value, VDataFrame):
-            value = VDataFrame(value)
-            
+        value = H5DataFrame(value)
+
         if not self.shape[1] == value.shape[0]:
             raise ShapeError(f"Cannot set varm '{key}' because of shape mismatch.")
 
@@ -132,7 +166,7 @@ class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def shape(self) -> tuple[int, int, list[int]]:
@@ -142,16 +176,12 @@ class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         """
         if not len(self):
             return 0, len(self._var_slicer), []
-        
+
         return len(self), len(self._var_slicer), [DF.shape[1] for DF in self.values()]
 
     # endregion
-    
+
     # region methods
-    def _check_data_has_not_changed(self) -> None:
-        if get_var_hash(self._array_container) != self._vdata_var_hash:
-            raise ValueError("View no longer valid since parent's VData has changed.")
-    
     def set_index(self, values: Collection[IFS]) -> None:
         """
         Set a new index for rows and columns.
@@ -164,7 +194,8 @@ class VVarmArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
 
     # endregion
 
-class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
+
+class VVarpArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     """
     Class for varp.
     This object contains any number of DataFrames, with shape (n_var, n_var).
@@ -173,7 +204,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[VDataFrame]) -> AnyDictLike[VDataFrame]:
+    def _check_init_data(self, data: AnyDictLike[H5DataFrame]) -> AnyDictLike[H5DataFrame]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -184,25 +215,24 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
             return dict()
 
         generalLogger.debug("  Data was found.")
-        
+
         _index = self._vdata.var.index
-        _data: DictLike[VDataFrame] = {} if not isinstance(data, ch.H5Dict) else data
+        _data: DictLike[H5DataFrame] = {} if not isinstance(data, ch.H5Dict) else data
 
         for DF_index, DF in data.items():
             if not _index.equals(DF.index):
                 raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
 
             if not _index.equals(DF.columns):
-                raise IncoherenceError(
-                    f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
+                raise IncoherenceError(f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
 
             if isinstance(data, dict):
-                _data[str(DF_index)] = VDataFrame(DF)
+                _data[str(DF_index)] = H5DataFrame(DF)
 
         generalLogger.debug("  Data was OK.")
         return _data
 
-    def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
+    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
 
@@ -210,8 +240,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
             key: key for storing a DataFrame in this VVarpArrayContainer.
             value: a DataFrame to store.
         """
-        if not isinstance(value, VDataFrame):
-            value = VDataFrame(value)
+        value = H5DataFrame(value)
 
         if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set varp '{key}' because of shape mismatch.")
@@ -225,7 +254,7 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -235,11 +264,11 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
         """
         if not len(self):
             return 0, self._vdata.n_var, self._vdata.n_var
-            
+
         return len(self), first_in(self).shape[0], first_in(self).shape[1]
 
     # endregion
-    
+
     # region methods
     def set_index(self, values: Collection[IFS]) -> None:
         """Set a new index for rows and columns."""
@@ -249,29 +278,35 @@ class VVarpArrayContainer(VBaseArrayContainer[VDataFrame, pd.DataFrame]):
 
     # endregion
 
-class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame]):
+
+class VVarpArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]):
 
     # region magic methods
-    def __init__(self,
-                 array_container: VVarpArrayContainer,
-                 var_slicer: NDArray_IFS):
-        super().__init__(data={key: cast(VDataFrame, vdf.loc[var_slicer, var_slicer])
-                               for key, vdf in array_container.items()}, 
-                         array_container=array_container)
-        
-        self._var_slicer = var_slicer
-        self._vdata_var_hash = get_var_hash(array_container)
+    def __init__(self, array_container: VVarpArrayContainer, var_slicer: NDArray_IFS):
+        super().__init__(
+            data={key: LazyLoc(vdf, (var_slicer, var_slicer)) for key, vdf in array_container.items()},
+            array_container=array_container,
+            hash=VDataHash(array_container._vdata, var=True),
+        )
 
-    def __setitem__(self, key: str, value: VDataFrame | pd.DataFrame) -> None:
+        self._var_slicer = var_slicer
+
+    def __getitem__(self, key: str) -> D:
+        """Get a specific data item stored in this view."""
+        if isinstance(self.data[key], LazyLoc):
+            self.data[key] = self.data[key].get()
+
+        return self.data[key]
+
+    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:
         """
         Set a specific data item in this view. The given data item must have the correct shape.
-        
+
         Args:
             key: key for storing a data item in this view.
             value: a data item to store.
         """
-        if not isinstance(value, VDataFrame):
-            value = VDataFrame(value)
+        value = H5DataFrame(value)
 
         if not self.shape[1:] == value.shape:
             raise ShapeError(f"Cannot set varp '{key}' because of shape mismatch.")
@@ -284,10 +319,10 @@ class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
         if not _index.equals(value.columns):
             raise ValueError("column names do not match.")
 
-        self[key] = value
+        self.data[key] = value
 
     # endregion
-    
+
     # region attributes
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -300,15 +335,10 @@ class VVarpArrayContainerView(VBaseArrayContainerView[VDataFrame, pd.DataFrame])
     # endregion
 
     # region methods
-    def _check_data_has_not_changed(self) -> None:
-        if get_var_hash(self._array_container) != self._vdata_var_hash:
-            raise ValueError("View no longer valid since parent's VData has changed.")
-    
-    
     def set_index(self, values: Collection[IFS]) -> None:
         """Set a new index for rows and columns."""
         for arr in self.values():
             arr.index = pd.Index(values)
             arr.columns = pd.Index(values)
-            
+
     # endregion

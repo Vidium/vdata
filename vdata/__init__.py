@@ -10,9 +10,8 @@ from vdata.IO import (
     getLoggingLevel,
     setLoggingLevel,
 )
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.timepoint import TimePoint
-from vdata.vdataframe import VDataFrame
 
 read = VData.read
 read_from_csv = VData.read_from_csv
@@ -32,6 +31,6 @@ __all__ = [
     "ShapeError",
     "IncoherenceError",
     "VLockError",
-    "VDataFrame",
     "TimePoint",
+    "Index",
 ]

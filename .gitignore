@@ -3,8 +3,10 @@
 .pytest_cache
 *.svg
 *.h5
+*.h5ad
 *.vd
 *.pkl
+*.npy
 *__pycache__
 venv_vdata
 .vscode
@@ -13,3 +15,7 @@ venv_vdata
 *.csv
 *.json
 vdata.egg-info/
+figures/
+*.html
+vdata.code-workspace
+*.prof

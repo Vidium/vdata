@@ -8,6 +8,7 @@ import ch5mpy as ch
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from h5dataframe import H5DataFrame
 
 import vdata.timepoint as tp
 from vdata._meta import PrettyRepr
@@ -35,8 +36,8 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.update import CURRENT_VERSION, update_vdata
 from vdata.utils import repr_array, repr_index
-from vdata.vdataframe import VDataFrame
 
 
 class VData(metaclass=PrettyRepr):
@@ -52,18 +53,18 @@ class VData(metaclass=PrettyRepr):
         self,
         data: AnnData
         | pd.DataFrame
-        | VDataFrame
+        | H5DataFrame
         | TemporalDataFrameBase
-        | Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase]
-        | ch.H5Dict[VDataFrame | TemporalDataFrame]
+        | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
+        | ch.H5Dict[H5DataFrame | TemporalDataFrame]
         | None = None,
-        obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None = None,
-        obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None = None,
-        obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None = None,
-        var: pd.DataFrame | VDataFrame | None = None,
-        varm: Mapping[str, pd.DataFrame | VDataFrame] | None = None,
-        varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None = None,
-        timepoints: pd.DataFrame | VDataFrame | None = None,
+        obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None = None,
+        obsm: Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase] | None = None,
+        obsp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] | None = None,
+        var: pd.DataFrame | H5DataFrame | None = None,
+        varm: Mapping[str, pd.DataFrame | H5DataFrame] | None = None,
+        varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] | None = None,
+        timepoints: pd.DataFrame | H5DataFrame | None = None,
         uns: DictLike[Any] | None = None,
         time_col_name: str | None = None,
         time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None = None,
@@ -92,7 +93,7 @@ class VData(metaclass=PrettyRepr):
             f"\u23BE VData '{name}' creation : begin " f"-------------------------------------------------------- "
         )
 
-        self._data: ch.H5Dict[VDataFrame | TemporalDataFrame] | None = None
+        self._data: ch.H5Dict[H5DataFrame | TemporalDataFrame] | None = None
 
         # create from h5 file
         if isinstance(data, ch.H5Dict):
@@ -121,7 +122,7 @@ class VData(metaclass=PrettyRepr):
 
         self._initialize(_parsed_data, _name)
 
-        generalLogger.debug(f"Guessed dimensions are : ({self.n_timepoints}, {self.n_obs}, {self.n_var})")
+        generalLogger.debug(lambda: f"Guessed dimensions are : ({self.n_timepoints}, {self.n_obs}, {self.n_var})")
         generalLogger.debug(
             f"\u23BF VData '{self._name}' creation : end "
             f"---------------------------------------------------------- "
@@ -187,7 +188,7 @@ class VData(metaclass=PrettyRepr):
 
     def __getitem__(
         self, index: PreSlicer | tuple[PreSlicer, PreSlicer] | tuple[PreSlicer, PreSlicer, PreSlicer]
-    ) -> VDataView:
+    ) -> VData | VDataView:
         """
         Get a view of this VData object with the usual sub-setting mechanics.
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
@@ -213,13 +214,16 @@ class VData(metaclass=PrettyRepr):
             raise VClosedFileError("Cannot get data, file is closed.")
 
         generalLogger.debug("VData sub-setting - - - - - - - - - - - - - - ")
-        generalLogger.debug(f"  Got index \n{repr_index(index)}")
+        generalLogger.debug(lambda: f"  Got index \n{repr_index(index)}")
 
         formatted_index = reformat_index(
             index, tp.as_timepointarray(self.timepoints.value), self.obs.index, self.var.index.values
         )
 
-        generalLogger.debug(f"  Refactored index to \n{repr_index(formatted_index)}")
+        generalLogger.debug(lambda: f"  Refactored index to \n{repr_index(formatted_index)}")
+
+        if formatted_index is None:
+            return self
 
         if formatted_index[0] is not None and not len(formatted_index[0]):
             raise ValueError("Time points not found in this VData.")
@@ -233,6 +237,7 @@ class VData(metaclass=PrettyRepr):
         self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> None:
         if self._data is not None and not self._data.is_closed:
+            self._data._file.flush()
             self._data.close()
 
     def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
@@ -241,6 +246,9 @@ class VData(metaclass=PrettyRepr):
     @classmethod
     def __h5_read__(cls, values: ch.H5Dict[Any]) -> VData:
         with ch.options(error_mode="raise"):
+            if values.attributes.get("__vdata_write_version__", -1) < CURRENT_VERSION:
+                update_vdata(values)
+
             return VData(data=values)
 
     # endregion
@@ -297,7 +305,7 @@ class VData(metaclass=PrettyRepr):
 
     # region attributes
     @property
-    def data(self) -> ch.H5Dict[VDataFrame | TemporalDataFrame] | NoData:
+    def data(self) -> ch.H5Dict[H5DataFrame | TemporalDataFrame] | NoData:
         """Get this VData's h5 file."""
         return NoData._ if self._data is None else self._data
 
@@ -376,7 +384,7 @@ class VData(metaclass=PrettyRepr):
         return self.layers.shape
 
     @property
-    def timepoints(self) -> VDataFrame:
+    def timepoints(self) -> H5DataFrame:
         """
         Get time points data.
         :return: the time points DataFrame.
@@ -384,7 +392,7 @@ class VData(metaclass=PrettyRepr):
         return self._timepoints
 
     @timepoints.setter
-    def timepoints(self, df: pd.DataFrame | VDataFrame) -> None:
+    def timepoints(self, df: pd.DataFrame | H5DataFrame) -> None:
         """
         Set the time points data.
         Args:
@@ -393,7 +401,7 @@ class VData(metaclass=PrettyRepr):
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not isinstance(df, (pd.DataFrame, VDataFrame)):
+        if not isinstance(df, (pd.DataFrame, H5DataFrame)):
             raise TypeError("'time points' must be a pandas DataFrame.")
 
         elif df.shape[0] != self.n_timepoints:
@@ -403,7 +411,7 @@ class VData(metaclass=PrettyRepr):
             raise ValueError("Time points DataFrame should contain a 'value' column.")
 
         df["value"] = tp.as_timepointarray(df["value"])
-        self._timepoints = VDataFrame(df)
+        self._timepoints = H5DataFrame(df)
 
     @property
     def timepoints_values(self) -> tp.TimePointArray:
@@ -441,7 +449,7 @@ class VData(metaclass=PrettyRepr):
         return self._obs
 
     @obs.setter
-    def obs(self, df: pd.DataFrame | VDataFrame | TemporalDataFrame) -> None:
+    def obs(self, df: pd.DataFrame | H5DataFrame | TemporalDataFrame) -> None:
         """
         Set the obs data.
 
@@ -451,13 +459,13 @@ class VData(metaclass=PrettyRepr):
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not isinstance(df, (pd.DataFrame, VDataFrame, TemporalDataFrame)):
+        if not isinstance(df, (pd.DataFrame, H5DataFrame, TemporalDataFrame)):
             raise TypeError("'obs' must be a pandas DataFrame or a TemporalDataFrame.")
 
         if not df.shape[0] == self.obs.n_index_total:
             raise ShapeError(f"'obs' has {df.shape[0]} rows, it should have {self.n_obs_total}.")
 
-        if isinstance(df, (pd.DataFrame, VDataFrame)):
+        if isinstance(df, (pd.DataFrame, H5DataFrame)):
             # cast to TemporalDataFrame
             if self.obs.timepoints_column_name is not None and self.obs.timepoints_column_name in df.columns:
                 _time_col_name: str | None = self.obs.timepoints_column_name
@@ -484,7 +492,7 @@ class VData(metaclass=PrettyRepr):
         self._obs.lock_indices()
 
     @property
-    def var(self) -> VDataFrame:
+    def var(self) -> H5DataFrame:
         """
         Get the var data.
         :return: the var DataFrame.
@@ -492,7 +500,7 @@ class VData(metaclass=PrettyRepr):
         return self._var
 
     @var.setter
-    def var(self, df: pd.DataFrame | VDataFrame) -> None:
+    def var(self, df: pd.DataFrame | H5DataFrame) -> None:
         """
         Set the var data.
         Args:
@@ -501,13 +509,13 @@ class VData(metaclass=PrettyRepr):
         if self.is_read_only:
             raise VReadOnlyError
 
-        if not isinstance(df, (pd.DataFrame, VDataFrame)):
+        if not isinstance(df, (pd.DataFrame, H5DataFrame)):
             raise TypeError("'var' must be a pandas DataFrame.")
 
         elif df.shape[0] != self.n_var:
             raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
 
-        self._var = VDataFrame(df)
+        self._var = H5DataFrame(df)
 
     @property
     def uns(self) -> DictLike[Any]:
@@ -630,10 +638,7 @@ class VData(metaclass=PrettyRepr):
         """
         self.layers.set_index(values, repeating_index)
 
-        self.obs.unlock_indices()
-        self.obs.set_index(np.array(values), repeating_index)
-        self.obs.lock_indices()
-
+        self.obs.set_index(np.array(values), repeating_index, force=True)
         self.obsm.set_index(values, repeating_index)
         self.obsp.set_index(values)
 

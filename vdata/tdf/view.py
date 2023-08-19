@@ -1,169 +1,87 @@
 from __future__ import annotations
 
-from typing import Any, Collection, Iterable, Literal, NoReturn, cast
+from typing import Any, Iterable, Literal, NoReturn
 
 import ch5mpy as ch
 import numpy as np
-import numpy.typing as npt
-import numpy_indexed as npi
 
-from vdata._typing import (
-    IFS,
-    AnyNDArrayLike,
-    AnyNDArrayLike_IFS,
-    AttrDict,
-    NDArray_IFS,
-    Slicer,
-)
-from vdata.array_view import NDArrayView
+from vdata._typing import IFS, Indexer, NDArray_IFS
+from vdata.array_view import ArrayGetter, NDArrayView
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
-from vdata.tdf.utils import parse_slicer_full, parse_values
-from vdata.timepoint import TimePointArray
 
 
-def _indices(this: AnyNDArrayLike[Any], 
-             that: AnyNDArrayLike[Any]) -> npt.NDArray[np.int_]:
-    if not len(that):
-        return np.array([], dtype=np.int64)
-    
-    return npi.indices(np.array(this), np.array(that))      # type: ignore[no-any-return]
+def _as_view(
+    container: TemporalDataFrameBase,
+    name: str,
+    index: Indexer | tuple[Indexer, ...],
+    exposed_attributes: Iterable[str] = (),
+) -> ch.H5Array[Any] | NDArrayView[Any]:
+    if isinstance(getattr(container, name), ch.H5Array):
+        return getattr(container, name)[index]
 
+    return NDArrayView(ArrayGetter(container, name), index, exposed_attributes)
 
-def _array_view(container: Any,
-                accession: str,
-                index: AnyNDArrayLike[np.int_] | tuple[AnyNDArrayLike[np.int_], ...],
-                exposed_attributes: Iterable[str] = ()) -> ch.H5Array[Any] | NDArrayView[Any]:
-    if isinstance(getattr(container, accession), ch.H5Array):
-        return getattr(container, accession)[index]                                     # type: ignore[no-any-return]
-    
-    return NDArrayView(container, accession, index, exposed_attributes)
-    
 
 class TemporalDataFrameView(TemporalDataFrameBase):
     """
     Abstract base class for views on a TemporalDataFrame.
     """
-    _attributes = TemporalDataFrameBase._attributes.union({'_parent', '_index_positions', '_inverted'})
+
+    _attributes = TemporalDataFrameBase._attributes.union(
+        {"_parent", "_numerical_selection", "_string_selection", "_inverted"}
+    )
 
     # region magic methods
-    def __init__(self,
-                 parent: TemporalDataFrame,
-                 index_positions: AnyNDArrayLike[np.int_],
-                 columns_numerical: AnyNDArrayLike_IFS,
-                 columns_string: AnyNDArrayLike_IFS,
-                 *,
-                 inverted: bool = False):
+    def __init__(
+        self,
+        parent: TemporalDataFrameBase,
+        numerical_selection: ch.indexing.Selection,
+        string_selection: ch.indexing.Selection,
+        *,
+        inverted: bool = False,
+    ):
+        if isinstance(parent, TemporalDataFrameView):
+            numerical_selection = numerical_selection.cast_on(parent._numerical_selection)
+            string_selection = string_selection.cast_on(parent._string_selection)
+
+            parent = parent.parent
+
         super().__init__(
-            index=_array_view(parent, 'index', index_positions),
-            timepoints_array=_array_view(parent, 'timepoints_column', index_positions,      # type: ignore[arg-type]
-                                         ('unit',)),
-            numerical_array=_array_view(parent, 'values_num', 
-                                        np.ix_(index_positions, 
-                                               _indices(parent.columns_num, columns_numerical))),
-            string_array=_array_view(parent, 'values_str',
-                                     np.ix_(index_positions, 
-                                            _indices(parent.columns_str, columns_string))),
-            columns_numerical=columns_numerical,
-            columns_string=columns_string,
-            attr_dict=AttrDict(name=parent.name,
-                               timepoints_column_name=parent.timepoints_column_name,
-                               locked_indices=parent.has_locked_indices,
-                               locked_columns=parent.has_locked_columns,
-                               repeating_index=parent.has_repeating_index),
-            data=parent.data
+            index=_as_view(parent, "index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
+            timepoints_array=_as_view(
+                parent, "timepoints_column", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True), {"unit"}
+            ),
+            numerical_array=_as_view(parent, "values_num", numerical_selection.get_indexers()),
+            string_array=_as_view(parent, "values_str", string_selection.get_indexers()),
+            columns_numerical=_as_view(
+                parent, "columns_num", ch.indexing.get_indexer(numerical_selection[1], enforce_1d=True)
+            ),
+            columns_string=_as_view(
+                parent, "columns_str", ch.indexing.get_indexer(string_selection[1], enforce_1d=True)
+            ),
+            attr_dict=parent._attr_dict,
+            data=parent.data,
         )
-        
+
         self._parent = parent
-        self._index_positions = index_positions
+        self._numerical_selection = numerical_selection
+        self._string_selection = string_selection
         self._inverted = inverted
 
-    def __getattr__(self,
-                    column_name: str) -> TemporalDataFrameView:
-        """
-        Get a single column from this view of a TemporalDataFrame.
-        """
-        return self._get_view(column_name, self._parent, self._index_positions)
-
-    def __delattr__(self,
-                    _column_name: str) -> NoReturn:
-        raise TypeError('Cannot delete columns from a view.')
-
-    def __getitem__(self,
-                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]) -> TemporalDataFrameView:
-        """Get a subset."""
-        _index_positions, _columns_numerical, _columns_string = self._parse_inverted(*parse_slicer_full(self, slicer))
-        return type(self)(parent=self._parent,
-                          index_positions=_index_positions,
-                          columns_numerical=_columns_numerical,
-                          columns_string=_columns_string,
-                          inverted=self._inverted)
-
-    def __setitem__(self,
-                    slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer],
-                    values: IFS | Collection[IFS] | TemporalDataFrameBase) -> None:
-        """
-        Set values in a subset.
-        """
-        index_positions, column_num_slicer, column_str_slicer, (tp_array, index_array, columns_array) = \
-            parse_slicer_full(self, slicer)
-
-        index_positions, columns_numerical, columns_string = self._parse_inverted(
-            index_positions,
-            column_num_slicer,
-            column_str_slicer,
-            (tp_array, index_array, columns_array)
-        )
-
-        if self._inverted:
-            columns_array = np.concatenate((columns_numerical, columns_string))
-
-        elif columns_array is None:
-            columns_array = self.columns
-
-        # parse values
-        lcn, lcs = len(columns_numerical), len(columns_string)
-
-        parsed_values = parse_values(values, len(index_positions), lcn + lcs)
-
-        if not lcn + lcs:
-            return
-
-        # reorder values to match original index
-        if index_array is None:
-            index_array = self.index_at(self.tp0) if self.has_repeating_index else self.index
-
-        index_positions.sort()
-
-        original_positions = self._parent._get_index_positions(index_array)
-        parsed_values = parsed_values[
-            np.argsort(npi.indices(index_positions,
-                                   original_positions[np.isin(original_positions, index_positions)]))
-        ]
-
-        if len(columns_numerical):
-            self._parent.values_num[np.ix_(index_positions, 
-                                           npi.indices(self._parent.columns_num, columns_numerical))] = \
-                parsed_values[:, npi.indices(columns_array, columns_numerical)]
-            
-        if len(columns_string):
-            values_str = parsed_values[:, npi.indices(columns_array, columns_string)].astype(str)
-            if values_str.dtype > self._parent.values_str.dtype:
-                self._parent._string_array = self._parent.values_str.astype(values_str.dtype)
-            
-            self._parent.values_str[np.ix_(index_positions,
-                                           npi.indices(self._parent.columns_str, columns_string))] = \
-                values_str
+    def __delattr__(self, _column_name: str) -> NoReturn:
+        raise TypeError("Cannot delete columns from a view.")
 
     def __invert__(self) -> TemporalDataFrameView:
         """
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
-        return type(self)(parent=self._parent,
-                          index_positions=self._index_positions, 
-                          columns_numerical=self._columns_numerical,
-                          columns_string=self._columns_string,
-                          inverted=not self._inverted)
+        return type(self)(
+            parent=self._parent,
+            numerical_selection=self._numerical_selection,
+            string_selection=self._string_selection,
+            inverted=not self._inverted,
+        )
 
     # endregion
 
@@ -175,43 +93,25 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """
         parts = []
         if self.empty:
-            parts.append('empty')
+            parts.append("empty")
 
         if self.is_inverted:
-            parts.append('inverted')
+            parts.append("inverted")
 
         parent_full_name = self._parent.full_name
-        if not parent_full_name.startswith('TemporalDataFrame'):
+        if not parent_full_name.startswith("TemporalDataFrame"):
             parent_full_name = parent_full_name[0].lower() + parent_full_name[1:]
 
-        parts += ['view of', parent_full_name]
+        parts += ["view of", parent_full_name]
 
         parts[0] = parts[0].capitalize()
 
-        return ' '.join(parts)
+        return " ".join(parts)
 
     @property
     def parent(self) -> TemporalDataFrame:
         """Get the parent TemporalDataFrame of this view."""
         return self._parent
-
-    @property
-    def index(self) -> AnyNDArrayLike_IFS:
-        """
-        Get the index across all time-points.
-        """
-        return super().index
-
-    @index.setter
-    def index(self,
-              values: NDArray_IFS) -> None:
-        """
-        Set the index for rows across all time-points.
-        """
-        new_index = self._parent.index.copy()
-        new_index[self.index_positions] = values
-        
-        self._parent.index = new_index
 
     # endregion
 
@@ -230,9 +130,26 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """
         return self._inverted
 
+    @property
+    def has_repeating_index(self) -> bool:
+        """
+        Is the index repeated at each time-point ?
+        """
+        if not self.parent.has_repeating_index:
+            return False
+
+        # must be computed since view on TDF with repeating index could still not have repeating index
+        for tp in self.timepoints[1:]:
+            if not np.array_equal(self.index_at(tp), self.index_at(self.tp0)):
+                return False
+        return True
+
     # endregion
 
     # region methods
+    def _append_column(self, column_name: IFS, values: NDArray_IFS):
+        raise NotImplementedError
+
     def lock_indices(self) -> None:
         """Lock the "index" axis to prevent modifications."""
         self._parent.lock_indices()
@@ -248,54 +165,19 @@ class TemporalDataFrameView(TemporalDataFrameBase):
     def unlock_columns(self) -> None:
         """Unlock the "columns" axis to allow modifications."""
         self._parent.unlock_columns()
-    
-    def set_index(self,
-                  values: NDArray_IFS,
-                  repeating_index: bool = False) -> None:
+
+    def set_index(self, values: NDArray_IFS, repeating_index: bool = False) -> None:
         """Set new index values."""
         raise NotImplementedError
-    
-    def reindex(self,
-                order: NDArray_IFS,
-                repeating_index: bool = False) -> None:
+
+    def reindex(self, order: NDArray_IFS, repeating_index: bool = False) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
         raise NotImplementedError
-    
-    def _parse_inverted(self,
-                        index_slicer: npt.NDArray[np.int_],
-                        column_num_slicer: AnyNDArrayLike_IFS,
-                        column_str_slicer: AnyNDArrayLike_IFS,
-                        arrays: tuple[TimePointArray | None, AnyNDArrayLike_IFS | None, AnyNDArrayLike_IFS | None]) \
-            -> tuple[npt.NDArray[np.int_], AnyNDArrayLike_IFS, AnyNDArrayLike_IFS]:
-        tp_array, index_array, columns_array = arrays
-
-        if self._inverted:
-            if tp_array is None and index_array is None:
-                _index_positions = self._index_positions[index_slicer]
-
-            else:
-                _index_positions = self._index_positions[~np.isin(self._index_positions, index_slicer)]
-
-            if columns_array is None:
-                _columns_numerical: AnyNDArrayLike_IFS = column_num_slicer
-                _columns_string: AnyNDArrayLike_IFS = column_str_slicer
-
-            else:
-                _columns_numerical = cast(AnyNDArrayLike_IFS,
-                                          self._columns_numerical[~np.isin(self._columns_numerical, column_num_slicer)])
-                _columns_string = cast(AnyNDArrayLike_IFS,
-                                       self._columns_string[~np.isin(self._columns_string, column_str_slicer)])
-
-            return np.array(_index_positions), _columns_numerical, _columns_string
-
-        return np.array(self._index_positions[index_slicer]), column_num_slicer, column_str_slicer
 
     # endregion
 
     # region data methods
-    def merge(self,
-              other: TemporalDataFrameBase,
-              name: str | None = None) -> TemporalDataFrame:
+    def merge(self, other: TemporalDataFrameBase, name: str | None = None) -> TemporalDataFrame:
         """
         Merge two TemporalDataFrames together, by rows. The column names and time points must match.
 

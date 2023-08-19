@@ -84,15 +84,15 @@ def read_from_csv(
         if f.name == ".metadata.json":
             continue
 
-        generalLogger.info(f"Got key : '{f.name}'.")
+        generalLogger.info(lambda: f"Got key : '{f.name}'.")
 
         if f.suffix == ".csv":
             if f.name in ("var.csv", "timepoints.csv"):
-                generalLogger.info(f"{spacer(1)}Reading pandas DataFrame '{f.name[:-4]}'.")
+                generalLogger.info(lambda: f"{spacer(1)}Reading pandas DataFrame '{f.name[:-4]}'.")
                 data_df[f.name[:-4]] = pd.read_csv(parsed_directory / f.name, index_col=0)
 
             elif f.name == "obs.csv":
-                generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f.name[:-4]}'.")
+                generalLogger.info(lambda: f"{spacer(1)}Reading TemporalDataFrame '{f.name[:-4]}'.")
 
                 obs = TemporalDataFrame.read_from_csv(
                     parsed_directory / f.name,
@@ -101,13 +101,13 @@ def read_from_csv(
                 )
 
         else:
-            generalLogger.info(f"{spacer(1)}Reading group '{f.name}'.")
+            generalLogger.info(lambda: f"{spacer(1)}Reading group '{f.name}'.")
 
             if f.name in ("layers", "obsm"):
                 dataset_dict: dict[str, TemporalDataFrame] = {}
 
                 for dataset in sorted((parsed_directory / f.name).iterdir()):
-                    generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {dataset.name[:-4]}")
+                    generalLogger.info(lambda: f"{spacer(2)} Reading TemporalDataFrame {dataset.name[:-4]}")
 
                     dataset_dict[dataset.name[:-4]] = TemporalDataFrame.read_from_csv(
                         parsed_directory / f.name / dataset.name,
@@ -121,7 +121,7 @@ def read_from_csv(
                 df_dict: dict[str, pd.DataFrame] = {}
 
                 for dataset in sorted((parsed_directory / f.name).iterdir()):
-                    generalLogger.info(f"{spacer(2)} Reading pandas DataFrame {dataset.name}")
+                    generalLogger.info(lambda: f"{spacer(2)} Reading pandas DataFrame {dataset.name}")
                     df_dict[dataset.name[:-4]] = pd.read_csv(parsed_directory / f.name, index_col=0)
 
                 df_dicts[f.name] = df_dict

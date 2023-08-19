@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Collection
 from warnings import warn
 
@@ -11,25 +12,26 @@ import pandas as pd
 import vdata.timepoint as tp
 from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.names import NO_NAME
+from vdata.tdf.index import Index
 from vdata.timepoint import as_timepointarray
 from vdata.utils import obj_as_str
 
 
 class TimedArray:
 
-    __slots__ = "arr", "time", "repeating_index"
+    __slots__ = "arr", "time"
 
     # region magic methods
-    def __init__(self, arr: npt.NDArray[Any] | None, time: tp.TimePointArray | None, repeating_index: bool):
+    def __init__(self, arr: Index | None, time: tp.TimePointArray | None):
         if arr is None and isinstance(time, tp.TimePointArray):
-            self.arr = np.arange(len(time))
+            self.arr = Index(np.arange(len(time)))
             self.time = time
 
         elif arr is not None and time is None:
             self.arr = arr
             self.time = tp.TimePointArray(np.repeat(0, len(arr)), unit="h")
 
-        elif isinstance(arr, np.ndarray) and isinstance(time, tp.TimePointArray):
+        elif isinstance(arr, Index) and isinstance(time, tp.TimePointArray):
             if len(arr) != len(time):
                 raise ValueError(
                     f"Length of 'time_list' ({len(time)}) did not match length of 'index' " f"({len(arr)})."
@@ -39,61 +41,49 @@ class TimedArray:
             self.time = time
 
         elif arr is None and time is None:
-            self.arr = np.empty(0, dtype=np.float64)
+            self.arr = Index(np.empty(0, dtype=np.float64))
             self.time = tp.TimePointArray(np.empty(0, dtype=object))
 
         else:
             raise NotImplementedError
 
-        if repeating_index:
-            unique_timepoints = np.unique(self.time, equal_nan=False)
-
-            first_index = self.arr[self.time == unique_timepoints[0]]
-
-            for timepoint in unique_timepoints[1:]:
-                index_tp = self.arr[self.time == timepoint]
-
-                if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
-                    raise ValueError(
-                        f"Index at time-point {timepoint} is not equal to index at time-point "
-                        f"{unique_timepoints[0]}."
-                    )
-
-        elif len(self.arr) != len(np.unique(self.arr)):
-            raise ValueError("Index values must be all unique.")
-
-        self.repeating_index = repeating_index
-
     # endregion
 
 
 def _sort_and_get_tp(
-    data: pd.DataFrame | None, col_name: str | None, timepoints: tp.TimePointArray
-) -> tp.TimePointArray:
+    data: pd.DataFrame | None,
+    col_name: str | None,
+    timepoints: tp.TimePointArray,
+    sort: bool,
+) -> tuple[tp.TimePointArray, pd.DataFrame | None]:
+    unique_timepoints, idx, counts = np.unique(timepoints, return_counts=True, return_index=True, equal_nan=False)
+
+    if not sort:
+        unique_timepoints = timepoints[np.sort(idx.astype(int))]
+
+    sorted_timepoints = np.repeat(unique_timepoints.copy(), counts)
+
     if data is None:
-        return timepoints
+        return sorted_timepoints, None
 
-    if col_name is None:
-        col_name = "__TDF_TMP_COLUMN__"
+    data_sorting_indices = np.concatenate([np.where(timepoints == tp)[0] for tp in unique_timepoints])
+    data = data.iloc[data_sorting_indices]
 
-    _dtype = data.columns.dtype
-    data[col_name] = np.array(timepoints)
-    data.sort_values(by=col_name, inplace=True, kind="mergesort")
-    del data[col_name]
-    data.columns = data.columns.astype(_dtype)
+    if col_name is not None:
+        del data[col_name]
 
-    return np.sort(timepoints)  # type: ignore[return-value]
+    return sorted_timepoints, data
 
 
 def _get_timed_index(
-    index: Collection[IFS] | None,
+    index: Index | None,
     time_list: tp.TimePointArray | None,
     time_col_name: str | None,
     data: pd.DataFrame | None,
-    repeating_index: bool,
-) -> TimedArray:
+    sort: bool,
+) -> tuple[TimedArray, pd.DataFrame | None]:
     if isinstance(data, pd.DataFrame) and index is not None:
-        data.index = pd.Index(index)
+        data.index = pd.Index(index.values)
 
     if time_list is None and time_col_name is not None:
         if not isinstance(data, pd.DataFrame):
@@ -102,28 +92,32 @@ def _get_timed_index(
         if time_col_name not in data.columns:
             raise ValueError(f"'time_col_name' ('{time_col_name}') is not in the data's columns.")
 
-        _time_list = _sort_and_get_tp(data, time_col_name, tp.as_timepointarray(data[time_col_name]))
+        _time_list, data = _sort_and_get_tp(data, time_col_name, tp.as_timepointarray(data[time_col_name]), sort=sort)
 
     elif time_list is not None:
         if time_col_name is not None:
             warn("'time_list' parameter already supplied, 'time_col_name' parameter is ignored.")
 
-        # if isCollection(time_list):
-        _time_list = _sort_and_get_tp(data, time_col_name, time_list)
+        _time_list, data = _sort_and_get_tp(data, time_col_name, time_list, sort=sort)
 
     else:
         _time_list = None
 
     if isinstance(data, pd.DataFrame):
-        _index = data.index.values
+        unique_index = np.unique(data.index)
 
-    elif index is not None:
-        _index = np.array(index)
+        if len(unique_index) == len(data.index):
+            index = Index(data.index.values)
 
-    else:
-        _index = None
+        else:
+            n_repeats, mod = divmod(len(data.index), len(unique_index))
 
-    return TimedArray(_index, _time_list, repeating_index)
+            if mod:
+                raise ValueError("Index must be unique or repeating exactly.")
+
+            index = Index(unique_index, repeats=n_repeats)
+
+    return TimedArray(index, _time_list), data
 
 
 def parse_data_h5(data: ch.H5Dict[Any], lock: tuple[bool, bool] | None, name: str) -> ch.AttributeManager:
@@ -136,27 +130,30 @@ def parse_data_h5(data: ch.H5Dict[Any], lock: tuple[bool, bool] | None, name: st
     return data.attributes
 
 
+@dataclass
+class ParsedData:
+    numerical_array: npt.NDArray[np.int_ | np.float_]
+    string_array: npt.NDArray[np.str_]
+    timepoints_array: tp.TimePointArray
+    index: Index
+    columns_numerical: NDArray_IFS
+    columns_string: NDArray_IFS
+    lock: tuple[bool, bool]
+    timepoints_column_name: str | None
+    name: str
+    repeating_index: bool
+
+
 def parse_data(
     data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None,
-    index: Collection[IFS] | None,
-    repeating_index: bool,
+    index: Collection[IFS] | Index | None,
     columns: Collection[IFS] | None,
-    time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None,
+    timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None,
     time_col_name: str | None,
     lock: tuple[bool, bool] | None,
     name: str,
-) -> tuple[
-    npt.NDArray[np.int_] | npt.NDArray[np.float_],
-    npt.NDArray[np.str_],
-    tp.TimePointArray,
-    NDArray_IFS,
-    NDArray_IFS,
-    NDArray_IFS,
-    tuple[bool, bool],
-    str | None,
-    str,
-    bool,
-]:
+    sort_timepoints: bool,
+) -> ParsedData:
     """
     Parse the user-given data to create a TemporalDataFrame.
 
@@ -170,27 +167,25 @@ def parse_data(
             If False, the index must contain unique values.
             If True, the index must be exactly equal at all time-points.
         columns: Optional column names.
-        time_list: Optional list of time values of the same length as the index, indicating for each row at which
+        timepoints: Optional list of time values of the same length as the index, indicating for each row at which
             time point it exists.
         time_col_name: Optional column name in data (if data is a dict or a pandas DataFrame) to use as time data.
         lock: Optional 2-tuple of booleans indicating which axes (index, columns) are locked.
         name: A name for the TemporalDataFrame.
-
-    Returns:
-        A H5 file (when data is backed on a file),
-        the numerical and string arrays of data,
-        the indices,
-        the numerical column names, the string column names
-        the lock
-        the time_col_name
-        the name
-        whether the index is repeating
+        sort_timepoints: Sort time-points in ascending order ?
     """
     if data is not None:
         data = pd.DataFrame(data).copy()  # type: ignore[arg-type]
 
-    timed_index = _get_timed_index(
-        index, None if time_list is None else as_timepointarray(time_list), time_col_name, data, repeating_index
+    if index is not None and not isinstance(index, Index):
+        index = Index(index)
+
+    timed_index, data = _get_timed_index(
+        index,
+        None if timepoints is None else as_timepointarray(timepoints),
+        time_col_name,
+        data,
+        sort=sort_timepoints,
     )
 
     # TODO : test for when data is None but other parameters are given
@@ -198,22 +193,22 @@ def parse_data(
         if time_col_name is not None:
             warn("No data supplied, 'time_col_name' parameter is ignored.")
 
-        return (
+        return ParsedData(
             np.empty((len(timed_index.arr), 0 if columns is None else len(columns))),
             np.empty((len(timed_index.arr), 0), dtype=str),
             timed_index.time,
-            timed_index.arr,
+            timed_index.arr.values,
             np.empty(0) if columns is None else np.array(columns),
             np.empty(0),
             (False, False) if lock is None else (bool(lock[0]), bool(lock[1])),
             None,
             str(name),
-            timed_index.repeating_index,
+            timed_index.arr.is_repeating,
         )
 
     numerical_array, string_array, columns_numerical, columns_string = parse_data_df(data, columns)
 
-    return (
+    return ParsedData(
         numerical_array,
         string_array,
         timed_index.time,
@@ -223,7 +218,7 @@ def parse_data(
         (False, False) if lock is None else (bool(lock[0]), bool(lock[1])),
         time_col_name,
         str(name),
-        timed_index.repeating_index,
+        timed_index.arr.is_repeating,
     )
 
 

@@ -35,6 +35,7 @@ AnyDictLike = Union[dict[str, _T], ch.H5Dict[_T], TimeDict]
 
 Slicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, tp.TimePoint]], range, slice, EllipsisType]
 PreSlicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, bool, tp.TimePoint]], range, slice, EllipsisType]
+Indexer = Union[int, slice, npt.NDArray[np.int_]]
 
 
 class AttrDict(TypedDict):

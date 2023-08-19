@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from attrs import define, field
+from h5dataframe import H5DataFrame
 from scipy.sparse import spmatrix
 
 import vdata.timepoint as tp
@@ -18,7 +19,6 @@ from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.utils import first_in
-from vdata.vdataframe import VDataFrame
 
 
 def _at_least_empty_dict(d: Mapping[Any, Any] | None) -> Mapping[Any, Any]:
@@ -40,7 +40,7 @@ def _get_time_list(
         if isinstance(df, TemporalDataFrameBase):
             return df.timepoints_column
 
-        elif isinstance(df, (pd.DataFrame, VDataFrame)) and time_col_name is not None:
+        elif isinstance(df, (pd.DataFrame, H5DataFrame)) and time_col_name is not None:
             return tp.as_timepointarray(df[time_col_name])
 
     return None
@@ -48,14 +48,14 @@ def _get_time_list(
 
 def _valid_obs(
     data: pd.DataFrame
-    | VDataFrame
+    | H5DataFrame
     | TemporalDataFrameBase
-    | Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase]
+    | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
     | None,
-    obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
+    obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None,
     time_list: tp.TimePointArray | None,
     time_col_name: str | None,
-) -> pd.DataFrame | VDataFrame | TemporalDataFrameBase:
+) -> TemporalDataFrameBase:
     if obs is None:
         generalLogger.debug("Default empty TemporalDataFrame for obs.")
 
@@ -68,9 +68,9 @@ def _valid_obs(
         _obs.lock_indices()
         return _obs
 
-    generalLogger.debug(f"    2. \u2713 'obs' is a {type(obs).__name__}.")
+    generalLogger.debug(lambda: f"    2. \u2713 'obs' is a {type(obs).__name__}.")
 
-    if isinstance(obs, (pd.DataFrame, VDataFrame)):
+    if isinstance(obs, (pd.DataFrame, H5DataFrame)):
         _obs = TemporalDataFrame(obs, time_list=time_list, time_col_name=time_col_name, name="obs", index=obs.index)
         _obs.lock_indices()
         return _obs
@@ -89,13 +89,13 @@ def _valid_obs(
 
 def _valid_var(
     data: pd.DataFrame
-    | VDataFrame
+    | H5DataFrame
     | TemporalDataFrameBase
-    | Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase]
+    | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
     | None,
-    var: pd.DataFrame | VDataFrame | None,
+    var: pd.DataFrame | H5DataFrame | None,
     time_col_name: str | None,
-) -> VDataFrame:
+) -> H5DataFrame:
     if var is None:
         generalLogger.debug("Default empty DataFrame for vars.")
         _index = get_var_index(data, var)
@@ -104,27 +104,27 @@ def _valid_var(
             ix = np.where(_index == time_col_name)[0][0]
             _index = np.delete(_index, ix)
 
-        return VDataFrame(index=_index)
+        return H5DataFrame(pd.DataFrame(index=_index))
 
-    if not isinstance(var, (pd.DataFrame, VDataFrame)):
-        raise TypeError("var must be a DataFrame.")
+    if isinstance(var, (pd.DataFrame, H5DataFrame)):
+        generalLogger.debug(lambda: f"    5. \u2713 'var' is a {type(var).__name__}.")
+        return H5DataFrame(var)
 
-    generalLogger.debug(f"    5. \u2713 'var' is a {type(var).__name__}.")
-    return VDataFrame(var)
+    raise TypeError("var must be a DataFrame.")
 
 
 @define
 class ParsingDataIn:
-    data: pd.DataFrame | VDataFrame | TemporalDataFrameBase | Mapping[
-        str, pd.DataFrame | VDataFrame | TemporalDataFrameBase
+    data: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | Mapping[
+        str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase
     ] | None
-    obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase
-    obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
-    obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
-    var: pd.DataFrame | VDataFrame
-    varm: Mapping[str, pd.DataFrame | VDataFrame] = field(converter=_at_least_empty_dict)
-    varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
-    timepoints: VDataFrame
+    obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase
+    obsm: Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
+    obsp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
+    var: pd.DataFrame | H5DataFrame
+    varm: Mapping[str, pd.DataFrame | H5DataFrame] = field(converter=_at_least_empty_dict)
+    varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
+    timepoints: pd.DataFrame | H5DataFrame
     time_col_name: str | None
     time_list: tp.TimePointArray | None
     uns: dict[str, Any] | ch.H5Dict[Any] = field(converter=_at_least_empty_dict)
@@ -137,17 +137,16 @@ class ParsingDataIn:
     def from_objects(
         cls,
         data: pd.DataFrame
-        | VDataFrame
         | TemporalDataFrameBase
-        | Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase]
+        | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
         | None,
-        obs: pd.DataFrame | VDataFrame | TemporalDataFrameBase | None,
-        obsm: Mapping[str, pd.DataFrame | VDataFrame | TemporalDataFrameBase] | None,
-        obsp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
-        var: pd.DataFrame | VDataFrame | None,
-        varm: Mapping[str, pd.DataFrame | VDataFrame] | None,
-        varp: Mapping[str, pd.DataFrame | VDataFrame | NDArray_IFS] | None,
-        timepoints: pd.DataFrame | VDataFrame | None,
+        obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None,
+        obsm: Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase] | None,
+        obsp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] | None,
+        var: pd.DataFrame | H5DataFrame | None,
+        varm: Mapping[str, pd.DataFrame | H5DataFrame] | None,
+        varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] | None,
+        timepoints: pd.DataFrame | H5DataFrame | None,
         time_col_name: str | None,
         time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None,
         uns: dict[str, Any] | ch.H5Dict[Any] | None,
@@ -231,11 +230,11 @@ class ParsingDataOut:
     layers: dict[str, TemporalDataFrame | TemporalDataFrameView]
     obs: TemporalDataFrameBase
     obsm: dict[str, TemporalDataFrame | TemporalDataFrameView]
-    obsp: dict[str, VDataFrame]
-    var: VDataFrame
-    varm: dict[str, VDataFrame]
-    varp: dict[str, VDataFrame]
-    timepoints: VDataFrame
+    obsp: dict[str, pd.DataFrame | H5DataFrame]
+    var: pd.DataFrame | H5DataFrame
+    varm: dict[str, pd.DataFrame | H5DataFrame]
+    varp: dict[str, pd.DataFrame | H5DataFrame]
+    timepoints: pd.DataFrame | H5DataFrame
     uns: dict[str, Any]
 
     def __attrs_post_init__(self) -> None:

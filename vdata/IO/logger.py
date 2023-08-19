@@ -37,6 +37,22 @@ class Tb:
     exception: Type[BaseException] = BaseException
 
 
+def callable_msg(level: LoggingLevel) -> Callable[[Callable[..., None]], Callable[..., Any]]:
+    def inner(func: Callable[[_VLogger, str | Callable[[], str]], None]) -> Callable[..., Any]:
+        def wrapper(self: _VLogger, msg: str | Callable[[], str]) -> None:
+            if not self.logger.isEnabledFor(level.value):
+                return None
+
+            if callable(msg):
+                msg = msg()
+
+            return func(self, msg)
+
+        return wrapper
+
+    return inner
+
+
 # code
 class _VLogger:
     """
@@ -123,6 +139,7 @@ class _VLogger:
 
         return msg
 
+    @callable_msg(LoggingLevel.DEBUG)
     def debug(self, msg: str) -> None:
         """
         Log a debug message (level 10)
@@ -131,6 +148,7 @@ class _VLogger:
         """
         self.logger.debug(Color.BGREY + self._getBaseMsg(msg) + Color.ENDC)
 
+    @callable_msg(LoggingLevel.INFO)
     def info(self, msg: str) -> None:
         """
         Log an info message (level 20)
@@ -139,6 +157,7 @@ class _VLogger:
         """
         self.logger.info(Color.TCYAN + self._getBaseMsg(msg) + Color.ENDC)
 
+    @callable_msg(LoggingLevel.WARNING)
     def warning(self, msg: str) -> None:
         """
         Log a warning message (level 30)
@@ -147,6 +166,7 @@ class _VLogger:
         """
         self.logger.warning(Color.TORANGE + self._getBaseMsg(msg) + Color.ENDC)
 
+    @callable_msg(LoggingLevel.ERROR)
     def error(self, msg: str) -> None:
         """
         Log an error message (level 40)
@@ -173,6 +193,7 @@ class _VLogger:
             f"[{last.f_globals['__name__'] if last is not None else 'UNCAUGHT'} :" f" {Tb.exception.__name__}] {msg}"
         )
 
+    @callable_msg(LoggingLevel.CRITICAL)
     def critical(self, msg: str) -> None:
         """
         Log a critical message (level 50)

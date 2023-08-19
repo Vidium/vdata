@@ -62,6 +62,8 @@ def _in1d(
     ar2: npt.NDArray[Any] | tp.TimePointArray,
     assume_unique: bool = False,
     invert: bool = False,
+    *,
+    kind: Literal["sort", "table"] | None = None,
 ) -> Any:
     ar1 = tp.as_timepointarray(ar1)
     ar2 = tp.as_timepointarray(ar2)
@@ -69,4 +71,27 @@ def _in1d(
     if ar1.unit != ar2.unit:
         return np.zeros(shape=ar1.shape, dtype=bool)
 
-    return np.in1d(np.array(ar1), np.array(ar2), assume_unique=assume_unique, invert=invert)
+    return np.in1d(np.array(ar1), np.array(ar2), assume_unique=assume_unique, invert=invert, kind=kind)
+
+
+@implements(np.isin)
+def _isin(
+    element: npt.NDArray[Any] | tp.TimePointArray,
+    test_elements: npt.NDArray[Any] | tp.TimePointArray,
+    assume_unique: bool = False,
+    invert: bool = False,
+    *,
+    kind: Literal["sort", "table"] | None = None,
+) -> Any:
+    element = tp.as_timepointarray(element)
+    test_elements = tp.as_timepointarray(test_elements)
+
+    if element.unit != test_elements.unit:
+        return np.zeros(shape=element.shape, dtype=bool)
+
+    return np.isin(np.array(element), np.array(test_elements), assume_unique=assume_unique, invert=invert, kind=kind)
+
+
+@implements(np.repeat)
+def repeat(a: tp.TimePointArray, repeats: int | npt.NDArray[np.int_], axis: int | None = None) -> tp.TimePointArray:
+    return tp.as_timepointarray(np.repeat(np.array(a), repeats, axis=axis), unit=a.unit)

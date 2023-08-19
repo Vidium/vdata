@@ -5,14 +5,13 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
+from h5dataframe import H5DataFrame
 
 from vdata.data.vdata import VData
 from vdata.IO import generalLogger
-from vdata.vdataframe import VDataFrame
 
 
-def concatenate(arr: Sequence[VData],
-                name: str = '') -> 'VData':
+def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
     """
     Concatenate together multiple VData objects, which share the same layer keys, vars and time points.
 
@@ -29,13 +28,14 @@ def concatenate(arr: Sequence[VData],
     if not all(isinstance(arg, VData) for arg in arr):
         raise TypeError("Only Vdata objects are allowed.")
 
-    generalLogger.debug("\u23BE Concatenation of VDatas : start "
-                        "---------------------------------------------------------- ")
+    generalLogger.debug(
+        "\u23BE Concatenation of VDatas : start " "---------------------------------------------------------- "
+    )
 
     # get initial data
     first_VData = arr[0]
 
-    generalLogger.info(f"Using VData '{first_VData.name}' as first object.")
+    generalLogger.info(lambda: f"Using VData '{first_VData.name}' as first object.")
 
     _data = first_VData.layers.dict_copy()
     _obs = first_VData.obs.copy()
@@ -49,7 +49,7 @@ def concatenate(arr: Sequence[VData],
 
     # concatenate with data in other VData objects
     for next_VData_index, next_VData in enumerate(arr[1:]):
-        generalLogger.info(f"Working on VData '{next_VData.name}' ({next_VData_index + 1}/{len(arr) - 1}).")
+        generalLogger.info(lambda: f"Working on VData '{next_VData.name}' ({next_VData_index + 1}/{len(arr) - 1}).")
 
         # check var -----------------------------------------------------------
         generalLogger.info("  '\u21B3' merging 'var' DataFrame.")
@@ -83,7 +83,7 @@ def concatenate(arr: Sequence[VData],
             raise ValueError("Cannot concatenate VData objects if 'layers' keys are different.")
 
         for key in _data.keys():
-            generalLogger.info(f"    '\u21B3' merging layer '{key}' DataFrame.")
+            generalLogger.info(lambda: f"    '\u21B3' merging layer '{key}' DataFrame.")
             _data[key] = _data[key].merge(next_VData.layers[key])
 
         # concat other data =============================================================
@@ -97,83 +97,90 @@ def concatenate(arr: Sequence[VData],
         # obsm ----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging obsm.")
         for key in _obsm.keys():
-            generalLogger.info(f"    '\u21B3' merging obsm '{key}' TemporalDataFrame.")
+            generalLogger.info(lambda: f"    '\u21B3' merging obsm '{key}' TemporalDataFrame.")
 
             if key in next_VData.obsm.keys():
                 _obsm[key] = _obsm[key].merge(next_VData.obsm[key])
 
             else:
-                generalLogger.warning(f"Dropping 'obsm' '{key}' because it was not found in all VData objects.")
+                generalLogger.warning(lambda: f"Dropping 'obsm' '{key}' because it was not found in all VData objects.")
                 del _obsm[key]
 
         # obsp ----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging obsp.")
         next_obsp = next_VData.obsp
         for key in _obsp.keys():
-            generalLogger.info(f"    '\u21B3' merging obsp '{key}' DataFrame.")
+            generalLogger.info(lambda: f"    '\u21B3' merging obsp '{key}' DataFrame.")
 
             if key in next_obsp.keys():
                 _index = _obsp[key].index.union(pd.Index(next_VData.obs.index), sort=False)
-                result = VDataFrame(index=_index, columns=_index)
+                result = H5DataFrame(index=_index, columns=_index)
 
-                result.iloc[0:len(_obsp[key].index), 0:len(_obsp[key].index)] = _obsp[key]
-                result.iloc[len(_obsp[key].index):, len(_obsp[key].index):] = next_obsp[key]
+                result.iloc[0 : len(_obsp[key].index), 0 : len(_obsp[key].index)] = _obsp[key]
+                result.iloc[len(_obsp[key].index) :, len(_obsp[key].index) :] = next_obsp[key]
 
                 _obsp[key] = result
 
             else:
-                generalLogger.warning(f"Dropping 'obsp' '{key}' because it was not found in all VData objects.")
+                generalLogger.warning(lambda: f"Dropping 'obsp' '{key}' because it was not found in all VData objects.")
                 del _obsp[key]
 
         # varm ----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging varm.")
         for key in _varm.keys():
             if key in next_VData.varm.keys():
-                generalLogger.info(f"    '\u21B3' merging varm '{key}' DataFrame.")
+                generalLogger.info(lambda: f"    '\u21B3' merging varm '{key}' DataFrame.")
 
-                _varm[key] = VDataFrame(_varm[key].reset_index().merge(
-                    next_VData.varm[key].reset_index(), how='outer').set_index('index'))
+                _varm[key] = H5DataFrame(
+                    _varm[key].reset_index().merge(next_VData.varm[key].reset_index(), how="outer").set_index("index")
+                )
 
             else:
-                generalLogger.warning(f"Dropping 'varm' '{key}' because it was not found in all VData objects.")
+                generalLogger.warning(lambda: f"Dropping 'varm' '{key}' because it was not found in all VData objects.")
                 del _varm[key]
 
         # varp ----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging varp.")
         for key in _varp.keys():
             if key in next_VData.varp.keys():
-                generalLogger.info(f"    '\u21B3' merging varp '{key}' DataFrame.")
+                generalLogger.info(lambda: f"    '\u21B3' merging varp '{key}' DataFrame.")
 
-                _varp[key] = VDataFrame(_varp[key].reset_index().merge(
-                    next_VData.varp[key].reset_index(), how='outer').set_index('index'))
+                _varp[key] = H5DataFrame(
+                    _varp[key].reset_index().merge(next_VData.varp[key].reset_index(), how="outer").set_index("index")
+                )
 
             else:
-                generalLogger.warning(f"Dropping 'varp' '{key}' because it was not found in all VData objects.")
+                generalLogger.warning(lambda: f"Dropping 'varp' '{key}' because it was not found in all VData objects.")
                 del _varp[key]
 
         # uns -----------------------------------------------------------------
         generalLogger.info("  '\u21B3' merging uns.")
         for key, value in next_VData.uns.items():
-            generalLogger.info(f"    '\u21B3' merging uns '{key}'.")
+            generalLogger.info(lambda: f"    '\u21B3' merging uns '{key}'.")
 
             if key not in _uns:
                 _uns[key] = value
 
             elif _uns[key] != value:
-                generalLogger.warning(f"Found different values for key '{key}' in 'uns', keeping first found value.")
+                generalLogger.warning(
+                    lambda: f"Found different values for key '{key}' in 'uns', keeping first found value."
+                )
 
-    concatenated_VData = VData(data=_data, 
-                               obs=_obs,
-                               obsm=_obsm,
-                               obsp=_obsp,
-                               var=_var,
-                               varm=_varm,
-                               varp=_varp,
-                               timepoints=_timepoints,
-                               uns=_uns,
-                               name=name)
+    concatenated_VData = VData(
+        data=_data,
+        obs=_obs,
+        obsm=_obsm,
+        obsp=_obsp,
+        var=_var,
+        varm=_varm,
+        varp=_varp,
+        timepoints=_timepoints,
+        uns=_uns,
+        name=name,
+    )
 
-    generalLogger.debug("\u23BF Concatenation of VDatas : end "
-                        "---------------------------------------------------------- ")
+    generalLogger.debug(
+        "\u23BF Concatenation of VDatas : end " "---------------------------------------------------------- "
+    )
 
     return concatenated_VData

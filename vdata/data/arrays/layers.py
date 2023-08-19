@@ -21,9 +21,9 @@ class VLayersArrayContainer(VTDFArrayContainer):
     """
 
     # region magic methods
-    def _check_init_data(self,
-                         data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]) \
-        -> DictLike[TemporalDataFrame | TemporalDataFrameView]:
+    def _check_init_data(
+        self, data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]
+    ) -> DictLike[TemporalDataFrame | TemporalDataFrameView]:
         """
         Function for checking, at VLayerArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape.
@@ -47,43 +47,54 @@ class VLayersArrayContainer(VTDFArrayContainer):
         _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], self._vdata.var.shape[0])
         _data: DictLike[TemporalDataFrame | TemporalDataFrameView] = {} if not isinstance(data, ch.H5Dict) else data
 
-        generalLogger.debug(f"  Reference shape is {_shape}.")
+        generalLogger.debug(lambda: f"  Reference shape is {_shape}.")
 
         for TDF_index, tdf in data.items():
             tdf = cast(Union[TemporalDataFrame, TemporalDataFrameView], tdf)
             TDF_shape = tdf.shape
 
-            generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
+            generalLogger.debug(lambda: f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
 
             # check that shapes match
             if _shape[0] != TDF_shape[0]:
-                raise IncoherenceError(f"Layer '{TDF_index}' has {TDF_shape[0]} "
-                                        f"time point{'s' if TDF_shape[0] > 1 else ''}, "
-                                        f"should have {_shape[0]}.")
+                raise IncoherenceError(
+                    f"Layer '{TDF_index}' has {TDF_shape[0]} "
+                    f"time point{'s' if TDF_shape[0] > 1 else ''}, "
+                    f"should have {_shape[0]}."
+                )
 
             elif _shape[1] != TDF_shape[1]:
                 for i in range(len(tdf.timepoints)):
                     if _shape[1][i] != TDF_shape[1][i]:
-                        raise IncoherenceError(f"Layer '{TDF_index}' at time point {i} has"
-                                                f" {TDF_shape[1][i]} observations, "
-                                                f"should have {_shape[1][i]}.")
+                        raise IncoherenceError(
+                            f"Layer '{TDF_index}' at time point {i} has"
+                            f" {TDF_shape[1][i]} observations, "
+                            f"should have {_shape[1][i]}."
+                        )
 
             elif _shape[2] != TDF_shape[2]:
-                raise IncoherenceError(f"Layer '{TDF_index}' has  {TDF_shape[2]} variables, "
-                                        f"should have {_shape[2]}.")
+                raise IncoherenceError(
+                    f"Layer '{TDF_index}' has  {TDF_shape[2]} variables, " f"should have {_shape[2]}."
+                )
 
             # check that indexes match
             if np.any(self._vdata.obs.index != tdf.index):
-                raise IncoherenceError(f"Index of layer '{TDF_index}' ({tdf.index}) does not match obs' index. ("
-                                       f"{self._vdata.obs.index})")
+                raise IncoherenceError(
+                    f"Index of layer '{TDF_index}' ({tdf.index}) does not match obs' index. ("
+                    f"{self._vdata.obs.index})"
+                )
 
             if np.any(self._vdata.var.index != tdf.columns):
-                raise IncoherenceError(f"Column names of layer '{TDF_index}' ({tdf.columns}) do not match var's "
-                                       f"index. ({self._vdata.var.index})")
+                raise IncoherenceError(
+                    f"Column names of layer '{TDF_index}' ({tdf.columns}) do not match var's "
+                    f"index. ({self._vdata.var.index})"
+                )
 
             if np.any(self._vdata.timepoints.value.values != tdf.timepoints):
-                raise IncoherenceError(f"Time points of layer '{TDF_index}' ({tdf.timepoints}) do not match "
-                                       f"time_point's index. ({self._vdata.timepoints.value.values})")
+                raise IncoherenceError(
+                    f"Time points of layer '{TDF_index}' ({tdf.timepoints}) do not match "
+                    f"time_point's index. ({self._vdata.timepoints.value.values})"
+                )
 
             if tdf.data is None or ch.H5Mode.has_write_intent(tdf.data.mode):
                 tdf.lock_indices()
@@ -95,9 +106,7 @@ class VLayersArrayContainer(VTDFArrayContainer):
         generalLogger.debug("  Data was OK.")
         return _data
 
-    def __setitem__(self, 
-                    key: str,
-                    value: TemporalDataFrameBase) -> None:
+    def __setitem__(self, key: str, value: TemporalDataFrameBase) -> None:
         """
         Set a specific TemporalDataFrame in _data. The given TemporalDataFrame must have the correct shape.
 
@@ -118,18 +127,18 @@ class VLayersArrayContainer(VTDFArrayContainer):
         value_copy.name = key
         value_copy.lock_indices()
         value_copy.lock_columns()
-        
+
         super().__setitem__(key, value_copy)
-        
+
     # endregion
-    
+
     # region methods
     @property
     def one_shape(self) -> tuple[int, list[int], int]:
         """Shape of one layer."""
         _shape = self.shape
         return _shape[1], _shape[2], _shape[3][0]
-    
+
     # endregion
 
 

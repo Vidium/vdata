@@ -37,7 +37,8 @@ def slicer_to_array(slicer: PreSlicer, reference_index: AnyNDArrayLike_IFS | tp.
     Returns:
         An array of allowed values in the slicer.
     """
-    if slicer == slice(None, None, None) or isinstance(slicer, EllipsisType):
+    _is_whole_slice = isinstance(slicer, slice) and slicer == slice(None, None, None)
+    if _is_whole_slice or isinstance(slicer, EllipsisType):
         return None
 
     if isinstance(slicer, (slice, range)):
@@ -46,10 +47,24 @@ def slicer_to_array(slicer: PreSlicer, reference_index: AnyNDArrayLike_IFS | tp.
     if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
         return np.array(reference_index)[np.where(slicer.flatten())]
 
+    if isinstance(slicer, tp.TimePointArray):
+        return slicer[np.where(np.in1d(slicer, reference_index))]
+
     if not isCollection(slicer):
         return np.array([slicer]) if slicer in reference_index else np.array([])
 
-    return np.array(slicer)[np.where(np.in1d(slicer, reference_index))]  # type: ignore[arg-type]
+    slicer = np.array(slicer)
+
+    if slicer.dtype == bool:
+        return reference_index[slicer]
+
+    return slicer[np.where(np.in1d(slicer, reference_index))]  # type: ignore[arg-type]
+
+
+def _gets_whole_axis(slicer: PreSlicer) -> bool:
+    return (isinstance(slicer, slice) and slicer == slice(None)) or (
+        isinstance(slicer, np.ndarray) and slicer.dtype == bool and bool(np.all(slicer))
+    )
 
 
 def reformat_index(
@@ -57,7 +72,7 @@ def reformat_index(
     timepoints_reference: tp.TimePointArray,
     obs_reference: AnyNDArrayLike_IFS,
     var_reference: NDArrayLike_IFS,
-) -> tuple[tp.TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None]:
+) -> tuple[tp.TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None] | None:
     """
     Format a sub-setting index into 3 arrays of selected (and allowed) values for time points, observations and
     variables. The reference collections are used to transform a PreSlicer into an array of selected values.
@@ -73,6 +88,9 @@ def reformat_index(
     """
     if not isinstance(index, tuple):
         index = (index,)
+
+    if all(_gets_whole_axis(i) for i in index):
+        return None
 
     index = index + (...,) * (3 - len(index))
     _tp_slicer = slicer_to_array(index[0], timepoints_reference)

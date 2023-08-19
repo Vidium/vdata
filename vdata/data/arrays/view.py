@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ItemsView, Iterator, KeysView, ValuesView
+from typing import ItemsView, Iterator, KeysView, ValuesView
 
 import numpy as np
 
 from vdata._typing import NDArray_IFS
 from vdata.data.arrays.base import ArrayContainerMixin, D, D_copy, VBaseArrayContainer
+from vdata.data.hash import VDataHash
 from vdata.IO import generalLogger
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
@@ -20,15 +21,16 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
     """
 
     # region magic methods
-    def __init__(self, data: dict[str, D], array_container: VBaseArrayContainer[D, D_copy]):
+    def __init__(self, data: dict[str, D], array_container: VBaseArrayContainer[D, D_copy], hash: VDataHash):
         """
         Args:
             array_container: a VBaseArrayContainer object to build a view on.
         """
-        generalLogger.debug(f"== Creating {type(self).__name__}. ================================")
+        generalLogger.debug(lambda: f"== Creating {type(self).__name__}. ================================")
 
         self._data: dict[str, D] = data
         self._array_container: VBaseArrayContainer[D, D_copy] = array_container
+        self._hash = hash
 
     def __repr__(self) -> str:
         """Description for this view  to print."""
@@ -78,16 +80,16 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
     @property
     def data(self) -> dict[str, D]:
         """Data of this view."""
-        self._check_data_has_not_changed()
+        try:
+            self._hash.assert_unchanged()
+        except AssertionError:
+            raise ValueError("View no longer valid since parent's VData has changed.")
+
         return self._data
 
     # endregion
 
     # region methods
-    @abstractmethod
-    def _check_data_has_not_changed(self) -> None:
-        pass
-
     def keys(self) -> KeysView[str]:
         """KeysView of keys for getting the data items in this view."""
         return self.data.keys()
@@ -101,18 +103,6 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
         return self.data.items()
 
     # endregion
-
-
-def get_tp_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
-    return hash(tuple(array_container._vdata.timepoints.value.values))
-
-
-def get_obs_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
-    return hash(tuple(array_container._vdata.obs.index))
-
-
-def get_var_hash(array_container: VBaseArrayContainer[Any, Any]) -> int:
-    return hash(tuple(array_container._vdata.var.index))
 
 
 class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame]):
@@ -139,11 +129,8 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
         super().__init__(
             data={key: tdf[timepoints_slicer, obs_slicer, var_slicer] for key, tdf in array_container.items()},
             array_container=array_container,
+            hash=VDataHash(array_container._vdata, timepoints=True, obs=True, var=True),
         )
-
-        self._vdata_timepoints_hash = get_tp_hash(array_container)
-        self._vdata_obs_hash = get_obs_hash(array_container)
-        self._vdata_var_hash = get_var_hash(array_container)
 
     def __setitem__(self, key: str, value: TemporalDataFrame | TemporalDataFrameView) -> None:
         """Set a specific data item in this view. The given data item must have the correct shape."""
@@ -173,14 +160,6 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     # endregion
 
     # region methods
-    def _check_data_has_not_changed(self) -> None:
-        if (
-            get_tp_hash(self._array_container) != self._vdata_timepoints_hash
-            or get_obs_hash(self._array_container) != self._vdata_obs_hash
-            or get_var_hash(self._array_container) != self._vdata_var_hash
-        ):
-            raise ValueError("View no longer valid since parent's VData has changed.")
-
     def set_index(self, values: NDArray_IFS, repeating_index: bool) -> None:
         """Set a new index for rows."""
         for layer in self.values():

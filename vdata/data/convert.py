@@ -7,6 +7,7 @@ from typing import Any, Collection
 import ch5mpy as ch
 import numpy as np
 from anndata import AnnData
+from h5dataframe import H5DataFrame
 from tqdm.auto import tqdm
 
 import vdata
@@ -15,7 +16,6 @@ from vdata._typing import IFS
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrame
 from vdata.utils import repr_array
-from vdata.vdataframe import VDataFrame
 
 
 def convert_vdata_to_anndata(
@@ -55,7 +55,7 @@ def convert_vdata_to_anndata(
         _timepoints_list = tp.as_timepointarray(timepoints_list)
         _timepoints_list = tp.atleast_1d(_timepoints_list[np.where(np.in1d(_timepoints_list, data.timepoints_values))])
 
-    generalLogger.debug(f"Selected time points are : {repr_array(_timepoints_list)}")
+    generalLogger.debug(lambda: f"Selected time points are : {repr_array(_timepoints_list)}")
 
     if into_one:
         return _convert_vdata_into_one_anndata(
@@ -95,9 +95,9 @@ def _convert_vdata_into_one_anndata(
         obs=view.obs.to_pandas(with_timepoints=tp_col_name, str_index=True),
         obsm={key: arr.values_num for key, arr in view.obsm.items()},
         obsp={key: arr.values for key, arr in view.obsp.items()},
-        var=view.var.to_pandas(),
-        varm={key: arr for key, arr in view.varm.items()},
-        varp={key: arr for key, arr in view.varp.items()},
+        var=view.var.copy(),
+        varm=view.varm.dict_copy(),
+        varp=view.varp.dict_copy(),
         uns=view.uns.copy(),
     )
 
@@ -133,9 +133,9 @@ def _convert_vdata_into_many_anndatas(
                 layers={key: layer.to_pandas(str_index=True) for key, layer in view.layers.items()},
                 obs=view.obs.to_pandas(str_index=True),
                 obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
-                var=view.var.to_pandas(),
-                varm={key: arr for key, arr in view.varm.items()},
-                varp={key: arr for key, arr in view.varp.items()},
+                var=view.var.copy(),
+                varm={key: arr.copy() for key, arr in view.varm.items()},
+                varp={key: arr.copy() for key, arr in view.varp.items()},
                 uns=view.uns,
             )
         )
@@ -193,7 +193,7 @@ def convert_anndata_to_vdata(
         + len(data["varp"])
         + int(not drop_X)
     )
-    progressBar = tqdm(total=nb_items_to_write, desc="converting anndata to VData", unit="object")
+    progressBar = tqdm(total=nb_items_to_write, desc="Converting anndata to VData", unit="object")
     progressBar.update()
 
     # timepoints --------------------------------------------------------------
@@ -210,7 +210,7 @@ def convert_anndata_to_vdata(
             np.ones(data["obs"][next(iter(data["obs"]))].shape[0]) * timepoint.value, unit=timepoint.unit
         )
 
-    ch.write_object(data, "timepoints", VDataFrame({"value": np.unique(timelist, equal_nan=False)}))
+    ch.write_object(data, "timepoints", H5DataFrame({"value": np.unique(timelist, equal_nan=False)}))
     progressBar.update()
 
     # obs ---------------------------------------------------------------------
@@ -235,7 +235,7 @@ def convert_anndata_to_vdata(
 
     del data["var"]
 
-    ch.write_object(data, "var", VDataFrame(var_data, index=_var_index))
+    ch.write_object(data, "var", H5DataFrame(var_data, index=_var_index))
 
     progressBar.update()
 
@@ -272,7 +272,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["obsp"][array_name]
 
-        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_obs_index, columns=_obs_index))
+        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_obs_index, columns=_obs_index))
 
         progressBar.update()
 
@@ -281,7 +281,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["varm"][array_name]
 
-        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_var_index))
+        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_var_index))
 
         progressBar.update()
 
@@ -290,7 +290,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["varp"][array_name]
 
-        ch.write_object(data, "timepoints", VDataFrame(array_data, index=_var_index, columns=_var_index))
+        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_var_index, columns=_var_index))
 
         progressBar.update()
 

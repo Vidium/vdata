@@ -17,6 +17,7 @@ maintainers = [
 readme = {file = "README.md", content-type="text/markdown"}
 dependencies = [
     "ch5mpy",
+    "h5dataframe",
     "numpy",
     "tqdm",
     "anndata",
@@ -60,6 +61,7 @@ paths = ["vdata", "vulture_whitelist.py"]
 
 [tool.ruff]
 line-length = 120
+ignore = ["E731"]
 
 [tool.mypy]
 strict = true

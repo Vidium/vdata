@@ -1,129 +1,178 @@
 import pickle
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import ch5mpy as ch
 import numpy as np
+from h5dataframe import H5DataFrame
+from tqdm.auto import tqdm
 
-from vdata import TemporalDataFrame, VDataFrame
+import vdata
+
+CURRENT_VERSION = 1
 
 
-def update_tdf(data: ch.File) -> None:
-    data.attrs["__h5_type__"] = "object"
-    data.attrs["__h5_class__"] = np.void(pickle.dumps(TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL))
-    del data.attrs["type"]
+class NoBar:
+    def update():
+        pass
 
-    if data.attrs["timepoints_column_name"] == "__ATTRIBUTE_None__":
-        data.attrs["timepoints_column_name"] = "__h5_NONE__"
+    def close():
+        pass
 
-    data.move("timepoints", "timepoints_array")
-    data.move("values_numerical", "numerical_array")
-    data.move("values_string", "string_array")
+
+def _update_array(arr: ch.Dataset[Any]) -> None:
+    if arr.dtype == object or np.issubdtype(arr.dtype, bytes):
+        arr.attributes["dtype"] = "str"
+
+
+def update_tdf(data: ch.H5Dict) -> None:
+    data.attributes.set(
+        __h5_type__="object",
+        __h5_class__=np.void(pickle.dumps(vdata.TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL)),
+    )
+    del data.attributes["type"]
+
+    if data.attributes["timepoints_column_name"] == "__ATTRIBUTE_None__":
+        data.attributes["timepoints_column_name"] = "__h5_NONE__"
+
+    data.file.move("timepoints", "timepoints_array")
+    data.file.move("values_numerical", "numerical_array")
+    data.file.move("values_string", "string_array")
 
     for array_data in data.values():
-        array_data = cast(ch.Dataset[Any], array_data)
-        if array_data.dtype == object:
-            array_data.attrs["dtype"] = "str"
+        _update_array(array_data)
 
 
-def _update_vdf(data: ch.File) -> None:
-    data.attrs["__h5_type__"] = "object"
-    data.attrs["__h5_class__"] = np.void(pickle.dumps(VDataFrame, protocol=pickle.HIGHEST_PROTOCOL))
-    del data.attrs["type"]
+def _update_vdf(data: ch.H5Dict) -> None:
+    data.attributes.set(
+        __h5_type__="object", __h5_class__=np.void(pickle.dumps(H5DataFrame, protocol=pickle.HIGHEST_PROTOCOL))
+    )
+    del data.attributes["type"]
 
-    columns = []
+    data["arrays"] = {}
 
     if "data_numeric" in data.keys():
-        data.move("data_numeric/data", "data_numeric*")
-
-        if data["data_numeric"]["columns"].dtype == object:
-            columns += list(data["data_numeric"]["columns"].asstr())
-        else:
-            columns += list(data["data_numeric"]["columns"])
+        _update_array(data["data_numeric"]["data"])
+        for col_idx, column in enumerate(data["data_numeric"]["columns"].astype(str)):
+            data["arrays"][column] = data["data_numeric"]["data"][:, col_idx].flatten()
 
         del data["data_numeric"]
-        data.move("data_numeric*", "data_numeric")
-
-    else:
-        data.create_dataset("data_numeric", data=np.empty((len(data["index"]), 0)))
 
     if "data_str" in data.keys():
-        data.move("data_str/data", "data_string")
-
-        if data["data_str"]["columns"].dtype == object:
-            columns += list(data["data_str"]["columns"].asstr())
-        else:
-            columns += list(data["data_str"]["columns"])
+        _update_array(data["data_str"]["data"])
+        for col_idx, column in enumerate(data["data_str"]["columns"].astype(str)):
+            data["arrays"][column] = data["data_str"]["data"][:, col_idx].flatten()
 
         del data["data_str"]
 
-    else:
-        data.create_dataset("data_string", data=np.empty((len(data["index"]), 0)))
+    del data["columns"]
 
-    data["columns"][()] = columns
-    data.create_dataset("columns_stored_order", data=data["columns"])
-
-    for array_data in data.values():
-        array_data = cast(ch.Dataset[Any], array_data)
-        if array_data.dtype == object:
-            array_data.attrs["dtype"] = "str"
+    _update_array(data["index"])
 
 
-def update_vdata(path: Path | str) -> None:
-    data = ch.File(path, mode=ch.H5Mode.READ_WRITE)
+def _update_dict(obj: ch.H5Dict[Any]):
+    for key in obj.keys():
+        if isinstance(obj @ key, ch.H5Array):
+            _update_array(obj @ key)
+
+        elif isinstance(obj @ key, ch.H5Dict):
+            _update_dict(obj @ key)
+
+
+def update_vdata(data: Path | str | ch.H5Dict, verbose: bool = True) -> None:
+    """
+    Update an h5 file containing a vdata saved in an older version.
+
+    Args:
+        data: path to the h5 file to update.
+        verbose: print a progress bar ? (default: True)
+    """
+    _was_opened_here = not isinstance(data, ch.H5Dict)
+    if not isinstance(data, ch.H5Dict):
+        data = ch.H5Dict.read(data, mode=ch.H5Mode.READ_WRITE)
+
+    nb_items_to_write = (
+        4 + len(data @ "layers") + len(data @ "obsm") + len(data @ "obsp") + len(data @ "varm") + len(data @ "varp")
+    )
+    progressBar = tqdm(total=nb_items_to_write, desc=" Updating old VData file", unit="object") if verbose else NoBar()
 
     # layers ------------------------------------------------------------------
-    for layer in data["layers"].values():
-        update_tdf(layer)
+    for layer in (data @ "layers").keys():
+        update_tdf((data @ "layers") @ layer)
+        progressBar.update()
 
     # obs ---------------------------------------------------------------------
     if "obs" not in data.keys():
-        first_layer = data["layers"][list(data["layers"].keys())[0]]
+        first_layer = (data @ "layers")[list((data @ "layers").keys())[0]]
 
-        obs = TemporalDataFrame(
+        obs = vdata.TemporalDataFrame(
             index=ch.read_object(first_layer["index"]),
             repeating_index=first_layer.attrs["repeating_index"],
             time_list=ch.read_object(first_layer["timepoints_array"]),
         )
         ch.write_object(data, "obs", obs)
     else:
-        update_tdf(data["obs"])
+        update_tdf(data @ "obs")
 
-    for obsm_tdf in data["obsm"].values():
-        update_tdf(obsm_tdf)
+    progressBar.update()
 
-    for obsp_vdf in data["obsp"].values():
-        _update_vdf(obsp_vdf)
+    for obsm_tdf in (data @ "obsm").keys():
+        update_tdf((data @ "obsm") @ obsm_tdf)
+        progressBar.update()
+
+    for obsp_vdf in (data @ "obsp").keys():
+        _update_vdf((data @ "obsp") @ obsp_vdf)
+        progressBar.update()
 
     # var ---------------------------------------------------------------------
     if "var" not in data.keys():
-        first_layer = data["layers"][list(data["layers"].keys())[0]]
+        first_layer = (data @ "layers")[list((data @ "layers").keys())[0]]
 
-        var = VDataFrame(
+        var = H5DataFrame(
             index=np.concatenate(
                 (ch.read_object(first_layer["columns_numerical"]), ch.read_object(first_layer["columns_string"]))
             )
         )
         ch.write_object(data, "var", var)
     else:
-        _update_vdf(data["var"])
+        _update_vdf(data @ "var")
 
-    for varm_vdf in data["varm"].values():
+    progressBar.update()
+
+    for varm_vdf in (data @ "varm").values():
         _update_vdf(varm_vdf)
+        progressBar.update()
 
-    for varp_vdf in data["varp"].values():
+    for varp_vdf in (data @ "varp").values():
         _update_vdf(varp_vdf)
+        progressBar.update()
 
     # timepoints --------------------------------------------------------------
     if "timepoints" not in data.keys():
-        first_layer = data["layers"][list(data["layers"].keys())[0]]
+        first_layer = (data @ "layers")[list((data @ "layers").keys())[0]]
 
-        timepoints = VDataFrame({"value": np.unique(ch.read_object(first_layer["timepoints_array"]))})
+        timepoints = H5DataFrame({"value": np.unique(ch.read_object(first_layer["timepoints_array"]))})
         ch.write_object(data, "timepoints", timepoints)
     else:
-        _update_vdf(data["timepoints"])
+        _update_vdf(data @ "timepoints")
 
-    data.close()
+    progressBar.update()
+
+    # uns ---------------------------------------------------------------------
+    if "uns" not in data.keys():
+        data["uns"] = {}
+
+    else:
+        _update_dict(data @ "uns")
+
+    progressBar.update()
+
+    # -------------------------------------------------------------------------
+    data.attributes["__vdata_write_version__"] = CURRENT_VERSION
+
+    if _was_opened_here:
+        data.close()
+    progressBar.close()
 
 
 # from vdata.update import update_vdata

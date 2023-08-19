@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING, Any, Literal, Sequence
 import numpy.typing as npt
 import pandas as pd
 from anndata import AnnData
+from h5dataframe import H5DataFrame
 from scipy import sparse
 
 from vdata._typing import DictLike
-from vdata.anndata_proxy.containers import TemporalDataFrameContainerProxy, VDataFrameContainerProxy
-from vdata.anndata_proxy.dataframe import DataFrameproxy_TDF, DataFrameProxy_VDF
+from vdata.anndata_proxy.containers import H5DataFrameContainerProxy, TemporalDataFrameContainerProxy
+from vdata.anndata_proxy.dataframe import DataFrameProxy_TDF
+from vdata.anndata_proxy.utils import skip_time_axis
 from vdata.data._file import NoData
 
 if TYPE_CHECKING:
@@ -31,22 +33,26 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
             vdata: a VData object to wrap.
             X: an optional layer name to use as X.
         """
-        self._vdata = vdata
         self._X = None if X is None else str(X)
-        self._layers = TemporalDataFrameContainerProxy(vdata.layers, name="Layers")
-        self._obs = DataFrameproxy_TDF(vdata.obs)
-        self._obsm = TemporalDataFrameContainerProxy(vdata.obsm, name="Obsm")
-        self._obsp = VDataFrameContainerProxy(vdata.obsp, name="Obsp")
-        self._var = DataFrameProxy_VDF(vdata.var)
-        self._varm = VDataFrameContainerProxy(vdata.varm, name="Varm")
-        self._varp = VDataFrameContainerProxy(vdata.varp, name="Varp")
-        self._uns = vdata.uns
 
         if self._X is not None and self._X not in vdata.layers:
             raise ValueError(f"Could not find layer '{self._X}' in the given VData.")
 
+        self._init_from_vdata(vdata)
+
+    def _init_from_vdata(self, vdata: VData | VDataView):
+        self._vdata = vdata
+        self._layers = TemporalDataFrameContainerProxy(vdata, name="layers")
+        self._obs = DataFrameProxy_TDF(vdata.obs)
+        self._obsm = TemporalDataFrameContainerProxy(vdata, name="obsm")
+        self._obsp = H5DataFrameContainerProxy(vdata.obsp, name="Obsp", index=vdata.obs.index, columns=vdata.obs.index)
+        self._var = vdata.var
+        self._varm = H5DataFrameContainerProxy(vdata.varm, name="Varm", index=vdata.var.index)
+        self._varp = H5DataFrameContainerProxy(vdata.varp, name="Varp", index=vdata.var.index, columns=vdata.var.index)
+        self._uns = vdata.uns
+
     def __repr__(self) -> str:
-        return f"AnnDataProxy from {self._vdata}."
+        return f"AnnDataProxy from {self._vdata}"
 
     def __sizeof__(self, show_stratified: bool | None = None) -> int:
         del show_stratified
@@ -55,9 +61,9 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
     def __delitem__(self, index: Any) -> None:
         raise NotImplementedError
 
-    def __getitem__(self, index: Any) -> None:
+    def __getitem__(self, index: Any) -> AnnDataProxy:
         """Returns a sliced view of the object."""
-        raise NotImplementedError
+        return AnnDataProxy(self._vdata[skip_time_axis(index)], X=self._X)
 
     def __setitem__(self, index: Any, val: int | float | npt.NDArray[Any] | sparse.spmatrix) -> None:
         raise NotImplementedError
@@ -113,7 +119,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     @property
-    def obs(self) -> DataFrameproxy_TDF:
+    def obs(self) -> DataFrameProxy_TDF:
         return self._obs
 
     @obs.setter
@@ -134,7 +140,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     @property
-    def var(self) -> DataFrameProxy_VDF:
+    def var(self) -> H5DataFrame:
         """One-dimensional annotation of variables/ features (`pd.DataFrame`)."""
         return self._var
 
@@ -181,7 +187,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     @property
-    def varm(self) -> VDataFrameContainerProxy:
+    def varm(self) -> H5DataFrameContainerProxy:
         return self._varm
 
     @varm.setter
@@ -193,7 +199,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     @property
-    def obsp(self) -> VDataFrameContainerProxy:
+    def obsp(self) -> H5DataFrameContainerProxy:
         return self._obsp
 
     @obsp.setter
@@ -205,7 +211,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     @property
-    def varp(self) -> VDataFrameContainerProxy:
+    def varp(self) -> H5DataFrameContainerProxy:
         return self._varp
 
     @varp.setter
@@ -252,10 +258,10 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         raise NotImplementedError
 
     def _inplace_subset_var(self, index: Any) -> None:
-        raise NotImplementedError
+        self._init_from_vdata(self._vdata[skip_time_axis((slice(None), index))])
 
     def _inplace_subset_obs(self, index: Any) -> None:
-        raise NotImplementedError
+        self._init_from_vdata(self._vdata[skip_time_axis(index)])
 
     def copy(self, filename: Path | None = None) -> None:
         """Full copy, optionally on disk."""

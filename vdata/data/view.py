@@ -7,6 +7,7 @@ from typing import Any, Callable, Iterator, Literal, cast
 import ch5mpy as ch
 import numpy as np
 import pandas as pd
+from h5dataframe import H5DataFrame
 
 import vdata
 import vdata.timepoint as tp
@@ -20,21 +21,19 @@ from vdata.data.arrays import (
     VVarmArrayContainerView,
     VVarpArrayContainerView,
 )
+from vdata.data.hash import VDataHash
 from vdata.data.write import write_vdata, write_vdata_in_h5dict, write_vdata_to_csv
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
 from vdata.names import NO_NAME
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.utils import repr_array, repr_index
-from vdata.vdataframe import VDataFrame, ViewVDataFrame
 
 
 def _check_parent_has_not_changed(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self: VDataView, *args: Any, **kwargs: Any) -> Any:
-        if (
-            hash(tuple(self._parent.timepoints.value.values)) != self._timepoints_hash
-            or hash(tuple(self._parent.obs.index)) != self._obs_hash
-            or hash(tuple(self._parent.var.index)) != self._var_hash
-        ):
+        try:
+            self._hash.assert_unchanged()
+        except AssertionError:
             raise ValueError("View no longer valid since parent's VData has changed.")
 
         return func(self, *args, **kwargs)
@@ -50,9 +49,7 @@ class VDataView:
     __slots__ = (
         "name",
         "_parent",
-        "_timepoints_hash",
-        "_obs_hash",
-        "_var_hash",
+        "_hash",
         "_timepoints",
         "_timepoints_slicer",
         "_obs",
@@ -88,9 +85,7 @@ class VDataView:
 
         self._parent = parent
 
-        self._timepoints_hash: int = hash(tuple(parent.timepoints.value.values))
-        self._obs_hash: int = hash(tuple(parent.obs.index))
-        self._var_hash: int = hash(tuple(parent.var.index))
+        self._hash = VDataHash(parent, timepoints=True, obs=True, var=True)
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
@@ -102,9 +97,7 @@ class VDataView:
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = tp.as_timepointarray(parent.timepoints.value) if timepoints_slicer is None else timepoints_slicer
         self._timepoints_slicer = tp.atleast_1d(_tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)])
-        self._timepoints = ViewVDataFrame(
-            self._parent.timepoints, index_slicer=np.in1d(self._parent.timepoints.value, self._timepoints_slicer)
-        )
+        self._timepoints = self._parent.timepoints[np.in1d(self._parent.timepoints.value, self._timepoints_slicer)]
 
         generalLogger.debug(
             f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
@@ -118,7 +111,7 @@ class VDataView:
         else:
             self._obs_slicer = cast(
                 list[NDArray_IFS],
-                [np.array(obs_slicer)[np.isin(obs_slicer, self._obs.index_at(tp))] for tp in self._obs.timepoints],
+                [obs_slicer[np.isin(obs_slicer, self._obs.index_at(tp))] for tp in self._obs.timepoints],
             )
 
         self._obs_slicer_flat: NDArray_IFS = np.concatenate(self._obs_slicer)
@@ -129,18 +122,8 @@ class VDataView:
             f" selected)"
         )
 
-        # then store var : we get a sub-set of the parent's var VDataFrame
-        # this is needed to recompute the var slicer
-        _var_slicer: slice | NDArray_IFS = slice(None) if var_slicer is None else var_slicer
-        self._var = ViewVDataFrame(self._parent.var, index_slicer=_var_slicer)
-
-        # recompute var slicer
-        # TODO : check the order is maintained
-        if var_slicer is None:
-            self._var_slicer: NDArray_IFS = self._var.index
-
-        else:
-            self._var_slicer = cast(NDArray_IFS, np.array(var_slicer)[np.isin(var_slicer, self._var.index)])
+        self._var = self._parent.var.loc[slice(None) if var_slicer is None else var_slicer]
+        self._var_slicer = np.array(self._var.index)
 
         # subset and store arrays
         _obs_slicer_flat = self._obs_slicer[0] if self.has_repeated_obs_index else self._obs_slicer_flat
@@ -156,7 +139,7 @@ class VDataView:
         # uns is not subset
         self._uns = self._parent.uns
 
-        generalLogger.debug(f"Guessed dimensions are : {self.shape}")
+        generalLogger.debug(lambda: f"Guessed dimensions are : {self.shape}")
 
         generalLogger.debug("\u23BF ViewVData creation : end ------------------------------------------------------- ")
 
@@ -204,12 +187,15 @@ class VDataView:
         :param index: A sub-setting index. It can be a single index, a 2-tuple or a 3-tuple of indexes.
         """
         generalLogger.debug("ViewVData sub-setting - - - - - - - - - - - - - - ")
-        generalLogger.debug(f"  Got index \n{repr_index(index)}")
+        generalLogger.debug(lambda: f"  Got index \n{repr_index(index)}")
 
         # convert to a 3-tuple
         _index = reformat_index(index, self._timepoints_slicer, self._obs_slicer_flat, self._var_slicer)
 
-        generalLogger.debug(f"  1. Refactored index to \n{repr_index(_index)}")
+        generalLogger.debug(lambda: f"  1. Refactored index to \n{repr_index(_index)}")
+
+        if _index is None:
+            return self
 
         return VDataView(self._parent, _index[0], _index[1], _index[2])
 
@@ -315,7 +301,7 @@ class VDataView:
     # DataFrames ---------------------------------------------------------
     @property
     @_check_parent_has_not_changed
-    def timepoints(self) -> ViewVDataFrame:
+    def timepoints(self) -> H5DataFrame:
         """
         Get a view on the time points DataFrame in this ViewVData.
         :return: a view on the time points DataFrame.
@@ -375,7 +361,7 @@ class VDataView:
 
     @property
     @_check_parent_has_not_changed
-    def var(self) -> ViewVDataFrame:
+    def var(self) -> H5DataFrame:
         """
         Get a view on the var DataFrame in this ViewVData.
         :return: a view on the var DataFrame.
@@ -395,7 +381,7 @@ class VDataView:
             raise ShapeError(f"'var' has {df.shape[0]} lines, it should have {self.n_var}.")
 
         else:
-            df.index = cast(VDataFrame, self._parent.var.loc[self._var_slicer]).index
+            df.index = cast(H5DataFrame, self._parent.var.loc[self._var_slicer]).index
             self._parent.var.loc[self._var_slicer] = df
 
     @property
@@ -455,7 +441,7 @@ class VDataView:
 
     # Special ------------------------------------------------------------
     @property
-    def data(self) -> ch.H5Dict[VDataFrame | TemporalDataFrame] | NoData:
+    def data(self) -> ch.H5Dict[H5DataFrame | TemporalDataFrame] | NoData:
         return self._parent.data
 
     # Aliases ------------------------------------------------------------

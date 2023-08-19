@@ -9,6 +9,7 @@ from tqdm.auto import tqdm
 
 from vdata.data._file import NoData
 from vdata.IO.logger import generalLogger
+from vdata.update import CURRENT_VERSION
 from vdata.utils import spacer
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ def write_vdata_in_h5dict(data: VData | VDataView, values: ch.H5Dict[Any], verbo
     )
     progressBar = tqdm(total=nb_items_to_write, desc=f"writing VData {data.name}", unit="object") if verbose else None
 
-    values.attributes["name"] = data.name
+    values.attributes.set(name=data.name, __vdata_write_version__=CURRENT_VERSION)
 
     ch.write_objects(
         values,
@@ -30,10 +31,10 @@ def write_vdata_in_h5dict(data: VData | VDataView, values: ch.H5Dict[Any], verbo
         layers=data.layers.data,
         obs=data.obs,
         obsm=data.obsm.data,
-        obsp=data.obsp,
+        obsp=data.obsp.data,
         var=data.var,
-        varm=data.varm,
-        varp=data.varp,
+        varm=data.varm.data,
+        varp=data.varp.data,
         timepoints=data.timepoints,
         uns=data.uns,
     )
@@ -122,16 +123,16 @@ def write_vdata_to_csv(
         )
 
     # save matrices
-    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame obs")
+    generalLogger.info(lambda: f"{spacer(1)}Saving TemporalDataFrame obs")
     data.obs.to_csv(directory / "obs.csv", sep, na_rep, index=index, header=header)
-    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame var")
+    generalLogger.info(lambda: f"{spacer(1)}Saving TemporalDataFrame var")
     data.var.to_csv(directory / "var.csv", sep, na_rep, index=index, header=header)
-    generalLogger.info(f"{spacer(1)}Saving TemporalDataFrame time-points")
+    generalLogger.info(lambda: f"{spacer(1)}Saving TemporalDataFrame time-points")
     data.timepoints.to_csv(directory / "timepoints.csv", sep, na_rep, index=index, header=header)
 
     for dataset in (data.layers, data.obsm, data.obsp, data.varm, data.varp):
-        generalLogger.info(f"{spacer(1)}Saving {dataset.name}")
+        generalLogger.info(lambda: f"{spacer(1)}Saving {dataset.name}")
         dataset.to_csv(directory, sep, na_rep, index, header, spacer=spacer(2))
 
     if len(data.uns):
-        generalLogger.warning(f"'uns' data stored in VData '{data.name}' cannot be saved to a csv.")
+        generalLogger.warning(lambda: f"'uns' data stored in VData '{data.name}' cannot be saved to a csv.")

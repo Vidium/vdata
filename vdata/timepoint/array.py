@@ -12,6 +12,7 @@ from numpy import _NoValue as NoValue  # type: ignore[attr-defined]
 from numpy._typing import _ArrayLikeInt_co
 
 from vdata._meta import PrettyRepr
+from vdata.array_view import NDArrayView
 from vdata.timepoint._functions import HANDLED_FUNCTIONS
 from vdata.timepoint._typing import _TIME_UNIT
 from vdata.timepoint.range import TimePointRange
@@ -51,6 +52,7 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
             self._unit: _TIME_UNIT = getattr(obj, "_unit", "h")
 
     def __repr__(self) -> str:
+        # TODO : modify for all units
         if self.size:
             return f"{type(self).__name__}({re.sub(r'h ', r'h, ', str(self))})"
 
@@ -118,6 +120,9 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
 
     # region methods
     def astype(self, dtype: npt.DTypeLike, copy: bool = True) -> npt.NDArray[Any]:  # type: ignore[override]
+        if np.issubdtype(dtype, str):
+            return np.char.add(np.array(self, dtype=dtype), self._unit)
+
         return np.array(self, dtype=dtype)
 
     def min(  # type: ignore[override]
@@ -156,8 +161,8 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
     # endregion
 
 
-def atleast_1d(obj: Any) -> TimePointArray:
-    if isinstance(obj, TimePointArray):
+def atleast_1d(obj: Any) -> TimePointArray | NDArrayView:
+    if isinstance(obj, TimePointArray) or (isinstance(obj, NDArrayView) and obj.array_type == TimePointArray):
         return obj
 
     if isinstance(obj, Collection):
@@ -167,7 +172,14 @@ def atleast_1d(obj: Any) -> TimePointArray:
 
 
 def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> TimePointArray:
-    if isinstance(time_list, TimePointArray):
+    """
+    Args:
+        time_list: a list for timepoints (TimePointArray, TimePointRange, object or collection of objects).
+        unit: enforce a time unit. /!\ replaces any unit found in `time_list`.
+    """
+    if isinstance(time_list, TimePointArray) or (
+        isinstance(time_list, NDArrayView) and time_list.array_type == TimePointArray
+    ):
         return time_list
 
     if isinstance(time_list, TimePointRange):
@@ -177,13 +189,21 @@ def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> T
 
     if not isCollection(time_list):
         time_list = [time_list]
+    time_list = np.array(time_list)
 
-    if not any((isinstance(x, TimePoint) for x in time_list)):
-        try:
-            return TimePointArray(time_list)
+    if not time_list.size or np.issubdtype(time_list.dtype, np.floating) or np.issubdtype(time_list.dtype, np.integer):
+        return TimePointArray(time_list, unit=unit)
 
-        except ValueError:
-            pass
+    if np.issubdtype(time_list.dtype, str):
+        unique_units = np.unique([e[-1] for e in time_list])
+
+        if len(unique_units) == 1 and unique_units[0] in {"s", "m", "h", "D", "M", "Y"}:
+            dtype = time_list.dtype.str[:-1] + str(int(time_list.dtype.str[-1]) - 1)
+            try:
+                return TimePointArray(time_list.astype(dtype), unit=unique_units[0] if unit is None else unit)
+
+            except ValueError:
+                pass
 
     if unit is not None:
         return TimePointArray([TimePoint(tp, unit=unit).value_as(unit) for tp in np.atleast_1d(time_list)], unit=unit)

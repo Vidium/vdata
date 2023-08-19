@@ -1,9 +1,3 @@
-# coding: utf-8
-# Created on 12/04/2022 15:05
-# Author : matteo
-
-# ====================================================
-# imports
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Iterable, SupportsIndex, Union, cast
@@ -18,8 +12,6 @@ if TYPE_CHECKING:
     from vdata.tdf.view import TemporalDataFrameView
 
 
-# ====================================================
-# code
 _I_LOC_INDEX = Union[int, slice, SupportsIndex, Iterable[int], Iterable[bool]]
 
 
@@ -28,26 +20,18 @@ class VAtIndexer:
     Access a single value in a TemporalDataFrame, from a pair of row and column labels.
     """
 
-    __slots__ = '_TDF'
+    __slots__ = "_TDF"
 
     # region magic methods
-    def __init__(self,
-                 TDF: TemporalDataFrameBase):
+    def __init__(self, TDF: TemporalDataFrameBase):
         self._TDF = TDF
 
-    def __getitem__(self,
-                    key: tuple[Any, Any]) -> np.int_ | np.float_ | np.str_:
+    def __getitem__(self, key: tuple[Any, Any]) -> IFS:
         index, column = key
 
-        if column in self._TDF.columns_num:
-            return cast(Union[np.int_, np.float_], 
-                        self._TDF[:, index, column].values_num[0, 0])
+        return self._TDF[:, index, column]
 
-        return cast(np.str_, self._TDF[:, index, column].values_str[0, 0])
-
-    def __setitem__(self,
-                    key: tuple[Any, Any],
-                    value: IFS) -> None:
+    def __setitem__(self, key: tuple[Any, Any], value: IFS) -> None:
         index, column = key
 
         self._TDF[:, index, column] = value
@@ -60,28 +44,19 @@ class ViAtIndexer:
     Access a single value in a TemporalDataFrame, from a pair of row and column indices.
     """
 
-    __slots__ = '_TDF'
+    __slots__ = "_TDF"
 
     # region magic methods
-    def __init__(self,
-                 TDF: TemporalDataFrameBase):
+    def __init__(self, TDF: TemporalDataFrameBase):
         self._TDF = TDF
 
-    def __getitem__(self,
-                    key: tuple[int, int]) -> np.int_ | np.float_ | np.str_:
+    def __getitem__(self, key: tuple[int, int]) -> IFS:
         index_id, column_id = key
         column = self._TDF.columns[column_id]
 
-        if column in self._TDF.columns_num:
-            return cast(Union[np.int_, np.float_], 
-                        self._TDF[:, self._TDF.index[index_id], column].values_num[0, 0])
+        return self._TDF[:, self._TDF.index[index_id], column]
 
-        return cast(np.str_,
-                    self._TDF[:, self._TDF.index[index_id], column].values_str[0, 0])
-
-    def __setitem__(self,
-                    key: tuple[int, int],
-                    value: IFS) -> None:
+    def __setitem__(self, key: tuple[int, int], value: IFS) -> None:
         index_id, column_id = key
 
         self._TDF[:, self._TDF.index[index_id], self._TDF.columns[column_id]] = value
@@ -103,16 +78,14 @@ class VLocIndexer:
         for indexing (one of the above)
     """
 
-    __slots__ = '_TDF'
+    __slots__ = "_TDF"
 
     # region magic methods
-    def __init__(self,
-                 TDF: TemporalDataFrameBase):
+    def __init__(self, TDF: TemporalDataFrameBase):
         self._TDF = TDF
 
     @staticmethod
-    def _parse_slicer(values: IFS | Collection[IFS],
-                      reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
+    def _parse_slicer(values: IFS | Collection[IFS], reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
         if not isCollection(values):
             return cast(IFS, values)
 
@@ -121,12 +94,11 @@ class VLocIndexer:
         if values.dtype != bool:
             return values
 
-        return cast(Union[AnyNDArrayLike_IFS, IFS], 
-                    reference[values])
+        return cast(Union[AnyNDArrayLike_IFS, IFS], reference[values])
 
-    def __getitem__(self,
-                    key: Any | Collection[Any] | tuple[Any | Collection[Any], Any | Collection[Any]]) \
-            -> TemporalDataFrameView:
+    def __getitem__(
+        self, key: Any | Collection[Any] | tuple[Any | Collection[Any], Any | Collection[Any]]
+    ) -> TemporalDataFrameView:
         if isinstance(key, tuple):
             indices, columns = key
 
@@ -141,9 +113,11 @@ class VLocIndexer:
 
         return self._TDF[:, indices, columns]
 
-    def __setitem__(self,
-                    key: Any | Collection[Any] | tuple[Any | Collection[Any], Any | Collection[Any]],
-                    value: IFS | Collection[IFS]) -> None:
+    def __setitem__(
+        self,
+        key: Any | Collection[Any] | tuple[Any | Collection[Any], Any | Collection[Any]],
+        value: IFS | Collection[IFS],
+    ) -> None:
         if isinstance(key, tuple):
             indices, columns = key
 
@@ -159,8 +133,8 @@ class VLocIndexer:
         self._TDF[:, indices, columns] = value
 
     # endregion
-    
-    
+
+
 class ViLocIndexer:
     """
     Purely integer-location based indexing for selection by position (from 0 to length-1 of the axis).
@@ -175,24 +149,22 @@ class ViLocIndexer:
         calling object, but would like to base your selection on some value.
     """
 
-    __slots__ = '_TDF'
+    __slots__ = "_TDF"
 
     # region magic methods
-    def __init__(self,
-                 TDF: TemporalDataFrameBase):
+    def __init__(self, TDF: TemporalDataFrameBase):
         self._TDF = TDF
 
     @staticmethod
-    def _parse_slicer(values_index: _I_LOC_INDEX,
-                      reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
+    def _parse_slicer(values_index: _I_LOC_INDEX, reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
         if isCollection(values_index):
             return reference[np.array(values_index)]
-        
-        return reference[values_index]      # type: ignore[index]
 
-    def __getitem__(self,
-                    key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX]) \
-            -> TemporalDataFrameView | np.int_ | np.float_ | np.str_:
+        return reference[values_index]  # type: ignore[index]
+
+    def __getitem__(
+        self, key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX]
+    ) -> TemporalDataFrameView | np.int_ | np.float_ | np.str_:
         if isinstance(key, tuple):
             indices, columns = key
 
@@ -207,9 +179,7 @@ class ViLocIndexer:
 
         return self._TDF[:, indices, columns]
 
-    def __setitem__(self,
-                    key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX],
-                    value: IFS | Collection[IFS]) -> None:
+    def __setitem__(self, key: _I_LOC_INDEX | tuple[_I_LOC_INDEX, _I_LOC_INDEX], value: IFS | Collection[IFS]) -> None:
         if isinstance(key, tuple):
             indices, columns = key
 

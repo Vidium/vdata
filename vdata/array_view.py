@@ -1,55 +1,44 @@
 from __future__ import annotations
 
-from types import EllipsisType
-from typing import Any, Generic, Iterable, Iterator, SupportsIndex, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Generic, Iterable, Iterator, TypeVar, cast
 
+import ch5mpy.indexing as ci
 import numpy as np
 import numpy.typing as npt
-from ch5mpy.indexing import Selection
-from numpy._typing import _ArrayLikeInt_co, _ArrayLikeObject_co
+from numpy._typing import _ArrayLikeObject_co
+
+if TYPE_CHECKING:
+    from vdata._typing import Indexer
 
 _T = TypeVar("_T", bound=np.generic, covariant=True)
-_NP_INDEX = Union[
-    None,
-    slice,
-    EllipsisType,
-    SupportsIndex,
-    _ArrayLikeInt_co,
-    tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...],
-]
 
-_RESERVED_ATTRIBUTES = {
-    "_container",
-    "_accession",
-    "_index",
-    "_exposed_attr",
-    "size",
-    "shape",
-    "dtype",
-    "_array",
-    "array_type",
-}
+_RESERVED_ATTRIBUTES = frozenset(
+    (
+        "_array",
+        "_index",
+        "_exposed_attr",
+        "size",
+        "shape",
+        "dtype",
+        "array_type",
+    )
+)
 
 
 class NDArrayView(Generic[_T]):
-    """View on a numpy ndarray."""
+    """View on a numpy ndarray that can be subsetted infinitely without copying."""
 
-    __slots__ = "_container", "_accession", "_index", "_exposed_attr"
+    __slots__ = "_array", "_index", "_exposed_attr"
 
     # region magic methods
     def __init__(
-        self, container: Any, accession: str, index: _NP_INDEX | Selection, exposed_attributes: Iterable[str] = ()
+        self, array: ArrayGetter, index: Indexer | ci.Selection, exposed_attributes: Iterable[str] = ()
     ) -> None:
-        self._container = container
-        self._accession = accession
-        self._index = (
-            index
-            if isinstance(index, Selection)
-            else Selection.from_selector(index, getattr(container, accession).shape)
-        )
-        self._exposed_attr = set(exposed_attributes)
+        self._array = array
+        self._index = index if isinstance(index, ci.Selection) else ci.Selection.from_selector(index, array.get().shape)
+        self._exposed_attr = frozenset(exposed_attributes)
 
-        if _RESERVED_ATTRIBUTES.intersection(self._exposed_attr):
+        if not self._exposed_attr.isdisjoint(_RESERVED_ATTRIBUTES):
             raise ValueError(
                 f"Cannot expose reserved attributes : " f"{_RESERVED_ATTRIBUTES.intersection(self._exposed_attr)}."
             )
@@ -65,22 +54,22 @@ class NDArrayView(Generic[_T]):
 
     def __getattribute__(self, key: str) -> Any:
         if key in object.__getattribute__(self, "_exposed_attr"):
-            return getattr(self._array, key)
+            return getattr(self._array.get(), key)
 
         return super().__getattribute__(key)
 
-    def __getitem__(self, index: _NP_INDEX) -> NDArrayView[_T] | _T:
-        sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
+    def __getitem__(self, index: Indexer) -> NDArrayView[_T] | _T:
+        sel = ci.Selection.from_selector(index, self.shape).cast_on(self._index)
 
-        if sel.size(self._array.shape):
-            return NDArrayView(self._container, self._accession, sel, exposed_attributes=self._exposed_attr)
+        if np.prod(sel.out_shape) == 1:
+            return cast(_T, self._array.get()[sel.get_indexers()])
 
-        return cast(_T, self._array[sel.get()])
+        return NDArrayView(self._array, sel, exposed_attributes=self._exposed_attr)
 
-    def __setitem__(self, index: _NP_INDEX, values: Any) -> None:
-        sel = Selection.from_selector(index, self._array.shape).cast_on(self._index)
+    def __setitem__(self, index: Indexer, values: Any) -> None:
+        sel = ci.Selection.from_selector(index, self.shape).cast_on(self._index)
 
-        self._array[sel.get()] = values
+        self._array.get()[sel.get_indexers()] = values
 
     def __len__(self) -> int:
         return len(self._view())
@@ -137,14 +126,14 @@ class NDArrayView(Generic[_T]):
         return self._view().dtype
 
     @property
-    def _array(self) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], getattr(self._container, self._accession))
+    def array_type(self) -> type[Any]:
+        return type(self._array.get())
 
     # endregion
 
     # region methods
     def _view(self) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._array[self._index.get()])
+        return cast(npt.NDArray[_T], self._array.get()[self._index.get_indexers()])
 
     def copy(self) -> npt.NDArray[_T]:
         return self._view().copy()
@@ -172,5 +161,20 @@ class NDArrayView(Generic[_T]):
 
     def flatten(self) -> npt.NDArray[_T]:
         return self._view().flatten()
+
+    # endregion
+
+
+class ArrayGetter:
+    # region magic methods
+    def __init__(self, container: Any, name: str):
+        self._container = container
+        self._name = name
+
+    # endregion
+
+    # region methods
+    def get(self) -> npt.NDArray[Any]:
+        return getattr(self._container, self._name)  # type: ignore[no-any-return]
 
     # endregion
