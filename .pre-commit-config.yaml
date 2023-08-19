@@ -29,5 +29,5 @@ repos:
   #     - id: mypy
   #       exclude: (^tests/)|(vulture_whitelist.py)|(^docs/)
   #       args: [--strict]
-  #       additional_dependencies: [attrs, numpy, pandas-stubs, ch5mpy, types-tqdm]
+  #       additional_dependencies: [numpy, pandas-stubs, ch5mpy, types-tqdm]
   #       language_version: python3.10

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 import ch5mpy as ch
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from attrs import define, field
 from h5dataframe import H5DataFrame
 from scipy.sparse import spmatrix
 
@@ -113,24 +113,30 @@ def _valid_var(
     raise TypeError("var must be a DataFrame.")
 
 
-@define
+@dataclass
 class ParsingDataIn:
     data: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | Mapping[
         str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase
     ] | None
     obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase
-    obsm: Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase] = field(converter=_at_least_empty_dict)
-    obsp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
+    obsm: Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
+    obsp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS]
     var: pd.DataFrame | H5DataFrame
-    varm: Mapping[str, pd.DataFrame | H5DataFrame] = field(converter=_at_least_empty_dict)
-    varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS] = field(converter=_at_least_empty_dict)
+    varm: Mapping[str, pd.DataFrame | H5DataFrame]
+    varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS]
     timepoints: pd.DataFrame | H5DataFrame
     time_col_name: str | None
     time_list: tp.TimePointArray | None
-    uns: dict[str, Any] | ch.H5Dict[Any] = field(converter=_at_least_empty_dict)
+    uns: dict[str, Any] | ch.H5Dict[Any]
     layers: dict[str, TemporalDataFrame | TemporalDataFrameView] = field(init=False)
 
-    def __attrs_post_init__(self) -> None:
+    def __post_init__(self) -> None:
+        self.obsm = _at_least_empty_dict(self.obsm)
+        self.obsp = _at_least_empty_dict(self.obsp)
+        self.varm = _at_least_empty_dict(self.varm)
+        self.varp = _at_least_empty_dict(self.varp)
+        self.uns = _at_least_empty_dict(self.uns)
+
         self.layers = {}
 
     @classmethod
@@ -223,7 +229,7 @@ class ParsingDataIn:
         )
 
 
-@define
+@dataclass
 class ParsingDataOut:
     """Output class of the parsing logic. It checks for incoherence in the arrays."""
 
@@ -237,7 +243,7 @@ class ParsingDataOut:
     timepoints: pd.DataFrame | H5DataFrame
     uns: dict[str, Any]
 
-    def __attrs_post_init__(self) -> None:
+    def __post_init__(self) -> None:
         # get shape once for performance
         n_timepoints, n_obs, n_var = len(self.timepoints), self.obs.shape[1], len(self.var)
 
