@@ -12,7 +12,7 @@ from vdata.data.arrays.base import VBaseArrayContainer, VTDFArrayContainer
 from vdata.data.arrays.view import VBaseArrayContainerView, VTDFArrayContainerView
 from vdata.data.hash import VDataHash
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.timedict import TimeDict
 
 
@@ -121,9 +121,9 @@ class VObsmArrayContainer(VTDFArrayContainer):
     # endregion
 
     # region magic methods
-    def set_index(self, values: Collection[IFS], repeating_index: bool) -> None:
+    def set_index(self, values: Collection[IFS] | Index) -> None:
         for TDF in self.values():
-            TDF.set_index(np.array(values), repeating_index, force=True)
+            TDF.set_index(values, force=True)
 
     # endregion
 
@@ -174,12 +174,12 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
                 raise ShapeError(f"DataFrame at key '{key}' should be square.")
 
             # check that indexes match
-            if not np.all(_index == df.index):
+            if not np.array_equal(_index, df.index):
                 raise IncoherenceError(
                     f"Index of DataFrame at key '{key}' ({df.index}) does not " f"match obs' index. ({_index})"
                 )
 
-            if not np.all(_index == df.columns):
+            if not np.array_equal(_index, df.columns):
                 raise IncoherenceError(
                     f"Column names of DataFrame at key '{key}' ({df.columns}) " f"do not match obs' index. ({_index})"
                 )
@@ -221,10 +221,10 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
         if not value.shape == (len(_index), len(_index)):
             raise ShapeError(f"DataFrame should have shape ({len(_index)}, {len(_index)}).")
 
-        if not np.all(value.index == _index):
+        if not np.array_equal(value.index, _index):
             raise ValueError("The index of the DataFrame does not match the index of the parent VData.")
 
-        if not np.all(value.columns == _index):
+        if not np.array_equal(value.columns, _index):
             raise ValueError("The column names the DataFrame do not match the index of the parent VData.")
 
         self.data[key] = value
@@ -251,7 +251,7 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     # endregion
 
     # region methods
-    def set_index(self, values: Collection[IFS]) -> None:
+    def set_index(self, values: Collection[IFS] | Index) -> None:
         """
         Set a new index for rows and columns.
 

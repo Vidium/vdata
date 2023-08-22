@@ -10,7 +10,6 @@ import numpy.typing as npt
 import numpy_indexed as npi
 import pandas as pd
 
-import vdata.tdf as tdf
 import vdata.timepoint as tp
 from vdata._typing import IFS, AnyNDArrayLike_IFS, AttrDict, Collection_IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.IO import VLockError
@@ -106,13 +105,14 @@ class TemporalDataFrame(TemporalDataFrameBase):
         """
         Invert the getitem selection behavior : all elements NOT present in the slicers will be selected.
         """
-        return tdf.TemporalDataFrameView(
-            parent=self,
-            index_positions=np.arange(self.n_index),
-            columns_numerical=self._columns_numerical,
-            columns_string=self._columns_string,
-            inverted=True,
-        )
+        raise NotImplementedError
+        # return tdf.TemporalDataFrameView(
+        #     parent=self,
+        #     index_positions=np.arange(self.n_index),
+        #     columns_numerical=self._columns_numerical,
+        #     columns_string=self._columns_string,
+        #     inverted=True,
+        # )
 
     def __enter__(self) -> TemporalDataFrame:
         return self
@@ -164,7 +164,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         cls,
         file: Path,
         sep: str = ",",
-        time_list: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
+        timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
         time_col_name: str | None = None,
     ) -> TemporalDataFrame:
         """
@@ -173,7 +173,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         Args:
             file: a path to the .csv file to read.
             sep: delimiter to use for reading the .csv file.
-            time_list: time points for the dataframe's rows. (see TemporalDataFrame's documentation for more details.)
+            timepoints: time points for the dataframe's rows. (see TemporalDataFrame's documentation for more details.)
             time_col_name: if time points are not given explicitly with the 'time_list' parameter, a column name can be
                 given. This column will be used as the time data.
 
@@ -184,12 +184,12 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         time_col_name = DEFAULT_TIME_COL_NAME if time_col_name is None else time_col_name
 
-        if time_list is None and time_col_name == DEFAULT_TIME_COL_NAME:
-            time_list = df[DEFAULT_TIME_COL_NAME].values.tolist()
+        if timepoints is None and time_col_name == DEFAULT_TIME_COL_NAME:
+            timepoints = df[DEFAULT_TIME_COL_NAME].values.tolist()
             del df[time_col_name]
             time_col_name = None
 
-        return TemporalDataFrame(df, timepoints=time_list, time_col_name=time_col_name)
+        return TemporalDataFrame(df, timepoints=timepoints, time_col_name=time_col_name)
 
     # endregion
 
@@ -264,7 +264,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # endregion
 
     # region methods
-    def _append_column(self, column_name: IFS, values: NDArray_IFS):
+    def _append_column(self, column_name: IFS, values: NDArray_IFS) -> None:
         if np.issubdtype(values.dtype, np.number):
             self._numerical_array = np.insert(self._numerical_array, self.n_columns_num, values, axis=1)
             self._columns_numerical = np.insert(self._columns_numerical, self.n_columns_num, column_name)
@@ -289,30 +289,9 @@ class TemporalDataFrame(TemporalDataFrameBase):
         """Unlock the "columns" axis to allow modifications."""
         self._attr_dict["locked_columns"] = False
 
-    def _check_valid_index(self, values: NDArray_IFS, repeating_index: bool) -> None:
-        if not values.shape == self._index.shape:
-            raise ValueError(
-                f"Shape mismatch, new 'index' values have shape {values.shape}, " f"expected {self._index.shape}."
-            )
-
-        if repeating_index:
-            first_index = values[self.timepoints_column == self.timepoints[0]]
-
-            for timepoint in self.timepoints[1:]:
-                index_tp = values[self.timepoints_column == timepoint]
-
-                if not len(first_index) == len(index_tp) or not np.all(first_index == index_tp):
-                    raise ValueError(
-                        f"Index at time-point {timepoint} is not equal to index at time-point " f"{self.timepoints[0]}."
-                    )
-
-        elif not self.n_index == len(np.unique(values)):
-            raise ValueError("Index values must be all unique.")
-
     def set_index(
         self,
-        values: NDArray_IFS,
-        repeating_index: bool = False,
+        values: Collection[IFS] | Index,
         *,
         force: bool = False,
     ) -> None:
@@ -320,21 +299,27 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if self.has_locked_indices and not force:
             raise VLockError("Cannot set index in TemporalDataFrame with locked index.")
 
-        self._check_valid_index(values, repeating_index)
-        self._index = _get_index_with_type(self._index, values.dtype)
-        self._index[:] = values
+        index = values if isinstance(values, Index) else Index(values)
 
-        self._attr_dict["repeating_index"] = repeating_index
+        if not index.values.shape == self._index.shape:
+            raise ValueError(
+                f"Shape mismatch, new 'index' values have shape {index.values.shape}, " f"expected {self._index.shape}."
+            )
 
-    def _get_index_positions(self, index_: AnyNDArrayLike_IFS, repeating_values: bool = False) -> NDArray_IFS:
-        if not self.has_repeating_index:
-            return cast(npt.NDArray[np.int_], npi.indices(self.index, index_))
+        self._index = _get_index_with_type(self._index, index.values.dtype)
+        self._index[:] = index.values
 
-        if repeating_values:
+        self._attr_dict["repeating_index"] = index.is_repeating
+
+    def _get_index_positions(self, index: Index) -> NDArray_IFS:
+        if not self._attr_dict["repeating_index"]:
+            return cast(npt.NDArray[np.int_], npi.indices(self.index, index.values))
+
+        if index.is_repeating:
             index_offset = 0
             index_0 = self.index_at(self.tp0)
-            index_positions = np.zeros(len(index_), dtype=int)
-            first_positions = npi.indices(index_0, index_[: len(index_0)])
+            index_positions = np.zeros(len(index.values), dtype=int)
+            first_positions = npi.indices(index_0, index.values[: len(index_0)])
 
             for tpi in range(self.n_timepoints):
                 index_positions[tpi * len(index_0) : (tpi + 1) * len(index_0)] = first_positions + index_offset
@@ -343,31 +328,33 @@ class TemporalDataFrame(TemporalDataFrameBase):
             return index_positions
 
         index_len_count = 0
-        total_index = np.zeros((self.n_timepoints, len(index_)), dtype=int)
+        total_index = np.zeros((self.n_timepoints, len(index.values)), dtype=int)
 
         for tpi, timepoint in enumerate(self.timepoints):
             i_at_tp = self.index_at(timepoint)
-            total_index[tpi] = npi.indices(i_at_tp, index_) + index_len_count
+            total_index[tpi] = npi.indices(i_at_tp, index.values) + index_len_count
             index_len_count += len(i_at_tp)
 
         return total_index.flatten()
 
-    def reindex(self, order: NDArray_IFS, repeating_index: bool = False) -> None:
+    def reindex(self, order: NDArray_IFS | Index) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
+        index = order if isinstance(order, Index) else Index(order)
+
         # check all values in index
-        if not np.all(np.isin(order, self.index)):
+        if not np.all(np.isin(index.values, self.index)):
             raise ValueError("New index contains values which are not in the current index.")
 
-        if repeating_index and not self.has_repeating_index:
+        if index.is_repeating and not self._attr_dict["repeating_index"]:
             raise ValueError("Cannot set repeating index on tdf with non-repeating index.")
 
-        elif not repeating_index and self.has_repeating_index:
+        elif not index.is_repeating and self._attr_dict["repeating_index"]:
             raise ValueError("Cannot set non-repeating index on tdf with repeating index.")
 
         # re-arrange rows to conform to new index
-        index_positions = self._get_index_positions(order, repeating_values=True)
+        index_positions = self._get_index_positions(index)
 
-        self.set_index(order, repeating_index)
+        self.set_index(index)
         self.values_num[:] = self.values_num[index_positions]
         self.values_str[:] = self.values_str[index_positions]
 
@@ -439,7 +426,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if not self.timepoints_column_name == other.timepoints_column_name:
             raise ValueError("Cannot merge TemporalDataFrames with different 'timepoints_column_name'.")
 
-        if self.has_repeating_index is not other.has_repeating_index:
+        if self._attr_dict["repeating_index"] is not other._attr_dict["repeating_index"]:
             raise ValueError("Cannot merge TemporalDataFrames if one has repeating index while the other has not.")
 
         if self.empty:
@@ -451,11 +438,19 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         else:
             _assert_can_merge(self, other, self.tp0)
-            _data = pd.concat((self[self.tp0].to_pandas(), other[self.tp0].to_pandas()))
+            _data = pd.concat(
+                (self[self.tp0].to_pandas(), other[self.tp0].to_pandas()),  # type: ignore[union-attr]
+            )  # type: ignore[union-attr]
 
             for time_point in self.timepoints[1:]:
                 _assert_can_merge(self, other, time_point)
-                _data = pd.concat((_data, self[time_point].to_pandas(), other[time_point].to_pandas()))
+                _data = pd.concat(
+                    (
+                        _data,
+                        self[time_point].to_pandas(),  # type: ignore[union-attr]
+                        other[time_point].to_pandas(),
+                    )
+                )  # type: ignore[union-attr]
 
             _data.columns = _data.columns.astype(self.columns.dtype)
 
@@ -471,7 +466,6 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         return TemporalDataFrame(
             data=_data,
-            repeating_index=self.has_repeating_index,
             columns=self.columns,
             timepoints=_time_list,
             time_col_name=self.timepoints_column_name,
@@ -481,7 +475,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     # endregion
 
 
-def _get_index_with_type(index: NDArrayLike_IFS, dtype: np.dtype[np.int_ | np.float_ | np.str_]) -> NDArrayLike_IFS:
+def _get_index_with_type(index: AnyNDArrayLike_IFS, dtype: np.dtype[np.int_ | np.float_ | np.str_]) -> NDArrayLike_IFS:
     if isinstance(index, ch.H5Array):
         return index.astype(dtype)
 

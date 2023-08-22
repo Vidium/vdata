@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Collection
+from typing import Collection, cast
 
 import numpy as np
 import pandas as pd
 
 from vdata._typing import IFS, Slicer
-from vdata.tdf import TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrameBase, TemporalDataFrameView
+from vdata.timepoint import TimePointArray
 
 
 class DataFrameProxy_TDF:
@@ -20,11 +21,12 @@ class DataFrameProxy_TDF:
     def __repr__(self) -> str:
         return f"Proxy<TDF -> DataFrame> for\n{self._tdf}"
 
-    def __getitem__(self, key: Slicer) -> pd.Series[int | float | str]:
+    def __getitem__(self, key: Slicer) -> pd.Series[int | float | str] | TimePointArray:
         if key == self._tdf.get_timepoints_column_name():
             return self._tdf.timepoints_column
 
-        return pd.Series(self._tdf[:, :, key].values.flatten(), index=self._tdf.index)
+        column = cast(TemporalDataFrameView, self._tdf[:, :, key])
+        return pd.Series(column.values.flatten(), index=self._tdf.index.values)
 
     def __setitem__(
         self,
@@ -38,7 +40,7 @@ class DataFrameProxy_TDF:
     # region attributes
     @property
     def index(self) -> pd.Index:
-        return pd.Index(self._tdf.index)
+        return pd.Index(self._tdf.index.values)
 
     @property
     def columns(self) -> pd.Index:

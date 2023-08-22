@@ -12,10 +12,15 @@ def _parse_data_from_dataframe(df: pd.DataFrame | H5DataFrame, data: ParsingData
     if len(data.timepoints) > 1:
         raise TypeError("'data' is a 2D pandas DataFrame but more than 1 time-point were provided.")
 
-    tdf = TemporalDataFrame(df, time_list=data.time_list, time_col_name=data.time_col_name, name="data")
+    tdf = TemporalDataFrame(
+        df,
+        timepoints=data.timepoints_list,
+        time_col_name=data.time_col_name,
+        name="data",
+    )
 
-    if data.obs is not None and not isinstance(data.obs, TemporalDataFrame) and data.time_list is None:
-        data.time_list = tdf.timepoints_column
+    if data.obs is not None and not isinstance(data.obs, TemporalDataFrame) and data.timepoints_list is None:
+        data.timepoints_list = tdf.timepoints_column
 
     return tdf
 
@@ -30,8 +35,8 @@ def _parse_data_from_tdf(tdf: TemporalDataFrame, data: ParsingDataIn) -> Tempora
     elif np.any(data.timepoints.value.values != tdf.timepoints):
         raise ValueError("'time points' found in DataFrame do not match 'layers' time points.")
 
-    if data.obs is not None and not isinstance(data.obs, TemporalDataFrame) and data.time_list is None:
-        data.time_list = tdf.timepoints_column
+    if data.obs is not None and not isinstance(data.obs, TemporalDataFrame) and data.timepoints_list is None:
+        data.timepoints_list = tdf.timepoints_column
 
     return tdf.copy()
 

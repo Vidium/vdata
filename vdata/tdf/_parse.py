@@ -11,6 +11,7 @@ import pandas as pd
 
 import vdata.timepoint as tp
 from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS
+from vdata.array_view import NDArrayView
 from vdata.names import NO_NAME
 from vdata.tdf.index import Index
 from vdata.timepoint import as_timepointarray
@@ -53,15 +54,16 @@ class TimedArray:
 def _sort_and_get_tp(
     data: pd.DataFrame | None,
     col_name: str | None,
-    timepoints: tp.TimePointArray,
+    timepoints: tp.TimePointArray | NDArrayView[tp.TimePoint],
     sort: bool,
 ) -> tuple[tp.TimePointArray, pd.DataFrame | None]:
     unique_timepoints, idx, counts = np.unique(timepoints, return_counts=True, return_index=True, equal_nan=False)
+    assert isinstance(unique_timepoints, tp.TimePointArray)
 
     if not sort:
         unique_timepoints = timepoints[np.sort(idx.astype(int))]
 
-    sorted_timepoints = np.repeat(unique_timepoints.copy(), counts)
+    sorted_timepoints: tp.TimePointArray = np.repeat(unique_timepoints.copy(), counts)
 
     if data is None:
         return sorted_timepoints, None
@@ -135,7 +137,7 @@ class ParsedData:
     numerical_array: npt.NDArray[np.int_ | np.float_]
     string_array: npt.NDArray[np.str_]
     timepoints_array: tp.TimePointArray
-    index: Index
+    index: NDArray_IFS
     columns_numerical: NDArray_IFS
     columns_string: NDArray_IFS
     lock: tuple[bool, bool]
@@ -175,7 +177,7 @@ def parse_data(
         sort_timepoints: Sort time-points in ascending order ?
     """
     if data is not None:
-        data = pd.DataFrame(data).copy()  # type: ignore[arg-type]
+        data = pd.DataFrame(data).copy()
 
     if index is not None and not isinstance(index, Index):
         index = Index(index)

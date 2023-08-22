@@ -46,7 +46,7 @@ def get_TDF(name: str = "1") -> TemporalDataFrame:
             "col4": [str(i) for i in range(300, 400)],
         },
         name=name,
-        time_list=["1h" for _ in range(50)] + ["0h" for _ in range(50)],
+        timepoints=["1h" for _ in range(50)] + ["0h" for _ in range(50)],
     )
 
 

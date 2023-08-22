@@ -35,7 +35,7 @@ def get_var_index(
     return None
 
 
-def parse_varm(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
+def parse_varm(data: ParsingDataIn) -> dict[str, H5DataFrame]:
     if not len(data.varm):
         generalLogger.debug("    6. \u2717 'varm' was not given.")
         return {}
@@ -48,7 +48,7 @@ def parse_varm(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
     if data.var is None and not len(data.layers):
         raise ValueError("'varm' parameter cannot be set unless either 'data' or 'var' are set.")
 
-    valid_varm: dict[str, pd.DataFrame] = {}
+    valid_varm: dict[str, H5DataFrame] = {}
 
     for key, value in data.varm.items():
         if not isinstance(value, pd.DataFrame):
@@ -57,13 +57,13 @@ def parse_varm(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
         if not np.all(np.isin(value.index, data.var.index)):
             raise ValueError("Index of 'varm' does not match 'var' and 'layers' column names.")
 
-        valid_varm[str(key)] = value
+        valid_varm[str(key)] = H5DataFrame(value)
         valid_varm[str(key)].reindex(data.var.index)
 
     return valid_varm
 
 
-def parse_varp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
+def parse_varp(data: ParsingDataIn) -> dict[str, H5DataFrame]:
     if not len(data.varp):
         generalLogger.debug("    7. \u2717 'varp' was not given.")
         return {}
@@ -76,7 +76,7 @@ def parse_varp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
 
     generalLogger.debug(lambda: f"    7. \u2713 'varp' is a {type(data.varp).__name__}.")
 
-    valid_varp: dict[str, pd.DataFrame] = {}
+    valid_varp: dict[str, H5DataFrame] = {}
 
     for key, value in data.varp.items():
         if not isinstance(value, (np.ndarray, pd.DataFrame)) or value.ndim != 2:
@@ -95,6 +95,6 @@ def parse_varp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
         else:
             value = pd.DataFrame(value, index=data.var.index, columns=data.var.index)
 
-        valid_varp[str(key)] = value
+        valid_varp[str(key)] = H5DataFrame(value)
 
     return valid_varp

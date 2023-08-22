@@ -13,19 +13,19 @@ CURRENT_VERSION = 1
 
 
 class NoBar:
-    def update():
+    def update(self) -> None:
         pass
 
-    def close():
+    def close(self) -> None:
         pass
 
 
 def _update_array(arr: ch.Dataset[Any]) -> None:
     if arr.dtype == object or np.issubdtype(arr.dtype, bytes):
-        arr.attributes["dtype"] = "str"
+        arr.attrs["dtype"] = "str"
 
 
-def update_tdf(data: ch.H5Dict) -> None:
+def update_tdf(data: ch.H5Dict[Any]) -> None:
     data.attributes.set(
         __h5_type__="object",
         __h5_class__=np.void(pickle.dumps(vdata.TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL)),
@@ -43,7 +43,7 @@ def update_tdf(data: ch.H5Dict) -> None:
         _update_array(array_data)
 
 
-def _update_vdf(data: ch.H5Dict) -> None:
+def _update_vdf(data: ch.H5Dict[Any]) -> None:
     data.attributes.set(
         __h5_type__="object", __h5_class__=np.void(pickle.dumps(H5DataFrame, protocol=pickle.HIGHEST_PROTOCOL))
     )
@@ -70,7 +70,7 @@ def _update_vdf(data: ch.H5Dict) -> None:
     _update_array(data["index"])
 
 
-def _update_dict(obj: ch.H5Dict[Any]):
+def _update_dict(obj: ch.H5Dict[Any]) -> None:
     for key in obj.keys():
         if isinstance(obj @ key, ch.H5Array):
             _update_array(obj @ key)
@@ -79,7 +79,7 @@ def _update_dict(obj: ch.H5Dict[Any]):
             _update_dict(obj @ key)
 
 
-def update_vdata(data: Path | str | ch.H5Dict, verbose: bool = True) -> None:
+def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> None:
     """
     Update an h5 file containing a vdata saved in an older version.
 
@@ -94,7 +94,9 @@ def update_vdata(data: Path | str | ch.H5Dict, verbose: bool = True) -> None:
     nb_items_to_write = (
         4 + len(data @ "layers") + len(data @ "obsm") + len(data @ "obsp") + len(data @ "varm") + len(data @ "varp")
     )
-    progressBar = tqdm(total=nb_items_to_write, desc=" Updating old VData file", unit="object") if verbose else NoBar()
+    progressBar: tqdm[Any] | NoBar = (
+        tqdm(total=nb_items_to_write, desc=" Updating old VData file", unit="object") if verbose else NoBar()
+    )
 
     # layers ------------------------------------------------------------------
     for layer in (data @ "layers").keys():
@@ -107,8 +109,8 @@ def update_vdata(data: Path | str | ch.H5Dict, verbose: bool = True) -> None:
 
         obs = vdata.TemporalDataFrame(
             index=ch.read_object(first_layer["index"]),
-            repeating_index=first_layer.attrs["repeating_index"],
-            time_list=ch.read_object(first_layer["timepoints_array"]),
+            # repeating_index=first_layer.attrs["repeating_index"],
+            timepoints=ch.read_object(first_layer["timepoints_array"]),
         )
         ch.write_object(data, "obs", obs)
     else:

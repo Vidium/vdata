@@ -161,7 +161,7 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
     # endregion
 
 
-def atleast_1d(obj: Any) -> TimePointArray | NDArrayView:
+def atleast_1d(obj: Any) -> TimePointArray | NDArrayView[Any]:
     if isinstance(obj, TimePointArray) or (isinstance(obj, NDArrayView) and obj.array_type == TimePointArray):
         return obj
 
@@ -171,7 +171,7 @@ def atleast_1d(obj: Any) -> TimePointArray | NDArrayView:
     return TimePointArray([obj])
 
 
-def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> TimePointArray:
+def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> TimePointArray | NDArrayView[TimePoint]:
     """
     Args:
         time_list: a list for timepoints (TimePointArray, TimePointRange, object or collection of objects).

@@ -96,7 +96,7 @@ def read_from_csv(
 
                 obs = TemporalDataFrame.read_from_csv(
                     parsed_directory / f.name,
-                    time_list=time_list,
+                    timepoints=time_list,
                     time_col_name=_get_time_col_name(time_list, time_col_name, metadata, "obs"),
                 )
 
@@ -111,7 +111,7 @@ def read_from_csv(
 
                     dataset_dict[dataset.name[:-4]] = TemporalDataFrame.read_from_csv(
                         parsed_directory / f.name / dataset.name,
-                        time_list=time_list,
+                        timepoints=time_list,
                         time_col_name=_get_time_col_name(time_list, time_col_name, metadata, f.name, dataset.name[:-4]),
                     )
 

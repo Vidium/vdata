@@ -89,15 +89,20 @@ class VDataView:
 
         # first store obs : we get a sub-set of the parent's obs TemporalDataFrame
         # this is needed here because obs will be needed to recompute the time points and obs slicers
-        self._obs = self._parent.obs[
-            slice(None) if timepoints_slicer is None else timepoints_slicer,
-            slice(None) if obs_slicer is None else obs_slicer,
-        ]
+        self._obs = cast(
+            TemporalDataFrameView,
+            self._parent.obs[
+                slice(None) if timepoints_slicer is None else timepoints_slicer,
+                slice(None) if obs_slicer is None else obs_slicer,
+            ],
+        )
 
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = tp.as_timepointarray(parent.timepoints.value) if timepoints_slicer is None else timepoints_slicer
         self._timepoints_slicer = tp.atleast_1d(_tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)])
-        self._timepoints = self._parent.timepoints[np.in1d(self._parent.timepoints.value, self._timepoints_slicer)]
+        self._timepoints: H5DataFrame = self._parent.timepoints[
+            np.in1d(self._parent.timepoints.value, self._timepoints_slicer)
+        ]
 
         generalLogger.debug(
             f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
@@ -122,11 +127,13 @@ class VDataView:
             f" selected)"
         )
 
-        self._var = self._parent.var.loc[slice(None) if var_slicer is None else var_slicer]
+        self._var: H5DataFrame = self._parent.var.loc[
+            slice(None) if var_slicer is None else var_slicer
+        ]  # type: ignore[call-overload]
         self._var_slicer = np.array(self._var.index)
 
         # subset and store arrays
-        _obs_slicer_flat = self._obs_slicer[0] if self.has_repeated_obs_index else self._obs_slicer_flat
+        _obs_slicer_flat = self._obs_slicer[0] if self.obs.index.is_repeating else self._obs_slicer_flat
 
         self._layers = VLayersArrayContainerView(
             self._parent.layers, self._timepoints_slicer, _obs_slicer_flat, self._var_slicer
@@ -224,11 +231,6 @@ class VDataView:
             False
         """
         return False
-
-    @property
-    @_check_parent_has_not_changed
-    def has_repeated_obs_index(self) -> bool:
-        return self._parent.has_repeated_obs_index
 
     @property
     @_check_parent_has_not_changed
@@ -486,7 +488,7 @@ class VDataView:
         _data, _time_list, _index = self._mean_min_max_func("mean", axis)
 
         _name = f"Mean of {self.name}" if self.name != NO_NAME else "Mean"
-        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), timepoints_list=_time_list, name=_name)
 
     @_check_parent_has_not_changed
     def min(self, axis: Literal[0, 1] = 0) -> vdata.VData:
@@ -499,7 +501,7 @@ class VDataView:
         _data, _time_list, _index = self._mean_min_max_func("min", axis)
 
         _name = f"Minimum of {self.name}" if self.name != NO_NAME else "Minimum"
-        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), timepoints_list=_time_list, name=_name)
 
     @_check_parent_has_not_changed
     def max(self, axis: Literal[0, 1] = 0) -> vdata.VData:
@@ -512,7 +514,7 @@ class VDataView:
         _data, _time_list, _index = self._mean_min_max_func("max", axis)
 
         _name = f"Maximum of {self.name}" if self.name != NO_NAME else "Maximum"
-        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+        return vdata.VData(data=_data, obs=pd.DataFrame(index=_index), timepoints_list=_time_list, name=_name)
 
     # writing ------------------------------------------------------------
     @_check_parent_has_not_changed

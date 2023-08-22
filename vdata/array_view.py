@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Iterable, Iterator, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Sequence, TypeVar, cast
 
 import ch5mpy.indexing as ci
 import numpy as np
@@ -10,7 +10,7 @@ from numpy._typing import _ArrayLikeObject_co
 if TYPE_CHECKING:
     from vdata._typing import Indexer
 
-_T = TypeVar("_T", bound=np.generic, covariant=True)
+_T = TypeVar("_T", covariant=True)
 
 _RESERVED_ATTRIBUTES = frozenset(
     (
@@ -25,14 +25,17 @@ _RESERVED_ATTRIBUTES = frozenset(
 )
 
 
-class NDArrayView(Generic[_T]):
+class NDArrayView(Sequence[_T]):
     """View on a numpy ndarray that can be subsetted infinitely without copying."""
 
     __slots__ = "_array", "_index", "_exposed_attr"
 
     # region magic methods
     def __init__(
-        self, array: ArrayGetter, index: Indexer | ci.Selection, exposed_attributes: Iterable[str] = ()
+        self,
+        array: ArrayGetter,
+        index: Indexer | tuple[Indexer, ...] | ci.Selection,
+        exposed_attributes: Iterable[str] = (),
     ) -> None:
         self._array = array
         self._index = index if isinstance(index, ci.Selection) else ci.Selection.from_selector(index, array.get().shape)
@@ -46,7 +49,7 @@ class NDArrayView(Generic[_T]):
     def __repr__(self) -> str:
         return repr(self._view()) + "*"
 
-    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[_T]:
+    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[Any]:
         if dtype is None:
             return self._view()
 
@@ -58,7 +61,7 @@ class NDArrayView(Generic[_T]):
 
         return super().__getattribute__(key)
 
-    def __getitem__(self, index: Indexer) -> NDArrayView[_T] | _T:
+    def __getitem__(self, index: Indexer | tuple[Indexer, ...]) -> NDArrayView[_T] | _T:
         sel = ci.Selection.from_selector(index, self.shape).cast_on(self._index)
 
         if np.prod(sel.out_shape) == 1:
@@ -95,20 +98,20 @@ class NDArrayView(Generic[_T]):
     def __ge__(self, __value: _ArrayLikeObject_co) -> npt.NDArray[np.bool_]:
         return self._view().__ge__(__value)
 
-    def __add__(self, other: Any) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._view() + other)
+    def __add__(self, other: Any) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._view() + other)
 
-    def __sub__(self, other: Any) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._view() - other)
+    def __sub__(self, other: Any) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._view() - other)
 
-    def __mul__(self, other: Any) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._view() * other)
+    def __mul__(self, other: Any) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._view() * other)
 
-    def __truediv__(self, other: Any) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._view() / other)
+    def __truediv__(self, other: Any) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._view() / other)
 
-    def __pow__(self, other: Any) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._view() ** other)
+    def __pow__(self, other: Any) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._view() ** other)
 
     # endregion
 
@@ -122,7 +125,7 @@ class NDArrayView(Generic[_T]):
         return self._view().shape
 
     @property
-    def dtype(self) -> np.dtype[_T]:
+    def dtype(self) -> np.dtype[Any]:
         return self._view().dtype
 
     @property
@@ -132,10 +135,10 @@ class NDArrayView(Generic[_T]):
     # endregion
 
     # region methods
-    def _view(self) -> npt.NDArray[_T]:
-        return cast(npt.NDArray[_T], self._array.get()[self._index.get_indexers()])
+    def _view(self) -> npt.NDArray[Any]:
+        return cast(npt.NDArray[Any], self._array.get()[self._index.get_indexers()])
 
-    def copy(self) -> npt.NDArray[_T]:
+    def copy(self) -> npt.NDArray[Any]:
         return self._view().copy()
 
     def astype(self, dtype: npt.DTypeLike) -> npt.NDArray[Any]:
@@ -143,12 +146,12 @@ class NDArrayView(Generic[_T]):
 
     def min(
         self, axis: int | tuple[int, ...] | None = None, out: npt.NDArray[Any] | None = None
-    ) -> _T | npt.NDArray[_T]:
+    ) -> _T | npt.NDArray[Any]:
         return self._view().min(axis=axis, out=out)
 
     def max(
         self, axis: int | tuple[int, ...] | None = None, out: npt.NDArray[Any] | None = None
-    ) -> _T | npt.NDArray[_T]:
+    ) -> _T | npt.NDArray[Any]:
         return self._view().max(axis=axis, out=out)
 
     def mean(
@@ -156,10 +159,10 @@ class NDArrayView(Generic[_T]):
         axis: int | tuple[int, ...] | None = None,
         dtype: npt.DTypeLike | None = None,
         out: npt.NDArray[Any] | None = None,
-    ) -> _T | npt.NDArray[_T]:
-        return self._view().mean(axis=axis, dtype=dtype, out=out)  # type: ignore[arg-type, misc, no-any-return]
+    ) -> _T | npt.NDArray[Any]:
+        return self._view().mean(axis=axis, dtype=dtype, out=out)  # type: ignore[no-any-return, misc, arg-type]
 
-    def flatten(self) -> npt.NDArray[_T]:
+    def flatten(self) -> npt.NDArray[Any]:
         return self._view().flatten()
 
     # endregion

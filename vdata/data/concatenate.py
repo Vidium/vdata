@@ -113,7 +113,7 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
             generalLogger.info(lambda: f"    '\u21B3' merging obsp '{key}' DataFrame.")
 
             if key in next_obsp.keys():
-                _index = _obsp[key].index.union(pd.Index(next_VData.obs.index), sort=False)
+                _index = _obsp[key].index.union(pd.Index(next_VData.obs.index.values), sort=False)
                 result = H5DataFrame(index=_index, columns=_index)
 
                 result.iloc[0 : len(_obsp[key].index), 0 : len(_obsp[key].index)] = _obsp[key]

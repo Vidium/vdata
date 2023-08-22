@@ -10,8 +10,8 @@ import scipy.sparse as ss
 from h5dataframe import H5DataFrame
 
 import vdata
-from vdata._typing import AnyNDArrayLike
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
+from vdata._typing import AnyNDArrayLike, AnyNDArrayLike_IFS
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 
 _NP_IF = Union[np.int_, np.float_]
 
@@ -21,9 +21,9 @@ class TemporalDataFrameContainerProxy:
     __slots__ = "_vdata", "_tdfs", "_name"
 
     # region magic methods
-    def __init__(self, vdata: vdata.VData, name: str) -> None:
+    def __init__(self, vdata: vdata.VData | vdata.VDataView, name: str) -> None:
         self._vdata = vdata
-        self._tdfs = getattr(vdata, name)
+        self._tdfs: MutableMapping[str, TemporalDataFrameBase] = getattr(vdata, name)
         self._name = name.capitalize()
 
     def __repr__(self) -> str:
@@ -37,8 +37,7 @@ class TemporalDataFrameContainerProxy:
             value,
             index=self._vdata.obs.index,
             columns=self._vdata.var.index,
-            repeating_index=self._vdata.obs.has_repeating_index,
-            time_list=self._vdata.obs.timepoints_column,
+            timepoints=self._vdata.obs.timepoints_column,
         )
 
     def __contains__(self, key: str) -> bool:
@@ -50,10 +49,10 @@ class TemporalDataFrameContainerProxy:
     def keys(self) -> KeysView[str]:
         return self._tdfs.keys()
 
-    def values(self) -> ValuesView[TemporalDataFrame | TemporalDataFrameView]:
+    def values(self) -> ValuesView[TemporalDataFrameBase]:
         return self._tdfs.values()
 
-    def items(self) -> ItemsView[str, TemporalDataFrame | TemporalDataFrameView]:
+    def items(self) -> ItemsView[str, TemporalDataFrameBase]:
         return self._tdfs.items()
 
     # endregion
@@ -72,17 +71,17 @@ class ArrayStack2DProxy:
     def __repr__(self) -> str:
         return repr(self.stack(n=5)) + "\n..." if self.shape[1] > 5 else ""
 
-    def __getitem__(self, item: Any) -> None:
-        if self._array_numeric is None and self._array_string is None:
-            return np.empty((0, 0))[item]
+    def __getitem__(self, item: Any) -> Any:
+        if self._array_numeric is not None and self._array_string is not None:
+            return np.hstack((self._array_numeric.astype(object), self._array_string))[item]
 
-        if self._array_numeric is None:
+        if self._array_numeric is None and self._array_string is not None:
             return self._array_string[item]
 
-        if self._array_string is None:
+        if self._array_numeric is not None and self._array_string is None:
             return self._array_numeric[item]
 
-        return np.hstack((self._array_numeric.astype(object), self._array_string))[item]
+        return np.empty((0, 0))[item]
 
     def _op(self, other: Any, operation: Callable[[Any, Any], Any]) -> npt.NDArray[_NP_IF]:
         if self._array_string is not None:
@@ -113,29 +112,29 @@ class ArrayStack2DProxy:
     # region attributes
     @property
     def shape(self) -> tuple[int, int]:
-        if self._array_numeric is None and self._array_string is None:
-            return (0, 0)
+        if self._array_numeric is not None and self._array_string is not None:
+            return (self._array_numeric.shape[0], self._array_numeric.shape[1] + self._array_string.shape[1])
 
-        if self._array_numeric is None:
-            return self._array_string.shape
+        if self._array_numeric is None and self._array_string is not None:
+            return self._array_string.shape  # type: ignore[return-value]
 
-        if self._array_string is None:
-            return self._array_numeric.shape
+        if self._array_numeric is not None and self._array_string is None:
+            return self._array_numeric.shape  # type: ignore[return-value]
 
-        return (self._array_numeric.shape[0], self._array_numeric.shape[1] + self._array_string.shape[1])
+        return (0, 0)
 
     @property
     def dtype(self) -> np.dtype[Any]:
         if self._array_numeric is None and self._array_string is None:
-            return np.float64
+            return np.dtype(np.float64)
 
-        if self._array_numeric is None:
+        if self._array_numeric is None and self._array_string is not None:
             return self._array_string.dtype
 
-        if self._array_string is None:
+        if self._array_numeric is not None and self._array_string is None:
             return self._array_numeric.dtype
 
-        return np.object_
+        return np.dtype(np.object_)
 
     # endregion
 
@@ -143,16 +142,16 @@ class ArrayStack2DProxy:
     def stack(self, n: int | None = None) -> npt.NDArray[Any]:
         _subset = slice(None) if n is None else slice(0, n)
 
-        if self._array_numeric is None and self._array_string is None:
-            return np.empty((0, 0))
+        if self._array_numeric is not None and self._array_string is not None:
+            return np.hstack((self._array_numeric[_subset].astype(object), self._array_string[_subset]))
 
-        if self._array_numeric is None:
+        if self._array_numeric is None and self._array_string is not None:
             return np.array(self._array_string[_subset])
 
-        if self._array_string is None:
+        if self._array_numeric is not None and self._array_string is None:
             return np.array(self._array_numeric[_subset])
 
-        return np.hstack((self._array_numeric[_subset].astype(object), self._array_string[_subset]))
+        return np.empty((0, 0))
 
     def sum(self, axis: int | tuple[int, ...] | None = None) -> Any:
         if self._array_string is not None:
@@ -175,8 +174,8 @@ class H5DataFrameContainerProxy:
         self,
         h5dfs: MutableMapping[str, H5DataFrame],
         name: str,
-        index: AnyNDArrayLike,
-        columns: AnyNDArrayLike | None = None,
+        index: AnyNDArrayLike_IFS,
+        columns: AnyNDArrayLike_IFS | None = None,
     ) -> None:
         self._h5dfs = h5dfs
         self._index = index
@@ -184,12 +183,12 @@ class H5DataFrameContainerProxy:
         self._name = name
 
         # FIXME : find better way
-        self._sparse_matrices = set()
+        self._sparse_matrices: set[str] = set()
 
     def __repr__(self) -> str:
         return f"{self._name} with keys: {', '.join(self._h5dfs.keys())}"
 
-    def __getitem__(self, key: str) -> npt.NDArray[Any]:
+    def __getitem__(self, key: str) -> npt.NDArray[Any] | ss.csr_matrix:
         if str(key) in self._sparse_matrices:
             return ss.csr_matrix(self._h5dfs[str(key)].values)
 

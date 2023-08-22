@@ -119,7 +119,7 @@ class LazyLoc:
     # endregion
 
     # region methods
-    def get(self) -> H5DataFrame:
+    def get(self) -> pd.DataFrame:
         return self.h5df.loc[self.loc]
 
     def copy(self) -> pd.DataFrame:
@@ -128,7 +128,7 @@ class LazyLoc:
     # endregion
 
 
-class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]):
+class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.DataFrame]):
 
     # region magic methods
     def __init__(self, array_container: VVarmArrayContainer, var_slicer: NDArray_IFS):
@@ -142,8 +142,10 @@ class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]
 
     def __getitem__(self, key: str) -> H5DataFrame:
         """Get a specific data item stored in this view."""
-        if isinstance(self.data[key], LazyLoc):
-            self.data[key] = self.data[key].get()
+        item = self.data[key]
+
+        if isinstance(item, LazyLoc):
+            self.data[key] = item.get()
 
         return self.data[key]
 
@@ -291,10 +293,12 @@ class VVarpArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]
 
         self._var_slicer = var_slicer
 
-    def __getitem__(self, key: str) -> D:
+    def __getitem__(self, key: str) -> H5DataFrame:
         """Get a specific data item stored in this view."""
-        if isinstance(self.data[key], LazyLoc):
-            self.data[key] = self.data[key].get()
+        item = self.data[key]
+
+        if isinstance(item, LazyLoc):
+            self.data[key] = item.get()
 
         return self.data[key]
 

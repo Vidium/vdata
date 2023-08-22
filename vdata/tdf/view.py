@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Literal, NoReturn
+from typing import Any, Collection, Iterable, Literal, NoReturn
 
 import ch5mpy as ch
-import numpy as np
+import ch5mpy.indexing as ci
 
 from vdata._typing import IFS, Indexer, NDArray_IFS
 from vdata.array_view import ArrayGetter, NDArrayView
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
+from vdata.tdf.index import Index
 
 
 def _as_view(
@@ -18,7 +19,9 @@ def _as_view(
     exposed_attributes: Iterable[str] = (),
 ) -> ch.H5Array[Any] | NDArrayView[Any]:
     if isinstance(getattr(container, name), ch.H5Array):
-        return getattr(container, name)[index]
+        arr = getattr(container, name)[index]
+        assert isinstance(arr, ch.H5Array)
+        return arr
 
     return NDArrayView(ArrayGetter(container, name), index, exposed_attributes)
 
@@ -48,7 +51,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
             parent = parent.parent
 
         super().__init__(
-            index=_as_view(parent, "index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
+            index=_as_view(parent, "_index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
             timepoints_array=_as_view(
                 parent, "timepoints_column", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True), {"unit"}
             ),
@@ -64,9 +67,9 @@ class TemporalDataFrameView(TemporalDataFrameBase):
             data=parent.data,
         )
 
-        self._parent = parent
-        self._numerical_selection = numerical_selection
-        self._string_selection = string_selection
+        self._parent: TemporalDataFrame = parent
+        self._numerical_selection: ci.Selection = numerical_selection
+        self._string_selection: ci.Selection = string_selection
         self._inverted = inverted
 
     def __delattr__(self, _column_name: str) -> NoReturn:
@@ -130,24 +133,10 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """
         return self._inverted
 
-    @property
-    def has_repeating_index(self) -> bool:
-        """
-        Is the index repeated at each time-point ?
-        """
-        if not self.parent.has_repeating_index:
-            return False
-
-        # must be computed since view on TDF with repeating index could still not have repeating index
-        for tp in self.timepoints[1:]:
-            if not np.array_equal(self.index_at(tp), self.index_at(self.tp0)):
-                return False
-        return True
-
     # endregion
 
     # region methods
-    def _append_column(self, column_name: IFS, values: NDArray_IFS):
+    def _append_column(self, column_name: IFS, values: NDArray_IFS) -> None:
         raise NotImplementedError
 
     def lock_indices(self) -> None:
@@ -166,11 +155,16 @@ class TemporalDataFrameView(TemporalDataFrameBase):
         """Unlock the "columns" axis to allow modifications."""
         self._parent.unlock_columns()
 
-    def set_index(self, values: NDArray_IFS, repeating_index: bool = False) -> None:
+    def set_index(
+        self,
+        values: Collection[IFS] | Index,
+        *,
+        force: bool = False,
+    ) -> None:
         """Set new index values."""
         raise NotImplementedError
 
-    def reindex(self, order: NDArray_IFS, repeating_index: bool = False) -> None:
+    def reindex(self, order: NDArray_IFS | Index) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
         raise NotImplementedError
 

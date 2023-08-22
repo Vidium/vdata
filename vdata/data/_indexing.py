@@ -6,7 +6,9 @@ import numpy.typing as npt
 
 import vdata.timepoint as tp
 from vdata._typing import AnyNDArrayLike_IFS, NDArray_IFS, NDArrayLike_IFS, PreSlicer
+from vdata.array_view import NDArrayView
 from vdata.IO.errors import ShapeError
+from vdata.tdf import Index
 from vdata.utils import isCollection
 
 
@@ -58,7 +60,7 @@ def slicer_to_array(slicer: PreSlicer, reference_index: AnyNDArrayLike_IFS | tp.
     if slicer.dtype == bool:
         return reference_index[slicer]
 
-    return slicer[np.where(np.in1d(slicer, reference_index))]  # type: ignore[arg-type]
+    return slicer[np.where(np.in1d(slicer, reference_index))]
 
 
 def _gets_whole_axis(slicer: PreSlicer) -> bool:
@@ -69,8 +71,8 @@ def _gets_whole_axis(slicer: PreSlicer) -> bool:
 
 def reformat_index(
     index: PreSlicer | tuple[PreSlicer] | tuple[PreSlicer, PreSlicer] | tuple[PreSlicer, PreSlicer, PreSlicer],
-    timepoints_reference: tp.TimePointArray,
-    obs_reference: AnyNDArrayLike_IFS,
+    timepoints_reference: tp.TimePointArray | NDArrayView[tp.TimePoint],
+    obs_reference: Index | NDArray_IFS,
     var_reference: NDArrayLike_IFS,
 ) -> tuple[tp.TimePointArray | None, NDArray_IFS | None, NDArray_IFS | None] | None:
     """

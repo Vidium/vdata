@@ -11,6 +11,7 @@ import numpy_indexed as npi
 import vdata.tdf as tdf
 import vdata.timepoint as tp
 from vdata._typing import IFS, AnyNDArrayLike_IFS, NDArray_IFS, Slicer
+from vdata.array_view import NDArrayView
 from vdata.names import Number
 from vdata.utils import isCollection
 
@@ -66,7 +67,7 @@ def _parse_timepoints_slicer(slicer: Slicer, TDF: tdf.TemporalDataFrameBase) -> 
         )
         len_slice = sum(TDF.n_index_at(tp) for tp in selected_timepointrange)
 
-        return ci.FullSlice(len_index_before_start, len_index_before_start + len_slice, 1, max_=TDF.n_index)
+        return ci.FullSlice(len_index_before_start, len_index_before_start + len_slice, 1, max=TDF.n_index)
 
     if isinstance(slicer, np.ndarray) and slicer.dtype == bool:
         if slicer.ndim != 1 or len(slicer) != TDF.n_timepoints:
@@ -95,7 +96,7 @@ def _parse_axis_slicer(
     slicer: Slicer, TDF: tdf.TemporalDataFrameBase, axis: Literal["index", "columns"]
 ) -> ci.FullSlice | ci.ListIndex | ci.EmptyList:
     if axis == "index":
-        values, len_values = TDF.index, TDF.n_index
+        values, len_values = TDF.index.values, TDF.n_index
     else:
         values, len_values = TDF.columns, TDF.n_columns
 
@@ -149,6 +150,8 @@ def _parse_axis_slicer(
 
     if axis == "index":
         timepoint_per_index = TDF.timepoints_column[idx_selected_indices]
+        assert isinstance(timepoint_per_index, (tp.TimePointArray, NDArrayView))
+
         timepoints_appearance_order = timepoint_per_index[
             np.sort(np.unique(timepoint_per_index, return_index=True, equal_nan=False)[1].astype(int))
         ]
@@ -160,9 +163,9 @@ def _parse_axis_slicer(
 
 
 def _merge_index_selection(
-    tp_selection: ci.FullSlice | ci.ListIndex | ci.EmptyList,
-    index_selection: ci.FullSlice | ci.ListIndex | ci.EmptyList,
-) -> ci.ListIndex:
+    tp_selection: ci.LengthedIndexer,
+    index_selection: ci.LengthedIndexer,
+) -> ci.LengthedIndexer:
     if tp_selection.is_whole_axis:
         return index_selection
 
@@ -172,17 +175,21 @@ def _merge_index_selection(
 
 
 def _split_columns_selection(
-    columns_selection: ci.FullSlice | ci.ListIndex | ci.EmptyList,
+    columns_selection: ci.LengthedIndexer,
     columns_numerical: AnyNDArrayLike_IFS,
     columns_string: AnyNDArrayLike_IFS,
-) -> tuple[ci.FullSlice | ci.ListIndex, ci.FullSlice | ci.ListIndex]:
+) -> tuple[ci.LengthedIndexer, ci.LengthedIndexer]:
     n_num, n_str = len(columns_numerical), len(columns_string)
 
     if isinstance(columns_selection, (ci.ListIndex, ci.EmptyList)):
         return (
-            ci.as_indexer(np.array([i for i in columns_selection.as_array() if i < n_num], dtype=int), max=n_num),
             ci.as_indexer(
-                np.array([i - n_num for i in columns_selection.as_array() if i >= n_num], dtype=int), max=n_str
+                [int(i) for i in columns_selection.as_array() if i < n_num],
+                max=n_num,
+            ),
+            ci.as_indexer(
+                [int(i - n_num) for i in columns_selection.as_array() if i >= n_num],
+                max=n_str,
             ),
         )
 
@@ -194,7 +201,7 @@ def _split_columns_selection(
 
     if columns_selection.start <= n_num and columns_selection.true_stop <= n_num:
         return (
-            ci.FullSlice(columns_selection.start, columns_selection.stop, columns_selection.step, max_=n_num),
+            ci.FullSlice(columns_selection.start, columns_selection.stop, columns_selection.step, max=n_num),
             ci.EmptyList(max=n_str),
         )
 
@@ -202,21 +209,25 @@ def _split_columns_selection(
         return (
             ci.EmptyList(max=n_num),
             ci.FullSlice(
-                columns_selection.start - n_num, columns_selection.stop - n_num, columns_selection.step, max_=n_str
+                columns_selection.start - n_num,
+                columns_selection.stop - n_num,
+                columns_selection.step,
+                max=n_str,
             ),
         )
 
     offset = (columns_selection.step - n_num % columns_selection.step) % columns_selection.step
 
     return (
-        ci.FullSlice(columns_selection.start, n_num, columns_selection.step, max_=n_num),
-        ci.FullSlice(offset, columns_selection.stop - n_num, columns_selection.step, max_=n_str),
+        ci.FullSlice(columns_selection.start, n_num, columns_selection.step, max=n_num),
+        ci.FullSlice(offset, columns_selection.stop - n_num, columns_selection.step, max=n_str),
     )
 
 
 def ix_(
-    index_selection: ci.FullSlice | ci.ListIndex, columns_selection: ci.FullSlice | ci.ListIndex
-) -> tuple[ci.FullSlice | ci.ListIndex, ci.FullSlice | ci.ListIndex]:
+    index_selection: ci.LengthedIndexer,
+    columns_selection: ci.LengthedIndexer,
+) -> tuple[ci.LengthedIndexer, ci.LengthedIndexer]:
     if isinstance(index_selection, ci.FullSlice) or isinstance(columns_selection, ci.FullSlice):
         return index_selection, columns_selection
 
@@ -242,9 +253,13 @@ def parse_slicer(TDF: tdf.TemporalDataFrameBase, slicer: SlicerData) -> tuple[ci
 
     return (
         ci.Selection(
-            ix_(combined_index_selection, columns_numerical_selection), shape=(TDF.n_index, TDF.n_columns_num)
+            ix_(combined_index_selection, columns_numerical_selection),
+            shape=(TDF.n_index, TDF.n_columns_num),
         ),
-        ci.Selection(ix_(combined_index_selection, columns_string_selection), shape=(TDF.n_index, TDF.n_columns_str)),
+        ci.Selection(
+            ix_(combined_index_selection, columns_string_selection),
+            shape=(TDF.n_index, TDF.n_columns_str),
+        ),
     )
 
 
@@ -266,17 +281,19 @@ def parse_values(
             values = np.broadcast_to(values, values_shape)
 
         except ValueError:
-            raise ValueError(f"Can't set {values_shape} values " f"from {values.shape} array.")
+            raise ValueError(f"Can't set {values_shape} values from {values.shape} array.")
 
     selected_num_columns = TDF.columns_num[numerical_selection[1].as_numpy_index()]
     selected_str_columns = TDF.columns_str[string_selection[1].as_numpy_index()]
 
-    sliced_columns = TDF.columns[slicer_columns] if isinstance(slicer_columns, slice) else np.atleast_1d(slicer_columns)
+    sliced_columns = (
+        TDF.columns[slicer_columns] if isinstance(slicer_columns, slice) else np.atleast_1d(slicer_columns)
+    )  # type: ignore[arg-type]
 
     num_columns_indices = npi.indices(sliced_columns, selected_num_columns)
     str_columns_indices = npi.indices(sliced_columns, selected_str_columns)
 
-    values_num = values[:, num_columns_indices] if len(selected_num_columns) else None
-    values_str = values[:, str_columns_indices] if len(selected_str_columns) else None
+    values_num = values[:, num_columns_indices] if len(selected_num_columns) else None  # type: ignore[arg-type]
+    values_str = values[:, str_columns_indices] if len(selected_str_columns) else None  # type: ignore[arg-type]
 
     return values_num, values_str

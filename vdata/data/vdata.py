@@ -14,6 +14,7 @@ import vdata.timepoint as tp
 from vdata._meta import PrettyRepr
 from vdata._typing import IFS, DictLike, NDArray_IFS, PreSlicer
 from vdata.anndata_proxy import AnnDataProxy
+from vdata.array_view import NDArrayView
 from vdata.data._file import NoData
 from vdata.data._indexing import reformat_index
 from vdata.data._parse import ParsingDataIn, ParsingDataOut, parse_AnnData, parse_objects
@@ -35,7 +36,7 @@ from vdata.IO import (
     generalLogger,
 )
 from vdata.names import NO_NAME
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase
 from vdata.update import CURRENT_VERSION, update_vdata
 from vdata.utils import repr_array, repr_index
 
@@ -67,7 +68,7 @@ class VData(metaclass=PrettyRepr):
         timepoints: pd.DataFrame | H5DataFrame | None = None,
         uns: DictLike[Any] | None = None,
         time_col_name: str | None = None,
-        time_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None = None,
+        timepoints_list: Sequence[str | tp.TimePoint] | tp.TimePointArray | None = None,
         name: str = "",
     ):
         """
@@ -85,7 +86,7 @@ class VData(metaclass=PrettyRepr):
             uns: a dictionary of unstructured data.
             time_col_name: if obs is a pandas DataFrame (or the VData is created from an AnnData), the column name in
                 obs that contains time information.
-            time_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
+            timepoints_list: if obs is a pandas DataFrame (or the VData is created from an AnnData), a list containing
                 time information of the same length as the number of rows in obs.
             name: a name for this VData.
         """
@@ -107,7 +108,7 @@ class VData(metaclass=PrettyRepr):
             _parsed_data = parse_AnnData(
                 data,
                 ParsingDataIn.from_anndata(
-                    data, obs, obsm, obsp, var, varm, varp, timepoints, time_col_name, time_list, uns
+                    data, obs, obsm, obsp, var, varm, varp, timepoints, time_col_name, timepoints_list, uns
                 ),
             )
 
@@ -116,7 +117,7 @@ class VData(metaclass=PrettyRepr):
             _name = name or NO_NAME
             _parsed_data = parse_objects(
                 ParsingDataIn.from_objects(
-                    data, obs, obsm, obsp, var, varm, varp, timepoints, time_col_name, time_list, uns
+                    data, obs, obsm, obsp, var, varm, varp, timepoints, time_col_name, timepoints_list, uns
                 )
             )
 
@@ -217,7 +218,10 @@ class VData(metaclass=PrettyRepr):
         generalLogger.debug(lambda: f"  Got index \n{repr_index(index)}")
 
         formatted_index = reformat_index(
-            index, tp.as_timepointarray(self.timepoints.value), self.obs.index, self.var.index.values
+            index,
+            tp.as_timepointarray(self.timepoints.value),
+            self.obs.index,
+            self.var.index.values,
         )
 
         generalLogger.debug(lambda: f"  Refactored index to \n{repr_index(formatted_index)}")
@@ -237,7 +241,7 @@ class VData(metaclass=PrettyRepr):
         self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> None:
         if self._data is not None and not self._data.is_closed:
-            self._data._file.flush()
+            self._data._file.file.flush()
             self._data.close()
 
     def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
@@ -286,16 +290,6 @@ class VData(metaclass=PrettyRepr):
         Is this VData's file open in read only mode ?
         """
         return self._data is not None and self._data.file.mode == "r"
-
-    @property
-    def has_repeated_obs_index(self) -> bool:
-        if not self.obs.empty:
-            return self.obs.has_repeating_index
-
-        elif not self.layers.empty:
-            return self.layers.has_repeating_index
-
-        return False
 
     @property
     def is_view(self) -> Literal[False]:
@@ -414,7 +408,7 @@ class VData(metaclass=PrettyRepr):
         self._timepoints = H5DataFrame(df)
 
     @property
-    def timepoints_values(self) -> tp.TimePointArray:
+    def timepoints_values(self) -> tp.TimePointArray | NDArrayView[tp.TimePoint]:
         """
         Get the list of time points values (with the unit if possible).
 
@@ -475,7 +469,7 @@ class VData(metaclass=PrettyRepr):
             _time_list = self.obs.timepoints_column if _time_col_name is None else None
 
             df = TemporalDataFrame(
-                df, time_list=_time_list, time_col_name=_time_col_name, index=self.obs.index, name="obs"
+                df, timepoints=_time_list, time_col_name=_time_col_name, index=self.obs.index, name="obs"
             )
 
         else:
@@ -603,7 +597,7 @@ class VData(metaclass=PrettyRepr):
         Returns:
             The obs index names.
         """
-        return pd.Index(self.obs.index)
+        return pd.Index(self.obs.index.values)
 
     @property
     def var_names(self) -> pd.Index:
@@ -628,7 +622,7 @@ class VData(metaclass=PrettyRepr):
         """
         ch.set_options(max_memory=max_memory)
 
-    def set_obs_index(self, values: Collection[IFS], repeating_index: bool = False) -> None:
+    def set_obs_index(self, values: Collection[IFS] | Index) -> None:
         """
         Set a new index for observations.
 
@@ -636,17 +630,19 @@ class VData(metaclass=PrettyRepr):
             values: collection of new index values.
             repeating_index: does the index repeat itself at all time-points ? (default: False)
         """
-        self.layers.set_index(values, repeating_index)
+        self.layers.set_index(values)
 
-        self.obs.set_index(np.array(values), repeating_index, force=True)
-        self.obsm.set_index(values, repeating_index)
+        self.obs.set_index(values, force=True)
+        self.obsm.set_index(values)
         self.obsp.set_index(values)
 
     def make_unique_obs_index(self) -> None:
         """
         Concatenates the obs index with the time-point to make all index values unique.
         """
-        self.set_obs_index(np.char.add(np.char.add(self.obs.index.astype(str), "_"), self.obs.timepoints_column_str))
+        self.set_obs_index(
+            np.char.add(np.char.add(self.obs.index.values.astype(str), "_"), self.obs.timepoints_column_str)
+        )
 
     def set_var_index(self, values: Collection[IFS]) -> None:
         """
@@ -660,24 +656,28 @@ class VData(metaclass=PrettyRepr):
         self.varp.set_index(values)
 
     def _mean_min_max_func(
-        self, func: Literal["mean", "min", "max"], axis: int
-    ) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray, pd.Index, bool]:
+        self,
+        func: Literal["mean", "min", "max"],
+        axis: int,
+    ) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray | NDArrayView[tp.TimePoint], Index]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
-        _data = {layer: getattr(self.layers[layer], func)(axis=axis + 1) for layer in self.layers}
+        data: dict[str, TemporalDataFrame] = {
+            layer: getattr(self.layers[layer], func)(axis=axis + 1) for layer in self.layers
+        }
 
         if axis == 0:
-            _time_list = self.timepoints_values
-            _index = pd.Index(["mean" for _ in range(self.n_timepoints)])
+            timepoints_list = self.timepoints_values
+            index = Index(["mean"], repeats=self.n_timepoints)
 
-            return _data, _time_list, _index, True
+            return data, timepoints_list, index
 
         elif axis == 1:
-            _time_list = self._obs.timepoints_column
-            _index = pd.Index(self.obs.index)
+            timepoints_list = self._obs.timepoints_column
+            index = self.obs.index
 
-            return _data, _time_list, _index, self.obs.has_repeating_index
+            return data, timepoints_list, index
 
         raise ValueError(f"Invalid axis '{axis}', should be 0 or 1.")
 
@@ -688,14 +688,14 @@ class VData(metaclass=PrettyRepr):
         :param axis: compute mean over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with mean values.
         """
-        _data, _time_list, _index, repeating_index = self._mean_min_max_func("mean", axis)
+        data, timepoints_list, index = self._mean_min_max_func("mean", axis)
 
-        _name = f"Mean of {self._name}" if self._name != NO_NAME else "Mean"
+        name = f"Mean of {self._name}" if self._name != NO_NAME else "Mean"
         return VData(
-            data=_data,
-            obs=TemporalDataFrame(index=_index, repeating_index=repeating_index, time_list=_time_list),
-            time_list=_time_list,
-            name=_name,
+            data=data,
+            obs=TemporalDataFrame(index=index, timepoints=timepoints_list),
+            timepoints_list=timepoints_list,
+            name=name,
         )
 
     def min(self, axis: Literal[0, 1] = 0) -> VData:
@@ -705,10 +705,15 @@ class VData(metaclass=PrettyRepr):
         :param axis: compute minimum over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with minimum values.
         """
-        _data, _time_list, _index, _ = self._mean_min_max_func("min", axis)
+        data, timepoints_list, index = self._mean_min_max_func("min", axis)
 
-        _name = f"Minimum of {self._name}" if self._name != NO_NAME else "Minimum"
-        return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+        name = f"Minimum of {self._name}" if self._name != NO_NAME else "Minimum"
+        return VData(
+            data=data,
+            obs=pd.DataFrame(index=index.values),
+            timepoints_list=timepoints_list,
+            name=name,
+        )
 
     def max(self, axis: Literal[0, 1] = 0) -> VData:
         """
@@ -717,10 +722,15 @@ class VData(metaclass=PrettyRepr):
         :param axis: compute maximum over columns (0: default) or over rows (1).
         :return: a TemporalDataFrame with maximum values.
         """
-        _data, _time_list, _index, _ = self._mean_min_max_func("max", axis)
+        data, timepoints_list, index = self._mean_min_max_func("max", axis)
 
-        _name = f"Maximum of {self._name}" if self._name != NO_NAME else "Maximum"
-        return VData(data=_data, obs=pd.DataFrame(index=_index), time_list=_time_list, name=_name)
+        name = f"Maximum of {self._name}" if self._name != NO_NAME else "Maximum"
+        return VData(
+            data=data,
+            obs=pd.DataFrame(index=index.values),
+            timepoints_list=timepoints_list,
+            name=name,
+        )
 
     def write(self, file: str | Path | None = None, verbose: bool = True) -> None:
         """

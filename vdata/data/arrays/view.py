@@ -5,12 +5,13 @@ from typing import ItemsView, Iterator, KeysView, ValuesView
 
 import numpy as np
 
+import vdata.timepoint as tp
 from vdata._typing import NDArray_IFS
+from vdata.array_view import NDArrayView
 from vdata.data.arrays.base import ArrayContainerMixin, D, D_copy, VBaseArrayContainer
 from vdata.data.hash import VDataHash
 from vdata.IO import generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
-from vdata.timepoint import TimePointArray
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first_in
 
 
@@ -115,7 +116,7 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     def __init__(
         self,
         array_container: VBaseArrayContainer[TemporalDataFrame | TemporalDataFrameView, TemporalDataFrame],
-        timepoints_slicer: TimePointArray,
+        timepoints_slicer: tp.TimePointArray | NDArrayView[tp.TimePoint],
         obs_slicer: NDArray_IFS,
         var_slicer: NDArray_IFS | slice,
     ):
@@ -139,12 +140,6 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     # endregion
 
     # region attributes
-    @property
-    def has_repeating_index(self) -> bool:
-        if self.empty:
-            return False
-
-        return first_in(self.data).has_repeating_index
 
     @property
     def shape(self) -> tuple[int, int, list[int], int]:
@@ -160,11 +155,11 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     # endregion
 
     # region methods
-    def set_index(self, values: NDArray_IFS, repeating_index: bool) -> None:
+    def set_index(self, values: NDArray_IFS | Index) -> None:
         """Set a new index for rows."""
         for layer in self.values():
             layer.unlock_indices()
-            layer.set_index(values, repeating_index)
+            layer.set_index(values)
             layer.lock_indices()
 
     def set_columns(self, values: NDArray_IFS) -> None:

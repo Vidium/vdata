@@ -28,13 +28,13 @@ def sub_vdata() -> vdata.VDataView:
         data={"data": pd.DataFrame(np.array(range(300 * 50)).reshape((300, 50)), index=cells, columns=genes)},
         obs=pd.DataFrame({"col1": range(300)}, index=cells),
         var=pd.DataFrame({"col1": range(50)}, index=genes),
-        time_list=["0h" for _ in range(100)] + ["1h" for _ in range(100)] + ["2h" for _ in range(100)],
+        timepoints_list=["0h" for _ in range(100)] + ["1h" for _ in range(100)] + ["2h" for _ in range(100)],
     )
 
     v.obsm["test_obsm"] = vdata.TemporalDataFrame(
         pd.DataFrame(np.array(range(v.n_obs_total * 2)).reshape((v.n_obs_total, 2)), columns=["X1", "X2"]),
         index=v.obs.index,
-        time_list=v.obs.timepoints_column,
+        timepoints=v.obs.timepoints_column,
     )
 
     v.obsp["test_obsp"] = pd.DataFrame(
@@ -69,7 +69,7 @@ def test_VData_sub_setting_creation(sub_vdata: vdata.VDataView) -> None:
 
 
 def test_VData_sub_setting_correct_layers_index(sub_vdata: vdata.VDataView) -> None:
-    assert np.all(sub_vdata.layers["data"].index == _INDEX_CELLS), sub_vdata.layers["data"].index
+    assert np.array_equal(sub_vdata.layers["data"].index, _INDEX_CELLS), sub_vdata.layers["data"].index
 
 
 def test_VData_sub_setting_correct_layers_columns(sub_vdata: vdata.VDataView) -> None:
@@ -84,7 +84,7 @@ def test_VData_sub_setting_correct_layers_values(sub_vdata: vdata.VDataView) -> 
 
 
 def test_VData_sub_setting_correct_obs_index(sub_vdata: vdata.VDataView) -> None:
-    assert np.all(sub_vdata.obs.index == _INDEX_CELLS), sub_vdata.obs.index
+    assert np.array_equal(sub_vdata.obs.index, _INDEX_CELLS), sub_vdata.obs.index
 
 
 def test_VData_sub_setting_correct_obs_columns(sub_vdata: vdata.VDataView) -> None:
@@ -108,7 +108,7 @@ def test_VData_sub_setting_correct_var_values(sub_vdata: vdata.VDataView) -> Non
 
 
 def test_VData_sub_setting_correct_obsm_index(sub_vdata: vdata.VDataView) -> None:
-    assert np.all(sub_vdata.obsm["test_obsm"].index == _INDEX_CELLS), sub_vdata.obsm["test_obsm"].index
+    assert np.array_equal(sub_vdata.obsm["test_obsm"].index, _INDEX_CELLS), sub_vdata.obsm["test_obsm"].index
 
 
 def test_VData_sub_setting_correct_obms_columns(sub_vdata: vdata.VDataView) -> None:
@@ -184,7 +184,7 @@ def test_vdata_subset_on_timepoints_should_set_new_values_in_obs(VData: vdata.VD
     new_data = TemporalDataFrame(
         {"col1": np.arange(subset.n_obs_total)},
         index=subset.obs.index,
-        time_list=subset.obs.timepoints_column,
+        timepoints=subset.obs.timepoints_column,
         name="new_data",
     )
 

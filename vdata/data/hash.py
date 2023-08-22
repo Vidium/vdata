@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import ch5mpy as ch
+import numpy as np
 
 import vdata
 
 
 def _hash_tp(data: vdata.VData) -> int:
-    return hash(data.timepoints.value.values.data.tobytes())
+    return hash(np.asanyarray(data.timepoints.value.values).data.tobytes())
 
 
 def _hash_obs(data: vdata.VData) -> int:
-    if isinstance(data.obs.index, ch.H5Array):
-        return hash(data.obs.index)
-    return hash(data.obs.index.data.tobytes())
+    return hash(data.obs.index)
 
 
 def _hash_var(data: vdata.VData) -> int:

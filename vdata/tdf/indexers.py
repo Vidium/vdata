@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, SupportsIndex, Unio
 import numpy as np
 
 from vdata._typing import IFS, AnyNDArrayLike_IFS
+from vdata.tdf.index import Index
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ class VAtIndexer:
     def __getitem__(self, key: tuple[Any, Any]) -> IFS:
         index, column = key
 
-        return self._TDF[:, index, column]
+        return cast(IFS, self._TDF[:, index, column])
 
     def __setitem__(self, key: tuple[Any, Any], value: IFS) -> None:
         index, column = key
@@ -52,9 +53,10 @@ class ViAtIndexer:
 
     def __getitem__(self, key: tuple[int, int]) -> IFS:
         index_id, column_id = key
+        row = self._TDF.index[index_id]
         column = self._TDF.columns[column_id]
 
-        return self._TDF[:, self._TDF.index[index_id], column]
+        return cast(IFS, self._TDF[:, row, column])
 
     def __setitem__(self, key: tuple[int, int], value: IFS) -> None:
         index_id, column_id = key
@@ -85,7 +87,7 @@ class VLocIndexer:
         self._TDF = TDF
 
     @staticmethod
-    def _parse_slicer(values: IFS | Collection[IFS], reference: AnyNDArrayLike_IFS) -> AnyNDArrayLike_IFS | IFS:
+    def _parse_slicer(values: IFS | Collection[IFS], reference: AnyNDArrayLike_IFS | Index) -> AnyNDArrayLike_IFS | IFS:
         if not isCollection(values):
             return cast(IFS, values)
 

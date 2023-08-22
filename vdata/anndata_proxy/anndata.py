@@ -9,14 +9,20 @@ from anndata import AnnData
 from h5dataframe import H5DataFrame
 from scipy import sparse
 
-from vdata._typing import DictLike
+from vdata._typing import AnyNDArrayLike, DictLike
 from vdata.anndata_proxy.containers import H5DataFrameContainerProxy, TemporalDataFrameContainerProxy
 from vdata.anndata_proxy.dataframe import DataFrameProxy_TDF
-from vdata.anndata_proxy.utils import skip_time_axis
 from vdata.data._file import NoData
 
 if TYPE_CHECKING:
     from vdata.data import VData, VDataView
+
+
+def skip_time_axis(slicer: Any) -> tuple[Any, ...]:
+    if isinstance(slice, tuple):
+        return (slice(None),) + slicer
+
+    return (slice(None), slicer)
 
 
 class AnnDataProxy(AnnData):  # type: ignore[misc]
@@ -40,7 +46,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
 
         self._init_from_vdata(vdata)
 
-    def _init_from_vdata(self, vdata: VData | VDataView):
+    def _init_from_vdata(self, vdata: VData | VDataView) -> None:
         self._vdata = vdata
         self._layers = TemporalDataFrameContainerProxy(vdata, name="layers")
         self._obs = DataFrameProxy_TDF(vdata.obs)
@@ -80,7 +86,7 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
         return self._vdata.n_var
 
     @property
-    def X(self) -> npt.NDArray[Any] | None:
+    def X(self) -> AnyNDArrayLike[Any] | None:
         if self._X is None:
             return None
         return self._vdata.layers[self._X].values

@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 from h5dataframe import H5DataFrame
 
-from vdata._typing import NDArray_IFS
 from vdata.data._parse.time import check_time_match
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
 from vdata.utils import first_in
 
@@ -19,9 +18,11 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def _index(obj: pd.DataFrame | H5DataFrame | TemporalDataFrameBase) -> tuple[NDArray_IFS, bool]:
-    _repeating_index = obj.has_repeating_index if isinstance(obj, TemporalDataFrameBase) else False
-    return np.array(obj.index), _repeating_index
+def _index(obj: pd.DataFrame | H5DataFrame | TemporalDataFrameBase) -> Index:
+    if isinstance(obj, TemporalDataFrameBase) and obj.index.is_repeating:
+        return Index(obj.index_at(obj.tp0), repeats=obj.n_timepoints)
+
+    return Index(obj.index)
 
 
 def get_obs_index(
@@ -31,7 +32,7 @@ def get_obs_index(
     | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
     | None,
     obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None,
-) -> tuple[NDArray_IFS | None, bool]:
+) -> Index | None:
     if obs is not None:
         return _index(obs)
 
@@ -41,7 +42,7 @@ def get_obs_index(
     if isinstance(data, dict):
         return _index(first_in(data))
 
-    return None, False
+    return None
 
 
 def parse_obs(data: ParsingDataIn) -> TemporalDataFrameBase:
@@ -72,13 +73,13 @@ def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame | TemporalDat
 
     for key, value in data.obsm.items():
         if isinstance(value, (pd.DataFrame, H5DataFrame)):
-            if data.time_list is None:
+            if data.timepoints_list is None:
                 if data.obs is not None:
-                    data.time_list = TimePointArray(data.obs.timepoints_column)
+                    data.timepoints_list = TimePointArray(data.obs.timepoints_column)
                 else:
-                    data.time_list = first_in(data.layers).timepoints_column
+                    data.timepoints_list = first_in(data.layers).timepoints_column
 
-            valid_obsm[str(key)] = TemporalDataFrame(value, time_list=data.time_list, name=str(key))
+            valid_obsm[str(key)] = TemporalDataFrame(value, timepoints=data.timepoints_list, name=str(key))
 
         elif isinstance(value, TemporalDataFrame):
             value.unlock_indices()

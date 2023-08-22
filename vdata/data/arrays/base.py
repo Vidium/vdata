@@ -12,7 +12,7 @@ from h5dataframe import H5DataFrame
 import vdata
 from vdata._typing import IFS, AnyDictLike, DictLike
 from vdata.IO import VClosedFileError, generalLogger
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first_in
 
 D = TypeVar("D", Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, H5DataFrame)
@@ -305,16 +305,6 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFra
 
     # endregion
 
-    # region predicates
-    @property
-    def has_repeating_index(self) -> bool:
-        if self.empty:
-            return False
-
-        return list(self.values())[0].has_repeating_index
-
-    # endregion
-
     # region attributes
     @property
     def shape(self) -> tuple[int, int, list[int], list[int]]:
@@ -334,10 +324,10 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFra
     # endregion
 
     # region methods
-    def set_index(self, values: Collection[IFS], repeating_index: bool) -> None:
+    def set_index(self, values: Collection[IFS] | Index) -> None:
         """Set a new index for rows."""
         for layer in self.values():
-            layer.set_index(np.array(values), repeating_index, force=True)
+            layer.set_index(values, force=True)
 
     def set_columns(self, values: Collection[IFS]) -> None:
         """Set a new index for columns."""

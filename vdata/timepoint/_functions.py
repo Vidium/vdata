@@ -6,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 
 import vdata.timepoint as tp
+from vdata.array_view import NDArrayView
 
 HANDLED_FUNCTIONS: dict[Callable[..., Any], Callable[..., Any]] = {}
 
@@ -65,13 +66,15 @@ def _in1d(
     *,
     kind: Literal["sort", "table"] | None = None,
 ) -> Any:
-    ar1 = tp.as_timepointarray(ar1)
-    ar2 = tp.as_timepointarray(ar2)
+    tp_arr_1 = tp.as_timepointarray(ar1)
+    tp_arr_2 = tp.as_timepointarray(ar2)
 
-    if ar1.unit != ar2.unit:
-        return np.zeros(shape=ar1.shape, dtype=bool)
+    if tp_arr_1.unit != tp_arr_2.unit:
+        return np.zeros(shape=tp_arr_1.shape, dtype=bool)
 
-    return np.in1d(np.array(ar1), np.array(ar2), assume_unique=assume_unique, invert=invert, kind=kind)
+    return np.in1d(
+        np.array(tp_arr_1), np.array(tp_arr_2), assume_unique=assume_unique, invert=invert, kind=kind
+    )  # type: ignore[call-arg]
 
 
 @implements(np.isin)
@@ -83,15 +86,19 @@ def _isin(
     *,
     kind: Literal["sort", "table"] | None = None,
 ) -> Any:
-    element = tp.as_timepointarray(element)
-    test_elements = tp.as_timepointarray(test_elements)
+    tp_arr_element = tp.as_timepointarray(element)
+    tp_arr_test_elements = tp.as_timepointarray(test_elements)
 
-    if element.unit != test_elements.unit:
-        return np.zeros(shape=element.shape, dtype=bool)
+    if tp_arr_element.unit != tp_arr_test_elements.unit:
+        return np.zeros(shape=tp_arr_element.shape, dtype=bool)
 
-    return np.isin(np.array(element), np.array(test_elements), assume_unique=assume_unique, invert=invert, kind=kind)
+    return np.isin(
+        np.array(tp_arr_element), np.array(tp_arr_test_elements), assume_unique=assume_unique, invert=invert, kind=kind
+    )  # type: ignore[call-arg]
 
 
 @implements(np.repeat)
-def repeat(a: tp.TimePointArray, repeats: int | npt.NDArray[np.int_], axis: int | None = None) -> tp.TimePointArray:
+def repeat(
+    a: tp.TimePointArray, repeats: int | npt.NDArray[np.int_], axis: int | None = None
+) -> tp.TimePointArray | NDArrayView[tp.TimePoint]:
     return tp.as_timepointarray(np.repeat(np.array(a), repeats, axis=axis), unit=a.unit)

@@ -44,7 +44,11 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
 
     # import and cast obs to a TemporalDataFrame
     obs = TemporalDataFrame(
-        adata.obs, time_list=data.time_list, time_col_name=data.time_col_name, name="obs", lock=(True, False)
+        adata.obs,
+        timepoints=data.timepoints_list,
+        time_col_name=data.time_col_name,
+        name="obs",
+        lock=(True, False),
     )
     reordering_index = obs.index
 
@@ -59,7 +63,7 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
                     pd.DataFrame(arr, index=adata.obs.index, columns=adata.var.index).reindex(
                         np.array(reordering_index)
                     ),
-                    time_list=obs.timepoints_column,
+                    timepoints=obs.timepoints_column,
                     name=key,
                 ),
             )
@@ -73,7 +77,7 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
                     pd.DataFrame(adata.X, index=adata.obs.index, columns=adata.var.index).reindex(
                         np.array(reordering_index)
                     ),
-                    time_list=obs.timepoints_column,
+                    timepoints=obs.timepoints_column,
                     name="adata",
                 )
             },
@@ -84,7 +88,7 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
                         pd.DataFrame(arr, index=adata.obs.index, columns=adata.var.index).reindex(
                             np.array(reordering_index)
                         ),
-                        time_list=obs.timepoints_column,
+                        timepoints=obs.timepoints_column,
                         name=key,
                     ),
                 )
@@ -95,7 +99,7 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
     # import other arrays
     obsm: dict[str, TemporalDataFrame | TemporalDataFrameView] = {
         TDF_name: TemporalDataFrame(
-            pd.DataFrame(_no_dense_data(TDF_data)), time_list=obs.timepoints_column, index=obs.index, name=TDF_name
+            pd.DataFrame(_no_dense_data(TDF_data)), timepoints=obs.timepoints_column, index=obs.index, name=TDF_name
         )
         for TDF_name, TDF_data in adata.obsm.items()
     }

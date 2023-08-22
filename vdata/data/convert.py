@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any, Collection
+from typing import Any, Collection, Iterable
 
 import ch5mpy as ch
 import numpy as np
@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 import vdata
 import vdata.timepoint as tp
 from vdata._typing import IFS
+from vdata.array_view import NDArrayView
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrame
 from vdata.utils import repr_array
@@ -49,7 +50,7 @@ def convert_vdata_to_anndata(
     )
 
     if timepoints_list is None:
-        _timepoints_list = data.timepoints_values
+        _timepoints_list: tp.TimePointArray | NDArrayView[tp.TimePoint] = data.timepoints_values
 
     else:
         _timepoints_list = tp.as_timepointarray(timepoints_list)
@@ -68,9 +69,9 @@ def convert_vdata_to_anndata(
 def _convert_vdata_into_one_anndata(
     data: vdata.VData,
     with_timepoints_column: bool,
-    timepoints_list: tp.TimePointArray,
+    timepoints_list: tp.TimePointArray | NDArrayView[tp.TimePoint],
     layer_as_X: str | None,
-    layers_to_export: list[str] | None,
+    layers_to_export: Iterable[str] | None,
 ) -> AnnData:
     generalLogger.debug("Convert to one AnnData object.")
 
@@ -109,7 +110,9 @@ def _convert_vdata_into_one_anndata(
 
 
 def _convert_vdata_into_many_anndatas(
-    data: vdata.VData, timepoints_list: tp.TimePointArray, layer_as_X: str | None
+    data: vdata.VData,
+    timepoints_list: tp.TimePointArray | NDArrayView[tp.TimePoint],
+    layer_as_X: str | None,
 ) -> list[AnnData]:
     generalLogger.debug("Convert to many AnnData objects.")
 
@@ -203,14 +206,14 @@ def convert_anndata_to_vdata(
         if timepoints_column_name not in data["obs"]:
             raise ValueError(f"Could not find column '{timepoints_column_name}' in obs columns.")
 
-        timelist = tp.as_timepointarray(data["obs"][timepoints_column_name])
+        timepoints_list = tp.as_timepointarray(data["obs"][timepoints_column_name])
 
     else:
-        timelist = tp.TimePointArray(
+        timepoints_list = tp.TimePointArray(
             np.ones(data["obs"][next(iter(data["obs"]))].shape[0]) * timepoint.value, unit=timepoint.unit
         )
 
-    ch.write_object(data, "timepoints", H5DataFrame({"value": np.unique(timelist, equal_nan=False)}))
+    ch.write_object(data, "timepoints", H5DataFrame({"value": np.unique(timepoints_list, equal_nan=False)}))
     progressBar.update()
 
     # obs ---------------------------------------------------------------------
@@ -222,7 +225,9 @@ def convert_anndata_to_vdata(
     del data["obs"]
 
     ch.write_object(
-        data, "obs", TemporalDataFrame(obs_data, index=_obs_index, time_list=timelist, lock=(True, False), name="obs")
+        data,
+        "obs",
+        TemporalDataFrame(obs_data, index=_obs_index, timepoints=timepoints_list, lock=(True, False), name="obs"),
     )
 
     progressBar.update()
@@ -248,7 +253,12 @@ def convert_anndata_to_vdata(
             data["layers"],
             layer_name,
             TemporalDataFrame(
-                layer_data, index=_obs_index, columns=_var_index, time_list=timelist, lock=(True, True), name=layer_name
+                layer_data,
+                index=_obs_index,
+                columns=_var_index,
+                timepoints=timepoints_list,
+                lock=(True, True),
+                name=layer_name,
             ),
         )
 
@@ -262,7 +272,9 @@ def convert_anndata_to_vdata(
         ch.write_object(
             data["obsm"],
             array_name,
-            TemporalDataFrame(array_data, index=_obs_index, time_list=timelist, lock=(True, False), name=array_name),
+            TemporalDataFrame(
+                array_data, index=_obs_index, timepoints=timepoints_list, lock=(True, False), name=array_name
+            ),
         )
 
         progressBar.update()

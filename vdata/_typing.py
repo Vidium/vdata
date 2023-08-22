@@ -1,5 +1,5 @@
 from types import EllipsisType
-from typing import Collection, TypedDict, TypeVar, Union
+from typing import Collection, SupportsIndex, TypedDict, TypeVar, Union
 
 import ch5mpy as ch
 import numpy as np
@@ -35,7 +35,7 @@ AnyDictLike = Union[dict[str, _T], ch.H5Dict[_T], TimeDict]
 
 Slicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, tp.TimePoint]], range, slice, EllipsisType]
 PreSlicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, bool, tp.TimePoint]], range, slice, EllipsisType]
-Indexer = Union[int, slice, npt.NDArray[np.int_]]
+Indexer = Union[SupportsIndex, slice, npt.NDArray[np.int_], npt.NDArray[np.bool_] | None]
 
 
 class AttrDict(TypedDict):
