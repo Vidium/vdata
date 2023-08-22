@@ -36,8 +36,11 @@ class Index:
     def __hash__(self) -> int:
         return hash(self.values.data.tobytes()) + int(self.is_repeating)
 
-    def __array__(self) -> npt.NDArray[Any]:
-        return self.values
+    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[Any]:
+        if dtype is None:
+            return self.values
+
+        return self.values.astype(dtype)
 
     # endregion
 

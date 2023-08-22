@@ -158,6 +158,9 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
         del keepdims
         return TimePoint(np.mean(np.array(self), where=where), unit=self._unit)
 
+    def to_list(self) -> list[TimePoint]:
+        return [tp for tp in self]
+
     # endregion
 
 
