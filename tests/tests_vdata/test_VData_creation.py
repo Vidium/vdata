@@ -737,8 +737,9 @@ def test_VData_creation_full() -> None:
         "C_8     1    1    1    1     0     0\n"
         "C_9     1    1    1    1     0     0\n"
         "C_10    0    0    0    0     2     2\n"
-        "C_11    0    0    0    0     2     2"
-    ), repr(v.obsp["pair"])
+        "[RAM]\n"
+        "[6 rows x 6 columns]"
+    )
 
 
 # def test_VData_creation_from_dict() -> None:

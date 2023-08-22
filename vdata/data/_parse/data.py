@@ -12,6 +12,7 @@ from scipy.sparse import spmatrix
 
 import vdata.timepoint as tp
 from vdata._typing import NDArray_IFS
+from vdata.array_view import NDArrayView
 from vdata.data._parse.objects import get_obs_index, get_var_index
 from vdata.data._parse.time import parse_timepoints, parse_timepoints_list
 from vdata.IO.errors import IncoherenceError
@@ -21,13 +22,15 @@ from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFram
 from vdata.utils import first_in
 
 
-def _at_least_empty_dict(d: Mapping[Any, Any] | None) -> Mapping[Any, Any]:
+def at_least_empty_dict(d: Mapping[Any, Any] | None) -> Mapping[Any, Any]:
     return {} if d is None else d
 
 
 def _get_time_list(
-    time_list: tp.TimePointArray | None, data: Any, time_col_name: str | None
-) -> tp.TimePointArray | None:
+    time_list: tp.TimePointArray | NDArrayView[tp.TimePoint] | None,
+    data: Any,
+    time_col_name: str | None,
+) -> tp.TimePointArray | NDArrayView[tp.TimePoint] | None:
     if time_list is not None:
         return time_list
 
@@ -53,7 +56,7 @@ def _valid_obs(
     | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
     | None,
     obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None,
-    time_list: tp.TimePointArray | None,
+    time_list: tp.TimePointArray | NDArrayView[tp.TimePoint] | None,
     time_col_name: str | None,
 ) -> TemporalDataFrameBase:
     if obs is None:
@@ -129,16 +132,16 @@ class ParsingDataIn:
     varp: Mapping[str, pd.DataFrame | H5DataFrame | NDArray_IFS]
     timepoints: pd.DataFrame | H5DataFrame
     time_col_name: str | None
-    timepoints_list: tp.TimePointArray | None
-    uns: dict[str, Any] | ch.H5Dict[Any]
+    timepoints_list: tp.TimePointArray | NDArrayView[tp.TimePoint] | None
+    uns: Mapping[str, Any]
     layers: dict[str, TemporalDataFrame | TemporalDataFrameView] = field(init=False)
 
     def __post_init__(self) -> None:
-        self.obsm = _at_least_empty_dict(self.obsm)
-        self.obsp = _at_least_empty_dict(self.obsp)
-        self.varm = _at_least_empty_dict(self.varm)
-        self.varp = _at_least_empty_dict(self.varp)
-        self.uns = _at_least_empty_dict(self.uns)
+        self.obsm = at_least_empty_dict(self.obsm)
+        self.obsp = at_least_empty_dict(self.obsp)
+        self.varm = at_least_empty_dict(self.varm)
+        self.varp = at_least_empty_dict(self.varp)
+        self.uns = at_least_empty_dict(self.uns)
 
         self.layers = {}
 
@@ -165,15 +168,15 @@ class ParsingDataIn:
         return ParsingDataIn(
             data,
             _valid_obs(data, obs, _timepoints_list, time_col_name),
-            obsm,
-            obsp,
+            at_least_empty_dict(obsm),
+            at_least_empty_dict(obsp),
             _valid_var(data, var, time_col_name),
-            varm,
-            varp,
+            at_least_empty_dict(varm),
+            at_least_empty_dict(varp),
             parse_timepoints(timepoints),
             time_col_name,
             _timepoints_list,
-            uns,
+            at_least_empty_dict(uns),
         )
 
     @classmethod

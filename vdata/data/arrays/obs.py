@@ -258,9 +258,9 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
         Args:
             values: collection of new index values.
         """
-        for vdf in self.values():
-            vdf.index = pd.Index(values)
-            vdf.columns = pd.Index(values)
+        for h5df in self.values():
+            h5df.index = pd.Index(values)  # type: ignore[arg-type]
+            h5df.columns = pd.Index(values)  # type: ignore[arg-type]
 
     # endregion
 
@@ -278,7 +278,10 @@ class VObspArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]
             obs_slicer: the list of observations to view.
         """
         super().__init__(
-            data={key: cast(H5DataFrame, vdf.loc[obs_slicer, obs_slicer]) for key, vdf in array_container.items()},
+            data={
+                key: cast(H5DataFrame, h5df.loc[obs_slicer, obs_slicer])  # type: ignore[index]
+                for key, h5df in array_container.items()
+            },
             array_container=array_container,
             hash=VDataHash(array_container._vdata, obs=True),
         )
@@ -333,8 +336,8 @@ class VObspArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]
         Args:
             values: collection of new index values.
         """
-        for vdf in self.values():
-            vdf.index = pd.Index(values)
-            vdf.columns = pd.Index(values)
+        for h5df in self.values():
+            h5df.index = pd.Index(values)
+            h5df.columns = pd.Index(values)
 
     # endregion

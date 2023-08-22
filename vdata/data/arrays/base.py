@@ -11,11 +11,12 @@ from h5dataframe import H5DataFrame
 
 import vdata
 from vdata._typing import IFS, AnyDictLike, DictLike
+from vdata.data.arrays.lazy import LazyLoc
 from vdata.IO import VClosedFileError, generalLogger
 from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first_in
 
-D = TypeVar("D", Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, H5DataFrame)
+D = TypeVar("D", Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, H5DataFrame, LazyLoc)
 D_copy = TypeVar("D_copy", TemporalDataFrame, pd.DataFrame)
 
 

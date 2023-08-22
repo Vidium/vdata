@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Collection
+from typing import Collection, cast
 
 import ch5mpy as ch
 import pandas as pd
@@ -9,6 +8,7 @@ from h5dataframe import H5DataFrame
 
 from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer
+from vdata.data.arrays.lazy import LazyLoc
 from vdata.data.arrays.view import VBaseArrayContainerView
 from vdata.data.hash import VDataHash
 from vdata.IO import (
@@ -100,34 +100,6 @@ class VVarmArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     # endregion
 
 
-@dataclass
-class LazyLoc:
-    h5df: H5DataFrame
-    loc: NDArray_IFS | tuple[NDArray_IFS, NDArray_IFS]
-
-    # region attributes
-    @property
-    def shape(self) -> tuple[int, int]:
-        if not isinstance(self.loc, tuple):
-            return len(self.loc), self.h5df.shape[1]
-
-        if len(self.loc) == 1:
-            return len(self.loc[0]), self.h5df.shape[1]
-
-        return len(self.loc[0]), len(self.loc[1])
-
-    # endregion
-
-    # region methods
-    def get(self) -> pd.DataFrame:
-        return self.h5df.loc[self.loc]
-
-    def copy(self) -> pd.DataFrame:
-        return pd.DataFrame(self.get())
-
-    # endregion
-
-
 class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.DataFrame]):
 
     # region magic methods
@@ -147,9 +119,9 @@ class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.
         if isinstance(item, LazyLoc):
             self.data[key] = item.get()
 
-        return self.data[key]
+        return cast(H5DataFrame, self.data[key])
 
-    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:
+    def __setitem__(self, key: str, value: H5DataFrame | pd.DataFrame) -> None:  # type: ignore[override]
         """
         Set a specific data item in this view. The given data item must have the correct shape.
 
@@ -191,7 +163,12 @@ class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.
         Args:
             values: collection of new index values.
         """
-        for arr in self.values():
+        for key, arr in self.items():
+            if isinstance(arr, LazyLoc):
+                arr = arr.get()
+                arr.index = pd.Index(values)
+                self.data[key] = arr
+
             arr.index = pd.Index(values)
 
     # endregion
@@ -281,7 +258,7 @@ class VVarpArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     # endregion
 
 
-class VVarpArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]):
+class VVarpArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.DataFrame]):
 
     # region magic methods
     def __init__(self, array_container: VVarpArrayContainer, var_slicer: NDArray_IFS):

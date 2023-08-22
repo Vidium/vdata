@@ -72,6 +72,7 @@ module = [
     'anndata',
     'scipy.sparse',
     'numpy_indexed',
-    'scipy'
+    'scipy',
+    'importlib_metadata'
 ]
 ignore_missing_imports = true

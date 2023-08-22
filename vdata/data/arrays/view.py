@@ -22,15 +22,20 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
     """
 
     # region magic methods
-    def __init__(self, data: dict[str, D], array_container: VBaseArrayContainer[D, D_copy], hash: VDataHash):
+    def __init__(
+        self,
+        data: dict[str, D],
+        array_container: VBaseArrayContainer[D, D_copy],
+        hash: VDataHash,
+    ):
         """
         Args:
             array_container: a VBaseArrayContainer object to build a view on.
         """
         generalLogger.debug(lambda: f"== Creating {type(self).__name__}. ================================")
 
-        self._data: dict[str, D] = data
-        self._array_container: VBaseArrayContainer[D, D_copy] = array_container
+        self._data = data
+        self._array_container = array_container
         self._hash = hash
 
     def __repr__(self) -> str:

@@ -116,5 +116,6 @@ def parse_AnnData(adata: AnnData, data: ParsingDataIn) -> ParsingDataOut:
         for VDF_name, VDF_data in adata.varp.items()
     }
     uns = deep_dict_convert(adata.uns)
+    timepoints = data.timepoints if isinstance(data.timepoints, H5DataFrame) else H5DataFrame(data.timepoints)
 
-    return ParsingDataOut(layers, obs, obsm, obsp, var, varm, varp, data.timepoints, uns)
+    return ParsingDataOut(layers, obs, obsm, obsp, var, varm, varp, timepoints, uns)

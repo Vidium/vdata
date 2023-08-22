@@ -101,7 +101,7 @@ def parse_obsm(data: ParsingDataIn) -> dict[str, TemporalDataFrame | TemporalDat
     return valid_obsm
 
 
-def parse_obsp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
+def parse_obsp(data: ParsingDataIn) -> dict[str, H5DataFrame]:
     if not len(data.obsp):
         generalLogger.debug("    4. \u2717 'obsp' was not given.")
         return {}
@@ -114,7 +114,7 @@ def parse_obsp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
     if not isinstance(data.obsp, dict):
         raise TypeError("'obsp' must be a dictionary of 2D numpy arrays or pandas DataFrames.")
 
-    valid_obsp: dict[str, pd.DataFrame] = {}
+    valid_obsp: dict[str, H5DataFrame] = {}
 
     for key, value in data.obsp.items():
         if not isinstance(value, (np.ndarray, pd.DataFrame, H5DataFrame)) or value.ndim != 2:
@@ -128,10 +128,10 @@ def parse_obsp(data: ParsingDataIn) -> dict[str, pd.DataFrame]:
                 raise ValueError("Column names of 'obsp' do not match 'obs' and 'layers' indexes.")
 
             value.reindex(np.array(data.obs.index))
-            value = pd.DataFrame(value[np.array(data.obs.index)])
+            value = H5DataFrame(value[np.array(data.obs.index)])
 
         else:
-            value = pd.DataFrame(value, index=np.array(data.obs.index), columns=np.array(data.obs.index))
+            value = H5DataFrame(value, index=np.array(data.obs.index), columns=np.array(data.obs.index))
 
         valid_obsp[str(key)] = value
 

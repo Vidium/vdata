@@ -100,9 +100,9 @@ class VDataView:
         # recompute time points and obs slicers since there could be empty subsets
         _tp_slicer = tp.as_timepointarray(parent.timepoints.value) if timepoints_slicer is None else timepoints_slicer
         self._timepoints_slicer = tp.atleast_1d(_tp_slicer[np.in1d(_tp_slicer, self._obs.timepoints)])
-        self._timepoints: H5DataFrame = self._parent.timepoints[
-            np.in1d(self._parent.timepoints.value, self._timepoints_slicer)
-        ]
+        self._timepoints = cast(
+            H5DataFrame, self._parent.timepoints[np.in1d(self._parent.timepoints.value, self._timepoints_slicer)]
+        )
 
         generalLogger.debug(
             f"  1'. Recomputed time points slicer to : {repr_array(self._timepoints_slicer)} "
@@ -358,7 +358,7 @@ class VDataView:
         elif df.shape[0] != self.n_obs:
             raise ShapeError(f"'obs' has {df.shape[0]} lines, it should have {self.n_obs}.")
 
-        df.index = self._parent.obs[self._obs_slicer_flat].index
+        df.index = cast(TemporalDataFrameView, self._parent.obs[self._obs_slicer_flat]).index
         self._parent.obs[self._obs_slicer_flat] = df
 
     @property
