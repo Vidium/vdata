@@ -76,3 +76,17 @@ def test_VData_set_index_repeating(VData: vdata.VData) -> None:
 
     assert np.array_equal(VData.obs.index, new_index)
     assert np.array_equal(VData.layers["data"].index, new_index)
+
+
+def test_VData_set_new_obsm_is_written_to_file(backed_VData: vdata.VData) -> None:
+    cells = list(map(lambda x: "c_" + str(x), range(300)))
+
+    backed_VData.obsm["pca"] = vdata.TemporalDataFrame(
+        np.ones((300, 2)),
+        index=cells,
+        columns=["X1", "X2"],
+        timepoints=["0h" for _ in range(100)] + ["1h" for _ in range(100)] + ["2h" for _ in range(100)],
+    )
+
+    assert "pca" in backed_VData.obsm.keys()
+    assert "pca" in backed_VData.data.obsm.keys()

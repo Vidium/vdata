@@ -44,7 +44,7 @@ class VObsmArrayContainer(VTDFArrayContainer):
         """
         if not len(data):
             generalLogger.debug("  No data was given.")
-            return dict()
+            return data if isinstance(data, ch.H5Dict) else {}
 
         generalLogger.debug("  Data was found.")
 
