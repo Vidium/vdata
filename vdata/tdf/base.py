@@ -24,14 +24,13 @@ from vdata._typing import (
     NDArray_IFS,
     Slicer,
 )
-from vdata.array_view import NDArrayView
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.tdf._parse import parse_data_h5
 from vdata.tdf.index import Index
 from vdata.tdf.indexers import VAtIndexer, ViAtIndexer, ViLocIndexer, VLocIndexer
 from vdata.tdf.indexing import as_slicer, parse_slicer, parse_values
-from vdata.utils import are_equal, first_in, repr_array
+from vdata.utils import are_equal, repr_array
 
 if TYPE_CHECKING:
     from vdata.tdf.dataframe import TemporalDataFrame
@@ -57,7 +56,7 @@ class TemporalDataFrameBase(ABC):
     _attributes = {
         "_attr_dict",
         "_index",
-        "_timepoints_array",
+        "_timepoints_index",
         "_columns_numerical",
         "_columns_string",
         "_numerical_array",
@@ -70,7 +69,7 @@ class TemporalDataFrameBase(ABC):
     def __init__(
         self,
         index: AnyNDArrayLike_IFS,
-        timepoints_array: tp.TimePointArray | NDArrayView[tp.TimePoint],
+        timepoints_index: tp.TimePointIndex,
         numerical_array: AnyNDArrayLike_IF,
         string_array: AnyNDArrayLike[np.str_],
         columns_numerical: AnyNDArrayLike_IFS,
@@ -80,14 +79,12 @@ class TemporalDataFrameBase(ABC):
     ):
         self._attr_dict = attr_dict
         self._index = index
-        self._timepoints_array = timepoints_array
+        self._timepoints_index = timepoints_index
         self._columns_numerical = columns_numerical
         self._columns_string = columns_string
-        self._numerical_array = numerical_array
-        self._string_array = string_array
+        self._numerical_array = numerical_array  # TODO: rename to _array_numerical
+        self._string_array = string_array  # TODO: rename to _array_string
         self._data = data
-
-        self._timepoint_masks: dict[tp.TimePoint, npt.NDArray[np.bool_]] = dict()
 
     def __repr__(self) -> str:
         return f"{self.full_name}\n" f"{self.head()}"
@@ -542,14 +539,13 @@ class TemporalDataFrameBase(ABC):
 
         values.attributes.set(**self._attr_dict)
 
-        ch.write_datasets(values, columns_numerical=self._columns_numerical)
+        ch.write_objects(values, timepoints_index=self._timepoints_index)
 
         ch.write_datasets(
             values,
             index=self._index,
             columns_numerical=self._columns_numerical,
             columns_string=self._columns_string,
-            timepoints_array=self._timepoints_array,
         )
 
         ch.write_datasets(values, numerical_array=self.values_num, string_array=self.values_str, chunks=True)
@@ -593,7 +589,7 @@ class TemporalDataFrameBase(ABC):
         """
         return (
             self.n_timepoints,
-            [self.n_index_at(tp) for tp in self.timepoints],
+            [self.n_index_at(tp) for tp in self._timepoints_index],
             self.n_columns_num + self.n_columns_str,
         )
 
@@ -602,33 +598,32 @@ class TemporalDataFrameBase(ABC):
         """
         Get the list of unique time points in this TemporalDataFrame.
         """
-        unique_timepoints_idx = np.unique(self._timepoints_array, equal_nan=False, return_index=True)[1].astype(int)
-        return tp.atleast_1d(self._timepoints_array[sorted(unique_timepoints_idx)])
+        return self._timepoints_index.timepoints
 
     @property
     def timepoints_column(self) -> tp.TimePointArray:
         """
         Get the column of time-point values.
         """
-        return self._timepoints_array
+        return self._timepoints_index.as_array()
 
     @property
     def n_timepoints(self) -> int:
-        return len(self.timepoints)
+        return len(self._timepoints_index)
 
     @property
     def timepoints_column_str(self) -> npt.NDArray[np.str_]:
         """
         Get the column of time-point values cast as strings.
         """
-        return self._timepoints_array.astype(str)
+        return self.timepoints_column.astype(str)
 
     @property
     def timepoints_column_numerical(self) -> npt.NDArray[np.float_]:
         """
         Get the column of time-point values cast as floats.
         """
-        return tp.TimePointArray(self._timepoints_array).astype(np.float64)
+        return self.timepoints_column.astype(np.float64)
 
     @property
     def timepoints_column_name(self) -> str | None:
@@ -774,7 +769,7 @@ class TemporalDataFrameBase(ABC):
 
     @property
     def tp0(self) -> tp.TimePoint:
-        return self.timepoints[0]
+        return self._timepoints_index[0]
 
     @property
     def at(self) -> VAtIndexer:
@@ -839,9 +834,11 @@ class TemporalDataFrameBase(ABC):
         """
         return self._attr_dict["locked_columns"]
 
+    @property
     def _empty_numerical(self) -> bool:
         return self._numerical_array.size == 0
 
+    @property
     def _empty_string(self) -> bool:
         return self._string_array.size == 0
 
@@ -850,7 +847,7 @@ class TemporalDataFrameBase(ABC):
         """
         Whether this TemporalDataFrame is empty (no numerical data and no string data).
         """
-        return self._empty_numerical() and self._empty_string()
+        return self._empty_numerical and self._empty_string
 
     @property
     @abstractmethod
@@ -917,26 +914,29 @@ class TemporalDataFrameBase(ABC):
     def _repr_single_array(
         self, tp: tp.TimePoint, n: int, array: AnyNDArrayLike_IFS, columns_: AnyNDArrayLike_IFS
     ) -> tuple[pd.DataFrame, tuple[int, int]]:
-        tp_mask = self.get_timepoint_mask(tp)
-        first_n_elements = np.where(tp_mask)[0][:n]
+        row_indices = self._timepoints_index.where(tp)
 
-        n_rows = int(np.sum(tp_mask))
-        n_cols = min(10, array.shape[1])
-        cols = np.roll(np.arange(0, n_cols) - n_cols // 2, -(n_cols // 2))
+        n_rows = len(row_indices)
+        n_rows_df = min(n, n_rows)
 
-        tp_df_ = pd.DataFrame(
+        n_cols = int(array.shape[1])
+        n_cols_df = min(10, n_cols)
+
+        col_indices = np.roll(np.arange(0, n_cols_df) - n_cols_df // 2, -(n_cols_df // 2))
+
+        tp_df = pd.DataFrame(
             np.hstack(
                 (
-                    np.repeat(tp, min(n, n_rows)).reshape(-1, 1),  # type: ignore[call-overload]
-                    np.repeat(VERTICAL_SEPARATOR, min(n, n_rows)).reshape(-1, 1),  # type: ignore[call-overload]
-                    np.array(array[np.ix_(np.argwhere(self.get_timepoint_mask(tp)).flatten()[:n], cols)]),
+                    np.repeat(tp, n_rows_df).reshape(-1, 1),  # type: ignore[call-overload]
+                    np.repeat(VERTICAL_SEPARATOR, n_rows_df).reshape(-1, 1),  # type: ignore[call-overload]
+                    np.array(array[np.ix_(row_indices[:n_rows_df], col_indices)]),
                 ),
             ),
-            index=self._index[first_n_elements],
-            columns=np.hstack((self.get_timepoints_column_name(), "", columns_[cols])),
+            index=self._index[row_indices[:n_rows_df]],
+            columns=np.hstack((self.get_timepoints_column_name(), "", columns_[col_indices])),
         )
 
-        return tp_df_, (n_rows, int(array.shape[1]))
+        return tp_df, (n_rows, n_cols)
 
     def _head_tail(self, n: int) -> str:
         """
@@ -948,7 +948,7 @@ class TemporalDataFrameBase(ABC):
         Returns:
             A short string representation of the first/last n rows in this TemporalDataFrame.
         """
-        if not len(self.timepoints):
+        if not len(self._timepoints_index):
             return (
                 f"Time points: []\n"
                 f"Columns: {[col for col in self.columns]}\n"
@@ -961,10 +961,10 @@ class TemporalDataFrameBase(ABC):
             # display the first n rows of the first 5 timepoints in this TemporalDataFrame
             repr_string += underlined(f"Time point : {repr(timepoint)}") + "\n"
 
-            if not self._empty_numerical() and not self._empty_string():
-                tp_mask = self.get_timepoint_mask(timepoint)
-                first_n_elements = np.where(tp_mask)[0][:n]
-                one_column_shape = (min(n, int(np.sum(tp_mask))), 1)
+            if not self._empty_numerical and not self._empty_string:
+                first_n_elements = self._timepoints_index.where(timepoint=timepoint, n_max=n)
+                nb_elements_for_tp = self._timepoints_index.len(timepoint=timepoint)
+                one_column_shape = (min(n, nb_elements_for_tp), 1)
 
                 tp_df = pd.DataFrame(
                     np.hstack(
@@ -982,20 +982,20 @@ class TemporalDataFrameBase(ABC):
                     ),
                 )
                 tp_shape: tuple[int, ...] = (
-                    np.sum(tp_mask),
+                    nb_elements_for_tp,
                     len(self._columns_numerical) + len(self._columns_string),
                 )
 
-            elif not self._empty_numerical():
+            elif not self._empty_numerical:
                 tp_df, tp_shape = self._repr_single_array(timepoint, n, self._numerical_array, self._columns_numerical)
 
-            elif not self._empty_string():
+            elif not self._empty_string:
                 tp_df, tp_shape = self._repr_single_array(timepoint, n, self._string_array, self._columns_string)
 
             else:
-                tp_mask = self.get_timepoint_mask(timepoint)
-                first_n_elements = np.where(tp_mask)[0][:n]
-                one_column_shape = (min(n, np.sum(tp_mask)), 1)
+                first_n_elements = self._timepoints_index.where(timepoint=timepoint, n_max=n)
+                nb_elements_for_tp = self._timepoints_index.len(timepoint=timepoint)
+                one_column_shape = (min(n, nb_elements_for_tp), 1)
 
                 tp_df = pd.DataFrame(
                     np.hstack((np.tile(timepoint, one_column_shape), np.tile(VERTICAL_SEPARATOR, one_column_shape))),
@@ -1045,39 +1045,6 @@ class TemporalDataFrameBase(ABC):
         # TODO : negative n not handled
         return self._head_tail(-n)
 
-    def _fast_compare(self, comparison_tp: tp.TimePoint) -> npt.NDArray[np.bool_]:
-        if not len(self._timepoint_masks):
-            return self._timepoints_array == comparison_tp  # type: ignore[no-any-return]
-
-        tp_mask = np.zeros(len(self._timepoints_array), dtype=bool)
-
-        if len(self._timepoint_masks) == 1:
-            not_already_computed = ~first_in(self._timepoint_masks)
-
-        else:
-            not_already_computed = np.logical_and.reduce([~mask for mask in self._timepoint_masks.values()])
-
-        tp_mask[not_already_computed] = self._timepoints_array[not_already_computed] == comparison_tp
-        return tp_mask
-
-    def get_timepoint_mask(self, timepoint: tp.TimePoint | str) -> npt.NDArray[np.bool_]:
-        """
-        Get a boolean mask indicating where in this TemporalDataFrame's the rows' time-point are equal to <timepoint>.
-
-        Args:
-            timepoint: A time-point (str or tp.TimePoint object) to get a mask for.
-
-        Returns:
-            A boolean mask for rows matching the time-point.
-        """
-        timepoint = tp.TimePoint(timepoint)
-
-        # cache masks for performance, cache is reinitialized when _timepoints_array changes
-        if timepoint not in self._timepoint_masks.keys():
-            self._timepoint_masks[timepoint] = self._fast_compare(timepoint)
-
-        return self._timepoint_masks[timepoint]
-
     def index_at(self, timepoint: str | tp.TimePoint) -> NDArray_IFS:
         """
         Get the index of rows existing at the given time-point.
@@ -1109,7 +1076,7 @@ class TemporalDataFrameBase(ABC):
                 raise ValueError(f"Can't take '{func}' along axis 0 if indices are not the same at all time-points.")
 
             return pd.DataFrame(
-                np_func([self._numerical_array[self.get_timepoint_mask(tp)] for tp in self.timepoints], axis=0),
+                np_func([self._numerical_array[self.get_timepoint_mask(tp)] for tp in self._timepoints_index], axis=0),
                 index=self.index_at(self.tp0),
                 columns=np.array(self._columns_numerical),
             )
@@ -1119,12 +1086,12 @@ class TemporalDataFrameBase(ABC):
                 data=pd.DataFrame(
                     [
                         np_func(self._numerical_array[self.get_timepoint_mask(timepoint)], axis=0)
-                        for timepoint in self.timepoints
+                        for timepoint in self._timepoints_index
                     ],
                     index=np.repeat(func, self.n_timepoints),
                     columns=np.array(self._columns_numerical),
                 ),
-                timepoints=self.timepoints,
+                timepoints=self._timepoints_index,
                 time_col_name=self.timepoints_column_name,
             )
 
@@ -1262,7 +1229,7 @@ class TemporalDataFrameBase(ABC):
         if not self.is_backed:
             self._attr_dict = parse_data_h5(file, self.lock, self.name)
             self._index = cast(AnyNDArrayLike_IFS, file["index"])
-            self._timepoints_array = cast(tp.TimePointArray, file["timepoints_array"].maptype(tp.TimePoint))
+            self._timepoints_index = cast(tp.TimePointIndex, file["timepoints_array"])
             self._numerical_array = cast(AnyNDArrayLike_IF, file["numerical_array"])
             self._string_array = cast(AnyNDArrayLike[np.str_], file["string_array"])
             self._columns_numerical = cast(AnyNDArrayLike_IFS, file["columns_numerical"])

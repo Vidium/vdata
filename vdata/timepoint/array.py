@@ -28,7 +28,6 @@ def _add_unit(match: re.Match[Any], unit: _TIME_UNIT) -> str:
 
 
 class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
-
     # region magic methods
     def __new__(
         cls, arr: Collection[int | float | np.int_ | np.float_], /, *, unit: _TIME_UNIT | None = None
@@ -36,7 +35,7 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
         if isinstance(arr, TimePointArray):
             unit = arr.unit
 
-        np_arr = np.asarray(arr, dtype=np.float64).view(cls)
+        np_arr: TimePointArray = np.asarray(arr, dtype=np.float64).view(cls)
         np_arr._unit = unit or "h"
         return np_arr
 
@@ -106,6 +105,7 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
         return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
     def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
+        # values.attributes ?
         ch.attributes["unit"] = self._unit
         ch.write_dataset(values, "array", np.array(self))
 

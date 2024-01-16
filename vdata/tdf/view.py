@@ -52,9 +52,7 @@ class TemporalDataFrameView(TemporalDataFrameBase):
 
         super().__init__(
             index=_as_view(parent, "_index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
-            timepoints_array=_as_view(
-                parent, "timepoints_column", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True), {"unit"}
-            ),
+            timepoints_index=parent.timepoints[numerical_selection[0]],
             numerical_array=_as_view(parent, "values_num", numerical_selection.get_indexers()),
             string_array=_as_view(parent, "values_str", string_selection.get_indexers()),
             columns_numerical=_as_view(

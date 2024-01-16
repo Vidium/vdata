@@ -8,7 +8,7 @@ from ch5mpy import File, H5Mode
 from h5py import string_dtype
 
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
-from vdata.timepoint import TimePointArray
+from vdata.timepoint import TimePointArray, TimePointIndex
 
 REFERENCE_BACKED_DATA = {
     "type": "tdf",
@@ -19,7 +19,7 @@ REFERENCE_BACKED_DATA = {
     "repeating_index": False,
     "columns_numerical": np.array(["col1", "col2"], dtype=np.dtype("O")),
     "columns_string": np.array(["col3", "col4"], dtype=np.dtype("O")),
-    "timepoints": np.array([0 for _ in range(50)] + [1 for _ in range(50)], dtype=float),
+    "timepoints_index": {"timepoints": np.array([0.0, 1.0]), "ranges": np.array([50, 100])},
     "values_numerical": np.vstack(
         (
             np.concatenate((np.arange(50, 100), np.arange(0, 50))),
@@ -40,10 +40,10 @@ REFERENCE_BACKED_DATA = {
 def get_TDF(name: str = "1") -> TemporalDataFrame:
     return TemporalDataFrame(
         {
-            "col1": [i for i in range(100)],
-            "col2": [i for i in range(100, 200)],
-            "col3": [str(i) for i in range(200, 300)],
-            "col4": [str(i) for i in range(300, 400)],
+            "col1": np.array([i for i in range(100)]),
+            "col2": np.array([i for i in range(100, 200)]),
+            "col3": np.array([str(i) for i in range(200, 300)]),
+            "col4": np.array([str(i) for i in range(300, 400)]),
         },
         name=name,
         timepoints=["1h" for _ in range(50)] + ["0h" for _ in range(50)],
@@ -91,13 +91,23 @@ def get_backed_TDF(name: str) -> TemporalDataFrameBase:
         )
         h5_file["string_array"].attrs["dtype"] = "<U4"
 
-        h5_file.create_group("timepoints_array")
-        h5_file["timepoints_array"].attrs["__h5_type__"] = "object"
-        h5_file["timepoints_array"].attrs["__h5_class__"] = np.void(
+        h5_file.create_group("timepoints_index")
+        h5_file["timepoints_index"].attrs["__h5_type__"] = "object"
+        h5_file["timepoints_index"].attrs["__h5_class__"] = np.void(
+            pickle.dumps(TimePointIndex, protocol=pickle.HIGHEST_PROTOCOL)
+        )
+        h5_file["timepoints_index"].create_dataset("ranges", data=REFERENCE_BACKED_DATA["timepoints_index"]["ranges"])
+
+        h5_file["timepoints_index"].create_group("timepoints")
+        h5_file["timepoints_index"]["timepoints"].attrs["__h5_type__"] = "object"
+        h5_file["timepoints_index"]["timepoints"].attrs["__h5_class__"] = np.void(
             pickle.dumps(TimePointArray, protocol=pickle.HIGHEST_PROTOCOL)
         )
-        h5_file["timepoints_array"].attrs["unit"] = "h"
-        h5_file["timepoints_array"].create_dataset("array", data=REFERENCE_BACKED_DATA["timepoints"])
+        h5_file["timepoints_index"]["timepoints"].attrs["unit"] = "h"
+
+        h5_file["timepoints_index"]["timepoints"].create_dataset(
+            "array", data=REFERENCE_BACKED_DATA["timepoints_index"]["timepoints"]
+        )
 
     # read tdf from file
     return TemporalDataFrame.read("backed_TDF_" + name, mode=H5Mode.READ_WRITE)

@@ -69,7 +69,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         super().__init__(
             index=parsed_data.index,
-            timepoints_array=parsed_data.timepoints_array,
+            timepoints_index=parsed_data.timepoints_array,
             numerical_array=parsed_data.numerical_array,
             string_array=parsed_data.string_array,
             columns_numerical=parsed_data.columns_numerical,
@@ -133,7 +133,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         super().__init__(
             obj,
             index=values["index"],
-            timepoints_array=tp.as_timepointarray(values["timepoints_array"]),
+            timepoints_index=values["timepoints_index"],
             numerical_array=values["numerical_array"],
             string_array=values["string_array"],
             columns_numerical=values["columns_numerical"],
@@ -440,7 +440,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             _assert_can_merge(self, other, self.tp0)
             _data = pd.concat(
                 (self[self.tp0].to_pandas(), other[self.tp0].to_pandas()),  # type: ignore[union-attr]
-            )  # type: ignore[union-attr]
+            )
 
             for time_point in self.timepoints[1:]:
                 _assert_can_merge(self, other, time_point)
@@ -448,9 +448,9 @@ class TemporalDataFrame(TemporalDataFrameBase):
                     (
                         _data,
                         self[time_point].to_pandas(),  # type: ignore[union-attr]
-                        other[time_point].to_pandas(),
+                        other[time_point].to_pandas(),  # type: ignore[union-attr]
                     )
-                )  # type: ignore[union-attr]
+                )
 
             _data.columns = _data.columns.astype(self.columns.dtype)
 

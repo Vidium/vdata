@@ -86,10 +86,11 @@ def _parse_timepoints_slicer(slicer: Slicer, TDF: tdf.TemporalDataFrameBase) -> 
             "in TemporalDataFrame's timepoints."
         )
 
-    return ci.ListIndex(
-        np.where(np.logical_or.reduce(tuple(TDF.get_timepoint_mask(tp) for tp in selected_timepoints)))[0],
-        max=TDF.n_index,
-    )
+    raise NotImplementedError
+    # return ci.ListIndex(
+    #     np.where(np.logical_or.reduce(tuple(TDF.get_timepoint_mask(tp) for tp in selected_timepoints)))[0],
+    #     max=TDF.n_index,
+    # )
 
 
 def _parse_axis_slicer(
@@ -286,9 +287,7 @@ def parse_values(
     selected_num_columns = TDF.columns_num[numerical_selection[1].as_numpy_index()]
     selected_str_columns = TDF.columns_str[string_selection[1].as_numpy_index()]
 
-    sliced_columns = (
-        TDF.columns[slicer_columns] if isinstance(slicer_columns, slice) else np.atleast_1d(slicer_columns)
-    )  # type: ignore[arg-type]
+    sliced_columns = TDF.columns[slicer_columns] if isinstance(slicer_columns, slice) else np.atleast_1d(slicer_columns)  # type: ignore[arg-type]
 
     num_columns_indices = npi.indices(sliced_columns, selected_num_columns)
     str_columns_indices = npi.indices(sliced_columns, selected_str_columns)

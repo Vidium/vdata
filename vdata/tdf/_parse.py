@@ -14,25 +14,23 @@ from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.array_view import NDArrayView
 from vdata.names import NO_NAME
 from vdata.tdf.index import Index
-from vdata.timepoint import as_timepointarray
 from vdata.utils import obj_as_str
 
 
 class TimedArray:
-
     __slots__ = "arr", "time"
 
     # region magic methods
-    def __init__(self, arr: Index | None, time: tp.TimePointArray | None):
-        if arr is None and isinstance(time, tp.TimePointArray):
-            self.arr = Index(np.arange(len(time)))
-            self.time = time
+    def __init__(self, arr: Index | None, time: tp.TimePointIndex | None):
+        if arr is None and isinstance(time, tp.TimePointIndex):
+            self.arr: Index = Index(np.arange(len(time)))
+            self.time: tp.TimePointIndex = time
 
         elif arr is not None and time is None:
             self.arr = arr
-            self.time = tp.TimePointArray(np.repeat(0, len(arr)), unit="h")
+            self.time = tp.TimePointIndex(tp.TimePointArray([0], unit="h"), ranges=np.array([len(arr)]))
 
-        elif isinstance(arr, Index) and isinstance(time, tp.TimePointArray):
+        elif isinstance(arr, Index) and isinstance(time, tp.TimePointIndex):
             if len(arr) != len(time):
                 raise ValueError(
                     f"Length of 'time_list' ({len(time)}) did not match length of 'index' " f"({len(arr)})."
@@ -43,7 +41,7 @@ class TimedArray:
 
         elif arr is None and time is None:
             self.arr = Index(np.empty(0, dtype=np.float64))
-            self.time = tp.TimePointArray(np.empty(0, dtype=object))
+            self.time = tp.TimePointIndex(tp.TimePointArray([]), ranges=np.array([]))
 
         else:
             raise NotImplementedError
@@ -56,30 +54,21 @@ def _sort_and_get_tp(
     col_name: str | None,
     timepoints: tp.TimePointArray | NDArrayView[tp.TimePoint],
     sort: bool,
-) -> tuple[tp.TimePointArray, pd.DataFrame | None]:
-    unique_timepoints, idx, counts = np.unique(timepoints, return_counts=True, return_index=True, equal_nan=False)
-    assert isinstance(unique_timepoints, tp.TimePointArray)
-
-    if not sort:
-        unique_timepoints = timepoints[np.sort(idx.astype(int))]
-
-    sorted_timepoints: tp.TimePointArray = np.repeat(unique_timepoints.copy(), counts)
+) -> tuple[tp.TimePointIndex, pd.DataFrame | None]:
+    tp_index, sorting_indices = tp.TimePointIndex.from_array(timepoints).sort(return_indices=True)
 
     if data is None:
-        return sorted_timepoints, None
-
-    data_sorting_indices = np.concatenate([np.where(timepoints == tp)[0] for tp in unique_timepoints])
-    data = data.iloc[data_sorting_indices]
+        return tp_index, None
 
     if col_name is not None:
         del data[col_name]
 
-    return sorted_timepoints, data
+    return tp_index, data.iloc[sorting_indices]
 
 
 def _get_timed_index(
     index: Index | None,
-    time_list: tp.TimePointArray | None,
+    time_list: tp.TimePointArray | NDArrayView[tp.TimePoint] | None,
     time_col_name: str | None,
     data: pd.DataFrame | None,
     sort: bool,
@@ -136,7 +125,7 @@ def parse_data_h5(data: ch.H5Dict[Any], lock: tuple[bool, bool] | None, name: st
 class ParsedData:
     numerical_array: npt.NDArray[np.int_ | np.float_]
     string_array: npt.NDArray[np.str_]
-    timepoints_array: tp.TimePointArray
+    timepoints_array: tp.TimePointIndex
     index: NDArray_IFS
     columns_numerical: NDArray_IFS
     columns_string: NDArray_IFS
@@ -184,7 +173,7 @@ def parse_data(
 
     timed_index, data = _get_timed_index(
         index,
-        None if timepoints is None else as_timepointarray(timepoints),
+        None if timepoints is None else tp.as_timepointarray(timepoints),
         time_col_name,
         data,
         sort=sort_timepoints,
