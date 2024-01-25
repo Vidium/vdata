@@ -360,7 +360,7 @@ def write_data(data,
 
 @write_data.register(dict)
 @write_data.register(BackedDict)
-@write_data.register(anndata.compat.OverloadedDict)
+# @write_data.register(anndata.compat.OverloadedDict)
 def write_Dict(data: dict | BackedDict | anndata.compat.OverloadedDict,
                group: H5Group,
                key: str,
