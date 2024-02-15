@@ -2,6 +2,7 @@ import pickle
 from pathlib import Path
 from time import perf_counter
 from typing import Generator
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pytest
@@ -10,7 +11,7 @@ from h5py import string_dtype
 
 from vdata import TemporalDataFrame
 from vdata.tdf import TemporalDataFrameBase
-from vdata.timepoint import TimePointArray
+from vdata.timepoint import TimePointArray, TimePointIndex
 
 MAX_ELAPSED_TIME_SECONDS = 1
 
@@ -24,65 +25,72 @@ def large_TDF(request: pytest.FixtureRequest) -> Generator[TemporalDataFrameBase
         which = "plain"
 
     if "backed" in which:
-        with File("backed_large_TDF", H5Mode.WRITE_TRUNCATE) as h5_file:
-            # write data to h5 file directly
-            h5_file.attrs["name"] = "large TDF"
-            h5_file.attrs["locked_indices"] = False
-            h5_file.attrs["locked_columns"] = False
-            h5_file.attrs["timepoints_column_name"] = None
-            h5_file.attrs["repeating_index"] = False
+        with NamedTemporaryFile() as tmp_file:
+            with File(tmp_file.name, H5Mode.WRITE_TRUNCATE) as h5_file:
+                # write data to h5 file directly
+                h5_file.attrs["name"] = "large TDF"
+                h5_file.attrs["locked_indices"] = False
+                h5_file.attrs["locked_columns"] = False
+                h5_file.attrs["timepoints_column_name"] = None
+                h5_file.attrs["repeating_index"] = False
 
-            h5_file.create_dataset("index", data=np.arange(20_000))
+                h5_file.create_dataset("index", data=np.arange(20_000))
 
-            h5_file.create_dataset(
-                "columns_numerical",
-                data=np.array(["col1", "col2"], dtype=np.dtype("O")),
-                chunks=True,
-                maxshape=(None,),
-                dtype=string_dtype(),
-            )
-            h5_file["columns_numerical"].attrs["dtype"] = "<U4"
+                h5_file.create_dataset(
+                    "columns_numerical",
+                    data=np.array(["col1", "col2"], dtype=np.dtype("O")),
+                    chunks=True,
+                    maxshape=(None,),
+                    dtype=string_dtype(),
+                )
+                h5_file["columns_numerical"].attrs["dtype"] = "<U4"
 
-            h5_file.create_dataset(
-                "columns_string",
-                data=np.array(["col3", "col4"], dtype=np.dtype("O")),
-                chunks=True,
-                maxshape=(None,),
-                dtype=string_dtype(),
-            )
-            h5_file["columns_string"].attrs["dtype"] = "<U4"
+                h5_file.create_dataset(
+                    "columns_string",
+                    data=np.array(["col3", "col4"], dtype=np.dtype("O")),
+                    chunks=True,
+                    maxshape=(None,),
+                    dtype=string_dtype(),
+                )
+                h5_file["columns_string"].attrs["dtype"] = "<U4"
 
-            h5_file.create_dataset(
-                "numerical_array", data=np.arange(40_000).reshape(20_000, 2), chunks=True, maxshape=(None, None)
-            )
+                h5_file.create_dataset(
+                    "numerical_array", data=np.arange(40_000).reshape(20_000, 2), chunks=True, maxshape=(None, None)
+                )
 
-            h5_file.create_dataset(
-                "string_array",
-                data=np.arange(40_000, 80_000).astype(str).astype("O").reshape(20_000, 2),
-                dtype=string_dtype(),
-                chunks=True,
-                maxshape=(None, None),
-            )
-            h5_file["string_array"].attrs["dtype"] = "<U21"
+                h5_file.create_dataset(
+                    "string_array",
+                    data=np.arange(40_000, 80_000).astype(str).astype("O").reshape(20_000, 2),
+                    dtype=string_dtype(),
+                    chunks=True,
+                    maxshape=(None, None),
+                )
+                h5_file["string_array"].attrs["dtype"] = "<U21"
 
-            h5_file.create_group("timepoints_array")
-            h5_file["timepoints_array"].attrs["__h5_type__"] = "object"
-            h5_file["timepoints_array"].attrs["__h5_class__"] = np.void(
-                pickle.dumps(TimePointArray, protocol=pickle.HIGHEST_PROTOCOL)
-            )
-            h5_file["timepoints_array"].attrs["unit"] = "h"
-            h5_file["timepoints_array"].create_dataset("array", data=np.repeat(np.arange(8), 2500))
+                h5_file.create_group("timepoints_index")
+                h5_file["timepoints_index"].attrs["__h5_type__"] = "object"
+                h5_file["timepoints_index"].attrs["__h5_class__"] = np.void(
+                    pickle.dumps(TimePointIndex, protocol=pickle.HIGHEST_PROTOCOL)
+                )
+                h5_file["timepoints_index"].create_dataset("ranges", data=np.arange(0, 20_000, 2500) + 2500)
 
-        # read tdf from file
-        TDF: TemporalDataFrameBase = TemporalDataFrame.read("backed_large_TDF", mode=H5Mode.READ_WRITE)
+                h5_file["timepoints_index"].create_group("timepoints")
+                h5_file["timepoints_index"]["timepoints"].attrs["__h5_type__"] = "object"
+                h5_file["timepoints_index"]["timepoints"].attrs["__h5_class__"] = np.void(
+                    pickle.dumps(TimePointArray, protocol=pickle.HIGHEST_PROTOCOL)
+                )
+                h5_file["timepoints_index"]["timepoints"].attrs["unit"] = "h"
 
-        if "view" in which:
-            yield TDF[:]
+                h5_file["timepoints_index"]["timepoints"].create_dataset("array", data=np.arange(8))
 
-        else:
-            yield TDF
+            # read tdf from file
+            TDF: TemporalDataFrameBase = TemporalDataFrame.read(tmp_file.name, mode=H5Mode.READ_WRITE)
 
-        Path("backed_large_TDF").unlink()
+            if "view" in which:
+                yield TDF[:]
+
+            else:
+                yield TDF
 
     else:
         TDF = TemporalDataFrame(

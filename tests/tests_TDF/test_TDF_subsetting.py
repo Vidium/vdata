@@ -198,10 +198,10 @@ class TestSubGetting:
         assert str(exc_info.value) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
 
     def test_subset_column_with_getattr_not_in_tdf_should_fail(self) -> None:
-        with pytest.raises(KeyError) as exc_info:
+        with pytest.raises(AttributeError) as exc_info:
             self.TDF.col5
 
-        assert str(exc_info.value) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
+        assert str(exc_info.value.__cause__) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
 
     def test_subset_multiple_columns(self) -> None:
         backed = "backed " if self.TDF.is_backed else ""
@@ -527,10 +527,10 @@ class TestSubGettingView:
         assert str(exc_info.value) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
 
     def test_subset_column_with_getattr_not_in_tdf_should_fail(self) -> None:
-        with pytest.raises(KeyError) as exc_info:
+        with pytest.raises(AttributeError) as exc_info:
             self.TDF.col5
 
-        assert str(exc_info.value) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
+        assert str(exc_info.value.__cause__) == "\"Could not find ['col5'] in TemporalDataFrame's columns.\""
 
     def test_subset_multiple_columns(self) -> None:
         backed = "backed " if self.TDF.is_backed else ""

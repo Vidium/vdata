@@ -28,7 +28,7 @@ def merged_vdata() -> vdata.VData:
     )
     uns = {"colors": ["blue", "red", "yellow"], "date": "25/01/2021"}
 
-    v1 = vdata.VData(expr_data_complex, timepoints=timepoints, obs=obs, var=var, uns=uns, name=1)
+    v1 = vdata.VData(expr_data_complex, timepoints=timepoints, obs=obs, var=var, uns=uns, name="1")
 
     expr_data_complex_modif = {key: TDF * -1 for key, TDF in expr_data_complex.items()}
     obs = vdata.TemporalDataFrame(
@@ -38,7 +38,7 @@ def merged_vdata() -> vdata.VData:
     )
     uns = {"colors": ["blue", "red", "pink"], "date": "24/01/2021"}
 
-    v2 = vdata.VData(expr_data_complex_modif, timepoints=timepoints, obs=obs, var=var, uns=uns, name=2)
+    v2 = vdata.VData(expr_data_complex_modif, timepoints=timepoints, obs=obs, var=var, uns=uns, name="2")
 
     v2.set_obs_index([f"C_{i}" for i in range(6, 12)])
 
@@ -70,29 +70,20 @@ def test_concatented_VData_has_correct_layer_index(merged_vdata: vdata.VData) ->
 
 
 def test_VData_concatenate_mean() -> None:
-    output_dir = Path(__file__).parent.parent / "ref"
-
-    if not (output_dir / "vdata.vd").exists():
-        # first write data
-        from .test_VData_write import out_test_VData_write
-
-        out_test_VData_write()
-
-    v3 = vdata.VData.read(output_dir / "vdata.vd")
+    v3 = vdata.read(Path(__file__).parent.parent / "ref" / "vdata.vd", vdata.H5Mode.READ)
     v4 = v3.copy()
 
     vm3 = v3.mean(axis=0)
     vm4 = v4.mean(axis=0)
 
-    vm4.set_obs_index(vdata.Index(["mean_2"], repeats=10))
+    vm4.set_obs_index(vdata.Index(["mean_2"], repeats=3))
 
     v_merged = vdata.concatenate((vm3, vm4))
 
-    assert (
-        repr(v_merged) == "VData 'No_Name' ([2, 2, 2, 2, 2, 2, 2, 2, 2, 2] obs x 1000 vars "
-        "over 10 time points).\n"
-        "\tlayers: 'data'\n"
-        "\ttimepoints: 'value'"
-    )
+    v_repr = """VData 'No_Name' ([2, 2, 2] obs x 3 vars over 3 time points).
+	layers: 'data'
+	timepoints: 'value'"""
+
+    assert repr(v_merged) == v_repr
 
     v3.close()

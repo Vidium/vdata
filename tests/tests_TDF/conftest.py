@@ -1,13 +1,13 @@
 import pickle
-from pathlib import Path
 from typing import Any, Generator
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pytest
 from ch5mpy import File, H5Mode
 from h5py import string_dtype
 
-from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePointArray, TimePointIndex
 
 REFERENCE_BACKED_DATA = {
@@ -50,8 +50,8 @@ def get_TDF(name: str = "1") -> TemporalDataFrame:
     )
 
 
-def get_backed_TDF(name: str) -> TemporalDataFrameBase:
-    with File("backed_TDF_" + name, H5Mode.WRITE_TRUNCATE) as h5_file:
+def get_backed_TDF(file: NamedTemporaryFile, name: str) -> TemporalDataFrame:  # pyright: ignore[reportGeneralTypeIssues]
+    with File(file.name, H5Mode.WRITE_TRUNCATE) as h5_file:
         h5_file.attrs["name"] = name
         h5_file.attrs["locked_indices"] = REFERENCE_BACKED_DATA["locked_indices"]
         h5_file.attrs["locked_columns"] = REFERENCE_BACKED_DATA["locked_columns"]
@@ -110,18 +110,7 @@ def get_backed_TDF(name: str) -> TemporalDataFrameBase:
         )
 
     # read tdf from file
-    return TemporalDataFrame.read("backed_TDF_" + name, mode=H5Mode.READ_WRITE)
-
-
-def clean(tdf: TemporalDataFrameBase) -> None:
-    filename = tdf.data.file.filename
-
-    if tdf.is_view:
-        tdf.parent.close()
-    else:
-        tdf.close()
-
-    Path(filename).unlink()
+    return TemporalDataFrame.read(file.name, mode=H5Mode.READ_WRITE)
 
 
 @pytest.fixture(scope="function")
@@ -133,14 +122,16 @@ def TDF(request: Any) -> Generator[TemporalDataFrameBase, None, None]:
         which = "plain"
 
     if "backed" in which:
-        if "view" in which:
-            tdf = get_backed_TDF("1")[:, np.arange(10, 90), ["col1", "col4"]]
+        with NamedTemporaryFile() as tmp_file:
+            if "view" in which:
+                tdfv: TemporalDataFrameView = get_backed_TDF(tmp_file, "1")[:, np.arange(10, 90), ["col1", "col4"]]
+                yield tdfv
+                tdfv.parent.close()
 
-        else:
-            tdf = get_backed_TDF("1")
-
-        yield tdf
-        clean(tdf)
+            else:
+                tdf: TemporalDataFrame = get_backed_TDF(tmp_file, "1")
+                yield tdf
+                tdf.close()
 
     else:
         if "view" in which:
@@ -152,10 +143,10 @@ def TDF(request: Any) -> Generator[TemporalDataFrameBase, None, None]:
 
 @pytest.fixture(scope="class")
 def class_TDF_backed(request: Any) -> Generator[None, None, None]:
-    tdf = get_backed_TDF("1")
-    request.cls.TDF = tdf
-    yield
-    clean(tdf)
+    with NamedTemporaryFile() as tmp_file:
+        tdf = get_backed_TDF(tmp_file, "1")
+        request.cls.TDF = tdf
+        yield
 
 
 @pytest.fixture
@@ -167,14 +158,16 @@ def TDF1(request: Any) -> Generator[TemporalDataFrameBase, None, None]:
         which = "plain"
 
     if "backed" in which:
-        if "view" in which:
-            tdf = get_backed_TDF("1")[:, np.r_[0:40, 50:90]]
+        with NamedTemporaryFile() as tmp_file:
+            if "view" in which:
+                tdfv: TemporalDataFrameView = get_backed_TDF(tmp_file, "1")[:, np.r_[0:40, 50:90]]
+                yield tdfv
+                tdfv.parent.close()
 
-        else:
-            tdf = get_backed_TDF("1")
-
-        yield tdf
-        clean(tdf)
+            else:
+                tdf = get_backed_TDF(tmp_file, "1")
+                yield tdf
+                tdf.close()
 
     else:
         if "view" in which:
@@ -193,15 +186,18 @@ def class_TDF1(request: Any) -> Generator[None, None, None]:
         which = "plain"
 
     if "backed" in which:
-        if "view" in which:
-            tdf = get_backed_TDF("1")[:, np.r_[0:40, 50:90]]
+        with NamedTemporaryFile() as tmp_file:
+            if "view" in which:
+                tdfv: TemporalDataFrameView = get_backed_TDF(tmp_file, "1")[:, np.r_[0:40, 50:90]]
+                request.cls.TDF = tdfv
+                yield
+                tdfv.parent.close()
 
-        else:
-            tdf = get_backed_TDF("1")
-
-        request.cls.TDF = tdf
-        yield
-        clean(tdf)
+            else:
+                tdf = get_backed_TDF(tmp_file, "1")
+                request.cls.TDF = tdf
+                yield
+                tdf.close()
 
     else:
         if "view" in which:
@@ -222,14 +218,16 @@ def TDF2(request: Any) -> Generator[TemporalDataFrameBase, None, None]:
         which = "plain"
 
     if "backed" in which:
-        if "view" in which:
-            tdf = get_backed_TDF("2")[:, np.r_[0:40, 50:90]]
+        with NamedTemporaryFile() as tmp_file:
+            if "view" in which:
+                tdfv: TemporalDataFrameView = get_backed_TDF(tmp_file, "2")[:, np.r_[0:40, 50:90]]
+                yield tdfv
+                tdfv.parent.close()
 
-        else:
-            tdf = get_backed_TDF("2")
-
-        yield tdf
-        clean(tdf)
+            else:
+                tdf = get_backed_TDF(tmp_file, "2")
+                yield tdf
+                tdf.close()
 
     else:
         if "view" in which:
@@ -247,26 +245,29 @@ def h5_file(request: Any) -> Generator[None, None, None]:
     else:
         which = "plain"
 
-    if "backed" in which:
-        if "view" in which:
-            tdfv = get_backed_TDF("1")[:, np.arange(10, 90), ["col1", "col4"]]
+    with NamedTemporaryFile(suffix=".vd") as tmp_write:
+        if "backed" in which:
+            with NamedTemporaryFile() as tmp_backed:
+                if "view" in which:
+                    tdfv: TemporalDataFrameView = get_backed_TDF(tmp_backed, "1")[
+                        :, np.arange(10, 90), ["col1", "col4"]
+                    ]
+                    tdfv.write(tmp_write.name)
+                    tdfv.parent.close()
+
+                else:
+                    tdf = get_backed_TDF(tmp_backed, "1")
+                    tdf.write(tmp_write.name)
+                    tdf.close()
 
         else:
-            tdfv = get_backed_TDF("1")
+            if "view" in which:
+                tdfv: TemporalDataFrameView = get_TDF()[:, np.arange(10, 90), ["col1", "col4"]]
+                tdfv.write(tmp_write.name)
 
-        tdfv.write("TDF_write.vd")
-        clean(tdfv)
+            else:
+                tdf = get_TDF()
+                tdf.write(tmp_write.name)
 
-    else:
-        if "view" in which:
-            tdf: TemporalDataFrameBase = get_TDF()[:, np.arange(10, 90), ["col1", "col4"]]
-
-        else:
-            tdf = get_TDF()
-
-        tdf.write("TDF_write.vd")
-
-    request.cls.h5_file = File("TDF_write.vd", H5Mode.READ)
-    yield
-
-    Path("TDF_write.vd").unlink()
+        request.cls.h5_file = File(tmp_write.name, H5Mode.READ)
+        yield

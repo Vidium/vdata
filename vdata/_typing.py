@@ -9,7 +9,7 @@ import vdata.timepoint as tp
 from vdata.array_view import NDArrayView
 from vdata.timedict import TimeDict
 
-_T = TypeVar("_T")
+_T = TypeVar("_T", bound=ch.SupportsH5ReadWrite)
 _T_NP = TypeVar("_T_NP", bound=np.generic)
 
 IF = Union[int, float, np.int_, np.float_]

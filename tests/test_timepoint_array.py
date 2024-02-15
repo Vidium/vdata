@@ -16,6 +16,12 @@ def test_timepointarray_equality_check():
     assert np.array_equal(tpa == "1h", [True, True, False, False, False, False, True])
 
 
+def test_timepointindex_disordered():
+    tpi = TimePointIndex.from_array(TimePointArray([2, 2, 2, 2, 1, 1, 3, 3, 3]))
+    assert np.array_equal(tpi.ranges, [4, 6, 9])
+    assert np.array_equal(tpi.timepoints, TimePointArray([2, 1, 3]))
+
+
 def test_timepointindex_len():
     tpi = TimePointIndex.from_array(TimePointArray([1, 1, 2, 2, 2, 2, 3, 3, 3]))
     assert len(tpi) == 9
@@ -27,12 +33,14 @@ def test_timepointindex_can_convert_to_tparray(tpi):
     assert np.array_equal(tpa, TimePointArray([1, 1, 2, 2, 2, 2, 3, 3, 3]))
 
 
+def test_timepointindex_should_get_indices_at(tpi):
+    assert np.array_equal(tpi.at(TimePoint("2h")), [2, 3, 4, 5])
+
+
 def test_timepointindex_should_get_indices_where(tpi):
-    assert np.array_equal(tpi.where(TimePoint("2h")), [2, 3, 4, 5])
-
-
-def test_timepointindex_should_get_indices_where_for_n_elements(tpi):
-    assert np.array_equal(tpi.where(TimePoint("2h"), n_max=3), [2, 3, 4])
+    assert np.array_equal(
+        tpi.where(TimePoint("2h")), np.array([False, False, True, True, True, True, False, False, False])
+    )
 
 
 def test_timpointindex_should_getitem(tpi):
@@ -64,10 +72,10 @@ def test_timepointindex_should_getitem_from_slice(tpi, slicer, result):
 def test_timepointindex_should_write_read(tpi):
     with TemporaryDirectory() as dir:
         with ch.File(dir + "/tpi.h5", "w") as ch_file:
-            ch.write_object(ch_file, "tpi", tpi)
+            ch.write_object(tpi, ch_file, "tpi")
 
             assert tuple(ch_file["tpi"].keys()) == ("timepoints", "ranges")
-            assert np.array_equal(ch_file["tpi"]["timepoints"][:], [1, 2, 3])
+            assert np.array_equal(ch_file["tpi"]["timepoints"]["array"][:], [1, 2, 3])
             assert np.array_equal(ch_file["tpi"]["ranges"][:], [2, 6, 9])
 
             tpi2 = TimePointIndex.read(ch.H5Dict.read(dir + "/tpi.h5", "tpi", mode=ch.H5Mode.READ))

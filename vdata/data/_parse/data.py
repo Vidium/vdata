@@ -275,10 +275,10 @@ class ParsingDataOut:
 
             elif layer.shape[1] != n_obs:
                 for tp_i, timepoint in enumerate(layer.timepoints):
-                    if layer.n_index_at(timepoint) != n_obs[tp_i]:
+                    if layer.timepoints_index.n_at(timepoint) != n_obs[tp_i]:
                         raise IncoherenceError(
                             f"layer '{layer_name}' has incoherent number of observations "
-                            f"{layer.n_index_at(timepoint)}, should be {n_obs[tp_i]}."
+                            f"{layer.timepoints_index.n_at(timepoint)}, should be {n_obs[tp_i]}."
                         )
 
             elif layer.shape[2] != n_var:

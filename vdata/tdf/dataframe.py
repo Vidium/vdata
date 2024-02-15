@@ -166,6 +166,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         sep: str = ",",
         timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
         time_col_name: str | None = None,
+        columns_dtype: str | None = None,
     ) -> TemporalDataFrame:
         """
         Read a .csv file into a TemporalDataFrame.
@@ -185,9 +186,12 @@ class TemporalDataFrame(TemporalDataFrameBase):
         time_col_name = DEFAULT_TIME_COL_NAME if time_col_name is None else time_col_name
 
         if timepoints is None and time_col_name == DEFAULT_TIME_COL_NAME:
-            timepoints = df[DEFAULT_TIME_COL_NAME].values.tolist()
+            timepoints = df[time_col_name].values.tolist()
             del df[time_col_name]
             time_col_name = None
+
+        if columns_dtype is not None:
+            df.columns = df.columns.astype(np.dtype(columns_dtype))
 
         return TemporalDataFrame(df, timepoints=timepoints, time_col_name=time_col_name)
 
@@ -432,7 +436,13 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if self.empty:
             combined_index = np.array([])
             for timepoint in self.timepoints:
-                combined_index = np.concatenate((combined_index, self.index_at(timepoint), other.index_at(timepoint)))
+                combined_index = np.concatenate(
+                    (
+                        combined_index,
+                        self.index_at(timepoint),
+                        other.index_at(timepoint),
+                    )
+                )
 
             _data = pd.DataFrame(index=combined_index, columns=self.columns)
 
@@ -458,7 +468,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
             _time_list = [
                 time_point
                 for time_point in self.timepoints
-                for _ in range(self.n_index_at(time_point) + other.n_index_at(time_point))
+                for _ in range(self.timepoints_index.n_at(time_point) + other.timepoints_index.n_at(time_point))
             ]
 
         else:

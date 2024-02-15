@@ -7,6 +7,7 @@ from warnings import warn
 import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
+import numpy_indexed as npi
 import pandas as pd
 
 import vdata.timepoint as tp
@@ -55,7 +56,22 @@ def _sort_and_get_tp(
     timepoints: tp.TimePointArray | NDArrayView[tp.TimePoint],
     sort: bool,
 ) -> tuple[tp.TimePointIndex, pd.DataFrame | None]:
-    tp_index, sorting_indices = tp.TimePointIndex.from_array(timepoints).sort(return_indices=True)
+    if sort:
+        sorting_indices = np.argsort(timepoints, kind="stable").astype(int)
+        tp_index = tp.TimePointIndex.from_array(timepoints[sorting_indices])
+
+    else:
+        # even though we do not wish to sort, timepoints must be reordered to group equal values together
+        # but the appearance order will be preserved
+        u, i, c = np.unique(timepoints, equal_nan=False, return_index=True, return_counts=True)
+        tp_sorting_indices = sorted(i.astype(int))
+
+        sorted_timepoints: tp.TimePointArray = timepoints[tp_sorting_indices]
+        sorted_ranges = np.cumsum(c[npi.indices(u, sorted_timepoints)])
+
+        tp_index = tp.TimePointIndex(sorted_timepoints, sorted_ranges)
+
+        sorting_indices = np.where(timepoints == sorted_timepoints[:, None])[1]
 
     if data is None:
         return tp_index, None

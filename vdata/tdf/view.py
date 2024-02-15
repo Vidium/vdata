@@ -48,24 +48,26 @@ class TemporalDataFrameView(TemporalDataFrameBase):
             numerical_selection = numerical_selection.cast_on(parent._numerical_selection)
             string_selection = string_selection.cast_on(parent._string_selection)
 
-            parent = parent.parent
+            root: TemporalDataFrame = parent.parent
+
+        else:
+            assert isinstance(parent, TemporalDataFrame)
+            root = parent
 
         super().__init__(
-            index=_as_view(parent, "_index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
-            timepoints_index=parent.timepoints[numerical_selection[0]],
-            numerical_array=_as_view(parent, "values_num", numerical_selection.get_indexers()),
-            string_array=_as_view(parent, "values_str", string_selection.get_indexers()),
+            index=_as_view(root, "_index", ch.indexing.get_indexer(numerical_selection[0], enforce_1d=True)),
+            timepoints_index=root.timepoints_index[numerical_selection[0]],
+            numerical_array=_as_view(root, "values_num", numerical_selection.get_indexers()),
+            string_array=_as_view(root, "values_str", string_selection.get_indexers()),
             columns_numerical=_as_view(
-                parent, "columns_num", ch.indexing.get_indexer(numerical_selection[1], enforce_1d=True)
+                root, "columns_num", ch.indexing.get_indexer(numerical_selection[1], enforce_1d=True)
             ),
-            columns_string=_as_view(
-                parent, "columns_str", ch.indexing.get_indexer(string_selection[1], enforce_1d=True)
-            ),
-            attr_dict=parent._attr_dict,
-            data=parent.data,
+            columns_string=_as_view(root, "columns_str", ch.indexing.get_indexer(string_selection[1], enforce_1d=True)),
+            attr_dict=root._attr_dict,
+            data=root.data,
         )
 
-        self._parent: TemporalDataFrame = parent
+        self._parent = root
         self._numerical_selection: ci.Selection = numerical_selection
         self._string_selection: ci.Selection = string_selection
         self._inverted = inverted

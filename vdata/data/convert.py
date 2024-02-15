@@ -16,6 +16,7 @@ from vdata._typing import IFS
 from vdata.array_view import NDArrayView
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrame
+from vdata.update import CURRENT_VERSION
 from vdata.utils import repr_array
 
 
@@ -150,6 +151,20 @@ def _convert_vdata_into_many_anndatas(
     return result
 
 
+def not_categorical(obj: ch.H5Array[Any] | ch.H5Dict) -> ch.H5Array[Any]:
+    if isinstance(obj, ch.H5Array):
+        return obj
+
+    if "categories" not in obj.keys():
+        raise ValueError("Cannot convert object")
+
+    flat = obj["categories"][obj["codes"]]
+    if flat.dtype == np.dtype(object):
+        flat = flat.astype("str")
+
+    return flat
+
+
 def convert_anndata_to_vdata(
     path: Path | str,
     timepoint: IFS | tp.TimePoint = tp.TimePoint("0h"),
@@ -157,9 +172,9 @@ def convert_anndata_to_vdata(
     inplace: bool = False,
     drop_X: bool = False,
 ) -> ch.H5Dict[Any]:
-    """
+    r"""
     Convert an anndata h5 file into a valid vdata h5 file.
-    /!\\ WARNING : if done inplace, you won't be able to open the file as an anndata anymore !
+    /!\ WARNING : if done inplace, you won't be able to open the file as an anndata anymore !
 
     Args:
         path: path to the anndata h5 file to convert.
@@ -179,6 +194,7 @@ def convert_anndata_to_vdata(
         shutil.move(path, path.with_suffix(".vd"))
 
     data = ch.H5Dict.read(path.with_suffix(".vd"), mode=ch.H5Mode.READ_WRITE)
+    data.attributes["__vdata_write_version__"] = CURRENT_VERSION
 
     # X -----------------------------------------------------------------------
     if not drop_X:
@@ -206,28 +222,28 @@ def convert_anndata_to_vdata(
         if timepoints_column_name not in data["obs"]:
             raise ValueError(f"Could not find column '{timepoints_column_name}' in obs columns.")
 
-        timepoints_list = tp.as_timepointarray(data["obs"][timepoints_column_name])
+        timepoints_list = not_categorical(data["obs"][timepoints_column_name])
 
     else:
         timepoints_list = tp.TimePointArray(
             np.ones(data["obs"][next(iter(data["obs"]))].shape[0]) * timepoint.value, unit=timepoint.unit
         )
 
-    ch.write_object(data, "timepoints", H5DataFrame({"value": np.unique(timepoints_list, equal_nan=False)}))
+    ch.write_object(H5DataFrame({"value": np.unique(timepoints_list, equal_nan=False)}), data, "timepoints")
     progressBar.update()
 
     # obs ---------------------------------------------------------------------
     _obs_index = data["obs"]["_index"].astype(str)
+    del data["obs"]["_index"]
 
-    obs_data = data["obs"].copy()
-    del obs_data["_index"]
+    obs_data = {k: not_categorical(v) for k, v in data["obs"].items()}
 
     del data["obs"]
 
     ch.write_object(
+        TemporalDataFrame(obs_data, index=_obs_index, timepoints=timepoints_list, lock=(True, False), name="obs"),
         data,
         "obs",
-        TemporalDataFrame(obs_data, index=_obs_index, timepoints=timepoints_list, lock=(True, False), name="obs"),
     )
 
     progressBar.update()
@@ -240,7 +256,7 @@ def convert_anndata_to_vdata(
 
     del data["var"]
 
-    ch.write_object(data, "var", H5DataFrame(var_data, index=_var_index))
+    ch.write_object(H5DataFrame(var_data, index=_var_index), data, "var")
 
     progressBar.update()
 
@@ -250,8 +266,6 @@ def convert_anndata_to_vdata(
         del data["layers"][layer_name]
 
         ch.write_object(
-            data["layers"],
-            layer_name,
             TemporalDataFrame(
                 layer_data,
                 index=_obs_index,
@@ -260,6 +274,8 @@ def convert_anndata_to_vdata(
                 lock=(True, True),
                 name=layer_name,
             ),
+            data["layers"],
+            layer_name,
         )
 
         progressBar.update()
@@ -270,11 +286,11 @@ def convert_anndata_to_vdata(
         del data["obsm"][array_name]
 
         ch.write_object(
-            data["obsm"],
-            array_name,
             TemporalDataFrame(
                 array_data, index=_obs_index, timepoints=timepoints_list, lock=(True, False), name=array_name
             ),
+            data["obsm"],
+            array_name,
         )
 
         progressBar.update()
@@ -284,7 +300,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["obsp"][array_name]
 
-        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_obs_index, columns=_obs_index))
+        ch.write_object(H5DataFrame(array_data, index=_obs_index, columns=_obs_index), data, "timepoints")
 
         progressBar.update()
 
@@ -293,7 +309,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["varm"][array_name]
 
-        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_var_index))
+        ch.write_object(H5DataFrame(array_data, index=_var_index), data, "timepoints")
 
         progressBar.update()
 
@@ -302,7 +318,7 @@ def convert_anndata_to_vdata(
         array_data = array_data.copy()
         del data["varp"][array_name]
 
-        ch.write_object(data, "timepoints", H5DataFrame(array_data, index=_var_index, columns=_var_index))
+        ch.write_object(H5DataFrame(array_data, index=_var_index, columns=_var_index), data, "timepoints")
 
         progressBar.update()
 

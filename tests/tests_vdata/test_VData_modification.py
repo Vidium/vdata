@@ -1,55 +1,41 @@
-# coding: utf-8
-# Created on 04/05/2022 17:22
-# Author : matteo
-
-# ====================================================
-# imports
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
 import vdata
 
+
 # ====================================================
 # code
-REF_DIR = Path(__file__).parent.parent / "ref"
-
-
-def test_VData_modification() -> None:
-    v1 = vdata.VData.read(REF_DIR / "vdata.vd", mode="r+")
-
+def test_VData_modification(backed_VData: vdata.VData) -> None:
     # set once
-    v1.obsm["X"] = vdata.TemporalDataFrame(
-        data=pd.DataFrame({"col1": range(v1.n_obs_total)}), timepoints=v1.obs.timepoints_column, index=v1.obs.index
+    backed_VData.obsm["X"] = vdata.TemporalDataFrame(
+        data=pd.DataFrame({"col1": range(backed_VData.n_obs_total)}),
+        timepoints=backed_VData.obs.timepoints_column,
+        index=backed_VData.obs.index,
     )
 
-    assert "X" in v1.obsm.keys()
+    assert "X" in backed_VData.obsm.keys()
 
     # set a second time
-    v1.obsm["X"] = vdata.TemporalDataFrame(
-        data=pd.DataFrame({"col1": 2 * np.arange(v1.n_obs_total)}),
-        timepoints=v1.obs.timepoints_column,
-        index=v1.obs.index,
+    backed_VData.obsm["X"] = vdata.TemporalDataFrame(
+        data=pd.DataFrame({"col1": 2 * np.arange(backed_VData.n_obs_total)}),
+        timepoints=backed_VData.obs.timepoints_column,
+        index=backed_VData.obs.index,
     )
 
-    assert "X" in v1.obsm.keys()
-    del v1.obsm["X"]
-    assert "X" not in v1.obsm.keys()
+    assert "X" in backed_VData.obsm.keys()
+    del backed_VData.obsm["X"]
+    assert "X" not in backed_VData.obsm.keys()
 
-    v1.close()
+    backed_VData.close()
 
 
 def test_VData_set_index(VData: vdata.VData) -> None:
-    # v1 = vdata.VData.read(REF_DIR / "vdata.vd", mode='r+')
-
     # not repeating ==> not repeating
     VData.set_obs_index(values=range(VData.n_obs_total))
 
     assert np.array_equal(VData.obs.index, range(VData.n_obs_total))
     assert np.array_equal(VData.layers["data"].index, range(VData.n_obs_total))
-
-    # v1.close()
 
 
 def test_VData_set_index_repeating(VData: vdata.VData) -> None:

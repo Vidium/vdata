@@ -127,9 +127,7 @@ class VDataView:
             f" selected)"
         )
 
-        self._var: H5DataFrame = self._parent.var.loc[
-            slice(None) if var_slicer is None else var_slicer
-        ]  # type: ignore[call-overload]
+        self._var: H5DataFrame = self._parent.var.loc[slice(None) if var_slicer is None else var_slicer]  # type: ignore[call-overload]
         self._var_slicer = np.array(self._var.index)
 
         # subset and store arrays

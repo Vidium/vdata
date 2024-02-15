@@ -90,6 +90,11 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
     _was_opened_here = not isinstance(data, ch.H5Dict)
     if not isinstance(data, ch.H5Dict):
         data = ch.H5Dict.read(data, mode=ch.H5Mode.READ_WRITE)
+    elif not ch.H5Mode.has_write_intent(data.file.file.mode):
+        raise IOError(
+            "Cannot update VData file to current version because it was opened with no write intent. \
+             Please open it in READ_WRITE mode (r+)."
+        )
 
     nb_items_to_write = (
         4 + len(data @ "layers") + len(data @ "obsm") + len(data @ "obsp") + len(data @ "varm") + len(data @ "varp")
@@ -112,7 +117,7 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
             # repeating_index=first_layer.attrs["repeating_index"],
             timepoints=ch.read_object(first_layer["timepoints_array"]),
         )
-        ch.write_object(data, "obs", obs)
+        ch.write_object(obs, data, "obs")
     else:
         update_tdf(data @ "obs")
 
@@ -135,7 +140,7 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
                 (ch.read_object(first_layer["columns_numerical"]), ch.read_object(first_layer["columns_string"]))
             )
         )
-        ch.write_object(data, "var", var)
+        ch.write_object(var, data, "var")
     else:
         _update_vdf(data @ "var")
 
@@ -154,7 +159,7 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
         first_layer = (data @ "layers")[list((data @ "layers").keys())[0]]
 
         timepoints = H5DataFrame({"value": np.unique(ch.read_object(first_layer["timepoints_array"]))})
-        ch.write_object(data, "timepoints", timepoints)
+        ch.write_object(timepoints, data, "timepoints")
     else:
         _update_vdf(data @ "timepoints")
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Collection, Iterator, Literal, Mapping, Sequence
@@ -35,7 +36,7 @@ from vdata.IO import (
     VReadOnlyError,
     generalLogger,
 )
-from vdata.names import NO_NAME
+from vdata.names import NO_NAME, Unpickleable
 from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase
 from vdata.update import CURRENT_VERSION, update_vdata
 from vdata.utils import repr_array, repr_index
@@ -289,7 +290,7 @@ class VData(metaclass=PrettyRepr):
         """
         Is this VData's file open in read only mode ?
         """
-        return self._data is not None and self._data.file.mode == "r"
+        return self._data is not None and self._data.file.file.mode == "r"
 
     @property
     def is_view(self) -> Literal[False]:
@@ -770,6 +771,9 @@ class VData(metaclass=PrettyRepr):
             path: path to a h5 file.
             mode: mode for opening the h5 file.
         """
+        if not Path(path).suffix == ".vd":
+            raise IOError(f"Cannot read file with suffix '{Path(path).suffix}', should be '.vd'")
+
         return VData.__h5_read__(ch.H5Dict.read(path, mode=ch.H5Mode(mode)))
 
     @classmethod
@@ -788,15 +792,15 @@ class VData(metaclass=PrettyRepr):
             directory: a path to a directory containing csv datasets.
                 The directory should have the format, for any combination of the following datasets :
                     ⊦ layers
-                        ⊦ <...>.csv
+                    |   ⊦ <...>.csv
                     ⊦ obsm
-                        ⊦ <...>.csv
+                    |   ⊦ <...>.csv
                     ⊦ obsp
-                        ⊦ <...>.csv
+                    |   ⊦ <...>.csv
                     ⊦ varm
-                        ⊦ <...>.csv
+                    |   ⊦ <...>.csv
                     ⊦ varp
-                        ⊦ <...>.csv
+                    |   ⊦ <...>.csv
                     ⊦ obs.csv
                     ⊦ timepoints.csv
                     ⊦ var.csv
@@ -824,6 +828,18 @@ class VData(metaclass=PrettyRepr):
         """
         data = convert_anndata_to_vdata(path, timepoint, timepoints_column_name, inplace=inplace)
         return VData.__h5_read__(data)
+
+    @classmethod
+    def read_from_pickle(cls, path: str | Path | Unpickleable) -> VData:
+        """
+        Args:
+            path: path to ...
+        """
+        if isinstance(path, Unpickleable):
+            return pickle.load(path)
+
+        with open(path, "rb") as file:
+            return pickle.load(file)
 
     def copy(self) -> VData:
         """

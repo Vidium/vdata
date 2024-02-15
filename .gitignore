@@ -19,3 +19,5 @@ figures/
 *.html
 vdata.code-workspace
 *.prof
+*.vim
+tests/ref/

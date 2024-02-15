@@ -1,46 +1,33 @@
-# coding: utf-8
-# Created on 19/10/2021 11:53
-# Author : matteo
-
-# ====================================================
-# imports
+import pytest
 import pickle
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
+import ch5mpy as ch
 import vdata
 
 
-# ====================================================
-# code
-REF_DIR = Path(__file__).parent.parent / 'ref'
+REF_DIR = Path(__file__).parent.parent / "ref"
 
 
-def VData_pickle_dump():
-    v1 = vdata.read(REF_DIR / "vdata.vd", mode='r+')
-
-    if (REF_DIR / 'pickled_vdata.pkl').exists():
-        (REF_DIR / 'pickled_vdata.pkl').unlink()
-
-    with open(REF_DIR / 'pickled_vdata.pkl', 'wb') as save_file:
-        pickle.dump(v1, save_file, pickle.HIGHEST_PROTOCOL)
-
-    v1.file.close()
+def VData_pickle_dump(pkl_file):
+    with vdata.read(REF_DIR / "vdata.vd", mode=ch.H5Mode.READ_WRITE) as v1:
+        # FIXME: pickling H5Arrays does not work for now
+        # obj = v1.uns.colors
+        # pickle.dump(obj, save_file, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(v1, pkl_file, pickle.HIGHEST_PROTOCOL)
 
 
-# TODO
-def TODO_test_VData_pickle_load():
-    VData_pickle_dump()
+@pytest.mark.xfail
+def test_VData_pickle_load():
+    with NamedTemporaryFile(mode="w+b") as pkl_file:
+        VData_pickle_dump(pkl_file)
 
-    v2 = pickle.load(open(REF_DIR / 'pickled_vdata.pkl', 'rb'))
-
-    assert repr(v2) == "Backed VData '1' with n_obs x n_var = " \
-                       "[179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 over 10 time points.\n" \
-                       "\tlayers: 'data'\n" \
-                       "\tobs: 'Time_hour', 'Cell_Type', 'Day'\n" \
-                       "\tvar: 'ensembl ID', 'gene_short_name', 'pval', 'qval'\n" \
-                       "\ttimepoints: 'value'\n" \
-                       "\tuns: 'colors', 'date'", repr(v2)
-
-    v2.file.close()
-
-    (REF_DIR / 'pickled_vdata.pkl').unlink()
+        with vdata.read_from_pickle(pkl_file) as v2:
+            repr_v2 = """Backed VData '1' with n_obs x n_var = [179, 24, 141, 256, 265, 238, 116, 149, 256, 293] x 1000 over 10 time points.
+    layers: 'data'
+    obs: 'Time_hour', 'Cell_Type', 'Day'
+    var: 'ensembl ID', 'gene_short_name', 'pval', 'qval'
+    timepoints: 'value'
+    uns: 'colors', 'date'"""
+            assert repr(v2) == repr_v2

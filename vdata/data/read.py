@@ -28,7 +28,20 @@ def _get_time_col_name(
     for key in metadata_keys:
         metadata = cast(dict[str, Any], metadata[key])
 
-    return str(metadata["timepoints_column_name"])
+    return metadata["timepoints_column_name"]
+
+
+def _get_col_dtype(
+    metadata: dict[str, Any] | None,
+    *metadata_keys: str,
+) -> str | None:
+    if metadata is None:
+        return None
+
+    for key in metadata_keys:
+        metadata = cast(dict[str, Any], metadata[key])
+
+    return metadata["col_dtype"]
 
 
 def read_from_csv(
@@ -113,6 +126,7 @@ def read_from_csv(
                         parsed_directory / f.name / dataset.name,
                         timepoints=time_list,
                         time_col_name=_get_time_col_name(time_list, time_col_name, metadata, f.name, dataset.name[:-4]),
+                        columns_dtype=_get_col_dtype(metadata, f.name, dataset.name[:-4]),
                     )
 
                 data_dicts[f.name] = dataset_dict

@@ -27,7 +27,7 @@ def _add_unit(match: re.Match[Any], unit: _TIME_UNIT) -> str:
     return number + unit
 
 
-class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
+class TimePointArray(np.ndarray, metaclass=PrettyRepr):
     # region magic methods
     def __new__(
         cls, arr: Collection[int | float | np.int_ | np.float_], /, *, unit: _TIME_UNIT | None = None
@@ -39,41 +39,55 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
         np_arr._unit = unit or "h"
         return np_arr
 
-    @classmethod
-    def __h5_read__(self, values: ch.H5Dict[Any]) -> TimePointArray:
-        return TimePointArray(values["array"], unit=values.attributes["unit"])
-
     def __array_finalize__(self, obj: npt.NDArray[np.float_] | None) -> None:
         if self.ndim == 0:
-            self.shape = (1,)
+            self.shape = [1]
 
         if obj is not None:
             self._unit: _TIME_UNIT = getattr(obj, "_unit", "h")
 
     def __repr__(self) -> str:
-        # TODO : modify for all units
         if self.size:
-            return f"{type(self).__name__}({re.sub(r'h ', r'h, ', str(self))})"
+            return f"{type(self).__name__}({re.sub(fr'{self._unit} ', fr'{self._unit}, ', str(self))})"
 
-        return f"{type(self).__name__}({re.sub(r'h ', r'h, ', str(self))}, unit={self._unit})"
+        return f"{type(self).__name__}({re.sub(fr'{self._unit} ', fr'{self._unit}, ', str(self))}, unit={self._unit})"
 
     def __str__(self) -> str:
         return re.sub(r"(\d+(\.\d*)?|\d+)", partial(_add_unit, unit=self._unit), str(self.__array__()))
 
-    @overload  # type: ignore[override]
+    @overload
     def __getitem__(self, key: SupportsIndex) -> TimePoint:
         ...
 
     @overload
-    def __getitem__(self, key: tuple[()] | EllipsisType | slice | range) -> TimePointArray:
-        ...
-
-    @overload
-    def __getitem__(self, key: _ArrayLikeInt_co) -> TimePoint | TimePointArray:
-        ...
-
     def __getitem__(
-        self, key: int | SupportsIndex | tuple[()] | EllipsisType | slice | range | _ArrayLikeInt_co
+        self,
+        key: (
+            npt.NDArray[np.integer[Any]]
+            | npt.NDArray[np.bool_]
+            | tuple[npt.NDArray[np.integer[Any]] | npt.NDArray[np.bool_], ...]
+            | None
+            | slice
+            | EllipsisType
+            | _ArrayLikeInt_co
+            | tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...]
+        ),
+    ) -> TimePointArray:
+        ...
+
+    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self,
+        key: (
+            SupportsIndex
+            | npt.NDArray[np.integer[Any]]
+            | npt.NDArray[np.bool_]
+            | tuple[npt.NDArray[np.integer[Any]] | npt.NDArray[np.bool_], ...]
+            | None
+            | slice
+            | EllipsisType
+            | _ArrayLikeInt_co
+            | tuple[None | slice | EllipsisType | _ArrayLikeInt_co | SupportsIndex, ...]
+        ),
     ) -> TimePoint | TimePointArray:
         res = super().__getitem__(key)
         if isinstance(res, TimePointArray):
@@ -104,10 +118,13 @@ class TimePointArray(np.ndarray[Any, Any], metaclass=PrettyRepr):
 
         return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
+    @classmethod
+    def __h5_read__(cls, values: ch.H5Dict[Any]) -> TimePointArray:
+        return TimePointArray(values["array"], unit=values.attributes["unit"])
+
     def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
-        # values.attributes ?
-        ch.attributes["unit"] = self._unit
-        ch.write_dataset(values, "array", np.array(self))
+        values.attributes["unit"] = self._unit
+        ch.write_dataset(np.array(self), values, "array")
 
     # endregion
 
@@ -175,7 +192,7 @@ def atleast_1d(obj: Any) -> TimePointArray | NDArrayView[Any]:
 
 
 def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> TimePointArray | NDArrayView[TimePoint]:
-    """
+    r"""
     Args:
         time_list: a list for timepoints (TimePointArray, TimePointRange, object or collection of objects).
         unit: enforce a time unit. /!\ replaces any unit found in `time_list`.
@@ -201,7 +218,7 @@ def as_timepointarray(time_list: Any, /, *, unit: _TIME_UNIT | None = None) -> T
         unique_units = np.unique([e[-1] for e in time_list])
 
         if len(unique_units) == 1 and unique_units[0] in {"s", "m", "h", "D", "M", "Y"}:
-            dtype = time_list.dtype.str[:-1] + str(int(time_list.dtype.str[-1]) - 1)
+            dtype = f"<U{int(time_list.dtype.str.split('U')[1]) - 1}"
             try:
                 return TimePointArray(time_list.astype(dtype), unit=unique_units[0] if unit is None else unit)
 

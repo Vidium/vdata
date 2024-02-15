@@ -63,9 +63,10 @@ def _parse_timepoints_slicer(slicer: Slicer, TDF: tdf.TemporalDataFrameBase) -> 
         selected_timepointrange = tp.TimePointRange(start, stop, step)
 
         len_index_before_start = sum(
-            TDF.n_index_at(tp) for tp in takewhile(lambda tp: tp not in selected_timepointrange, TDF.timepoints)
+            TDF.timepoints_index.n_at(tp)
+            for tp in takewhile(lambda tp: tp not in selected_timepointrange, TDF.timepoints)
         )
-        len_slice = sum(TDF.n_index_at(tp) for tp in selected_timepointrange)
+        len_slice = sum(TDF.timepoints_index.n_at(tp) for tp in selected_timepointrange)
 
         return ci.FullSlice(len_index_before_start, len_index_before_start + len_slice, 1, max=TDF.n_index)
 
@@ -80,17 +81,13 @@ def _parse_timepoints_slicer(slicer: Slicer, TDF: tdf.TemporalDataFrameBase) -> 
     else:
         selected_timepoints = tp.as_timepointarray(slicer)
 
-    if np.any(~np.isin(selected_timepoints, TDF.timepoints)):
-        raise KeyError(
-            f"Could not find {selected_timepoints[~np.isin(selected_timepoints, TDF.timepoints)]} "
-            "in TemporalDataFrame's timepoints."
-        )
+    if np.any(not_in := ~np.isin(selected_timepoints, TDF.timepoints)):
+        raise KeyError(f"Could not find {selected_timepoints[not_in]} " "in TemporalDataFrame's timepoints.")
 
-    raise NotImplementedError
-    # return ci.ListIndex(
-    #     np.where(np.logical_or.reduce(tuple(TDF.get_timepoint_mask(tp) for tp in selected_timepoints)))[0],
-    #     max=TDF.n_index,
-    # )
+    return ci.ListIndex(
+        np.where(TDF.timepoints_index.where(*selected_timepoints))[0],
+        max=TDF.n_index,
+    )
 
 
 def _parse_axis_slicer(

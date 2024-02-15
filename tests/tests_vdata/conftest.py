@@ -1,5 +1,6 @@
 from tempfile import NamedTemporaryFile
 from typing import Generator
+import anndata
 
 import numpy as np
 import pandas as pd
@@ -24,7 +25,7 @@ def VData() -> vdata.VData:
 
 
 @pytest.fixture
-def backed_VData() -> vdata.VData:
+def backed_VData() -> Generator[vdata.VData, None, None]:
     genes = list(map(lambda x: "g_" + str(x), range(50)))
     cells = list(map(lambda x: "c_" + str(x), range(300)))
 
@@ -35,8 +36,9 @@ def backed_VData() -> vdata.VData:
         timepoints_list=["0h" for _ in range(100)] + ["1h" for _ in range(100)] + ["2h" for _ in range(100)],
     )
 
-    v.write(NamedTemporaryFile(suffix=".vd").name)
-    return v
+    with NamedTemporaryFile(suffix=".vd") as tmp_file:
+        v.write(tmp_file.name)
+        yield v
 
 
 @pytest.fixture
@@ -60,11 +62,21 @@ def VData_uns(request: pytest.FixtureRequest) -> Generator[vdata.VData, None, No
     v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name="1")
 
     if "backed" in which:
-        tmp_file = NamedTemporaryFile(mode="w+b", suffix=".vd")
-
-        v.write(tmp_file.name)
-        yield v
-        v.close()
+        with NamedTemporaryFile(mode="w+b", suffix=".vd") as tmp_file:
+            v.write(tmp_file.name)
+            yield v
+            v.close()
 
     else:
         yield v
+
+
+@pytest.fixture
+def AnnData() -> anndata.AnnData:
+    return anndata.AnnData(
+        X=np.ones((10, 3)),
+        layers={"data": np.zeros((10, 3))},
+        obs=pd.DataFrame(
+            {"col1": np.arange(10), "Time_hour": ["0h", "0h", "0h", "1h", "1h", "1h", "1h", "2h", "2h", "2h"]}
+        ),
+    )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterator, Any
+from typing import Iterator, Any, Literal, SupportsIndex, overload, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -31,47 +31,37 @@ class TimePointIndex:
 
         return "TimePointIndex[0" + "".join([f" --{t}--> {i}" for t, i in zip(self._timepoints, self._ranges)]) + "]"
 
-    def __getitem__(self, key: int | slice) -> TimePoint | TimePointIndex:
-        if isinstance(key, slice):
-            start = 0 if key.start is None else key.start
-            stop = len(self) if key.stop is None else key.stop
-            step = 1 if key.step is None else key.step
+    @overload
+    def __getitem__(self, key: int) -> TimePoint:
+        ...
 
-            if start < 0:
-                start = len(self) + start
+    @overload
+    def __getitem__(self, key: slice | ch.indexing.Indexer) -> TimePointIndex:
+        ...
 
-            if stop < 0:
-                stop = len(self) + stop
+    def __getitem__(self, key: int | slice | ch.indexing.Indexer) -> TimePoint | TimePointIndex:
+        if isinstance(key, (ch.indexing.NewAxisType, ch.indexing.EmptyList)):
+            raise ValueError(f"Cannot subset TimePointIndex with {key}")
 
-            if step != 1:
-                raise NotImplementedError
+        if isinstance(key, (ch.indexing.FullSlice, ch.indexing.SingleIndex)):
+            key = key.as_slice()
 
-            if stop <= start or start >= len(self):
-                return TimePointIndex(TimePointArray([], unit=self.timepoints.unit), np.array([]))
+        if isinstance(key, ch.indexing.ListIndex):
+            key = key.flatten()
 
-            start_index = np.argmax(self._ranges > start)
-            stop_index = np.argmax(self._ranges > stop) if np.any(self._ranges > stop) else len(self._ranges)
+        if isinstance(key, (slice, ch.indexing.ListIndex)):
+            return TimePointIndex.from_array(self.as_array()[key])
 
-            ranges = self._ranges[start_index:stop_index]
+        if isinstance(key, int):
+            if key < 0:
+                key = len(self) + key
 
-            if stop > ranges[-1]:
-                ranges = np.append(ranges, stop)
-                timepoints = self._timepoints[start_index : stop_index + 1]
+            if key < 0 or key >= len(self):
+                raise IndexError(f"index {key} is out of range")
 
-            else:
-                timepoints = self._timepoints[start_index:stop_index]
+            return self._timepoints[np.argmax(self._ranges > key)]
 
-            ranges -= start
-
-            return TimePointIndex(timepoints, ranges)
-
-        if key < 0:
-            key = len(self) + key
-
-        if key < 0 or key >= len(self):
-            raise IndexError(f"index {key} is out of range")
-
-        return self._timepoints[np.argmax(self._ranges > key)]
+        raise NotImplementedError
 
     def __len__(self) -> int:
         return 0 if self.is_empty else int(self._ranges[-1])
@@ -86,7 +76,8 @@ class TimePointIndex:
         return np.array_equal(self._timepoints, index.timepoints) and np.array_equal(self._ranges, index.ranges)
 
     def __h5_write__(self, values: ch.H5Dict[Any]) -> None:
-        ch.write_datasets(values, timepoints=self._timepoints, ranges=self._ranges)
+        ch.write_object(self._timepoints, values, "timepoints")
+        ch.write_dataset(self._ranges, values, "ranges")
 
     @classmethod
     def __h5_read__(cls, values: ch.H5Dict[Any]) -> TimePointIndex:
@@ -120,7 +111,11 @@ class TimePointIndex:
     # region methods
     @classmethod
     def from_array(cls, array: TimePointArray | NDArrayView[TimePoint]) -> TimePointIndex:
-        timepoints = array[np.sort(np.unique(array, return_index=True, equal_nan=False)[1].astype(int))]
+        timepoints = cast(
+            TimePointArray | NDArrayView[TimePoint],
+            array[np.sort(np.unique(array, return_index=True, equal_nan=False)[1].astype(int))],
+        )
+
         ranges = np.append(np.argmax(array == timepoints[1:][:, None], axis=1), len(array))
 
         return TimePointIndex(timepoints, ranges)
@@ -135,15 +130,20 @@ class TimePointIndex:
 
         return int(stop - start)
 
-    def where(self, timepoint: TimePoint, n_max: int | None = None) -> npt.NDArray[np.int_]:
-        index_tp = np.where(self._timepoints == timepoint)[0][0]
-        start = np.r_[0, self._ranges][index_tp]
-        stop = self._ranges[index_tp]
+    def where(self, *timepoints: TimePoint) -> npt.NDArray[np.bool_]:
+        mask = np.zeros(len(self), dtype=bool)
+        for tp in timepoints:
+            mask[self.at(tp)] = True
 
-        if n_max is not None and n_max <= stop - start:
-            stop -= stop - start - n_max
+        return mask
 
-        return np.arange(start, stop)
+    @overload
+    def sort(self, return_indices: Literal[False]) -> TimePointIndex:
+        ...
+
+    @overload
+    def sort(self, return_indices: Literal[True]) -> tuple[TimePointIndex, npt.NDArray[np.int_]]:
+        ...
 
     def sort(self, return_indices: bool = False) -> TimePointIndex | tuple[TimePointIndex, npt.NDArray[np.int_]]:
         order = np.argsort(self._timepoints)
@@ -152,9 +152,19 @@ class TimePointIndex:
         sorted = TimePointIndex(self._timepoints[order], ranges)
 
         if return_indices:
-            return sorted, np.concatenate([self.where(tp) for tp in sorted])
+            return sorted, np.concatenate([self.at(tp) for tp in sorted])
 
         return sorted
+
+    def at(self, timepoint: TimePoint) -> npt.NDArray[np.int_]:
+        """Get indices for a given time point"""
+        tp_index = np.where(self._timepoints == timepoint)[0][0]
+        return np.arange(*np.r_[0, self._ranges][tp_index : tp_index + 2])
+
+    def n_at(self, timepoint: TimePoint) -> int:
+        """Get the number of indices at a given time point"""
+        tp_index = np.where(self._timepoints == timepoint)[0][0]
+        return int(np.diff(np.r_[0, self._ranges][tp_index : tp_index + 2]))
 
     @classmethod
     def read(cls, values: ch.H5Dict[Any]) -> TimePointIndex:

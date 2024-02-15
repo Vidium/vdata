@@ -374,8 +374,10 @@ def test_add_numerical_value(TDF: TemporalDataFrame) -> None:
 def test_add_numerical_value_to_view(TDF: TemporalDataFrame) -> None:
     prefix = "backed " if TDF.is_backed else ""
 
+    t_plus = TDF + 1
+
     assert (
-        repr(TDF + 1) == f"TemporalDataFrame View of {prefix}TemporalDataFrame 1 + 1\n"
+        repr(t_plus) == f"TemporalDataFrame View of {prefix}TemporalDataFrame 1 + 1\n"
         "Time point : 1.0 hour\n"
         "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n"
         "   Time-point     col1    col4\n"

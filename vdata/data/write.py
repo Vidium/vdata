@@ -111,11 +111,17 @@ def write_vdata_to_csv(
             {
                 "obs": {"timepoints_column_name": data.obs.timepoints_column_name},
                 "obsm": {
-                    obsm_TDF_name: {"timepoints_column_name": obsm_TDF.get_timepoints_column_name()}
+                    obsm_TDF_name: {
+                        "timepoints_column_name": obsm_TDF.get_timepoints_column_name(),
+                        "col_dtype": str(obsm_TDF.columns.dtype),
+                    }
                     for obsm_TDF_name, obsm_TDF in data.obsm.items()
                 },
                 "layers": {
-                    layer_TDF_name: {"timepoints_column_name": layer_TDF.get_timepoints_column_name()}
+                    layer_TDF_name: {
+                        "timepoints_column_name": layer_TDF.get_timepoints_column_name(),
+                        "col_dtype": str(layer_TDF.columns.dtype),
+                    }
                     for layer_TDF_name, layer_TDF in data.layers.items()
                 },
             },

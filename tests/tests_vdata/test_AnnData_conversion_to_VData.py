@@ -1,32 +1,19 @@
-# coding: utf-8
-# Created on 17/03/2022 14:13
-# Author : matteo
-
-# ====================================================
-# imports
-import vdata
-
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 
-
-# ====================================================
-# code
-def out_test_AnnData_conversion_to_VData():
-    # TODO : repair conversion function
-    input_dir = Path(__file__).parent.parent / 'ref'
-
-    vdata.convert_anndata_to_vdata(file=input_dir / 'sel_JB_scRNAseq.h5ad',
-                                   time_column_name='Time_hour',
-                                   inplace=False)
-
-    v = vdata.read(input_dir / 'sel_JB_scRNAseq.vd')
-
-    print(v)
-
-    v.file.close()
+import vdata
 
 
-if __name__ == '__main__':
-    vdata.setLoggingLevel('DEBUG')
+def test_AnnData_conversion_to_VData(AnnData):
+    with NamedTemporaryFile() as tmp_file:
+        AnnData.write_h5ad(Path(tmp_file.name))
 
-    out_test_AnnData_conversion_to_VData()
+        vdata.convert_anndata_to_vdata(path=tmp_file.name, timepoints_column_name="Time_hour", inplace=False)
+
+        with vdata.read(Path(tmp_file.name).with_suffix(".vd")) as v:
+            repr_v = """Backed VData 'No_Name' ([3, 4, 3] obs x 3 vars over 3 time points).
+	layers: 'X', 'data'
+	obs: 'col1', 'Time_hour'
+	timepoints: 'value'"""
+
+            assert repr(v) == repr_v

@@ -16,6 +16,7 @@ from vdata.timepoint import TimePoint
 read = VData.read
 read_from_csv = VData.read_from_csv
 read_from_anndata = VData.read_from_anndata
+read_from_pickle = VData.read_from_pickle
 
 mode = H5Mode
 
