@@ -2,7 +2,7 @@
 
 **VData** is used for storing and manipulating multivariate observations of timestamped data.
 
-![Diagram of the VData structure](doc/vdata_diagram.png)
+![The VData structure](doc/vdata_diagram.png)
 
 It extends the [AnnData](https://anndata.readthedocs.io/en/latest/) object by adding the **time** dimension.
 
@@ -35,8 +35,9 @@ the common `pandas.DataFrame` to a third `time` axis.
 mappings of `<layer name>`:`DataFrame`. 
 
 It is also possible to load data from a `VData` or an `AnnData` saved as a 
-[ hdf5 ](https://www.hdfgroup.org/solutions/hdf5/) file or in `csv` format.
-> [!Note]
+[ hdf5 website ](https://www.hdfgroup.org/solutions/hdf5/) file or in `csv` format.
+
+> 🔵 **Note**
 > An important distinction with `AnnData` is that when a **VData** is backed on (read from) an hdf5 file, the *whole* 
 > object is only loaded on-demand and by small chunks of data. As a result, VData objects will always consume small 
 amounts of RAM and will be very fast to read.
@@ -48,7 +49,7 @@ thus represented as `observations` x `variables` x `time points` dataframes. Obs
 at each time point or strictly the same (e.g. to store simulated data where a single cell can be recorded multiple 
 times).
 
-![Diagram of TemporalDataFrames, one with unique observations and one with identical observations at all timepoints](doc/TDF_diagram.png)
+![TemporalDataFrames, one with unique observations and one with identical observations at all timepoints](doc/TDF_diagram.png)
 
 Three additional dataframes are used for annotating the observations (**obs**), variables (**var**) and timepoints
 (**timepoints**).
@@ -56,17 +57,19 @@ Three additional dataframes are used for annotating the observations (**obs**), 
 ### Multi-dimension annotation
 
 There are two additional mappings for storing multi-dimensional annotations (i.e. that require more than one column to
-be stored). These are the **obsm** and **varm** mappings, which respectively contain TemporalDataFrames and pandas 
+be stored). These are the `obsm` and `varm` mappings, which respectively contain TemporalDataFrames and pandas 
 DataFrames.
 
-**Example** : you can store PCA or UMAP coordinates in obsm.
+> 🟢 **Example**
+> You can store PCA or UMAP coordinates in obsm.
 
 ### Pairwise annotation
 
-The last two mappings (**obsp** and **varp**) contain pariwise annotations : data in square matrices of `obs` x `obs` 
+The last two mappings (`obsp` and `varp`) contain pariwise annotations : data in square matrices of `obs` x `obs` 
 or `var` x `var`.
 
-**Example** : you can store distance values between observations in obsp.
+> 🟢 **Example** 
+> You can store distance values between observations in obsp.
 
 ## 📀 Installation
 
