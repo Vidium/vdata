@@ -26,6 +26,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+extend-select = ["I"]
 
 [tool.vulture]
 paths = ["vdata", "vulture_whitelist.py"]

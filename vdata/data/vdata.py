@@ -38,7 +38,7 @@ from vdata.IO import (
 )
 from vdata.names import NO_NAME, Unpickleable
 from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase
-from vdata.update import CURRENT_VERSION, update_vdata
+from vdata.update import update_vdata
 from vdata.utils import repr_array, repr_index
 
 
@@ -251,9 +251,7 @@ class VData(metaclass=PrettyRepr):
     @classmethod
     def __h5_read__(cls, values: ch.H5Dict[Any]) -> VData:
         with ch.options(error_mode="raise"):
-            if values.attributes.get("__vdata_write_version__", -1) < CURRENT_VERSION:
-                update_vdata(values)
-
+            update_vdata(values)
             return VData(data=values)
 
     # endregion

@@ -16,7 +16,7 @@ from vdata._typing import IFS
 from vdata.array_view import NDArrayView
 from vdata.IO.logger import generalLogger
 from vdata.tdf import TemporalDataFrame
-from vdata.update import CURRENT_VERSION
+from vdata.update.update import CURRENT_VERSION
 from vdata.utils import repr_array
 
 

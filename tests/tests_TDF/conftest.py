@@ -1,6 +1,6 @@
 import pickle
-from typing import Any, Generator
 from tempfile import NamedTemporaryFile
+from typing import Any, Generator
 
 import numpy as np
 import pytest
