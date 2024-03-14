@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vdata"
-version = "0.2"
+version = "0.2.1"
 description = "Annotated multivariate observation of timestamped data"
 authors = ["Matteo Bouvier <m.bouvier@vidium-solutions.com>"]
 license = "LICENSE"
