@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vdata"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
@@ -13,7 +13,11 @@ pympler = "^1.0.1"
 numpy-indexed = "^0.3.7"
 typing-extensions = "^4.9.0"
 tqdm = "^4.66.1"
+scanpy = "^1.9.8"
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
 
 [build-system]
 requires = ["poetry-core"]

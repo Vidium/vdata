@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import warnings
 from numbers import Number
@@ -29,7 +30,7 @@ from vdata.utils import get_value, repr_array
 from .utils import parse_path, H5GroupReader
 from vdata.vdataframe import VDataFrame
 from vdata.time_point import TimePoint
-from vdata.IO import generalLogger, VValueError, VTypeError, ShapeError
+from vdata.IO import VValueError, VTypeError, ShapeError
 from vdata.core.tdf import TemporalDataFrame, BackedTemporalDataFrame
 from vdata.h5pickle import File, Dataset as pklDataset, Group as pklGroup
 from vdata.core.tdf.name_utils import H5Data, DEFAULT_TIME_POINTS_COL_NAME
@@ -38,8 +39,11 @@ from ..core.backed_dict import BackedDict
 
 # ====================================================
 # code
+logger = logging.getLogger("vdata")
+
+
 def spacer(nb: int) -> str:
-    return "  "*(nb-1) + "  " + u'\u21B3' + " " if nb else ''
+    return "  " * (nb - 1) + "  " + "\u21b3" + " " if nb else ""
 
 
 def get_dtype_from_string(dtype_str: str) -> type:
@@ -55,7 +59,7 @@ def get_dtype_from_string(dtype_str: str) -> type:
     if dtype_str.startswith("<class '"):
         return eval(dtype_str[8:-2])
 
-    elif dtype_str in ('object', 'category'):
+    elif dtype_str in ("object", "category"):
         return str
 
     else:
@@ -64,20 +68,25 @@ def get_dtype_from_string(dtype_str: str) -> type:
 
 def deprecated(func):
     def wrapper(*args, **kwargs):
-        warnings.warn("Reading old-style TemporalDataFrame, this will be deprecated in future versions.",
-                      DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            "Reading old-style TemporalDataFrame, this will be deprecated in future versions.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return func(*args, **kwargs)
+
     return wrapper
 
 
 # region read VData
 # CSV file format ---------------------------------------------------------------------------------
-def read_from_csv(directory: Path | str,
-                  dtype: 'DType' = np.float32,
-                  time_list: Collection | DType | Literal['*'] | None = None,
-                  time_col: str | None = None,
-                  name: Any | None = None) -> 'vdata.VData':
+def read_from_csv(
+    directory: Path | str,
+    dtype: "DType" = np.float32,
+    time_list: Collection | DType | Literal["*"] | None = None,
+    time_col: str | None = None,
+    name: Any | None = None,
+) -> "vdata.VData":
     """
     Function for reading data from csv datasets and building a VData object.
 
@@ -113,88 +122,113 @@ def read_from_csv(directory: Path | str,
     metadata = None
 
     if (parsed_directory / ".metadata.json").is_file():
-        with open(parsed_directory / ".metadata.json", 'r') as metadata_file:
+        with open(parsed_directory / ".metadata.json", "r") as metadata_file:
             metadata = json.load(metadata_file)
 
-    data = {'obs': None, 'var': None, 'timepoints': None,
-            'layers': None,
-            'obsm': None, 'obsp': None,
-            'varm': None, 'varp': None, 'dtype': dtype}
+    data = {
+        "obs": None,
+        "var": None,
+        "timepoints": None,
+        "layers": None,
+        "obsm": None,
+        "obsp": None,
+        "varm": None,
+        "varp": None,
+        "dtype": dtype,
+    }
 
     # import the data
     for f in sorted(parsed_directory.iterdir()):
         if f.name != ".metadata.json":
-            generalLogger.info(f"Got key : '{f.name}'.")
+            logger.info(f"Got key : '{f.name}'.")
 
-            if f.suffix == '.csv':
-                if f.name in ('var.csv', 'timepoints.csv'):
-                    generalLogger.info(f"{spacer(1)}Reading pandas DataFrame '{f.name[:-4]}'.")
-                    data[f.name[:-4]] = pd.read_csv(parsed_directory / f.name, index_col=0)
+            if f.suffix == ".csv":
+                if f.name in ("var.csv", "timepoints.csv"):
+                    logger.info(f"{spacer(1)}Reading pandas DataFrame '{f.name[:-4]}'.")
+                    data[f.name[:-4]] = pd.read_csv(
+                        parsed_directory / f.name, index_col=0
+                    )
 
-                elif f.name in ('obs.csv', ):
-                    generalLogger.info(f"{spacer(1)}Reading TemporalDataFrame '{f.name[:-4]}'.")
+                elif f.name in ("obs.csv",):
+                    logger.info(
+                        f"{spacer(1)}Reading TemporalDataFrame '{f.name[:-4]}'."
+                    )
                     if time_list is None and time_col is None:
                         if metadata is not None:
-                            this_time_col = metadata['obs']['timepoints_column_name']
+                            this_time_col = metadata["obs"]["timepoints_column_name"]
                         else:
                             this_time_col = None
                     else:
                         this_time_col = time_col
 
-                    data[f.name[:-4]] = read_TemporalDataFrame_from_csv(parsed_directory / f.name,
-                                                                        time_list=time_list,
-                                                                        time_col_name=this_time_col)
+                    data[f.name[:-4]] = read_TemporalDataFrame_from_csv(
+                        parsed_directory / f.name,
+                        time_list=time_list,
+                        time_col_name=this_time_col,
+                    )
 
             else:
                 dataset_dict = {}
-                generalLogger.info(f"{spacer(1)}Reading group '{f.name}'.")
+                logger.info(f"{spacer(1)}Reading group '{f.name}'.")
 
                 for dataset in sorted((parsed_directory / f.name).iterdir()):
                     dataset = dataset.name
 
-                    if f.name in ('layers', 'obsm'):
-                        generalLogger.info(f"{spacer(2)} Reading TemporalDataFrame {str(dataset)[:-4]}")
+                    if f.name in ("layers", "obsm"):
+                        logger.info(
+                            f"{spacer(2)} Reading TemporalDataFrame {str(dataset)[:-4]}"
+                        )
                         if time_list is None and time_col is None:
                             if metadata is not None:
-                                this_time_col = metadata[f.name][str(dataset)[:-4]]['timepoints_column_name']
+                                this_time_col = metadata[f.name][str(dataset)[:-4]][
+                                    "timepoints_column_name"
+                                ]
                             else:
                                 this_time_col = None
                         else:
                             this_time_col = time_col
 
-                        dataset_dict[str(dataset)[:-4]] = read_TemporalDataFrame_from_csv(
-                            parsed_directory / f.name / dataset,
-                            time_list=time_list,
-                            time_col_name=this_time_col
+                        dataset_dict[str(dataset)[:-4]] = (
+                            read_TemporalDataFrame_from_csv(
+                                parsed_directory / f.name / dataset,
+                                time_list=time_list,
+                                time_col_name=this_time_col,
+                            )
                         )
 
-                    elif f.name in ('varm', 'varp'):
-                        generalLogger.info(f"{spacer(2)} Reading pandas DataFrame {dataset}")
-                        dataset_dict[str(dataset)[:-4]] = pd.read_csv(parsed_directory / f.name, index_col=0)
+                    elif f.name in ("varm", "varp"):
+                        logger.info(f"{spacer(2)} Reading pandas DataFrame {dataset}")
+                        dataset_dict[str(dataset)[:-4]] = pd.read_csv(
+                            parsed_directory / f.name, index_col=0
+                        )
 
                     else:
                         raise NotImplementedError
 
                 data[f.name] = dataset_dict
 
-    return vdata.VData(data['layers'],
-                       data['obs'],
-                       data['obsm'],
-                       data['obsp'],
-                       data['var'],
-                       data['varm'],
-                       data['varp'],
-                       data['timepoints'],
-                       dtype=data['dtype'],
-                       name=name)
+    return vdata.VData(
+        data["layers"],
+        data["obs"],
+        data["obsm"],
+        data["obsp"],
+        data["var"],
+        data["varm"],
+        data["varp"],
+        data["timepoints"],
+        dtype=data["dtype"],
+        name=name,
+    )
 
 
-def read_from_dict(data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]],
-                   obs: pd.DataFrame | TemporalDataFrame | None = None,
-                   var: pd.DataFrame | None = None,
-                   timepoints: pd.DataFrame | None = None,
-                   dtype: DType | None = None,
-                   name: Any | None = None) -> 'vdata.VData':
+def read_from_dict(
+    data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]],
+    obs: pd.DataFrame | TemporalDataFrame | None = None,
+    var: pd.DataFrame | None = None,
+    timepoints: pd.DataFrame | None = None,
+    dtype: DType | None = None,
+    name: Any | None = None,
+) -> "vdata.VData":
     """
     Load a simulation's recorded information into a VData object.
 
@@ -224,34 +258,40 @@ def read_from_dict(data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]]
         A VData object containing the simulation's data
     """
     if not isinstance(data, dict):
-        raise VTypeError("Data should be a dictionary with format : {data type: {time point: matrix}}")
+        raise VTypeError(
+            "Data should be a dictionary with format : {data type: {time point: matrix}}"
+        )
 
     _data = {}
     _timepoints: list[TimePoint] = []
     check_tp = False
 
     _index = obs.index if isinstance(obs, (pd.DataFrame, TemporalDataFrame)) else None
-    generalLogger.debug(f"Found index is : {repr_array(_index)}.")
+    logger.debug(f"Found index is : {repr_array(_index)}.")
 
     _columns = var.index if isinstance(var, pd.DataFrame) else None
-    generalLogger.debug(f"Found columns is : {repr_array(_columns)}.")
+    logger.debug(f"Found columns is : {repr_array(_columns)}.")
 
     _repeating_index = None
     _time_list = None
 
     for data_index, (data_type, TP_matrices) in enumerate(data.items()):
         if not isinstance(TP_matrices, dict):
-            raise VTypeError(f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}")
+            raise VTypeError(
+                f"'{data_type}' in data should be a dictionary with format : {{time point: matrix}}"
+            )
 
         # ---------------------------------------------------------------------------
-        generalLogger.debug(f"Loading layer '{data_type}'.")
+        logger.debug(f"Loading layer '{data_type}'.")
 
         for matrix_index, matrix in TP_matrices.items():
             matrix_TP = TimePoint(matrix_index)
 
             if not isinstance(matrix, (np.ndarray, pd.DataFrame)) or matrix.ndim != 2:
-                raise VTypeError(f"Item at time point '{matrix_TP}' is not a 2D array-like object "
-                                 f"(numpy ndarray, pandas DatFrame).")
+                raise VTypeError(
+                    f"Item at time point '{matrix_TP}' is not a 2D array-like object "
+                    f"(numpy ndarray, pandas DatFrame)."
+                )
 
             elif check_tp:
                 if matrix_TP not in _timepoints:
@@ -264,10 +304,14 @@ def read_from_dict(data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]]
         _layer_data = np.vstack(list(TP_matrices.values()))
         # check data matches columns shape
         if _columns is not None and _layer_data.shape[1] != len(_columns):
-            raise ShapeError(f"Layer '{data_type}' has {_layer_data.shape[1]} columns , should have "
-                             f"{len(_columns)}.")
+            raise ShapeError(
+                f"Layer '{data_type}' has {_layer_data.shape[1]} columns , should have "
+                f"{len(_columns)}."
+            )
 
-        _loaded_data = pd.DataFrame(np.vstack(list(TP_matrices.values())), columns=_columns)
+        _loaded_data = pd.DataFrame(
+            np.vstack(list(TP_matrices.values())), columns=_columns
+        )
 
         if _index is not None and (li := len(_index)) != (ld := len(_loaded_data)):
             if ld % li == 0:
@@ -278,8 +322,10 @@ def read_from_dict(data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]]
                 _data_index = np.concatenate([_index for _ in range(ld // li)])
 
             else:
-                raise VValueError(f"Index of length {li} is incompatible with data '{data_type}' of shape"
-                                  f" {_loaded_data.shape}.")
+                raise VValueError(
+                    f"Index of length {li} is incompatible with data '{data_type}' of shape"
+                    f" {_loaded_data.shape}."
+                )
 
         else:
             if _repeating_index is not None and _repeating_index:
@@ -289,47 +335,51 @@ def read_from_dict(data: dict[str, dict[DType | str, np.ndarray | pd.DataFrame]]
             _data_index = _index
 
         if _time_list is None:
-            _time_list = np.concatenate([np.repeat(_timepoints[matrix_index], len(matrix))              # type: ignore
-                                         for matrix_index, matrix in enumerate(TP_matrices.values())])
+            _time_list = np.concatenate(
+                [
+                    np.repeat(_timepoints[matrix_index], len(matrix))  # type: ignore
+                    for matrix_index, matrix in enumerate(TP_matrices.values())
+                ]
+            )
 
-        generalLogger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
+        logger.debug(f"Computed time list to be : {repr_array(_time_list)}.")
 
-        _data[data_type] = TemporalDataFrame(data=_loaded_data,
-                                             time_list=_time_list,
-                                             index=_data_index,
-                                             repeating_index=_repeating_index,
-                                             name=data_type)
+        _data[data_type] = TemporalDataFrame(
+            data=_loaded_data,
+            time_list=_time_list,
+            index=_data_index,
+            repeating_index=_repeating_index,
+            name=data_type,
+        )
 
-        generalLogger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
+        logger.info(f"Loaded layer '{data_type}' ({data_index+1}/{len(data)})")
 
     if obs is not None and not isinstance(obs, TemporalDataFrame):
         if _time_list is not None and (lt := len(_time_list)) != (lo := len(obs)):
             if lt % lo:
-                raise VValueError(f"Index of length {lt} is incompatible with 'obs' DataFrame of shape {obs.shape}.")
+                raise VValueError(
+                    f"Index of length {lt} is incompatible with 'obs' DataFrame of shape {obs.shape}."
+                )
 
             obs = pd.concat([obs for _ in range(lt // lo)])
 
-        obs = TemporalDataFrame(data=obs,
-                                time_list=_time_list,
-                                repeating_index=_repeating_index,
-                                name='obs')
+        obs = TemporalDataFrame(
+            data=obs, time_list=_time_list, repeating_index=_repeating_index, name="obs"
+        )
 
     # if time points is not given, build a DataFrame from time points found in 'data'
     if timepoints is None:
         timepoints = pd.DataFrame({"value": _timepoints})
 
-    return vdata.VData(_data,
-                       obs=obs,
-                       var=var,
-                       timepoints=timepoints,
-                       dtype=dtype,
-                       name=name)
+    return vdata.VData(
+        _data, obs=obs, var=var, timepoints=timepoints, dtype=dtype, name=name
+    )
 
 
 # HDF5 file format --------------------------------------------------------------------------------
-def read_VData(file: Path | str,
-               mode: Literal['r', 'r+'] = 'r',
-               backup: bool = False) -> 'vdata.VData':
+def read_VData(
+    file: Path | str, mode: Literal["r", "r+"] = "r", backup: bool = False
+) -> "vdata.VData":
     """
     Function for reading data from a h5 file and building a VData object from it.
 
@@ -338,10 +388,12 @@ def read_VData(file: Path | str,
         mode: reading mode : 'r' (read only) or 'r+' (read and write).
         backup: create a backup copy of the read h5 file in case something goes wrong ?
     """
-    generalLogger.debug("\u23BE read VData : begin -------------------------------------------------------- ")
+    logger.debug(
+        "\u23be read VData : begin -------------------------------------------------------- "
+    )
     file = parse_path(file)
 
-    if file.suffix != '.vd':
+    if file.suffix != ".vd":
         raise VValueError("Cannot read file with suffix != '.vd'.")
 
     # make sure the path exists
@@ -349,7 +401,7 @@ def read_VData(file: Path | str,
         raise VValueError(f"The path {file} does not exist.")
 
     if backup:
-        backup_file_suffix = '.backup'
+        backup_file_suffix = ".backup"
         backup_nb = 0
 
         while Path(str(file) + backup_file_suffix).exists():
@@ -357,48 +409,72 @@ def read_VData(file: Path | str,
             backup_file_suffix = f"({backup_nb}).backup"
 
         shutil.copy(file, str(file) + backup_file_suffix)
-        generalLogger.info(f"Backup file '{str(file) + backup_file_suffix}' was created.")
+        logger.info(f"Backup file '{str(file) + backup_file_suffix}' was created.")
 
-    data = {'obs': None, 'var': None, 'timepoints': None,
-            'layers': None,
-            'obsm': None, 'obsp': None,
-            'varm': None, 'varp': None,
-            'uns': {}}
+    data = {
+        "obs": None,
+        "var": None,
+        "timepoints": None,
+        "layers": None,
+        "obsm": None,
+        "obsp": None,
+        "varm": None,
+        "varp": None,
+        "uns": {},
+    }
 
     # import data from file
     importFile = H5GroupReader(File(str(file), mode))
 
     try:
         for key in importFile.keys():
-            generalLogger.info(f"Got key : '{key}'.")
+            logger.info(f"Got key : '{key}'.")
 
-            if key in ('obs', 'var', 'timepoints', 'layers', 'obsm', 'obsp', 'varm', 'varp', 'uns'):
-                type_ = importFile[key].attrs('type')
+            if key in (
+                "obs",
+                "var",
+                "timepoints",
+                "layers",
+                "obsm",
+                "obsp",
+                "varm",
+                "varp",
+                "uns",
+            ):
+                type_ = importFile[key].attrs("type")
                 data[key] = func_[type_](importFile[key], 1, mode)
 
             else:
-                generalLogger.warning(f"Unexpected data with key {key} while reading file, skipping.")
+                logger.warning(
+                    f"Unexpected data with key {key} while reading file, skipping."
+                )
 
-        data['timepoints']['value'] = [TimePoint(tp) for tp in data['timepoints']['value']]
+        data["timepoints"]["value"] = [
+            TimePoint(tp) for tp in data["timepoints"]["value"]
+        ]
 
-        name = importFile.attrs('name')
-        dtype = importFile.attrs('dtype')
+        name = importFile.attrs("name")
+        dtype = importFile.attrs("dtype")
 
-        new_VData = vdata.VData(data['layers'],
-                                data['obs'],
-                                data['obsm'],
-                                data['obsp'],
-                                data['var'],
-                                data['varm'],
-                                data['varp'],
-                                data['timepoints'],
-                                data['uns'],
-                                dtype=dtype if dtype != 'None' else None,
-                                name=name,
-                                file=importFile,
-                                no_check=True)
+        new_VData = vdata.VData(
+            data["layers"],
+            data["obs"],
+            data["obsm"],
+            data["obsp"],
+            data["var"],
+            data["varm"],
+            data["varp"],
+            data["timepoints"],
+            data["uns"],
+            dtype=dtype if dtype != "None" else None,
+            name=name,
+            file=importFile,
+            no_check=True,
+        )
 
-        generalLogger.debug("\u23BF read VData : end -------------------------------------------------------- ")
+        logger.debug(
+            "\u23bf read VData : end -------------------------------------------------------- "
+        )
 
         return new_VData
 
@@ -413,21 +489,26 @@ read = read_VData
 
 
 # region read TemporalDataFrame
-def read_TemporalDataFrame(file: str | Path | H5Data,
-                           mode: H5Mode = H5Mode.READ) -> BackedTemporalDataFrame:
+def read_TemporalDataFrame(
+    file: str | Path | H5Data, mode: H5Mode = H5Mode.READ
+) -> BackedTemporalDataFrame:
     if isinstance(file, (str, Path)):
         file = File(file, mode=mode)
 
     if file.file.mode != mode:
-        raise ValueError(f"Can't set mode of H5 file in {file.file.mode} mode to '{mode}'.")
+        raise ValueError(
+            f"Can't set mode of H5 file in {file.file.mode} mode to '{mode}'."
+        )
 
     return BackedTemporalDataFrame(file)
 
 
-def read_TemporalDataFrame_from_csv(file: Path,
-                                    sep: str = ',',
-                                    time_list: Collection[Number | str | TimePoint] | None = None,
-                                    time_col_name: str | None = None) -> 'TemporalDataFrame':
+def read_TemporalDataFrame_from_csv(
+    file: Path,
+    sep: str = ",",
+    time_list: Collection[Number | str | TimePoint] | None = None,
+    time_col_name: str | None = None,
+) -> "TemporalDataFrame":
     """
     Read a .csv file into a TemporalDataFrame.
 
@@ -461,7 +542,9 @@ read_TDF_from_csv = read_TemporalDataFrame_from_csv
 
 
 # region read objects
-def read_h5_dict(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] = 'r') -> BackedDict:
+def read_h5_dict(
+    group: H5GroupReader, level: int = 1, mode: Literal["r", "r+"] = "r"
+) -> BackedDict:
     """
     Function for reading a dictionary from a h5 file.
 
@@ -470,17 +553,19 @@ def read_h5_dict(group: H5GroupReader, level: int = 1, mode: Literal['r', 'r+'] 
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
         mode:  mode for reading the tdf.
     """
-    generalLogger.info(f"{spacer(level)}Reading dict {group.name}.")
+    logger.info(f"{spacer(level)}Reading dict {group.name}.")
 
     start = perf_counter()
     data = BackedDict(group.group)
     end = perf_counter()
 
-    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+    logger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
     return data
 
 
-def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) -> VDataFrame:
+def read_h5_VDataFrame(
+    group: H5GroupReader, level: int = 1, *args, **kwargs
+) -> VDataFrame:
     """
     Function for reading a pandas DataFrame from a h5 file.
 
@@ -488,37 +573,47 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) ->
         group: a H5GroupReader from which to read a DataFrame.
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    generalLogger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
+    logger.info(f"{spacer(level)}Reading VDataFrame {group.name}.")
 
     start = perf_counter()
     # get index
-    dataset_type = cast(H5GroupReader, group['index']).attrs("type")
-    index = func_[dataset_type](group['index'], level=level + 1)
+    dataset_type = cast(H5GroupReader, group["index"]).attrs("type")
+    index = func_[dataset_type](group["index"], level=level + 1)
 
     # get columns
-    dataset_type = cast(H5GroupReader, group['columns']).attrs("type")
-    columns = func_[dataset_type](group['columns'], level=level + 1)
+    dataset_type = cast(H5GroupReader, group["columns"]).attrs("type")
+    columns = func_[dataset_type](group["columns"], level=level + 1)
 
     # get data
     data = None
 
-    if 'data_numeric' in group.keys():
-        generalLogger.info(f"{spacer(level + 1)}Reading numeric data.")
-        dataset_type = cast(H5GroupReader, group['data_numeric']['columns']).attrs("type")
-        data_numeric_columns = func_[dataset_type](group['data_numeric']['columns'], level=level + 2)
+    if "data_numeric" in group.keys():
+        logger.info(f"{spacer(level + 1)}Reading numeric data.")
+        dataset_type = cast(H5GroupReader, group["data_numeric"]["columns"]).attrs(
+            "type"
+        )
+        data_numeric_columns = func_[dataset_type](
+            group["data_numeric"]["columns"], level=level + 2
+        )
 
-        dataset_type = cast(H5GroupReader, group['data_numeric']['data']).attrs("type")
-        data_numeric_data = func_[dataset_type](group['data_numeric']['data'], level=level + 2)
+        dataset_type = cast(H5GroupReader, group["data_numeric"]["data"]).attrs("type")
+        data_numeric_data = func_[dataset_type](
+            group["data_numeric"]["data"], level=level + 2
+        )
 
-        data = pd.DataFrame(data_numeric_data, columns=data_numeric_columns, index=index)
+        data = pd.DataFrame(
+            data_numeric_data, columns=data_numeric_columns, index=index
+        )
 
-    if 'data_str' in group.keys():
-        generalLogger.info(f"{spacer(level + 1)}Reading non numeric data.")
-        dataset_type = cast(H5GroupReader, group['data_str']['columns']).attrs("type")
-        data_str_columns = func_[dataset_type](group['data_str']['columns'], level=level + 2)
+    if "data_str" in group.keys():
+        logger.info(f"{spacer(level + 1)}Reading non numeric data.")
+        dataset_type = cast(H5GroupReader, group["data_str"]["columns"]).attrs("type")
+        data_str_columns = func_[dataset_type](
+            group["data_str"]["columns"], level=level + 2
+        )
 
-        dataset_type = cast(H5GroupReader, group['data_str']['data']).attrs("type")
-        data_str_data = func_[dataset_type](group['data_str']['data'], level=level + 2)
+        dataset_type = cast(H5GroupReader, group["data_str"]["data"]).attrs("type")
+        data_str_data = func_[dataset_type](group["data_str"]["data"], level=level + 2)
 
         if data is not None:
             for col_i, col in enumerate(data_str_columns):
@@ -529,12 +624,14 @@ def read_h5_VDataFrame(group: H5GroupReader, level: int = 1, *args, **kwargs) ->
             data = pd.DataFrame(data_str_data, columns=data_str_columns, index=index)
 
     end = perf_counter()
-    generalLogger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+    logger.info(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
     return VDataFrame(data=data, index=index, columns=columns, file=group.group)
 
 
-def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode = 'r') -> BackedTemporalDataFrame:
+def read_h5_TemporalDataFrame(
+    group: H5GroupReader, level: int = 1, mode: H5Mode = "r"
+) -> BackedTemporalDataFrame:
     """
     Function for reading a TemporalDataFrame from a h5 file.
 
@@ -547,8 +644,14 @@ def read_h5_TemporalDataFrame(group: H5GroupReader, level: int = 1, mode: H5Mode
 
 
 # TODO : drop H5GroupReader class
-def read_h5_series(group: H5GroupReader, index: list | None = None, level: int = 1,
-                   log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> pd.Series:
+def read_h5_series(
+    group: H5GroupReader,
+    index: list | None = None,
+    level: int = 1,
+    log_func: Literal["debug", "info"] = "info",
+    *args,
+    **kwargs,
+) -> pd.Series:
     """
     Function for reading a pandas Series from a h5 file.
 
@@ -558,36 +661,53 @@ def read_h5_series(group: H5GroupReader, index: list | None = None, level: int =
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
         log_func: function to use with the logger. Either 'info' or 'debug'.
     """
-    getattr(generalLogger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
+    getattr(logger, log_func)(f"{spacer(level)}Reading Series {group.name}.")
 
     start = perf_counter()
     # simple Series
     if group.isinstance(Dataset) or group.isinstance(pklDataset):
-        data_type = get_dtype_from_string(group.attrs('dtype'))
+        data_type = get_dtype_from_string(group.attrs("dtype"))
         if data_type == TimePoint:
-            values = [TimePoint(tp) for tp in read_h5_array(group, level=level+1, log_func=log_func)]
+            values = [
+                TimePoint(tp)
+                for tp in read_h5_array(group, level=level + 1, log_func=log_func)
+            ]
 
         else:
-            values = list(map(data_type, read_h5_array(group, level=level+1, log_func=log_func)))
+            values = list(
+                map(data_type, read_h5_array(group, level=level + 1, log_func=log_func))
+            )
 
         end = perf_counter()
-        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+        getattr(logger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
         return pd.Series(values, index=index)
 
     # categorical Series
     elif group.isinstance(Group) or group.isinstance(pklGroup):
         # get data
-        data_type = get_dtype_from_string(group.attrs('dtype'))
-        categories = read_h5_array(cast(H5GroupReader, group['categories']), level=level+1, log_func=log_func)
-        ordered = get_value(group.attrs('ordered'))
-        values = list(map(data_type, read_h5_array(cast(H5GroupReader, group['values']), level=level+1,
-                                                   log_func=log_func)))
+        data_type = get_dtype_from_string(group.attrs("dtype"))
+        categories = read_h5_array(
+            cast(H5GroupReader, group["categories"]), level=level + 1, log_func=log_func
+        )
+        ordered = get_value(group.attrs("ordered"))
+        values = list(
+            map(
+                data_type,
+                read_h5_array(
+                    cast(H5GroupReader, group["values"]),
+                    level=level + 1,
+                    log_func=log_func,
+                ),
+            )
+        )
 
         end = perf_counter()
-        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+        getattr(logger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
-        return pd.Series(pd.Categorical(values, categories, ordered=ordered), index=index)
+        return pd.Series(
+            pd.Categorical(values, categories, ordered=ordered), index=index
+        )
 
     # unexpected type
     else:
@@ -595,8 +715,13 @@ def read_h5_series(group: H5GroupReader, index: list | None = None, level: int =
 
 
 # TODO : should not be needed anymore
-def read_h5_array(group: H5GroupReader, level: int = 1,
-                  log_func: Literal['debug', 'info'] = 'info', *args, **kwargs) -> np.ndarray:
+def read_h5_array(
+    group: H5GroupReader,
+    level: int = 1,
+    log_func: Literal["debug", "info"] = "info",
+    *args,
+    **kwargs,
+) -> np.ndarray:
     """
     Function for reading a numpy array from a h5 file.
     If the imported array contains strings, as they were stored as bytes, they are converted back to strings.
@@ -606,7 +731,7 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
         log_func: function to use with the logger. Either 'info' or 'debug'.
     """
-    getattr(generalLogger, log_func)(f"{spacer(level)}Reading array {group.name}.")
+    getattr(logger, log_func)(f"{spacer(level)}Reading array {group.name}.")
 
     start = perf_counter()
     arr = group[()]
@@ -616,18 +741,22 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         if arr.dtype.type is np.object_:
             try:
                 end = perf_counter()
-                getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+                getattr(logger, log_func)(
+                    f"{spacer(level)}(took {end - start:1.4f} seconds))."
+                )
 
                 return arr.astype(float)
 
             except ValueError:
                 end = perf_counter()
-                getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+                getattr(logger, log_func)(
+                    f"{spacer(level)}(took {end - start:1.4f} seconds))."
+                )
 
                 return arr.astype(np.str_)
 
         end = perf_counter()
-        getattr(generalLogger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
+        getattr(logger, log_func)(f"{spacer(level)}(took {end - start:1.4f} seconds)).")
 
         return arr
 
@@ -635,7 +764,9 @@ def read_h5_array(group: H5GroupReader, level: int = 1,
         raise VTypeError(f"Group is not an array (type is '{type(arr)}').")
 
 
-def read_h5_value(group: H5GroupReader, level: int = 1, *args, **kwargs) -> str | int | float | bool | type:
+def read_h5_value(
+    group: H5GroupReader, level: int = 1, *args, **kwargs
+) -> str | int | float | bool | type:
     """
     Function for reading a value from a h5 file.
 
@@ -643,7 +774,7 @@ def read_h5_value(group: H5GroupReader, level: int = 1, *args, **kwargs) -> str 
         group: a H5GroupReader from which to read a value.
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    generalLogger.info(f"{spacer(level)}Reading value {group.name}.")
+    logger.info(f"{spacer(level)}Reading value {group.name}.")
 
     if group.is_string():
         return group.as_string()
@@ -659,7 +790,7 @@ def read_h5_path(group: H5GroupReader, level: int = 1, *args, **kwargs) -> Path:
         group: a H5GroupReader from which to read a Path.
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    generalLogger.info(f"{spacer(level)}Reading Path {group.name}.")
+    logger.info(f"{spacer(level)}Reading Path {group.name}.")
 
     return Path(group.as_string())
 
@@ -672,21 +803,21 @@ def read_h5_None(_: H5GroupReader, level: int = 1, *args, **kwargs) -> None:
         _: a H5GroupReader from which to read a value.
         level: for logging purposes, the recursion depth of calls to a read_h5 function.
     """
-    generalLogger.info(f"{spacer(level)}Reading None.")
+    logger.info(f"{spacer(level)}Reading None.")
     return None
 
 
 func_: dict[str, Callable] = {
-    'dict': read_h5_dict,
-    'VDF': read_h5_VDataFrame,
-    'tdf': read_h5_TemporalDataFrame,
-    'TDF': deprecated(read_h5_TemporalDataFrame),           # for backwards compatibility
-    'series': read_h5_series,
-    'array': read_h5_array,
-    'value': read_h5_value,
-    'type': read_h5_value,
-    'path': read_h5_path,
-    'None': read_h5_None
+    "dict": read_h5_dict,
+    "VDF": read_h5_VDataFrame,
+    "tdf": read_h5_TemporalDataFrame,
+    "TDF": deprecated(read_h5_TemporalDataFrame),  # for backwards compatibility
+    "series": read_h5_series,
+    "array": read_h5_array,
+    "value": read_h5_value,
+    "type": read_h5_value,
+    "path": read_h5_path,
+    "None": read_h5_None,
 }
 
 # endregion

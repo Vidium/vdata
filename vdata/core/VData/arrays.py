@@ -4,13 +4,25 @@
 
 # ====================================================
 # imports
+import logging
 import os
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Union, KeysView, ValuesView, ItemsView, MutableMapping, Iterator, TypeVar, Collection, \
-    Generic, Literal
+from typing import (
+    Optional,
+    Union,
+    KeysView,
+    ValuesView,
+    ItemsView,
+    MutableMapping,
+    Iterator,
+    TypeVar,
+    Collection,
+    Generic,
+    Literal,
+)
 
 import vdata
 from .name_utils import DataFrame
@@ -18,32 +30,39 @@ from ..tdf import TemporalDataFrame
 from vdata.vdataframe import VDataFrame
 from vdata.name_utils import DType
 from vdata.time_point import TimePoint
-from vdata.IO import generalLogger, IncoherenceError, VAttributeError, ShapeError, VTypeError, VValueError, \
-    VClosedFileError, VReadOnlyError
+from vdata.IO import (
+    IncoherenceError,
+    VAttributeError,
+    ShapeError,
+    VTypeError,
+    VValueError,
+    VClosedFileError,
+    VReadOnlyError,
+)
 from vdata.h5pickle import File, Group
 from vdata.read_write import read_TDF
 from ...h5pickle.name_utils import H5Mode
 
 # ====================================================
 # code
-D_VDF = TypeVar('D_VDF', bound=VDataFrame)
-D_TDF = TypeVar('D_TDF', bound=TemporalDataFrame)
+D_VDF = TypeVar("D_VDF", bound=VDataFrame)
+D_TDF = TypeVar("D_TDF", bound=TemporalDataFrame)
 
 TD_K = tuple[Union[slice, TimePoint], str]
-K_ = TypeVar('K_', str, TD_K)
+K_ = TypeVar("K_", str, TD_K)
+
+
+logger = logging.getLogger("vdata")
 
 
 # Containers ------------------------------------------------------------------
 class TimedDict(dict, Generic[K_, D_VDF]):
-    def __init__(self,
-                 parent: 'vdata.VData',
-                 **kwargs):
+    def __init__(self, parent: "vdata.VData", **kwargs):
         dict.__init__(kwargs)
 
         self._parent = parent
 
-    def __getitem__(self,
-                    key: tuple[Union[slice, TimePoint], K_]) -> D_VDF:
+    def __getitem__(self, key: tuple[Union[slice, TimePoint], K_]) -> D_VDF:
         vdf = dict.__getitem__(self, key[1])
 
         if isinstance(key[0], slice):
@@ -52,14 +71,12 @@ class TimedDict(dict, Generic[K_, D_VDF]):
         index = self._parent.obs.index_at(key[0])
         return vdf[index, index]
 
-    def __setitem__(self,
-                    key: K_,
-                    value: D_VDF) -> None:
+    def __setitem__(self, key: K_, value: D_VDF) -> None:
         dict.__setitem__(self, key, value)
 
 
-D = TypeVar('D', DataFrame, TimedDict)
-TD_ = TypeVar('TD_', bound=TimedDict)
+D = TypeVar("D", DataFrame, TimedDict)
+TD_ = TypeVar("TD_", bound=TimedDict)
 
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -70,14 +87,16 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
     attribute for storing 2D/3D arrays.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D]]):
+    def __init__(self, parent: "vdata.VData", data: Optional[dict[K_, D]]):
         """
         Args:
             parent: the parent VData object this ArrayContainer is linked to.
             data: a dictionary of data items (pandas DataFrames, TemporalDataFrames or dictionaries of pandas
             DataFrames) to store in this ArrayContainer.
         """
-        generalLogger.debug(f"== Creating {self.__class__.__name__}. ==========================")
+        logger.debug(
+            f"== Creating {self.__class__.__name__}. =========================="
+        )
 
         self._parent = parent
         self._data = self._check_init_data(data)
@@ -119,7 +138,9 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
             raise VClosedFileError
 
         if not len(self) or item not in self.keys():
-            raise VAttributeError(f"{self.name} ArrayContainer has no attribute '{item}'")
+            raise VAttributeError(
+                f"{self.name} ArrayContainer has no attribute '{item}'"
+            )
 
         return self._data[item]
 
@@ -187,7 +208,7 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         pass
 
     @abstractmethod
-    def update_dtype(self, type_: 'DType') -> None:
+    def update_dtype(self, type_: "DType") -> None:
         """
         Update the data type of Arrays stored in this ArrayContainer.
 
@@ -207,10 +228,12 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
 
     @property
     @abstractmethod
-    def shape(self) -> Union[
+    def shape(
+        self,
+    ) -> Union[
         tuple[int, int, int],
         tuple[int, int, list[int]],
-        tuple[int, int, list[int], int]
+        tuple[int, int, list[int], int],
     ]:
         """
         The shape of this ArrayContainer is computed from the shape of the Arrays it contains.
@@ -281,8 +304,15 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
         pass
 
     @abstractmethod
-    def to_csv(self, directory: Path, sep: str = ",", na_rep: str = "",
-               index: bool = True, header: bool = True, spacer: str = '') -> None:
+    def to_csv(
+        self,
+        directory: Path,
+        sep: str = ",",
+        na_rep: str = "",
+        index: bool = True,
+        header: bool = True,
+        spacer: str = "",
+    ) -> None:
         """
         Save this ArrayContainer in CSV file format.
 
@@ -308,13 +338,15 @@ class VBaseArrayContainer(ABC, MutableMapping[str, D], Generic[K_, D]):
 
 
 # 3D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF], Generic[K_, D_TDF]):
+class VBase3DArrayContainer(
+    VBaseArrayContainer, ABC, MutableMapping[str, D_TDF], Generic[K_, D_TDF]
+):
     """
     Base abstract class for ArrayContainers linked to a VData object that contain TemporalDataFrames (obsm and layers).
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
+    def __init__(self, parent: "vdata.VData", data: Optional[dict[K_, D_TDF]]):
         """
         Args:
             parent: the parent VData object this ArrayContainer is linked to.
@@ -360,7 +392,7 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
 
         return list(self.values())[0].has_repeating_index
 
-    def update_dtype(self, type_: 'DType') -> None:
+    def update_dtype(self, type_: "DType") -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
 
@@ -392,13 +424,15 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         """
         return {k: v.copy() for k, v in self.items()}
 
-    def to_csv(self,
-               directory: Path,
-               sep: str = ",",
-               na_rep: str = "",
-               index: bool = True,
-               header: bool = True,
-               spacer: str = '') -> None:
+    def to_csv(
+        self,
+        directory: Path,
+        sep: str = ",",
+        na_rep: str = "",
+        index: bool = True,
+        header: bool = True,
+        spacer: str = "",
+    ) -> None:
         """
         Save the ArrayContainer in CSV file format.
 
@@ -417,10 +451,16 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
         os.makedirs(directory / self.name)
 
         for arr_name, arr in self.items():
-            generalLogger.info(f"{spacer}Saving {arr_name}")
+            logger.info(f"{spacer}Saving {arr_name}")
 
             # save array
-            arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            arr.to_csv(
+                f"{directory / self.name / arr_name}.csv",
+                sep,
+                na_rep,
+                index=index,
+                header=header,
+            )
 
     def set_file(self, file: Union[File, Group]) -> None:
         """
@@ -433,8 +473,10 @@ class VBase3DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_TDF]
             raise VReadOnlyError
 
         if not isinstance(file, (File, Group)):
-            raise VTypeError(f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
-                             f"{type(file)}'.")
+            raise VTypeError(
+                f"Cannot back TemporalDataFrames in this VBase3DArrayContainer with an object of type '"
+                f"{type(file)}'."
+            )
 
         for arr_name, arr in self.items():
             arr.file = file[arr_name]
@@ -448,7 +490,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         VData.layers[<array_name>]
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]]):
+    def __init__(self, parent: "vdata.VData", data: Optional[dict[K_, D_TDF]]):
         """
         Args:
             parent: the parent VData object this VLayerArrayContainer is linked to.
@@ -472,62 +514,84 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             The data (dictionary of TemporalDataFrames), if correct.
         """
         if data is None or not len(data):
-            generalLogger.debug("  No data was given.")
-            return {'data': TemporalDataFrame(index=self._parent.obs.index, columns_numerical=self._parent.var.index,
-                                              time_list=self._parent.obs.timepoints_column,
-                                              # timepoints=self._parent.timepoints.value,
-                                              name='data')}
+            logger.debug("  No data was given.")
+            return {
+                "data": TemporalDataFrame(
+                    index=self._parent.obs.index,
+                    columns_numerical=self._parent.var.index,
+                    time_list=self._parent.obs.timepoints_column,
+                    # timepoints=self._parent.timepoints.value,
+                    name="data",
+                )
+            }
 
         else:
-            generalLogger.debug("  Data was found.")
+            logger.debug("  Data was found.")
             _data = {}
-            _shape = (self._parent.timepoints.shape[0], self._parent.obs.shape[1], self._parent.var.shape[0])
+            _shape = (
+                self._parent.timepoints.shape[0],
+                self._parent.obs.shape[1],
+                self._parent.var.shape[0],
+            )
             _index = self._parent.obs.index
             _columns = self._parent.var.index
-            _timepoints: pd.Series = self._parent.timepoints['value']
+            _timepoints: pd.Series = self._parent.timepoints["value"]
 
-            generalLogger.debug(f"  Reference shape is {_shape}.")
+            logger.debug(f"  Reference shape is {_shape}.")
 
             for TDF_index, TDF in data.items():
                 TDF_shape = TDF.shape
 
-                generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
+                logger.debug(
+                    f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}."
+                )
 
                 if _shape != TDF_shape:
-
                     # check that shapes match
                     if _shape[0] != TDF_shape[0]:
-                        raise IncoherenceError(f"Layer '{TDF_index}' has {TDF_shape[0]} "
-                                               f"time point{'s' if TDF_shape[0] > 1 else ''}, "
-                                               f"should have {_shape[0]}.")
+                        raise IncoherenceError(
+                            f"Layer '{TDF_index}' has {TDF_shape[0]} "
+                            f"time point{'s' if TDF_shape[0] > 1 else ''}, "
+                            f"should have {_shape[0]}."
+                        )
 
                     elif _shape[1] != TDF_shape[1]:
                         for i in range(len(TDF.timepoints)):
                             if _shape[1][i] != TDF_shape[1][i]:
-                                raise IncoherenceError(f"Layer '{TDF_index}' at time point {i} has"
-                                                       f" {TDF_shape[1][i]} observations, "
-                                                       f"should have {_shape[1][i]}.")
+                                raise IncoherenceError(
+                                    f"Layer '{TDF_index}' at time point {i} has"
+                                    f" {TDF_shape[1][i]} observations, "
+                                    f"should have {_shape[1][i]}."
+                                )
 
                     else:
-                        raise IncoherenceError(f"Layer '{TDF_index}' has  {TDF_shape[2]} variables, "
-                                               f"should have {_shape[2]}.")
+                        raise IncoherenceError(
+                            f"Layer '{TDF_index}' has  {TDF_shape[2]} variables, "
+                            f"should have {_shape[2]}."
+                        )
 
                 # check that indexes match
                 if not np.all(_index == TDF.index):
-                    raise IncoherenceError(f"Index of layer '{TDF_index}' ({TDF.index}) does not match obs' index. ("
-                                           f"{_index})")
+                    raise IncoherenceError(
+                        f"Index of layer '{TDF_index}' ({TDF.index}) does not match obs' index. ("
+                        f"{_index})"
+                    )
 
                 if not np.all(_columns == TDF.columns):
-                    raise IncoherenceError(f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
-                                           f"index. ({_columns})")
+                    raise IncoherenceError(
+                        f"Column names of layer '{TDF_index}' ({TDF.columns}) do not match var's "
+                        f"index. ({_columns})"
+                    )
 
                 if not np.all(_timepoints == TDF.timepoints):
-                    raise IncoherenceError(f"Time points of layer '{TDF_index}' ({TDF.timepoints}) do not match "
-                                           f"time_point's index. ({_timepoints})")
+                    raise IncoherenceError(
+                        f"Time points of layer '{TDF_index}' ({TDF.timepoints}) do not match "
+                        f"time_point's index. ({_timepoints})"
+                    )
 
                 # checks passed, store the TemporalDataFrame
                 # TODO : change this once the VData object will be split into Backed and regular objects
-                if not TDF.is_backed or TDF.h5_mode == 'r+':
+                if not TDF.is_backed or TDF.h5_mode == "r+":
                     TDF.lock_indices()
                     TDF.lock_columns()
 
@@ -535,7 +599,7 @@ class VLayerArrayContainer(VBase3DArrayContainer):
 
                 _data[str(TDF_index)] = TDF
 
-            generalLogger.debug("  Data was OK.")
+            logger.debug("  Data was OK.")
             return _data
 
     def __setitem__(self, key: K_, value: D_TDF) -> None:
@@ -547,10 +611,14 @@ class VLayerArrayContainer(VBase3DArrayContainer):
             value: a TemporalDataFrame to store.
         """
         if not isinstance(value, TemporalDataFrame):
-            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
+            raise VTypeError(
+                f"Cannot set {self.name} '{key}' from non TemporalDataFrame object."
+            )
 
         if not self.shape[1:] == value.shape:
-            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
+            raise ShapeError(
+                f"Cannot set {self.name} '{key}' because of shape mismatch."
+            )
 
         if not np.array_equal(self._parent.var.index, value.columns):
             raise VValueError("Column names do not match.")
@@ -562,20 +630,22 @@ class VLayerArrayContainer(VBase3DArrayContainer):
         value_copy.lock_columns()
 
         if self._parent.is_backed_w:
-            if key not in self._parent.file['layers'].keys():
-                self._parent.file['layers'].create_group(key)
-            value_copy.write(self._parent.file['layers'][key].group)
-            value_copy = read_TDF(self._parent.file['layers'][key].group, mode=H5Mode.READ_WRITE)
+            if key not in self._parent.file["layers"].keys():
+                self._parent.file["layers"].create_group(key)
+            value_copy.write(self._parent.file["layers"][key].group)
+            value_copy = read_TDF(
+                self._parent.file["layers"][key].group, mode=H5Mode.READ_WRITE
+            )
 
         super().__setitem__(key, value_copy)
 
     @property
-    def name(self) -> Literal['layers']:
+    def name(self) -> Literal["layers"]:
         """
         Name for this VLayerArrayContainer : layers.
         :return: name of this VLayerArrayContainer.
         """
-        return 'layers'
+        return "layers"
 
 
 class VObsmArrayContainer(VBase3DArrayContainer):
@@ -586,7 +656,7 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         VData.obsm[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_TDF]] = None):
+    def __init__(self, parent: "vdata.VData", data: Optional[dict[K_, D_TDF]] = None):
         """
         Args:
             parent: the parent VData object this VObsmArrayContainer is linked to.
@@ -610,58 +680,69 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             The data (dictionary of TemporalDataFrames), if correct.
         """
         if data is None or not len(data):
-            generalLogger.debug("  No data was given.")
+            logger.debug("  No data was given.")
             return dict()
 
         else:
-            generalLogger.debug("  Data was found.")
+            logger.debug("  Data was found.")
             _data = {}
-            _shape = (self._parent.timepoints.shape[0],
-                      self._parent.obs.shape[1],
-                      'Any')
+            _shape = (
+                self._parent.timepoints.shape[0],
+                self._parent.obs.shape[1],
+                "Any",
+            )
             _index = self._parent.obs.index
-            _timepoints: pd.Series = self._parent.timepoints['value']
+            _timepoints: pd.Series = self._parent.timepoints["value"]
 
-            generalLogger.debug(f"  Reference shape is {_shape}.")
+            logger.debug(f"  Reference shape is {_shape}.")
 
             for TDF_index, TDF in data.items():
                 TDF_shape = TDF.shape
 
-                generalLogger.debug(f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}.")
+                logger.debug(
+                    f"  Checking TemporalDataFrame '{TDF_index}' with shape {TDF_shape}."
+                )
 
                 if _shape != TDF_shape:
-
                     # check that shapes match
                     if _shape[0] != TDF_shape[0]:
-                        raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' has {TDF_shape[0]} "
-                                               f"time point{'s' if TDF_shape[0] > 1 else ''}, "
-                                               f"should have {_shape[0]}.")
+                        raise IncoherenceError(
+                            f"TemporalDataFrame '{TDF_index}' has {TDF_shape[0]} "
+                            f"time point{'s' if TDF_shape[0] > 1 else ''}, "
+                            f"should have {_shape[0]}."
+                        )
 
                     elif _shape[1] != TDF_shape[1]:
                         for i in range(len(TDF.timepoints)):
                             if _shape[1][i] != TDF_shape[1][i]:
-                                raise IncoherenceError(f"TemporalDataFrame '{TDF_index}' at time point {i} has"
-                                                       f" {TDF_shape[1][i]} rows, "
-                                                       f"should have {_shape[1][i]}.")
+                                raise IncoherenceError(
+                                    f"TemporalDataFrame '{TDF_index}' at time point {i} has"
+                                    f" {TDF_shape[1][i]} rows, "
+                                    f"should have {_shape[1][i]}."
+                                )
 
                     else:
                         pass
 
                 # check that indexes match
                 if not np.all(_index == TDF.index):
-                    raise IncoherenceError(f"Index of TemporalDataFrame '{TDF_index}' ({TDF.index}) does not match "
-                                           f"obs' index. ({_index})")
+                    raise IncoherenceError(
+                        f"Index of TemporalDataFrame '{TDF_index}' ({TDF.index}) does not match "
+                        f"obs' index. ({_index})"
+                    )
 
                 if not all(_timepoints == TDF.timepoints):
-                    raise IncoherenceError(f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.timepoints}) "
-                                           f"do not match time_point's index. ({_timepoints})")
+                    raise IncoherenceError(
+                        f"Time points of TemporalDataFrame '{TDF_index}' ({TDF.timepoints}) "
+                        f"do not match time_point's index. ({_timepoints})"
+                    )
 
                 # checks passed, store the TemporalDataFrame
                 if not TDF.has_locked_indices:
                     TDF.lock_indices()
                 _data[str(TDF_index)] = TDF
 
-            generalLogger.debug("  Data was OK.")
+            logger.debug("  Data was OK.")
             return _data
 
     def __setitem__(self, key: K_, value: D_TDF) -> None:
@@ -673,10 +754,14 @@ class VObsmArrayContainer(VBase3DArrayContainer):
             value: a TemporalDataFrame to store.
         """
         if not isinstance(value, TemporalDataFrame):
-            raise VTypeError(f"Cannot set {self.name} '{key}' from non TemporalDataFrame object.")
+            raise VTypeError(
+                f"Cannot set {self.name} '{key}' from non TemporalDataFrame object."
+            )
 
         if not self.shape[1:3] == value.shape[:2]:
-            raise ShapeError(f"Cannot set {self.name} '{key}' because of shape mismatch.")
+            raise ShapeError(
+                f"Cannot set {self.name} '{key}' because of shape mismatch."
+            )
 
         value_copy = value.copy()
         value_copy.name = key
@@ -685,10 +770,10 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         super().__setitem__(key, value_copy)
 
         if self._parent.is_backed_w:
-            if key not in self._parent.file['obsm'].keys():
-                self._parent.file['obsm'].create_group(key)
+            if key not in self._parent.file["obsm"].keys():
+                self._parent.file["obsm"].create_group(key)
 
-            value_copy.write(self._parent.file['obsm'][key].group)
+            value_copy.write(self._parent.file["obsm"][key].group)
 
     @property
     def shape(self) -> tuple[int, int, list[int], list[int]]:
@@ -702,15 +787,20 @@ class VObsmArrayContainer(VBase3DArrayContainer):
         n_timepoints = self._parent.shape[1]
         n_obs = self._parent.shape[2]
 
-        return len(self._data), n_timepoints, n_obs, [d.shape[2] for d in self._data.values()]
+        return (
+            len(self._data),
+            n_timepoints,
+            n_obs,
+            [d.shape[2] for d in self._data.values()],
+        )
 
     @property
-    def name(self) -> Literal['obsm']:
+    def name(self) -> Literal["obsm"]:
         """
         Name for this VObsmArrayContainer : obsm.
         :return: name of this VObsmArrayContainer.
         """
-        return 'obsm'
+        return "obsm"
 
 
 # Obsp Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -722,10 +812,12 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         VData.obsp[<array_name>][<time point>]
     """
 
-    def __init__(self,
-                 parent: 'vdata.VData',
-                 data: Optional[dict[K_, pd.DataFrame]],
-                 file: Optional[Union[File, Group]] = None):
+    def __init__(
+        self,
+        parent: "vdata.VData",
+        data: Optional[dict[K_, pd.DataFrame]],
+        file: Optional[Union[File, Group]] = None,
+    ):
         """
         Args:
             parent: the parent VData object this VObspArrayContainer is linked to.
@@ -735,8 +827,9 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
 
         super().__init__(parent, data)
 
-    def _check_init_data(self,
-                         data: Optional[dict[K_, pd.DataFrame]]) -> TimedDict[str, VDataFrame]:
+    def _check_init_data(
+        self, data: Optional[dict[K_, pd.DataFrame]]
+    ) -> TimedDict[str, VDataFrame]:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
             - the shape of the DataFrames in 'data' match the parent VData object's index length.
@@ -752,15 +845,17 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             The data (dictionary of dictionaries of DataFrames), if correct.
         """
         if data is None or not len(data):
-            generalLogger.debug("  No data was given.")
+            logger.debug("  No data was given.")
             return TimedDict(parent=self._parent)
 
         else:
-            generalLogger.debug("  Data was found.")
+            logger.debug("  Data was found.")
             _data = TimedDict(parent=self._parent)
 
             for key, df in data.items():
-                generalLogger.debug(f"  Checking DataFrame at key '{key}' with shape {df.shape}.")
+                logger.debug(
+                    f"  Checking DataFrame at key '{key}' with shape {df.shape}."
+                )
 
                 _index = self._parent.obs.index
                 file = self._file[key] if self._file is not None else None
@@ -771,21 +866,24 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
 
                 # check that indexes match
                 if not np.all(_index == df.index):
-                    raise IncoherenceError(f"Index of DataFrame at key '{key}' ({df.index}) does not "
-                                           f"match obs' index. ({_index})")
+                    raise IncoherenceError(
+                        f"Index of DataFrame at key '{key}' ({df.index}) does not "
+                        f"match obs' index. ({_index})"
+                    )
 
                 if not np.all(_index == df.columns):
-                    raise IncoherenceError(f"Column names of DataFrame at key '{key}' ({df.columns}) "
-                                           f"do not match obs' index. ({_index})")
+                    raise IncoherenceError(
+                        f"Column names of DataFrame at key '{key}' ({df.columns}) "
+                        f"do not match obs' index. ({_index})"
+                    )
 
                 # checks passed, store as VDataFrame
                 _data[key] = VDataFrame(df, file=file)
 
-            generalLogger.debug("  Data was OK.")
+            logger.debug("  Data was OK.")
             return _data
 
-    def __getitem__(self,
-                    item: K_) -> D_VDF:
+    def __getitem__(self, item: K_) -> D_VDF:
         """
         Get a specific set VDataFrame stored in this VObspArrayContainer.
 
@@ -802,11 +900,11 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             return self._data[(slice(None), item)]
 
         else:
-            raise VAttributeError(f"{self.name} ArrayContainer has no attribute '{item}'")
+            raise VAttributeError(
+                f"{self.name} ArrayContainer has no attribute '{item}'"
+            )
 
-    def __setitem__(self,
-                    key: K_,
-                    value: Union[VDataFrame, pd.DataFrame]) -> None:
+    def __setitem__(self, key: K_, value: Union[VDataFrame, pd.DataFrame]) -> None:
         """
         Set a specific DataFrame in _data. The given DataFrame must have the correct shape.
 
@@ -829,13 +927,19 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         _index = self._parent.obs.index
 
         if not value.shape == (len(_index), len(_index)):
-            raise ShapeError(f"DataFrame should have shape ({len(_index)}, {len(_index)}).")
+            raise ShapeError(
+                f"DataFrame should have shape ({len(_index)}, {len(_index)})."
+            )
 
         if not np.all(value.index == _index):
-            raise VValueError("The index of the DataFrame does not match the index of the parent VData.")
+            raise VValueError(
+                "The index of the DataFrame does not match the index of the parent VData."
+            )
 
         if not np.all(value.columns == _index):
-            raise VValueError("The column names the DataFrame do not match the index of the parent VData.")
+            raise VValueError(
+                "The column names the DataFrame do not match the index of the parent VData."
+            )
 
         self._data[key] = value
 
@@ -864,8 +968,7 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             return True
         return False
 
-    def update_dtype(self,
-                     type_: 'DType') -> None:
+    def update_dtype(self, type_: "DType") -> None:
         """
         Update the data type of VDataFrames stored in this VObspArrayContainer.
 
@@ -876,12 +979,12 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             self[vdf_name] = self[vdf_name].astype(type_)
 
     @property
-    def name(self) -> Literal['obsp']:
+    def name(self) -> Literal["obsp"]:
         """
         Name for this VObspArrayContainer : obsp.
         :return: the name of this VObspArrayContainer.
         """
-        return 'obsp'
+        return "obsp"
 
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -909,13 +1012,15 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         """
         return {key: vdf.copy() for key, vdf in self.items()}
 
-    def to_csv(self,
-               directory: Path,
-               sep: str = ",",
-               na_rep: str = "",
-               index: bool = True,
-               header: bool = True,
-               spacer: str = '') -> None:
+    def to_csv(
+        self,
+        directory: Path,
+        sep: str = ",",
+        na_rep: str = "",
+        index: bool = True,
+        header: bool = True,
+        spacer: str = "",
+    ) -> None:
         """
         Save this VObspArrayContainer in CSV file format.
 
@@ -934,13 +1039,18 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
         os.makedirs(directory / self.name)
 
         for vdf_name, vdf in self.items():
-            generalLogger.info(f"{spacer}Saving {vdf_name}")
+            logger.info(f"{spacer}Saving {vdf_name}")
 
             # save array
-            vdf.to_csv(f"{directory / self.name / vdf_name}.csv", sep, na_rep, index=index, header=header)
+            vdf.to_csv(
+                f"{directory / self.name / vdf_name}.csv",
+                sep,
+                na_rep,
+                index=index,
+                header=header,
+            )
 
-    def set_index(self,
-                  values: Collection) -> None:
+    def set_index(self, values: Collection) -> None:
         """
         Set a new index for rows and columns.
 
@@ -948,12 +1058,10 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             values: collection of new index values.
         """
         for vdf_name in self.keys():
-
             self[vdf_name].index = values
             self[vdf_name].columns = values
 
-    def set_file(self,
-                 file: Union[File, Group]) -> None:
+    def set_file(self, file: Union[File, Group]) -> None:
         """
         Set the file to back the VDataFrames in this VObspArrayContainer.
 
@@ -961,22 +1069,30 @@ class VObspArrayContainer(VBaseArrayContainer, Generic[K_, D_VDF]):
             file: a h5 file to back the VDataFrames on.
         """
         if not isinstance(file, (File, Group)):
-            raise VTypeError(f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
-                             f"{type(file)}'.")
+            raise VTypeError(
+                f"Cannot back VDataFrames in this VObspArrayContainer with an object of type '"
+                f"{type(file)}'."
+            )
 
         for vdf_name, vdf in self.items():
             vdf.file = file[vdf_name]
 
 
 # 2D Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF], Generic[K_, D_VDF]):
+class VBase2DArrayContainer(
+    VBaseArrayContainer, ABC, MutableMapping[str, D_VDF], Generic[K_, D_VDF]
+):
     """
     Base abstract class for ArrayContainers linked to a VData object that contain DataFrames (varm and varp)
     It is based on VBaseArrayContainer and defines some functions shared by varm and varp.
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, pd.DataFrame]],
-                 file: Optional[Union[File, Group]] = None):
+    def __init__(
+        self,
+        parent: "vdata.VData",
+        data: Optional[dict[K_, pd.DataFrame]],
+        file: Optional[Union[File, Group]] = None,
+    ):
         """
         Args:
             parent: the parent VData object this ArrayContainer is linked to.
@@ -994,7 +1110,7 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
         """
         return all([DF.empty for DF in self.values()])
 
-    def update_dtype(self, type_: 'DType') -> None:
+    def update_dtype(self, type_: "DType") -> None:
         """
         Update the data type of TemporalDataFrames stored in this ArrayContainer.
 
@@ -1011,13 +1127,15 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
         """
         return {k: v.copy() for k, v in self.items()}
 
-    def to_csv(self,
-               directory: Path,
-               sep: str = ",",
-               na_rep: str = "",
-               index: bool = True,
-               header: bool = True,
-               spacer: str = '') -> None:
+    def to_csv(
+        self,
+        directory: Path,
+        sep: str = ",",
+        na_rep: str = "",
+        index: bool = True,
+        header: bool = True,
+        spacer: str = "",
+    ) -> None:
         """
         Save the ArrayContainer in CSV file format.
 
@@ -1036,10 +1154,16 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
         os.makedirs(directory / self.name)
 
         for arr_name, arr in self.items():
-            generalLogger.info(f"{spacer}Saving {arr_name}")
+            logger.info(f"{spacer}Saving {arr_name}")
 
             # save array
-            arr.to_csv(f"{directory / self.name / arr_name}.csv", sep, na_rep, index=index, header=header)
+            arr.to_csv(
+                f"{directory / self.name / arr_name}.csv",
+                sep,
+                na_rep,
+                index=index,
+                header=header,
+            )
 
     def set_file(self, file: Union[File, Group]) -> None:
         """
@@ -1049,8 +1173,10 @@ class VBase2DArrayContainer(VBaseArrayContainer, ABC, MutableMapping[str, D_VDF]
             file: a h5 file to back the VDataFrames on.
         """
         if not isinstance(file, (File, Group)):
-            raise VTypeError(f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"
-                             f"{type(file)}'.")
+            raise VTypeError(
+                f"Cannot back VDataFrames in this VBase2DArrayContainer with an object of type '"
+                f"{type(file)}'."
+            )
 
         for arr_name, arr in self.items():
             arr.file = file[arr_name]
@@ -1064,8 +1190,12 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         VData.varm[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
-                 file: Optional[Union[File, Group]] = None):
+    def __init__(
+        self,
+        parent: "vdata.VData",
+        data: Optional[dict[K_, D_VDF]] = None,
+        file: Optional[Union[File, Group]] = None,
+    ):
         """
         Args:
             parent: the parent VData object this VVarmArrayContainer is linked to.
@@ -1073,7 +1203,9 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         """
         super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[dict[K_, pd.DataFrame]]) -> dict[K_, D_VDF]:
+    def _check_init_data(
+        self, data: Optional[dict[K_, pd.DataFrame]]
+    ) -> dict[K_, D_VDF]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -1081,22 +1213,26 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         :return: the data (dictionary of D_DF), if correct.
         """
         if data is None or not len(data):
-            generalLogger.debug("  No data was given.")
+            logger.debug("  No data was given.")
             return dict()
 
         else:
-            generalLogger.debug("  Data was found.")
+            logger.debug("  Data was found.")
             _index = self._parent.var.index
             _data = {}
 
             for DF_index, DF in data.items():
                 # check that indexes match
                 if not _index.equals(DF.index):
-                    raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
+                    raise IncoherenceError(
+                        f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})"
+                    )
 
-                _data[DF_index] = VDataFrame(DF, file=self._file[DF_index] if self._file is not None else None)
+                _data[DF_index] = VDataFrame(
+                    DF, file=self._file[DF_index] if self._file is not None else None
+                )
 
-            generalLogger.debug("  Data was OK.")
+            logger.debug("  Data was OK.")
             return _data
 
     def __getitem__(self, item: K_) -> D_VDF:
@@ -1122,7 +1258,9 @@ class VVarmArrayContainer(VBase2DArrayContainer):
             raise VReadOnlyError
 
         if not isinstance(value, (pd.DataFrame, VDataFrame)):
-            raise VTypeError(f"Cannot set varm '{key}' from non pandas DataFrame object.")
+            raise VTypeError(
+                f"Cannot set varm '{key}' from non pandas DataFrame object."
+            )
 
         if isinstance(value, pd.DataFrame):
             value = VDataFrame(value)
@@ -1136,12 +1274,12 @@ class VVarmArrayContainer(VBase2DArrayContainer):
         self._data[key] = value
 
     @property
-    def name(self) -> Literal['varm']:
+    def name(self) -> Literal["varm"]:
         """
         Name for this VVarmArrayContainer : varm.
         :return: name of this VVarmArrayContainer.
         """
-        return 'varm'
+        return "varm"
 
     @property
     def shape(self) -> tuple[int, int, list[int]]:
@@ -1166,8 +1304,12 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         VData.varp[<array_name>])
     """
 
-    def __init__(self, parent: 'vdata.VData', data: Optional[dict[K_, D_VDF]] = None,
-                 file: Optional[Union[File, Group]] = None):
+    def __init__(
+        self,
+        parent: "vdata.VData",
+        data: Optional[dict[K_, D_VDF]] = None,
+        file: Optional[Union[File, Group]] = None,
+    ):
         """
         Args:
             parent: the parent VData object this VVarmArrayContainer is linked to.
@@ -1175,7 +1317,9 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         """
         super().__init__(parent, data, file)
 
-    def _check_init_data(self, data: Optional[dict[K_, pd.DataFrame]]) -> dict[K_, D_VDF]:
+    def _check_init_data(
+        self, data: Optional[dict[K_, pd.DataFrame]]
+    ) -> dict[K_, D_VDF]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -1184,27 +1328,32 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         :return: the data (dictionary of D_DF), if correct.
         """
         if data is None or not len(data):
-            generalLogger.debug("  No data was given.")
+            logger.debug("  No data was given.")
             return dict()
 
         else:
-            generalLogger.debug("  Data was found.")
+            logger.debug("  Data was found.")
             _index = self._parent.var.index
             _data = {}
 
             for DF_index, DF in data.items():
                 # check that indexes match
                 if not _index.equals(DF.index):
-                    raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
+                    raise IncoherenceError(
+                        f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})"
+                    )
 
                 # check that columns match
                 if not _index.equals(DF.columns):
                     raise IncoherenceError(
-                        f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})")
+                        f"Columns of DataFrame '{DF_index}' do not  match var's index. ({_index})"
+                    )
 
-                _data[DF_index] = VDataFrame(DF, file=self._file[DF_index] if self._file is not None else None)
+                _data[DF_index] = VDataFrame(
+                    DF, file=self._file[DF_index] if self._file is not None else None
+                )
 
-            generalLogger.debug("  Data was OK.")
+            logger.debug("  Data was OK.")
             return _data
 
     def __getitem__(self, item: K_) -> D_VDF:
@@ -1234,7 +1383,9 @@ class VVarpArrayContainer(VBase2DArrayContainer):
             raise VReadOnlyError
 
         if not isinstance(value, (pd.DataFrame, VDataFrame)):
-            raise VTypeError(f"Cannot set varp '{key}' from non pandas DataFrame object.")
+            raise VTypeError(
+                f"Cannot set varp '{key}' from non pandas DataFrame object."
+            )
 
         if isinstance(value, pd.DataFrame):
             value = VDataFrame(value)
@@ -1251,12 +1402,12 @@ class VVarpArrayContainer(VBase2DArrayContainer):
         self._data[key] = value
 
     @property
-    def name(self) -> Literal['varp']:
+    def name(self) -> Literal["varp"]:
         """
         Name for this VVarpArrayContainer : varp.
         :return: name of this VVarpArrayContainer.
         """
-        return 'varp'
+        return "varp"
 
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -1280,6 +1431,5 @@ class VVarpArrayContainer(VBase2DArrayContainer):
             values: collection of new index values.
         """
         for arr in self.values():
-
             arr.index = values
             arr.columns = values
