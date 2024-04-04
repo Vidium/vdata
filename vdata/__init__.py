@@ -6,9 +6,8 @@ from vdata.data import VData, VDataView, concatenate, convert_anndata_to_vdata
 from vdata.IO import (
     IncoherenceError,
     ShapeError,
+    VBaseError,
     VLockError,
-    getLoggingLevel,
-    setLoggingLevel,
 )
 from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
 from vdata.timepoint import TimePoint
@@ -26,9 +25,8 @@ __all__ = [
     "VDataView",
     "TemporalDataFrameView",
     "convert_anndata_to_vdata",
-    "setLoggingLevel",
-    "getLoggingLevel",
     "concatenate",
+    "VBaseError",
     "ShapeError",
     "IncoherenceError",
     "VLockError",

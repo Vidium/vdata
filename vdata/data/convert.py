@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any, Collection, Iterable
+from typing import Any, Collection, Iterable, Literal, overload
 
 import ch5mpy as ch
 import numpy as np
@@ -20,10 +20,28 @@ from vdata.update.update import CURRENT_VERSION
 from vdata.utils import repr_array
 
 
+@overload
 def convert_vdata_to_anndata(
     data: vdata.VData,
+    into_one: Literal[True] = True,
     timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+    with_timepoints_column: bool = True,
+    layer_as_X: str | None = None,
+    layers_to_export: list[str] | None = None,
+) -> AnnData: ...
+@overload
+def convert_vdata_to_anndata(
+    data: vdata.VData,
+    into_one: Literal[False],
+    timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+    with_timepoints_column: bool = True,
+    layer_as_X: str | None = None,
+    layers_to_export: list[str] | None = None,
+) -> list[AnnData]: ...
+def convert_vdata_to_anndata(
+    data: vdata.VData,
     into_one: bool = True,
+    timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
     with_timepoints_column: bool = True,
     layer_as_X: str | None = None,
     layers_to_export: list[str] | None = None,
@@ -47,7 +65,7 @@ def convert_vdata_to_anndata(
     # TODO : obsp is not passed to AnnData
 
     generalLogger.debug(
-        "\u23BE VData conversion to AnnData : begin " "---------------------------------------------------------- "
+        "\u23be VData conversion to AnnData : begin " "---------------------------------------------------------- "
     )
 
     if timepoints_list is None:
@@ -104,7 +122,7 @@ def _convert_vdata_into_one_anndata(
     )
 
     generalLogger.debug(
-        "\u23BF VData conversion to AnnData : end " "---------------------------------------------------------- "
+        "\u23bf VData conversion to AnnData : end " "---------------------------------------------------------- "
     )
 
     return anndata
@@ -145,7 +163,7 @@ def _convert_vdata_into_many_anndatas(
         )
 
     generalLogger.debug(
-        "\u23BF VData conversion to AnnData : end " "---------------------------------------------------------- "
+        "\u23bf VData conversion to AnnData : end " "---------------------------------------------------------- "
     )
 
     return result

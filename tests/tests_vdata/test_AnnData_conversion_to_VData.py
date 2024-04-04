@@ -1,5 +1,5 @@
-from tempfile import NamedTemporaryFile
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import vdata
 

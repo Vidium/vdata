@@ -3,7 +3,7 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Collection, Iterator, Literal, Mapping, Sequence
+from typing import Any, Collection, Iterator, Literal, Mapping, Sequence, overload
 
 import ch5mpy as ch
 import numpy as np
@@ -92,7 +92,7 @@ class VData(metaclass=PrettyRepr):
             name: a name for this VData.
         """
         generalLogger.debug(
-            f"\u23BE VData '{name}' creation : begin " f"-------------------------------------------------------- "
+            f"\u23be VData '{name}' creation : begin " f"-------------------------------------------------------- "
         )
 
         self._data: ch.H5Dict[H5DataFrame | TemporalDataFrame] | None = None
@@ -126,7 +126,7 @@ class VData(metaclass=PrettyRepr):
 
         generalLogger.debug(lambda: f"Guessed dimensions are : ({self.n_timepoints}, {self.n_obs}, {self.n_var})")
         generalLogger.debug(
-            f"\u23BF VData '{self._name}' creation : end "
+            f"\u23bf VData '{self._name}' creation : end "
             f"---------------------------------------------------------- "
         )
 
@@ -252,7 +252,7 @@ class VData(metaclass=PrettyRepr):
     def __h5_read__(cls, values: ch.H5Dict[Any]) -> VData:
         with ch.options(error_mode="raise"):
             update_vdata(values)
-            return VData(data=values)
+            return VData(data=(values))
 
     # endregion
 
@@ -859,10 +859,28 @@ class VData(metaclass=PrettyRepr):
             name=f"{self._name}_copy",
         )
 
+    @overload
     def to_anndata(
         self,
-        timepoints_list: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+        into_one: Literal[True] = True,
+        timepoints: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+        with_timepoints_column: bool = True,
+        layer_as_X: str | None = None,
+        layers_to_export: list[str] | None = None,
+    ) -> AnnData: ...
+    @overload
+    def to_anndata(
+        self,
+        into_one: Literal[False],
+        timepoints: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
+        with_timepoints_column: bool = True,
+        layer_as_X: str | None = None,
+        layers_to_export: list[str] | None = None,
+    ) -> list[AnnData]: ...
+    def to_anndata(
+        self,
         into_one: bool = True,
+        timepoints: str | tp.TimePoint | Collection[str | tp.TimePoint] | None = None,
         with_timepoints_column: bool = True,
         layer_as_X: str | None = None,
         layers_to_export: list[str] | None = None,
@@ -885,8 +903,8 @@ class VData(metaclass=PrettyRepr):
         """
         return convert_vdata_to_anndata(
             self,
-            timepoints_list=timepoints_list,
             into_one=into_one,
+            timepoints_list=timepoints,
             with_timepoints_column=with_timepoints_column,
             layer_as_X=layer_as_X,
             layers_to_export=layers_to_export,

@@ -1,19 +1,12 @@
-# coding: utf-8
-# Created on 11/6/20 6:07 PM
-# Author : matteo
-
-# ====================================================
-# imports
-from .errors import IncoherenceError, ShapeError, VClosedFileError, VLockError, VReadOnlyError
-from .logger import generalLogger, getLoggingLevel, setLoggingLevel
+from .errors import IncoherenceError, ShapeError, VBaseError, VClosedFileError, VLockError, VReadOnlyError
+from .logger import generalLogger
 
 __all__ = [
-    'generalLogger', 
-    'setLoggingLevel', 
-    'getLoggingLevel', 
-    'ShapeError',
-    'IncoherenceError', 
-    'VLockError', 
-    'VClosedFileError',
-    'VReadOnlyError'
+    "generalLogger",
+    "VBaseError",
+    "ShapeError",
+    "IncoherenceError",
+    "VLockError",
+    "VClosedFileError",
+    "VReadOnlyError",
 ]

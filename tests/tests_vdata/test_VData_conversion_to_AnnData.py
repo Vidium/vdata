@@ -27,7 +27,7 @@ def v() -> vdata.VData:
 
 def test_VData_conversion_to_AnnData_single_timepoint(v: vdata.VData) -> None:
     assert (
-        repr(v.to_anndata("0h", into_one=False)) == "[AnnData object with n_obs × n_vars = 7 × 4\n"
+        repr(v.to_anndata(into_one=False, timepoints="0h")) == "[AnnData object with n_obs × n_vars = 7 × 4\n"
         "    layers: 'RNA', 'Protein']"
     )
 

@@ -108,11 +108,6 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
     _was_opened_here = not isinstance(data, ch.H5Dict)
     if not isinstance(data, ch.H5Dict):
         data = ch.H5Dict.read(data, mode=ch.H5Mode.READ_WRITE)
-    elif not ch.H5Mode.has_write_intent(data.file.file.mode):
-        raise IOError(
-            "Cannot update VData file to current version because it was opened with no write intent. \
-             Please open it in READ_WRITE mode (r+)."
-        )
 
     data_version = data.attributes.get("__vdata_write_version__", 0)
     if data_version == CURRENT_VERSION:
@@ -121,7 +116,13 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
     if data_version > CURRENT_VERSION:
         raise ValueError(
             f"VData object was written with a version ({data_version}) of the write protocol higher than the current \
-                one ({CURRENT_VERSION})"
+                    one ({CURRENT_VERSION})"
+        )
+
+    if not ch.H5Mode.has_write_intent(data.file.file.mode):
+        raise IOError(
+            "Cannot update VData file to current version because it was opened with no write intent. \
+                 Please open it in READ_WRITE mode (r+)."
         )
 
     nb_items_to_write = (
