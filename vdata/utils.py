@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Collection, Mapping, TypeGuard, TypeVar
 import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 from vdata.array_view import NDArrayView
 
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from vdata._typing import PreSlicer
 
 _V = TypeVar("_V")
+
 
 # region misc -----------------------------------------------------------------
 def first_in(d: Mapping[Any, _V]) -> _V:
@@ -37,11 +39,15 @@ def are_equal(obj1: Any, obj2: Any) -> bool:
 
         return False
 
-    return bool(obj1 == obj2)
+    equality_check = obj1 == obj2
+    if isinstance(equality_check, np.ndarray):
+        return bool(np.all(equality_check))
+
+    return bool(equality_check)
 
 
 def spacer(nb: int) -> str:
-    return "  " * (nb - 1) + "  " + "\u21B3" + " " if nb else ""
+    return "  " * (nb - 1) + "  " + "\u21b3" + " " if nb else ""
 
 
 def obj_as_str(arr: npt.NDArray[Any]) -> npt.NDArray[Any]:
@@ -82,7 +88,7 @@ def repr_index(
     | PreSlicer
     | tuple[PreSlicer | None]
     | tuple[PreSlicer | None, PreSlicer | None]
-    | tuple[PreSlicer | None, PreSlicer | None, PreSlicer | None]
+    | tuple[PreSlicer | None, PreSlicer | None, PreSlicer | None],
 ) -> str:
     """Get a short string representation of a sub-setting index."""
     if not isinstance(index, tuple):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import takewhile
 from typing import Collection, Literal
 
@@ -19,8 +19,8 @@ from vdata.utils import isCollection
 @dataclass
 class SlicerData:
     tp: Slicer
-    idx: Slicer = slice(None)
-    col: Slicer = slice(None)
+    idx: Slicer = field(default_factory=lambda: slice(None))
+    col: Slicer = field(default_factory=lambda: slice(None))
 
     def __post_init__(self) -> None:
         for s in (self.tp, self.idx, self.col):
@@ -37,7 +37,7 @@ class SlicerData:
             and self.tp == slice(None)
             and isinstance(self.idx, slice)
             and self.idx == slice(None)
-            and isinstance(self.col, (str, int, float, np.int_, np.float_))
+            and isinstance(self.col, (str, int, float, np.integer, np.floating))
         )
 
 

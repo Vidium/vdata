@@ -9,8 +9,9 @@ from vdata.IO import (
     VBaseError,
     VLockError,
 )
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameView
 from vdata.timepoint import TimePoint
+from vdata.update import CURRENT_VERSION, update_vdata
 
 read = VData.read
 read_from_csv = VData.read_from_csv
@@ -31,5 +32,7 @@ __all__ = [
     "IncoherenceError",
     "VLockError",
     "TimePoint",
-    "Index",
+    "RepeatingIndex",
+    "CURRENT_VERSION",
+    "update_vdata",
 ]

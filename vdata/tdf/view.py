@@ -9,7 +9,7 @@ from vdata._typing import IFS, Indexer, NDArray_IFS
 from vdata.array_view import ArrayGetter, NDArrayView
 from vdata.tdf.base import TemporalDataFrameBase
 from vdata.tdf.dataframe import TemporalDataFrame
-from vdata.tdf.index import Index
+from vdata.tdf.index import RepeatingIndex
 
 
 def _as_view(
@@ -157,14 +157,14 @@ class TemporalDataFrameView(TemporalDataFrameBase):
 
     def set_index(
         self,
-        values: Collection[IFS] | Index,
+        values: Collection[IFS] | RepeatingIndex,
         *,
         force: bool = False,
     ) -> None:
         """Set new index values."""
         raise NotImplementedError
 
-    def reindex(self, order: NDArray_IFS | Index) -> None:
+    def reindex(self, order: NDArray_IFS | RepeatingIndex) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
         raise NotImplementedError
 

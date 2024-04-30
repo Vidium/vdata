@@ -7,9 +7,8 @@ import numpy.typing as npt
 
 import vdata.timepoint as tp
 from vdata.array_view import NDArrayView
-from vdata.timedict import TimeDict
 
-_T = TypeVar("_T", bound=ch.SupportsH5ReadWrite)
+_T_RW = TypeVar("_T_RW", bound=ch.SupportsH5ReadWrite)
 _T_NP = TypeVar("_T_NP", bound=np.generic)
 
 IF = Union[int, float, np.int_, np.float_]
@@ -30,10 +29,10 @@ AnyNDArrayLike_IFS = Union[
 ]
 
 Collection_IFS = Collection[np.int_ | int | np.float_ | float | np.str_ | str]
-DictLike = Union[dict[str, _T], ch.H5Dict[_T]]
-AnyDictLike = Union[dict[str, _T], ch.H5Dict[_T], TimeDict]
+DictLike = Union[dict[str, _T_RW], ch.H5Dict[_T_RW]]
 
 Slicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, tp.TimePoint]], range, slice, EllipsisType]
+MultiSlicer = Union[Collection[IFS | tp.TimePoint], range, slice, EllipsisType]
 PreSlicer = Union[IFS, tp.TimePoint, Collection[Union[IFS, bool, tp.TimePoint]], range, slice, EllipsisType]
 Indexer = Union[SupportsIndex, slice, npt.NDArray[np.int_], npt.NDArray[np.bool_] | None]
 

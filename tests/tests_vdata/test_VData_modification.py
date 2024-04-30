@@ -40,7 +40,7 @@ def test_VData_set_index(VData: vdata.VData) -> None:
 
 def test_VData_set_index_repeating(VData: vdata.VData) -> None:
     # not repeating ==> repeating
-    new_index = vdata.Index(range(100), repeats=VData.n_timepoints)
+    new_index = vdata.RepeatingIndex(range(100), repeats=VData.n_timepoints)
 
     VData.set_obs_index(values=new_index)
 
@@ -48,7 +48,7 @@ def test_VData_set_index_repeating(VData: vdata.VData) -> None:
     assert np.array_equal(VData.layers["data"].index, new_index)
 
     # repeating ==> repeating
-    new_index = vdata.Index(range(0, 200, 2), repeats=VData.n_timepoints)
+    new_index = vdata.RepeatingIndex(range(0, 200, 2), repeats=VData.n_timepoints)
 
     VData.set_obs_index(values=new_index)
 

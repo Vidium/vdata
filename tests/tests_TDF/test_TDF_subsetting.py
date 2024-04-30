@@ -9,7 +9,7 @@ import numpy.typing as npt
 import pandas as pd
 import pytest
 
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameBase
 
 
 # ====================================================
@@ -656,7 +656,7 @@ def test_subset_with_timepoints_rows_and_columns_shuffled(TDF1: TemporalDataFram
 
 @pytest.mark.parametrize("TDF1", ["plain", "backed"], indirect=True)
 def test_subset_same_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     backed = "backed " if TDF1.is_backed else ""
 
@@ -690,7 +690,7 @@ def test_subset_same_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -
 
 @pytest.mark.parametrize("TDF1", ["view", "backed view"], indirect=True)
 def test_subset_same_index_at_multiple_timepoints_on_view(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.parent.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.parent.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     backed = "backed " if TDF1.is_backed else ""
 
@@ -724,7 +724,7 @@ def test_subset_same_index_at_multiple_timepoints_on_view(TDF1: TemporalDataFram
 
 @pytest.mark.parametrize("TDF1", ["plain"], indirect=True)
 def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     view = TDF1[:, [4, 0, 2]]
 
@@ -737,7 +737,7 @@ def test_subset_same_shuffled_index_at_multiple_timepoints(TDF1: TemporalDataFra
 
 @pytest.mark.parametrize("TDF1", ["view"], indirect=True)
 def test_subset_same_shuffled_index_at_multiple_timepoints_on_view(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.parent.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.parent.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     view = TDF1[:, [4, 0, 2]]
 
@@ -1032,7 +1032,7 @@ def test_set_values_forcolumns_not_in_TDF_should_fail(TDF1: TemporalDataFrameBas
 
 @pytest.mark.parametrize("TDF1", ["plain", "backed"], indirect=True)
 def test_set_values_with_same_index_at_multiple_timepoints(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     TDF1[:, [4, 0, 2]] = np.array(
         [
@@ -1728,7 +1728,7 @@ def test_set_values_forcolumns_not_in_TDF_should_fail_view(TDF1: TemporalDataFra
 
 @pytest.mark.parametrize("TDF1", ["view", "backed view"], indirect=True)
 def test_set_values_with_same_index_at_multiple_timepoints_view(TDF1: TemporalDataFrameBase) -> None:
-    TDF1.parent.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.parent.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     TDF1[:, [4, 0, 2]] = np.array(
         [
@@ -2120,16 +2120,16 @@ def test_reindex_with_indices_not_in_original_index_should_fail(TDF1: TemporalDa
 @pytest.mark.parametrize("TDF1", ["plain", "backed"], indirect=True)
 def test_reindex_with_repeating_index_should_fail(TDF1: TemporalDataFrame) -> None:
     with pytest.raises(ValueError) as exc_info:
-        TDF1.reindex(Index(np.arange(0, 50), repeats=2))
+        TDF1.reindex(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     assert str(exc_info.value == "Cannot set repeating index on tdf with non-repeating index.")
 
 
 @pytest.mark.parametrize("TDF1", ["plain", "backed"], indirect=True)
 def test_reindex_with_repeating_index_on_tdf_with_repeating_index(TDF1: TemporalDataFrame) -> None:
-    TDF1.set_index(Index(np.arange(0, 50), repeats=2))
+    TDF1.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
-    TDF1.reindex(Index(np.arange(49, -1, -1), repeats=2))
+    TDF1.reindex(RepeatingIndex(np.arange(49, -1, -1), repeats=2))
 
     assert np.all(TDF1.index == np.concatenate((np.arange(49, -1, -1), np.arange(49, -1, -1))))
     assert np.all(TDF1.values_num == np.vstack((np.arange(99, -1, -1), np.arange(199, 99, -1))).T)
@@ -2278,10 +2278,10 @@ def test_min_max_mean_on_columns(TDF1: TemporalDataFrameBase, operation: str) ->
 @pytest.mark.parametrize("operation", ["min", "max", "mean"])
 def test_min_max_mean_on_timepoints(TDF1: TemporalDataFrameBase, operation: str) -> None:
     if TDF1.is_view:
-        TDF1.parent.set_index(Index(np.arange(0, 50), repeats=2))
+        TDF1.parent.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     else:
-        TDF1.set_index(Index(np.arange(0, 50), repeats=2))
+        TDF1.set_index(RepeatingIndex(np.arange(0, 50), repeats=2))
 
     assert np.array_equal(
         getattr(TDF1, operation)(axis=0),

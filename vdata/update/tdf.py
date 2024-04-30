@@ -20,7 +20,7 @@ def _update_tdf_v0_to_v1(data: ch.H5Dict[Any]) -> None:
 
     del data.attributes["type"]
 
-    if data.attributes["timepoints_column_name"] == "__ATTRIBUTE_None__":
+    if data.attributes["timepoints_column_name"] in ("__ATTRIBUTE_None__", "__TDF_None__"):
         data.attributes["timepoints_column_name"] = "__h5_NONE__"
 
     data.file.move("timepoints", "timepoints_array")

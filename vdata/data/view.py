@@ -81,7 +81,7 @@ class VDataView:
             timepoints_slicer: the list of time points to view
         """
         self.name = f"{parent.name}_view"
-        generalLogger.debug("\u23BE ViewVData creation : start ----------------------------------------------------- ")
+        generalLogger.debug("\u23be ViewVData creation : start ----------------------------------------------------- ")
 
         self._parent = parent
 
@@ -146,7 +146,7 @@ class VDataView:
 
         generalLogger.debug(lambda: f"Guessed dimensions are : {self.shape}")
 
-        generalLogger.debug("\u23BF ViewVData creation : end ------------------------------------------------------- ")
+        generalLogger.debug("\u23bf ViewVData creation : end ------------------------------------------------------- ")
 
     @_check_parent_has_not_changed
     def __repr__(self) -> str:
@@ -250,6 +250,10 @@ class VDataView:
     # endregion
 
     # region attributes
+    @property
+    def filename(self) -> str | None:
+        return self._parent.filename
+
     # Shapes -------------------------------------------------------------
     @property
     @_check_parent_has_not_changed

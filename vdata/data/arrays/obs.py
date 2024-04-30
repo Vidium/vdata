@@ -7,13 +7,12 @@ import numpy as np
 import pandas as pd
 from h5dataframe import H5DataFrame
 
-from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
+from vdata._typing import IFS, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer, VTDFArrayContainer
 from vdata.data.arrays.view import VBaseArrayContainerView, VTDFArrayContainerView
 from vdata.data.hash import VDataHash
 from vdata.IO import IncoherenceError, ShapeError, generalLogger
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
-from vdata.timedict import TimeDict
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameView
 
 
 class VObsmArrayContainer(VTDFArrayContainer):
@@ -26,8 +25,8 @@ class VObsmArrayContainer(VTDFArrayContainer):
 
     # region magic methods
     def _check_init_data(
-        self, data: AnyDictLike[TemporalDataFrame | TemporalDataFrameView]
-    ) -> AnyDictLike[TemporalDataFrame | TemporalDataFrameView]:
+        self, data: dict[str, TemporalDataFrameView] | ch.H5Dict[TemporalDataFrame]
+    ) -> dict[str, TemporalDataFrameView] | ch.H5Dict[TemporalDataFrame]:
         """
         Function for checking, at VObsmArrayContainer creation, that the supplied data has the correct format :
             - the shape of the TemporalDataFrames in 'data' match the parent VData object's shape (except for the
@@ -49,7 +48,7 @@ class VObsmArrayContainer(VTDFArrayContainer):
         generalLogger.debug("  Data was found.")
 
         _shape = (self._vdata.timepoints.shape[0], self._vdata.obs.shape[1], "Any")
-        _data: DictLike[TemporalDataFrame | TemporalDataFrameView] = {} if not isinstance(data, ch.H5Dict) else data
+        _data = {} if not isinstance(data, ch.H5Dict) else data
 
         generalLogger.debug(lambda: f"  Reference shape is {_shape}.")
 
@@ -121,7 +120,7 @@ class VObsmArrayContainer(VTDFArrayContainer):
     # endregion
 
     # region magic methods
-    def set_index(self, values: Collection[IFS] | Index) -> None:
+    def set_index(self, values: Collection[IFS] | RepeatingIndex) -> None:
         for TDF in self.values():
             TDF.set_index(values, force=True)
 
@@ -141,7 +140,7 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[H5DataFrame]) -> TimeDict:
+    def _check_init_data(self, data: dict[str, H5DataFrame]) -> dict[str, H5DataFrame]:
         """
         Function for checking, at VObspArrayContainer creation, that the supplied data has the correct format :
             - the shape of the DataFrames in 'data' match the parent VData object's index length.
@@ -158,10 +157,10 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
         """
         if not len(data):
             generalLogger.debug("  No data was given.")
-            return TimeDict(vdata=self._vdata)
+            return {}
 
         generalLogger.debug("  Data was found.")
-        _data: TimeDict = TimeDict(vdata=self._vdata)
+        _data: dict[str, H5DataFrame] = {}
 
         for key, df in data.items():
             generalLogger.debug(lambda: f"  Checking DataFrame at key '{key}' with shape {df.shape}.")
@@ -251,7 +250,7 @@ class VObspArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     # endregion
 
     # region methods
-    def set_index(self, values: Collection[IFS] | Index) -> None:
+    def set_index(self, values: Collection[IFS] | RepeatingIndex) -> None:
         """
         Set a new index for rows and columns.
 

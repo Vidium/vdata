@@ -76,7 +76,7 @@ def test_VData_concatenate_mean() -> None:
     vm3 = v3.mean(axis=0)
     vm4 = v4.mean(axis=0)
 
-    vm4.set_obs_index(vdata.Index(["mean_2"], repeats=3))
+    vm4.set_obs_index(vdata.RepeatingIndex(["mean_2"], repeats=3))
 
     v_merged = vdata.concatenate((vm3, vm4))
 

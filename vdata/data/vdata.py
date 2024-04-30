@@ -37,7 +37,7 @@ from vdata.IO import (
     generalLogger,
 )
 from vdata.names import NO_NAME, Unpickleable
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameBase
 from vdata.update import update_vdata
 from vdata.utils import repr_array, repr_index
 
@@ -305,6 +305,10 @@ class VData(metaclass=PrettyRepr):
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def filename(self) -> str | None:
+        return None if self._data is None else self._data.filename
 
     @property
     def empty(self) -> bool:
@@ -621,7 +625,7 @@ class VData(metaclass=PrettyRepr):
         """
         ch.set_options(max_memory=max_memory)
 
-    def set_obs_index(self, values: Collection[IFS] | Index) -> None:
+    def set_obs_index(self, values: Collection[IFS] | RepeatingIndex) -> None:
         """
         Set a new index for observations.
 
@@ -658,7 +662,7 @@ class VData(metaclass=PrettyRepr):
         self,
         func: Literal["mean", "min", "max"],
         axis: int,
-    ) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray | NDArrayView[tp.TimePoint], Index]:
+    ) -> tuple[dict[str, TemporalDataFrame], tp.TimePointArray | NDArrayView[tp.TimePoint], RepeatingIndex]:
         """
         Compute mean, min or max of the values over the requested axis.
         """
@@ -668,7 +672,7 @@ class VData(metaclass=PrettyRepr):
 
         if axis == 0:
             timepoints_list = self.timepoints_values
-            index = Index(["mean"], repeats=self.n_timepoints)
+            index = RepeatingIndex(["mean"], repeats=self.n_timepoints)
 
             return data, timepoints_list, index
 

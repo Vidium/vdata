@@ -14,7 +14,7 @@ import vdata.timepoint as tp
 from vdata._typing import IFS, NDArray_IFS, NDArrayLike_IFS
 from vdata.array_view import NDArrayView
 from vdata.names import NO_NAME
-from vdata.tdf.index import Index
+from vdata.tdf.index import RepeatingIndex
 from vdata.utils import obj_as_str
 
 
@@ -22,16 +22,16 @@ class TimedArray:
     __slots__ = "arr", "time"
 
     # region magic methods
-    def __init__(self, arr: Index | None, time: tp.TimePointIndex | None):
+    def __init__(self, arr: RepeatingIndex | None, time: tp.TimePointIndex | None):
         if arr is None and isinstance(time, tp.TimePointIndex):
-            self.arr: Index = Index(np.arange(len(time)))
+            self.arr: RepeatingIndex = RepeatingIndex(np.arange(len(time)))
             self.time: tp.TimePointIndex = time
 
         elif arr is not None and time is None:
             self.arr = arr
             self.time = tp.TimePointIndex(tp.TimePointArray([0], unit="h"), ranges=np.array([len(arr)]))
 
-        elif isinstance(arr, Index) and isinstance(time, tp.TimePointIndex):
+        elif isinstance(arr, RepeatingIndex) and isinstance(time, tp.TimePointIndex):
             if len(arr) != len(time):
                 raise ValueError(
                     f"Length of 'time_list' ({len(time)}) did not match length of 'index' " f"({len(arr)})."
@@ -41,7 +41,7 @@ class TimedArray:
             self.time = time
 
         elif arr is None and time is None:
-            self.arr = Index(np.empty(0, dtype=np.float64))
+            self.arr = RepeatingIndex(np.empty(0, dtype=np.float64))
             self.time = tp.TimePointIndex(tp.TimePointArray([]), ranges=np.array([]))
 
         else:
@@ -83,7 +83,7 @@ def _sort_and_get_tp(
 
 
 def _get_timed_index(
-    index: Index | None,
+    index: RepeatingIndex | None,
     time_list: tp.TimePointArray | NDArrayView[tp.TimePoint] | None,
     time_col_name: str | None,
     data: pd.DataFrame | None,
@@ -114,7 +114,7 @@ def _get_timed_index(
         unique_index = np.unique(data.index)
 
         if len(unique_index) == len(data.index):
-            index = Index(data.index.values)
+            index = RepeatingIndex(data.index.values)
 
         else:
             n_repeats, mod = divmod(len(data.index), len(unique_index))
@@ -122,7 +122,7 @@ def _get_timed_index(
             if mod:
                 raise ValueError("Index must be unique or repeating exactly.")
 
-            index = Index(unique_index, repeats=n_repeats)
+            index = RepeatingIndex(unique_index, repeats=n_repeats)
 
     return TimedArray(index, _time_list), data
 
@@ -153,7 +153,7 @@ class ParsedData:
 
 def parse_data(
     data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None,
-    index: Collection[IFS] | Index | None,
+    index: Collection[IFS] | RepeatingIndex | None,
     columns: Collection[IFS] | None,
     timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None,
     time_col_name: str | None,
@@ -184,8 +184,8 @@ def parse_data(
     if data is not None:
         data = pd.DataFrame(data).copy()
 
-    if index is not None and not isinstance(index, Index):
-        index = Index(index)
+    if index is not None and not isinstance(index, RepeatingIndex):
+        index = RepeatingIndex(index)
 
     timed_index, data = _get_timed_index(
         index,

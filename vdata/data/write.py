@@ -52,8 +52,8 @@ def write_vdata(data: VData | VDataView, file: str | Path | None = None, verbose
         verbose: print a progress bar while saving objects in this VData ? (default: True)
     """
     if data.data is not NoData._:
-        if data.data.mode == ch.H5Mode.READ_WRITE:
-            raise NotImplementedError("Should not be necessary")
+        if data.data.mode == ch.H5Mode.READ_WRITE and (file is None or Path(file) == data.filename):
+            return data.data
 
         raise ValueError("Cannot save backed VData in 'r' mode !")
 

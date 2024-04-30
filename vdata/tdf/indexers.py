@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, SupportsIndex, Unio
 import numpy as np
 
 from vdata._typing import IFS, AnyNDArrayLike_IFS
-from vdata.tdf.index import Index
+from vdata.tdf.index import RepeatingIndex
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -87,7 +87,9 @@ class VLocIndexer:
         self._TDF = TDF
 
     @staticmethod
-    def _parse_slicer(values: IFS | Collection[IFS], reference: AnyNDArrayLike_IFS | Index) -> AnyNDArrayLike_IFS | IFS:
+    def _parse_slicer(
+        values: IFS | Collection[IFS], reference: AnyNDArrayLike_IFS | RepeatingIndex
+    ) -> AnyNDArrayLike_IFS | IFS:
         if not isCollection(values):
             return cast(IFS, values)
 

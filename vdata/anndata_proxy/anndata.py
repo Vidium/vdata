@@ -48,9 +48,9 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
 
     def _init_from_vdata(self, vdata: VData | VDataView) -> None:
         self._vdata = vdata
-        self._layers = TemporalDataFrameContainerProxy(vdata, name="layers")
+        self._layers = TemporalDataFrameContainerProxy(vdata, name="layers", columns=vdata.var.index)
         self._obs = DataFrameProxy_TDF(vdata.obs)
-        self._obsm = TemporalDataFrameContainerProxy(vdata, name="obsm")
+        self._obsm = TemporalDataFrameContainerProxy(vdata, name="obsm", columns=None)
         self._obsp = H5DataFrameContainerProxy(vdata.obsp, name="Obsp", index=vdata.obs.index, columns=vdata.obs.index)
         self._var = vdata.var
         self._varm = H5DataFrameContainerProxy(vdata.varm, name="Varm", index=vdata.var.index)
@@ -60,8 +60,8 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
     def __repr__(self) -> str:
         return f"AnnDataProxy from {self._vdata}"
 
-    def __sizeof__(self, show_stratified: bool | None = None) -> int:
-        del show_stratified
+    def __sizeof__(self, show_stratified: bool | None = None, with_disk: bool = False) -> int:
+        del show_stratified, with_disk
         raise NotImplementedError
 
     def __delitem__(self, index: Any) -> None:

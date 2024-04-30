@@ -1,8 +1,10 @@
+from tempfile import TemporaryDirectory
+
+import ch5mpy as ch
 import numpy as np
 import pytest
 from pytest import fixture
-from tempfile import TemporaryDirectory
-import ch5mpy as ch
+
 from vdata.timepoint import TimePoint, TimePointArray, TimePointIndex
 
 

@@ -1,52 +1,72 @@
-from typing import Any, Collection, cast
+from __future__ import annotations
+
+from typing import Collection, Hashable, cast
 
 import numpy as np
-import numpy.typing as npt
+import pandas as pd
+from pandas._libs.internals import BlockValuesRefs
 
 from vdata._typing import IFS
 
 
-class Index:
-
-    __slots__ = "values", "repeats"
+class RepeatingIndex(pd.Index):
+    _metadata = ["repeats"]
 
     # region magic methods
-    def __init__(self, values: Collection[IFS], repeats: int = 1):
-        self.values = np.tile(np.array(values), repeats)
-        self.repeats = repeats
+    def __new__(
+        cls,
+        data: Collection[IFS],
+        repeats: int = 1,
+    ) -> RepeatingIndex:
+        data = np.tile(np.array(data), repeats)
+        return cast(RepeatingIndex, cls._simple_new(data, None, repeats=repeats))
 
-        if repeats == 1 and len(self.values) != len(np.unique(self.values)):
+    @classmethod
+    def _simple_new(
+        cls: type[RepeatingIndex], values: np.ndarray, name: Hashable, refs=None, repeats=None
+    ) -> RepeatingIndex | pd.Index:
+        if repeats is None:
+            return pd.Index._simple_new(values, name, refs)
+        assert isinstance(values, cls._data_cls), type(values)
+
+        if repeats == 1 and len(values) != len(np.unique(values)):
             raise ValueError("Index values must be all unique if not repeating.")
 
-    def __repr__(self) -> str:
-        return f"Index({self.values}, repeating={self.is_repeating})"
+        result = object.__new__(cls)
+        result._data = values
+        result._name = name
+        result._cache = {}
+        result._reset_identity()
+        if refs is not None:
+            result._references = refs
+        else:
+            result._references = BlockValuesRefs()
+        result._references.add_index_reference(result)
 
-    def __getitem__(self, item: Any) -> Any:
-        return self.values[item]
+        result.repeats = repeats
 
-    def __len__(self) -> int:
-        return len(self.values)
-
-    def __eq__(self, other: object) -> bool | npt.NDArray[np.bool_]:  # type: ignore[override]
-        if isinstance(other, Index):
-            return np.array_equal(self.values, other.values) and self.is_repeating == other.is_repeating
-
-        return cast(npt.NDArray[np.bool_], self.values == other)
+        return result
 
     def __hash__(self) -> int:
         return hash(self.values.data.tobytes()) + int(self.is_repeating)
-
-    def __array__(self, dtype: npt.DTypeLike = None) -> npt.NDArray[Any]:
-        if dtype is None:
-            return self.values
-
-        return self.values.astype(dtype)
 
     # endregion
 
     # region attributes
     @property
+    def _constructor(self) -> type[pd.Index]:
+        return pd.Index
+
+    @property
     def is_repeating(self) -> bool:
         return self.repeats > 1
+
+    # endregion
+
+    # region methods
+    def _format_attrs(self) -> list[tuple[str, str | int | bool | None]]:
+        attrs = super()._format_attrs()
+        attrs.append(("repeating", self.is_repeating))
+        return attrs
 
     # endregion

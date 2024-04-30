@@ -6,7 +6,7 @@ import ch5mpy as ch
 import pandas as pd
 from h5dataframe import H5DataFrame
 
-from vdata._typing import IFS, AnyDictLike, DictLike, NDArray_IFS
+from vdata._typing import IFS, DictLike, NDArray_IFS
 from vdata.data.arrays.base import VBaseArrayContainer
 from vdata.data.arrays.lazy import LazyLoc
 from vdata.data.arrays.view import VBaseArrayContainerView
@@ -28,7 +28,7 @@ class VVarmArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[H5DataFrame]) -> AnyDictLike[H5DataFrame]:
+    def _check_init_data(self, data: dict[str, H5DataFrame]) -> dict[str, H5DataFrame]:
         """
         Function for checking, at VVarmArrayContainer creation, that the supplied data has the correct format :
             - the index of the DataFrames in 'data' match the index of the parent VData's var DataFrame.
@@ -101,7 +101,6 @@ class VVarmArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
 
 
 class VVarmArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.DataFrame]):
-
     # region magic methods
     def __init__(self, array_container: VVarmArrayContainer, var_slicer: NDArray_IFS):
         super().__init__(
@@ -183,7 +182,7 @@ class VVarpArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
     """
 
     # region magic methods
-    def _check_init_data(self, data: AnyDictLike[H5DataFrame]) -> AnyDictLike[H5DataFrame]:
+    def _check_init_data(self, data: dict[str, H5DataFrame]) -> dict[str, H5DataFrame]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format :
             - the index and column names of the DataFrames in 'data' match the index of the parent VData's var
@@ -259,7 +258,6 @@ class VVarpArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
 
 
 class VVarpArrayContainerView(VBaseArrayContainerView[H5DataFrame | LazyLoc, pd.DataFrame]):
-
     # region magic methods
     def __init__(self, array_container: VVarpArrayContainer, var_slicer: NDArray_IFS):
         super().__init__(

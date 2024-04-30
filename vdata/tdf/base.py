@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from functools import partialmethod
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, cast
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, cast, overload
 
 import ch5mpy as ch
 import numpy as np
@@ -21,13 +21,14 @@ from vdata._typing import (
     AnyNDArrayLike_IF,
     AnyNDArrayLike_IFS,
     AttrDict,
+    MultiSlicer,
     NDArray_IFS,
     Slicer,
 )
 from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME
 from vdata.tdf._parse import parse_data_h5
-from vdata.tdf.index import Index
+from vdata.tdf.index import RepeatingIndex
 from vdata.tdf.indexers import VAtIndexer, ViAtIndexer, ViLocIndexer, VLocIndexer
 from vdata.tdf.indexing import as_slicer, parse_slicer, parse_values
 from vdata.utils import are_equal, repr_array
@@ -126,6 +127,18 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
         else:
             self._append_column(name, values)
 
+    @abstractmethod
+    def __delattr__(self, key: str) -> None:
+        pass
+
+    @overload
+    def __getitem__(self, slicer: IFS | tp.TimePoint | range | slice) -> TemporalDataFrameBase: ...
+    @overload
+    def __getitem__(self, slicer: tuple[Slicer, Slicer]) -> TemporalDataFrameBase: ...
+    @overload
+    def __getitem__(self, slicer: tuple[IFS | tp.TimePoint, IFS, IFS]) -> IFS: ...
+    @overload
+    def __getitem__(self, slicer: tuple[MultiSlicer, Slicer, Slicer]) -> TemporalDataFrameBase: ...
     def __getitem__(
         self, slicer: Slicer | tuple[Slicer, Slicer] | tuple[Slicer, Slicer, Slicer]
     ) -> TemporalDataFrameBase | IFS:
@@ -173,6 +186,9 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
 
         if _string_values is not None:
             self._string_array[_string_selection.get_indexers()] = _string_values
+
+    def __delitem__(self, key: str) -> None:
+        self.__delattr__(key)
 
     def _check_compatibility(self, value: TemporalDataFrameBase) -> None:
         # time-points column and nb of columns must be identical
@@ -493,7 +509,7 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
         if self._numerical_array.size == 0:
             raise ValueError("No numerical data to divide.")
 
-        if isinstance(value, (int, float, np.int_, np.float_)):
+        if isinstance(value, (int, float, np.integer, np.floating)):
             self._numerical_array /= value  # type: ignore[assignment]
             return self
 
@@ -645,31 +661,31 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
         return (
             DEFAULT_TIME_COL_NAME
             if self._attr_dict["timepoints_column_name"] is None
-            else self._attr_dict["timepoints_column_name"]
+            else str(self._attr_dict["timepoints_column_name"])
         )
 
     @property
-    def index(self) -> Index:
+    def index(self) -> RepeatingIndex:
         """
         Get the index across all time-points.
         """
         if self._attr_dict["repeating_index"]:
-            return Index(self._index[self._timepoints_index.at(self.tp0)], repeats=self.n_timepoints)
+            return RepeatingIndex(self._index[self._timepoints_index.at(self.tp0)], repeats=self.n_timepoints)
 
-        return Index(self._index)
+        return RepeatingIndex(self._index)
 
     @index.setter
-    def index(self, values: NDArray_IFS | Index) -> None:
+    def index(self, values: NDArray_IFS | RepeatingIndex) -> None:
         """
         Set the index for rows across all time-points.
         """
         self.set_index(values)
 
-    def index_at(self, timepoint: tp.TimePoint) -> Index:
+    def index_at(self, timepoint: tp.TimePoint) -> RepeatingIndex:
         """
         Get the index at a given time point.
         """
-        return Index(self._index[self._timepoints_index.at(timepoint)])
+        return RepeatingIndex(self._index[self._timepoints_index.at(timepoint)])
 
     @property
     def n_index(self) -> int:
@@ -916,14 +932,14 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
     @abstractmethod
     def set_index(
         self,
-        values: Collection[IFS] | Index,
+        values: Collection[IFS] | RepeatingIndex,
         *,
         force: bool = False,
     ) -> None:
         """Set new index values."""
 
     @abstractmethod
-    def reindex(self, order: NDArray_IFS | Index) -> None:
+    def reindex(self, order: NDArray_IFS | RepeatingIndex) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
 
     def _repr_single_array(

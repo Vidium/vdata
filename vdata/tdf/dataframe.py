@@ -16,7 +16,7 @@ from vdata.IO import VLockError
 from vdata.names import DEFAULT_TIME_COL_NAME, NO_NAME
 from vdata.tdf._parse import parse_data
 from vdata.tdf.base import TemporalDataFrameBase
-from vdata.tdf.index import Index
+from vdata.tdf.index import RepeatingIndex
 from vdata.utils import isCollection
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
     def __init__(
         self,
         data: dict[str, NDArray_IFS] | pd.DataFrame | NDArrayLike_IFS | None = None,
-        index: Collection_IFS | Index | None = None,
+        index: Collection_IFS | RepeatingIndex | None = None,
         columns: Collection[IFS] | None = None,
         timepoints: Collection[IFS | tp.TimePoint] | IFS | tp.TimePoint | None = None,
         time_col_name: str | None = None,
@@ -295,7 +295,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
     def set_index(
         self,
-        values: Collection[IFS] | Index,
+        values: Collection[IFS] | RepeatingIndex,
         *,
         force: bool = False,
     ) -> None:
@@ -303,7 +303,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
         if self.has_locked_indices and not force:
             raise VLockError("Cannot set index in TemporalDataFrame with locked index.")
 
-        index = values if isinstance(values, Index) else Index(values)
+        index = values if isinstance(values, RepeatingIndex) else RepeatingIndex(values)
 
         if not index.values.shape == self._index.shape:
             raise ValueError(
@@ -315,7 +315,7 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         self._attr_dict["repeating_index"] = index.is_repeating
 
-    def _get_index_positions(self, index: Index) -> NDArray_IFS:
+    def _get_index_positions(self, index: RepeatingIndex) -> NDArray_IFS:
         if not self._attr_dict["repeating_index"]:
             return cast(npt.NDArray[np.int_], npi.indices(self.index, index.values))
 
@@ -341,9 +341,9 @@ class TemporalDataFrame(TemporalDataFrameBase):
 
         return total_index.flatten()
 
-    def reindex(self, order: NDArray_IFS | Index) -> None:
+    def reindex(self, order: NDArray_IFS | RepeatingIndex) -> None:
         """Re-order rows in this TemporalDataFrame so that their index matches the new given order."""
-        index = order if isinstance(order, Index) else Index(order)
+        index = order if isinstance(order, RepeatingIndex) else RepeatingIndex(order)
 
         # check all values in index
         if not np.all(np.isin(index.values, self.index)):

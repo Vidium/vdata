@@ -97,7 +97,7 @@ def _update_vdata(data: ch.H5Dict[Any], from_version: int, progressBar: tqdm[Any
     progressBar.update()
 
 
-def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> None:
+def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> int:
     """
     Update an h5 file containing a vdata saved in an older version.
 
@@ -111,7 +111,7 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
 
     data_version = data.attributes.get("__vdata_write_version__", 0)
     if data_version == CURRENT_VERSION:
-        return
+        return data_version
 
     if data_version > CURRENT_VERSION:
         raise ValueError(
@@ -142,3 +142,5 @@ def update_vdata(data: Path | str | ch.H5Dict[Any], verbose: bool = True) -> Non
 
     if _was_opened_here:
         data.close()
+
+    return data_version

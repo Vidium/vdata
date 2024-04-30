@@ -10,7 +10,7 @@ from vdata.data._parse.time import check_time_match
 from vdata.data._parse.utils import log_timepoints
 from vdata.IO.logger import generalLogger
 from vdata.names import NO_NAME
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 from vdata.timepoint import TimePointArray
 from vdata.utils import first_in
 
@@ -18,11 +18,11 @@ if TYPE_CHECKING:
     from vdata.data._parse.data import ParsingDataIn
 
 
-def _index(obj: pd.DataFrame | H5DataFrame | TemporalDataFrameBase) -> Index:
+def _index(obj: pd.DataFrame | H5DataFrame | TemporalDataFrameBase) -> RepeatingIndex:
     if isinstance(obj, TemporalDataFrameBase) and obj.index.is_repeating:
-        return Index(obj.index_at(obj.tp0), repeats=obj.n_timepoints)
+        return RepeatingIndex(obj.index_at(obj.tp0), repeats=obj.n_timepoints)
 
-    return Index(obj.index)
+    return RepeatingIndex(obj.index)
 
 
 def get_obs_index(
@@ -32,7 +32,7 @@ def get_obs_index(
     | Mapping[str, pd.DataFrame | H5DataFrame | TemporalDataFrameBase]
     | None,
     obs: pd.DataFrame | H5DataFrame | TemporalDataFrameBase | None,
-) -> Index | None:
+) -> RepeatingIndex | None:
     if obs is not None:
         return _index(obs)
 

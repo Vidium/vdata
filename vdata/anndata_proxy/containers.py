@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import operator as op
 from functools import partialmethod
-from typing import Any, Callable, ItemsView, KeysView, MutableMapping, Union, ValuesView, cast
+from typing import Any, Callable, Collection, ItemsView, KeysView, MutableMapping, Union, ValuesView, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -10,21 +10,21 @@ import scipy.sparse as ss
 from h5dataframe import H5DataFrame
 
 import vdata
-from vdata._typing import AnyNDArrayLike, AnyNDArrayLike_IFS
+from vdata._typing import IFS, AnyNDArrayLike, AnyNDArrayLike_IFS
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 
 _NP_IF = Union[np.int_, np.float_]
 
 
 class TemporalDataFrameContainerProxy:
-
-    __slots__ = "_vdata", "_tdfs", "_name"
+    __slots__ = "_vdata", "_tdfs", "_name", "_columns"
 
     # region magic methods
-    def __init__(self, vdata: vdata.VData | vdata.VDataView, name: str) -> None:
+    def __init__(self, vdata: vdata.VData | vdata.VDataView, name: str, columns: Collection[IFS] | None) -> None:
         self._vdata = vdata
         self._tdfs: MutableMapping[str, TemporalDataFrameBase] = getattr(vdata, name)
         self._name = name.capitalize()
+        self._columns = columns
 
     def __repr__(self) -> str:
         return f"{self._name} with keys: {', '.join(self._tdfs.keys())}"
@@ -36,9 +36,12 @@ class TemporalDataFrameContainerProxy:
         self._tdfs[key] = TemporalDataFrame(
             value,
             index=self._vdata.obs.index,
-            columns=self._vdata.var.index,
+            columns=self._columns,
             timepoints=self._vdata.obs.timepoints_column,
         )
+
+    def __delitem__(self, key: str) -> None:
+        del self._tdfs[str(key)]
 
     def __contains__(self, key: str) -> bool:
         return key in self.keys()
@@ -59,7 +62,6 @@ class TemporalDataFrameContainerProxy:
 
 
 class ArrayStack2DProxy:
-
     __slots__ = "_array_numeric", "_array_string"
     ndim = 2
 
@@ -166,7 +168,6 @@ class ArrayStack2DProxy:
 
 
 class H5DataFrameContainerProxy:
-
     __slots__ = "_h5dfs", "_index", "_columns", "_name", "_sparse_matrices"
 
     # region magic methods
@@ -194,11 +195,15 @@ class H5DataFrameContainerProxy:
 
         return self._h5dfs[str(key)].values
 
-    def __setitem__(self, key: str, value: npt.NDArray[Any]) -> None:
+    def __setitem__(self, key: str, value: npt.NDArray[Any] | ss.spmatrix) -> None:
         if ss.issparse(value):
             self._sparse_matrices.add(str(key))
+            value = np.array(value.todense())
 
         self._h5dfs[str(key)] = H5DataFrame(value, index=self._index, columns=self._columns)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._h5dfs.keys()
 
     # endregion
 

@@ -769,7 +769,7 @@ def test_VData_creation_repeating_index() -> None:
     obs = vdata.TemporalDataFrame(
         data={"col1": np.arange(9)},
         timepoints=["0h", "0h", "0h", "5h", "5h", "5h", "10h", "10h", "10h"],
-        index=vdata.Index(["a", "b", "c"], repeats=3),
+        index=vdata.RepeatingIndex(["a", "b", "c"], repeats=3),
     )
 
     data = vdata.TemporalDataFrame(
@@ -779,7 +779,7 @@ def test_VData_creation_repeating_index() -> None:
             "G3": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
         },
         timepoints=["0h", "0h", "0h", "5h", "5h", "5h", "10h", "10h", "10h"],
-        index=vdata.Index(["a", "b", "c"], repeats=3),
+        index=vdata.RepeatingIndex(["a", "b", "c"], repeats=3),
     )
 
     v = vdata.VData(data, obs=obs)

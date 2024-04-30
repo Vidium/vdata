@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 import vdata.timepoint as tp
-from vdata import Index
+from vdata import RepeatingIndex
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase
 
 
@@ -231,7 +231,7 @@ class TestCreationFromNumericalData:
             data=self.data,
             timepoints=["0h", "0h", "0h", "5h", "5h", "5h", "10h", "10h", "10h"],
             time_col_name=None,
-            index=Index(["a", "b", "c"], repeats=3),
+            index=RepeatingIndex(["a", "b", "c"], repeats=3),
         )
         assert (
             repr(TDF) == "TemporalDataFrame No_Name\n"
@@ -372,7 +372,7 @@ class TestCreationFromStringData:
             data=self.data,
             timepoints=["0h", "0h", "0h", "5h", "5h", "5h", "10h", "10h", "10h"],
             time_col_name=None,
-            index=Index(["a", "b", "c"], repeats=3),
+            index=RepeatingIndex(["a", "b", "c"], repeats=3),
         )
         assert (
             repr(TDF) == "TemporalDataFrame No_Name\n"
@@ -512,7 +512,7 @@ class TestCreationFromBothNumericalAndStringData:
             data=self.data,
             timepoints=["0h", "0h", "0h", "5h", "5h", "5h", "10h", "10h", "10h"],
             time_col_name=None,
-            index=Index(["a", "b", "c"], repeats=3),
+            index=RepeatingIndex(["a", "b", "c"], repeats=3),
         )
         assert (
             repr(TDF) == "TemporalDataFrame No_Name\n"

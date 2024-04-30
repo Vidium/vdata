@@ -36,14 +36,14 @@ def test_VData_copy_with_repeating_index() -> None:
     var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
     obs = vdata.TemporalDataFrame(
         {"data": np.random.randint(0, 20, 6), "data_bis": np.random.randint(0, 20, 6)},
-        index=vdata.Index(["a", "b", "c"], repeats=2),
+        index=vdata.RepeatingIndex(["a", "b", "c"], repeats=2),
         timepoints=["0h", "0h", "0h", "1h", "1h", "1h"],
     )
     uns = {"colors": ["blue", "red", "yellow"], "date": "25/01/2021"}
 
     data = vdata.TemporalDataFrame(
         pd.DataFrame(expr_data_simple),
-        index=vdata.Index(["a", "b", "c"], repeats=2),
+        index=vdata.RepeatingIndex(["a", "b", "c"], repeats=2),
         timepoints=["0h", "0h", "0h", "1h", "1h", "1h"],
     )
 

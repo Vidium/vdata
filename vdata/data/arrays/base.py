@@ -10,10 +10,10 @@ import pandas as pd
 from h5dataframe import H5DataFrame
 
 import vdata
-from vdata._typing import IFS, AnyDictLike, DictLike
+from vdata._typing import IFS
 from vdata.data.arrays.lazy import LazyLoc
 from vdata.IO import VClosedFileError, generalLogger
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first_in
 
 D = TypeVar("D", Union[TemporalDataFrame, TemporalDataFrameView], TemporalDataFrameView, H5DataFrame, LazyLoc)
@@ -22,7 +22,6 @@ D_copy = TypeVar("D_copy", TemporalDataFrame, pd.DataFrame)
 
 # Base Containers -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 class ArrayContainerMixin(MutableMapping[str, D], Generic[D, D_copy]):
-
     # region predicates
     @property
     def empty(self) -> bool:
@@ -31,8 +30,7 @@ class ArrayContainerMixin(MutableMapping[str, D], Generic[D, D_copy]):
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     # endregion
 
@@ -108,7 +106,7 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D, D_copy]):
     __slots__ = "_vdata", "_data"
 
     # region magic methods
-    def __init__(self, *, data: DictLike[D], vdata: vdata.VData):
+    def __init__(self, *, data: dict[str, D], vdata: vdata.VData):
         """
         Args:
             vdata: the parent VData object this ArrayContainer is linked to.
@@ -118,10 +116,10 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D, D_copy]):
         generalLogger.debug(lambda: f"== Creating {type(self).__name__}. ==========================")
 
         self._vdata = vdata
-        self._data: AnyDictLike[D] = self._check_init_data(data)
+        self._data: dict[str, D] = self._check_init_data(data)
 
     @abstractmethod
-    def _check_init_data(self, data: AnyDictLike[D]) -> AnyDictLike[D]:
+    def _check_init_data(self, data: dict[str, D]) -> dict[str, D]:
         """
         Function for checking, at ArrayContainer creation, that the supplied data has the correct format.
 
@@ -212,9 +210,12 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D, D_copy]):
     @abstractmethod
     def shape(
         self,
-    ) -> tuple[int, int, int] | tuple[int, int, list[int]] | tuple[int, int, list[int], int] | tuple[
-        int, int, list[int], list[int]
-    ]:
+    ) -> (
+        tuple[int, int, int]
+        | tuple[int, int, list[int]]
+        | tuple[int, int, list[int], int]
+        | tuple[int, int, list[int], list[int]]
+    ):
         """
         The shape of this ArrayContainer is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -225,7 +226,7 @@ class VBaseArrayContainer(ABC, ArrayContainerMixin[D, D_copy]):
         pass
 
     @property
-    def data(self) -> AnyDictLike[D]:
+    def data(self) -> dict[str, D]:
         """
         Data of this ArrayContainer.
 
@@ -277,10 +278,8 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFra
     It is based on VBaseArrayContainer and defines some functions shared by obsm and layers.
     """
 
-    data: DictLike[TemporalDataFrame | TemporalDataFrameView]
-
     # region methods
-    def __init__(self, *, data: DictLike[TemporalDataFrame | TemporalDataFrameView], vdata: vdata.VData):
+    def __init__(self, *, data: dict[str, TemporalDataFrame | TemporalDataFrameView], vdata: vdata.VData):
         """
         Args:
             parent: the parent VData object this ArrayContainer is linked to.
@@ -325,7 +324,7 @@ class VTDFArrayContainer(VBaseArrayContainer[TemporalDataFrame | TemporalDataFra
     # endregion
 
     # region methods
-    def set_index(self, values: Collection[IFS] | Index) -> None:
+    def set_index(self, values: Collection[IFS] | RepeatingIndex) -> None:
         """Set a new index for rows."""
         for layer in self.values():
             layer.set_index(values, force=True)

@@ -11,7 +11,7 @@ from vdata.array_view import NDArrayView
 from vdata.data.arrays.base import ArrayContainerMixin, D, D_copy, VBaseArrayContainer
 from vdata.data.hash import VDataHash
 from vdata.IO import generalLogger
-from vdata.tdf import Index, TemporalDataFrame, TemporalDataFrameView
+from vdata.tdf import RepeatingIndex, TemporalDataFrame, TemporalDataFrameView
 from vdata.utils import first_in
 
 
@@ -74,9 +74,12 @@ class VBaseArrayContainerView(ABC, ArrayContainerMixin[D, D_copy]):
     @abstractmethod
     def shape(
         self,
-    ) -> tuple[int, int, int] | tuple[int, int, list[int]] | tuple[int, int, list[int], int] | tuple[
-        int, int, list[int], list[int]
-    ]:
+    ) -> (
+        tuple[int, int, int]
+        | tuple[int, int, list[int]]
+        | tuple[int, int, list[int], int]
+        | tuple[int, int, list[int], list[int]]
+    ):
         """
         The shape of this view is computed from the shape of the Arrays it contains.
         See __len__ for getting the number of Arrays it contains.
@@ -160,7 +163,7 @@ class VTDFArrayContainerView(VBaseArrayContainerView[TemporalDataFrame | Tempora
     # endregion
 
     # region methods
-    def set_index(self, values: NDArray_IFS | Index) -> None:
+    def set_index(self, values: NDArray_IFS | RepeatingIndex) -> None:
         """Set a new index for rows."""
         for layer in self.values():
             layer.unlock_indices()
