@@ -2291,3 +2291,19 @@ def test_min_max_mean_on_timepoints(TDF1: TemporalDataFrameBase, operation: str)
             columns=TDF1.columns_num,
         ),
     )
+
+
+def test_should_check_contains_in_columns() -> None:
+    from tempfile import NamedTemporaryFile
+
+    tdf = TemporalDataFrame(
+        {
+            "col1": np.array([i for i in range(100)]),
+            "col2": np.array([i for i in range(100, 200)]),
+        },
+        timepoints=["1h" for _ in range(50)] + ["0h" for _ in range(50)],
+    )
+    with NamedTemporaryFile() as file:
+        tdf.write(file.name)
+
+        assert "test" not in tdf.columns_str
