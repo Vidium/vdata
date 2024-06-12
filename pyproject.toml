@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-ch5mpy = { git = "git@git.vidium.solutions:vidium/ch5mpy.git", branch = "master" }
+ch5mpy = { git = "git@git.vidium.solutions:vidium/ch5mpy.git", branch = "test_ci_cd" }
 h5dataframe = { git = "git@git.vidium.solutions:vidium/h5dataframe.git", branch = "test_ci_cd" }
 tqdm = "^4.66.1"
 anndata = "^0.10.4"
