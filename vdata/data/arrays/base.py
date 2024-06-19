@@ -62,9 +62,9 @@ class ArrayContainerMixin(MutableMapping[str, D], Generic[D, D_copy]):
             ItemsView of this ArrayContainer.
         """
 
-    def dict_copy(self) -> dict[str, D_copy]:
+    def dict_copy(self, deep: bool = True) -> dict[str, D_copy]:
         """Dictionary of keys and data items in this view."""
-        return {k: v.copy() for k, v in self.items()}  # type: ignore[misc]
+        return {k: v.copy(deep=deep) for k, v in self.items()}  # type: ignore[misc]
 
     def to_csv(
         self,

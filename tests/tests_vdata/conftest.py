@@ -1,7 +1,7 @@
 from tempfile import NamedTemporaryFile
 from typing import Generator
-import anndata
 
+import anndata
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,8 +11,8 @@ import vdata
 
 @pytest.fixture
 def VData() -> vdata.VData:
-    genes = list(map(lambda x: "g_" + str(x), range(50)))
-    cells = list(map(lambda x: "c_" + str(x), range(300)))
+    genes = np.array(list(map(lambda x: "g_" + str(x), range(50))))
+    cells = np.array(list(map(lambda x: "c_" + str(x), range(300))))
 
     v = vdata.VData(
         data={"data": pd.DataFrame(np.array(range(300 * 50)).reshape((300, 50)), index=cells, columns=genes)},
@@ -26,8 +26,8 @@ def VData() -> vdata.VData:
 
 @pytest.fixture
 def backed_VData() -> Generator[vdata.VData, None, None]:
-    genes = list(map(lambda x: "g_" + str(x), range(50)))
-    cells = list(map(lambda x: "c_" + str(x), range(300)))
+    genes = np.array(list(map(lambda x: "g_" + str(x), range(50))))
+    cells = np.array(list(map(lambda x: "c_" + str(x), range(300))))
 
     v = vdata.VData(
         data={"data": pd.DataFrame(np.array(range(300 * 50)).reshape((300, 50)), index=cells, columns=genes)},
@@ -50,14 +50,17 @@ def VData_uns(request: pytest.FixtureRequest) -> Generator[vdata.VData, None, No
         which = "plain"
 
     timepoints = pd.DataFrame({"value": ["0h"]})
-    var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]})
+    var = pd.DataFrame({"gene_name": ["g1", "g2", "g3"]}, index=np.array(["g1", "g2", "g3"]))
     obs = vdata.TemporalDataFrame(
         {"data": np.random.randint(0, 20, 6), "data_bis": np.random.randint(0, 20, 6)},
         timepoints=["0h", "0h", "0h", "0h", "0h", "0h"],
     )
     uns = {"colors": np.array(["blue", "red", "yellow"]), "date": "25/01/2021"}
 
-    data = pd.DataFrame(np.array([[10, 11, 12], [20, 21, 22], [30, 31, 32], [40, 41, 42], [50, 51, 52], [60, 61, 62]]))
+    data = pd.DataFrame(
+        np.array([[10, 11, 12], [20, 21, 22], [30, 31, 32], [40, 41, 42], [50, 51, 52], [60, 61, 62]]),
+        columns=np.array(["g1", "g2", "g3"]),
+    )
 
     v = vdata.VData(data, timepoints=timepoints, obs=obs, var=var, uns=uns, name="1")
 

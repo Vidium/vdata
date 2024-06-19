@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from functools import partialmethod
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Collection, Generator, Iterable, Literal, cast, overload
 
 import ch5mpy as ch
 import numpy as np
@@ -1131,6 +1131,10 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
     max = partialmethod(_min_max_mean, func="max")
     mean = partialmethod(_min_max_mean, func="mean")
 
+    def iterrows(self) -> Generator[tuple[str, pd.Series], None, None]:
+        for index, num_row, str_row in zip(self.index, self._numerical_array, self._string_array):
+            yield index, pd.Series([*num_row, *str_row])
+
     # endregion
 
     # region data methods
@@ -1273,10 +1277,13 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
             path, sep=sep, na_rep=na_rep, index=index, header=header
         )
 
-    def copy(self) -> TemporalDataFrame:
+    def copy(self, deep: bool = True) -> TemporalDataFrame:
         """
         Get a copy.
         """
+        if not deep:
+            return self
+
         if self.timepoints_column_name is None:
             return tdf.TemporalDataFrame(
                 self.to_pandas(),

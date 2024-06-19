@@ -276,9 +276,18 @@ class VObspArrayContainerView(VBaseArrayContainerView[H5DataFrame, pd.DataFrame]
             array_container: a VBaseArrayContainer object to build a view on.
             obs_slicer: the list of observations to view.
         """
+
+        def get_loc(h):
+            # FIXME: SOMETIMES does not work only once, WTF
+            #  ValueError: Does not understand character buffer dtype format string ('w')
+            try:
+                return h.loc[obs_slicer.tolist(), obs_slicer.tolist()]
+            except ValueError as e:
+                return h.loc[obs_slicer.tolist(), obs_slicer.tolist()]
+
         super().__init__(
             data={
-                key: cast(H5DataFrame, h5df.loc[obs_slicer, obs_slicer])  # type: ignore[index]
+                key: cast(H5DataFrame, get_loc(h5df))  # type: ignore[index]
                 for key, h5df in array_container.items()
             },
             array_container=array_container,

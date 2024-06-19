@@ -1,17 +1,9 @@
-# coding: utf-8
-# Created on 05/04/2022 09:11
-# Author : matteo
-
-# ====================================================
-# imports
 import numpy as np
 import pytest
 
 from vdata.tdf import TemporalDataFrame, TemporalDataFrameBase, TemporalDataFrameView
 
 
-# ====================================================
-# code
 @pytest.mark.parametrize("TDF", ["plain", "backed"], indirect=True)
 def test_delete_numerical_column(TDF: TemporalDataFrame) -> None:
     if TDF.is_backed:

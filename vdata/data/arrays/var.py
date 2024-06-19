@@ -47,7 +47,8 @@ class VVarmArrayContainer(VBaseArrayContainer[H5DataFrame, pd.DataFrame]):
                 raise IncoherenceError(f"Index of DataFrame '{DF_index}' does not  match var's index. ({_index})")
 
             if isinstance(data, dict):
-                _data[str(DF_index)] = H5DataFrame(pd.DataFrame(DF))
+                assert isinstance(DF, H5DataFrame)
+                _data[str(DF_index)] = DF
 
         generalLogger.debug("  Data was OK.")
         return _data

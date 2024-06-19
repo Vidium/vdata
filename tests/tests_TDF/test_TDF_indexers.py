@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 import pytest
 
 from vdata.tdf import TemporalDataFrameBase
@@ -178,3 +179,10 @@ def test_iloc_indexer_sets_correct_value_with_index_and_column_for_view(TDF: Tem
     assert np.all(TDF.values_num[40:50] == np.arange(50, 60).reshape((10, 1))) and np.all(
         np.char.equal(TDF.values_str[40:50], np.arange(-1, -11, -1).astype(str).reshape((10, 1)))
     )
+
+
+@pytest.mark.parametrize("TDF", "plain", indirect=True)
+def test_can_iterrows(TDF: TemporalDataFrameBase) -> None:
+    index, row = next(TDF.iterrows())
+    assert index == 50
+    assert row.equals(pd.Series([50.0, 150.0, "250", "350"]))

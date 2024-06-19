@@ -29,7 +29,7 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
         raise TypeError("Only Vdata objects are allowed.")
 
     generalLogger.debug(
-        "\u23BE Concatenation of VDatas : start " "---------------------------------------------------------- "
+        "\u23be Concatenation of VDatas : start " "---------------------------------------------------------- "
     )
 
     # get initial data
@@ -41,10 +41,10 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
     _obs = first_VData.obs.copy()
     _obsm = first_VData.obsm.dict_copy()
     _obsp = first_VData.obsp.dict_copy()
-    _var = first_VData.var.copy()
-    _varm = first_VData.varm.dict_copy()
-    _varp = first_VData.varp.dict_copy()
-    _timepoints = first_VData.timepoints.copy()
+    _var = first_VData.var.copy(deep=False)
+    _varm = first_VData.varm.dict_copy(deep=False)
+    _varp = first_VData.varp.dict_copy(deep=False)
+    _timepoints = first_VData.timepoints.copy(deep=False)
     _uns = deepcopy(first_VData.uns)
 
     # concatenate with data in other VData objects
@@ -52,7 +52,7 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
         generalLogger.info(lambda: f"Working on VData '{next_VData.name}' ({next_VData_index + 1}/{len(arr) - 1}).")
 
         # check var -----------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging 'var' DataFrame.")
+        generalLogger.info("  '\u21b3' merging 'var' DataFrame.")
         if not _var.index.equals(next_VData.var.index):
             raise ValueError("Cannot concatenate VData objects if 'var' indexes are different.")
 
@@ -65,7 +65,7 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 _var[column] = next_VData.var[column]
 
         # check time points ---------------------------------------------------
-        generalLogger.info("  '\u21B3' merging 'time-points' DataFrame.")
+        generalLogger.info("  '\u21b3' merging 'time-points' DataFrame.")
         if not _timepoints.index.equals(next_VData.timepoints.index):
             raise ValueError("Cannot concatenate VData objects if 'time_point' indexes are different.")
 
@@ -78,26 +78,26 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 _timepoints[column] = next_VData.timepoints[column]
 
         # check layers keys ---------------------------------------------------
-        generalLogger.info("  '\u21B3' merging layers.")
+        generalLogger.info("  '\u21b3' merging layers.")
         if not _data.keys() == next_VData.layers.keys():
             raise ValueError("Cannot concatenate VData objects if 'layers' keys are different.")
 
         for key in _data.keys():
-            generalLogger.info(lambda: f"    '\u21B3' merging layer '{key}' DataFrame.")
+            generalLogger.info(lambda: f"    '\u21b3' merging layer '{key}' DataFrame.")
             _data[key] = _data[key].merge(next_VData.layers[key])
 
         # concat other data =============================================================
         # obs -----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging 'obs' TemporalDataFrame.")
+        generalLogger.info("  '\u21b3' merging 'obs' TemporalDataFrame.")
         if np.any(np.isin(_obs.index, next_VData.obs.index)):
             raise ValueError("Cannot merge VData objects with common obs index values.")
 
         _obs = _obs.merge(next_VData.obs)
 
         # obsm ----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging obsm.")
+        generalLogger.info("  '\u21b3' merging obsm.")
         for key in _obsm.keys():
-            generalLogger.info(lambda: f"    '\u21B3' merging obsm '{key}' TemporalDataFrame.")
+            generalLogger.info(lambda: f"    '\u21b3' merging obsm '{key}' TemporalDataFrame.")
 
             if key in next_VData.obsm.keys():
                 _obsm[key] = _obsm[key].merge(next_VData.obsm[key])
@@ -107,10 +107,10 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 del _obsm[key]
 
         # obsp ----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging obsp.")
+        generalLogger.info("  '\u21b3' merging obsp.")
         next_obsp = next_VData.obsp
         for key in _obsp.keys():
-            generalLogger.info(lambda: f"    '\u21B3' merging obsp '{key}' DataFrame.")
+            generalLogger.info(lambda: f"    '\u21b3' merging obsp '{key}' DataFrame.")
 
             if key in next_obsp.keys():
                 _index = _obsp[key].index.union(pd.Index(next_VData.obs.index.values), sort=False)
@@ -126,10 +126,10 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 del _obsp[key]
 
         # varm ----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging varm.")
+        generalLogger.info("  '\u21b3' merging varm.")
         for key in _varm.keys():
             if key in next_VData.varm.keys():
-                generalLogger.info(lambda: f"    '\u21B3' merging varm '{key}' DataFrame.")
+                generalLogger.info(lambda: f"    '\u21b3' merging varm '{key}' DataFrame.")
 
                 _varm[key] = H5DataFrame(
                     _varm[key].reset_index().merge(next_VData.varm[key].reset_index(), how="outer").set_index("index")
@@ -140,10 +140,10 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 del _varm[key]
 
         # varp ----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging varp.")
+        generalLogger.info("  '\u21b3' merging varp.")
         for key in _varp.keys():
             if key in next_VData.varp.keys():
-                generalLogger.info(lambda: f"    '\u21B3' merging varp '{key}' DataFrame.")
+                generalLogger.info(lambda: f"    '\u21b3' merging varp '{key}' DataFrame.")
 
                 _varp[key] = H5DataFrame(
                     _varp[key].reset_index().merge(next_VData.varp[key].reset_index(), how="outer").set_index("index")
@@ -154,9 +154,9 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
                 del _varp[key]
 
         # uns -----------------------------------------------------------------
-        generalLogger.info("  '\u21B3' merging uns.")
+        generalLogger.info("  '\u21b3' merging uns.")
         for key, value in next_VData.uns.items():
-            generalLogger.info(lambda: f"    '\u21B3' merging uns '{key}'.")
+            generalLogger.info(lambda: f"    '\u21b3' merging uns '{key}'.")
 
             if key not in _uns:
                 _uns[key] = value
@@ -180,7 +180,7 @@ def concatenate(arr: Sequence[VData], name: str = "") -> "VData":
     )
 
     generalLogger.debug(
-        "\u23BF Concatenation of VDatas : end " "---------------------------------------------------------- "
+        "\u23bf Concatenation of VDatas : end " "---------------------------------------------------------- "
     )
 
     return concatenated_VData

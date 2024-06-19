@@ -1,9 +1,3 @@
-# coding: utf-8
-# Created on 11/25/20 3:41 PM
-# Author : matteo
-
-# ====================================================
-# imports
 import numpy as np
 import pandas as pd
 import pytest
@@ -12,8 +6,6 @@ import vdata
 from vdata import TemporalDataFrame
 from vdata.timepoint import TimePointArray
 
-# ====================================================
-# code
 _MASK_GENES = ["g_10", "g_2", "g_5", "g_25", "g_49"]
 _MASK_CELLS = ["c_20", "c_1", "c_199", "c_100", "c_30", "c_10", "c_150", "c_151"]
 _INDEX_CELLS = ["c_20", "c_1", "c_30", "c_10", "c_199", "c_100", "c_150", "c_151"]
