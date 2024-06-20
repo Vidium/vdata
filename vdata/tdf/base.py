@@ -1135,6 +1135,22 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
         for index, num_row, str_row in zip(self.index, self._numerical_array, self._string_array):
             yield index, pd.Series([*num_row, *str_row])
 
+    def to_dict(
+        self, orient: Literal["dict", "list", "series", "split", "tight", "records", "index"] = "dict"
+    ) -> dict[str, Any] | list[dict[str, Any]]:
+        match orient:
+            case "dict":
+                return {
+                    col: {index: value for index, value in zip(self.index, row)}
+                    for col, row in zip(self.columns, self.values.T)
+                }
+
+            case "records":
+                return [{col: value for col, value in zip(self.columns, row)} for row in self.values]
+
+            case _:
+                raise ValueError(f"orient '{orient}' not understood")
+
     # endregion
 
     # region data methods
