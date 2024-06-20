@@ -691,7 +691,6 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
     def n_index(self) -> int:
         return len(self._index)
 
-    @property
     def n_index_at(self, timepoint: tp.TimePoint) -> int:
         return len(self._timepoints_index.at(timepoint))
 
