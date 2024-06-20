@@ -692,6 +692,10 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
         return len(self._index)
 
     @property
+    def n_index_at(self, timepoint: tp.TimePoint) -> int:
+        return len(self._timepoints_index.at(timepoint))
+
+    @property
     def columns_num(self) -> AnyNDArrayLike_IFS:
         """
         Get the list of column names for numerical data.
