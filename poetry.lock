@@ -2,13 +2,13 @@
 
 [[package]]
 name = "anndata"
-version = "0.10.7"
+version = "0.10.8"
 description = "Annotated data."
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "anndata-0.10.7-py3-none-any.whl", hash = "sha256:8b50af790f9a73414d0b94fd7b8e005f5cc6c53c33eb09206d2bd6720115bffc"},
-    {file = "anndata-0.10.7.tar.gz", hash = "sha256:9b186bea18956fefdc35e7464d822a17e9faa456ca2d20c7a0966a4837b822a2"},
+    {file = "anndata-0.10.8-py3-none-any.whl", hash = "sha256:1b24934dc2674eaf3072cb7010e187aa2b2f4f0e4cf0a32ffeab5ffebe3b1415"},
+    {file = "anndata-0.10.8.tar.gz", hash = "sha256:b728a33225eeaaefddf6bed546d935c0f06881c9166621b24de3b492b2f406bb"},
 ]
 
 [package.dependencies]
@@ -25,7 +25,7 @@ scipy = ">1.8"
 dev = ["pytest-xdist", "setuptools-scm"]
 doc = ["awkward (>=2.0.7)", "ipython", "myst-parser", "nbsphinx", "readthedocs-sphinx-search", "scanpydoc[theme,typehints] (>=0.13.4)", "sphinx (>=4.4)", "sphinx-autodoc-typehints (>=1.11.0)", "sphinx-book-theme (>=1.1.0)", "sphinx-copybutton", "sphinx-design (>=0.5.0)", "sphinx-issues", "sphinxext-opengraph", "zarr"]
 gpu = ["cupy"]
-test = ["awkward (>=2.3)", "boltons", "dask[array,distributed] (>=2022.09.2)", "httpx", "joblib", "loompy (>=3.0.5)", "matplotlib", "openpyxl", "pyarrow", "pytest (>=7.3)", "pytest-cov (>=2.10)", "pytest-memray", "pytest-mock", "scanpy", "scikit-learn", "zarr"]
+test = ["awkward (>=2.3)", "boltons", "dask[array,distributed] (>=2022.09.2)", "httpx", "joblib", "loompy (>=3.0.5)", "matplotlib", "openpyxl", "pyarrow", "pytest (>=8.2)", "pytest-cov (>=2.10)", "pytest-memray", "pytest-mock", "scanpy", "scikit-learn", "zarr (<3.0.0a0)"]
 
 [[package]]
 name = "array-api-compat"
@@ -65,9 +65,9 @@ typing-extensions = "^4.9.0"
 
 [package.source]
 type = "git"
-url = "git@gitlab.vidium.fr:vidium/ch5mpy.git"
+url = "git@git.vidium.solutions:vidium/ch5mpy.git"
 reference = "master"
-resolved_reference = "7624a28912faefb782b07953d745b641ef791f46"
+resolved_reference = "095af8803be0309705085889689e9261d95d92eb"
 
 [[package]]
 name = "colorama"
@@ -258,14 +258,15 @@ files = []
 develop = false
 
 [package.dependencies]
-ch5mpy = {git = "git@gitlab.vidium.fr:vidium/ch5mpy.git", branch = "master"}
+ch5mpy = {git = "git@git.vidium.solutions:vidium/ch5mpy.git", branch = "master"}
 pandas = "^2.2"
+pandas-stubs = "^2.2.2.240603"
 
 [package.source]
 type = "git"
 url = "git@gitlab.vidium.fr:vidium/h5dataframe.git"
 reference = "main"
-resolved_reference = "37944c7f682fc1753b047114457f3d5856fb15d5"
+resolved_reference = "4d8bcdeceab596923023c5242706e3538eb10f1f"
 
 [[package]]
 name = "h5py"
@@ -760,6 +761,24 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
+name = "pandas-stubs"
+version = "2.2.2.240603"
+description = "Type annotations for pandas"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "pandas_stubs-2.2.2.240603-py3-none-any.whl", hash = "sha256:e08ce7f602a4da2bff5a67475ba881c39f2a4d4f7fccc1cba57c6f35a379c6c0"},
+    {file = "pandas_stubs-2.2.2.240603.tar.gz", hash = "sha256:2dcc86e8fa6ea41535a4561c1f08b3942ba5267b464eff2e99caeee66f9e4cd1"},
+]
+
+[package.dependencies]
+numpy = [
+    {version = ">=1.23.5", markers = "python_version >= \"3.9\" and python_version < \"3.12\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\" and python_version < \"3.13\""},
+]
+types-pytz = ">=2022.1.1"
+
+[[package]]
 name = "patsy"
 version = "0.5.6"
 description = "A Python package for describing statistical models and for building design matrices."
@@ -1247,6 +1266,17 @@ slack = ["slack-sdk"]
 telegram = ["requests"]
 
 [[package]]
+name = "types-pytz"
+version = "2024.1.0.20240417"
+description = "Typing stubs for pytz"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-pytz-2024.1.0.20240417.tar.gz", hash = "sha256:6810c8a1f68f21fdf0f4f374a432487c77645a0ac0b31de4bf4690cf21ad3981"},
+    {file = "types_pytz-2024.1.0.20240417-py3-none-any.whl", hash = "sha256:8335d443310e2db7b74e007414e74c4f53b67452c0cb0d228ca359ccfba59659"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -1295,4 +1325,4 @@ tbb = ["tbb (>=2019.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3c2f942f6eafd041f1d99b5cbd0b4ad0a3d1811a5ecf07b77a8c6cf4d3486a55"
+content-hash = "429a3a2d464970bb9862097d81564be9758fb53c958f04d7e049ecedbbfb8d85"
