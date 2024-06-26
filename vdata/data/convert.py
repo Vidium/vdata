@@ -231,7 +231,6 @@ def convert_anndata_to_vdata(
         + int(not drop_X)
     )
     progressBar = tqdm(total=nb_items_to_write, desc="Converting anndata to VData", unit="object")
-    progressBar.update()
 
     # timepoints --------------------------------------------------------------
     timepoint = tp.TimePoint(timepoint)
@@ -280,7 +279,21 @@ def convert_anndata_to_vdata(
 
     # layers ------------------------------------------------------------------
     for layer_name, layer_data in data["layers"].items():
-        layer_data = layer_data.copy()
+        if layer_name == 'X' and isinstance(layer_data, ch.H5Dict):
+            raise TypeError("Cannot convert X layer if it is a sparse matrix.")
+
+        if layer_data.attributes.get("encoding-type", "") == "csr_matrix":
+            matrix_data = layer_data["data"]
+            col = layer_data["indices"]
+            # FIXME: implement np.ediff1d on H5Arrays
+            row = np.repeat(np.arange(len(layer_data['indptr']) - 1), np.ediff1d(layer_data['indptr'].copy()))
+
+            # FIXME: proper handling of sparse matrices
+            layer_data = sp.csr_matrix((matrix_data, (row, col)), shape=layer_data.attributes["shape"]).toarray()
+
+        else:
+            layer_data = layer_data.copy()
+
         del data["layers"][layer_name]
 
         ch.write_object(
