@@ -164,6 +164,12 @@ class ArrayStack2DProxy:
 
         return self._array_numeric.sum(axis=axis)
 
+    def astype(self, dtype: npt.DTypeLike) -> ArrayStack2DProxy:
+        return ArrayStack2DProxy(
+            np.empty(0, dtype=dtype) if self._array_numeric is None else self._array_numeric.astype(dtype),
+            np.empty(0, dtype=dtype) if self._array_string is None else self._array_string.astype(dtype),
+        )
+
     # endregion
 
 
