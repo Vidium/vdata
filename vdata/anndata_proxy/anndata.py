@@ -13,14 +13,13 @@ from vdata._typing import AnyNDArrayLike, DictLike
 from vdata.anndata_proxy.containers import ArrayStack2DProxy, H5DataFrameContainerProxy, TemporalDataFrameContainerProxy
 from vdata.anndata_proxy.dataframe import DataFrameProxy_TDF
 from vdata.data._file import NoData
-from vdata.tdf.dataframe import TemporalDataFrame
 
 if TYPE_CHECKING:
     from vdata.data import VData, VDataView
 
 
 def skip_time_axis(slicer: Any) -> tuple[Any, ...]:
-    if isinstance(slice, tuple):
+    if isinstance(slicer, tuple):
         return (slice(None),) + slicer
 
     return (slice(None), slicer)
