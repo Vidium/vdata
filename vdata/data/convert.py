@@ -239,7 +239,7 @@ def convert_anndata_to_vdata(
         if timepoints_column_name not in data["obs"]:
             raise ValueError(f"Could not find column '{timepoints_column_name}' in obs columns.")
 
-        timepoints_list = not_categorical(data["obs"][timepoints_column_name])
+        timepoints_list = tp.TimePointArray(not_categorical(data["obs"][timepoints_column_name]))
 
     else:
         timepoints_list = tp.TimePointArray(
