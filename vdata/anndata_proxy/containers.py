@@ -158,14 +158,14 @@ class ArrayStack2DProxy:
 
         return np.empty((0, 0))
 
-    def sum(self, axis: int | tuple[int, ...] | None = None) -> Any:
+    def sum(self, axis: int | tuple[int, ...] | None = None, out: npt.NDArray[Any] | None = None) -> Any:
         if self._array_string is not None:
             raise TypeError("Cannot apply sum with string array.")
 
         if self._array_numeric is None:
             return np.empty((0, 0))
 
-        return self._array_numeric.sum(axis=axis)
+        return self._array_numeric.sum(axis=axis, out=out)
 
     def astype(self, dtype: npt.DTypeLike) -> ArrayStack2DProxy:
         return ArrayStack2DProxy(
