@@ -30,7 +30,7 @@ class TemporalDataFrameContainerProxy:
         return f"{self._name} with keys: {', '.join(self._tdfs.keys())}"
 
     def __getitem__(self, key: str) -> ArrayStack2DProxy:
-        return ArrayStack2DProxy(self._tdfs[str(key)].values_num, self._tdfs[str(key)].values_str)
+        return ArrayStack2DProxy(self._tdfs[str(key)].values_num, self._tdfs[str(key)].values_str, str(key))
 
     def __setitem__(self, key: str, value: npt.NDArray[Any]) -> None:
         self._tdfs[key] = TemporalDataFrame(
@@ -62,13 +62,16 @@ class TemporalDataFrameContainerProxy:
 
 
 class ArrayStack2DProxy:
-    __slots__ = "_array_numeric", "_array_string"
+    __slots__ = "_array_numeric", "_array_string", "layer_name"
     ndim = 2
 
     # region magic methods
-    def __init__(self, array_numeric: AnyNDArrayLike[_NP_IF], array_string: AnyNDArrayLike[np.str_]) -> None:
+    def __init__(
+        self, array_numeric: AnyNDArrayLike[_NP_IF], array_string: AnyNDArrayLike[np.str_], layer_name: str | None
+    ) -> None:
         self._array_numeric = array_numeric if array_numeric.size else None
         self._array_string = array_string if array_string.size else None
+        self.layer_name = layer_name
 
     def __repr__(self) -> str:
         return repr(self.stack(n=5)) + "\n..." if self.shape[1] > 5 else ""
@@ -168,6 +171,7 @@ class ArrayStack2DProxy:
         return ArrayStack2DProxy(
             np.empty(0, dtype=dtype) if self._array_numeric is None else self._array_numeric.astype(dtype),
             np.empty(0, dtype=dtype) if self._array_string is None else self._array_string.astype(dtype),
+            None,
         )
 
     # endregion

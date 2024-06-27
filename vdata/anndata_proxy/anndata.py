@@ -10,9 +10,10 @@ from h5dataframe import H5DataFrame
 from scipy import sparse
 
 from vdata._typing import AnyNDArrayLike, DictLike
-from vdata.anndata_proxy.containers import H5DataFrameContainerProxy, TemporalDataFrameContainerProxy
+from vdata.anndata_proxy.containers import ArrayStack2DProxy, H5DataFrameContainerProxy, TemporalDataFrameContainerProxy
 from vdata.anndata_proxy.dataframe import DataFrameProxy_TDF
 from vdata.data._file import NoData
+from vdata.tdf.dataframe import TemporalDataFrame
 
 if TYPE_CHECKING:
     from vdata.data import VData, VDataView
@@ -93,6 +94,11 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
 
     @X.setter
     def X(self, value: Any) -> None:
+        if isinstance(value, ArrayStack2DProxy):
+            if value.layer_name is None:
+                self._layers["X"] = value.stack()
+                self._X = "X"
+
         raise NotImplementedError
 
     @X.deleter
