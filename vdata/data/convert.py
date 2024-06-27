@@ -6,6 +6,7 @@ from typing import Any, Collection, Iterable, Literal, overload
 
 import ch5mpy as ch
 import numpy as np
+import scipy.sparse as sp
 from anndata import AnnData
 from h5dataframe import H5DataFrame
 from tqdm.auto import tqdm
@@ -279,14 +280,14 @@ def convert_anndata_to_vdata(
 
     # layers ------------------------------------------------------------------
     for layer_name, layer_data in data["layers"].items():
-        if layer_name == 'X' and isinstance(layer_data, ch.H5Dict):
+        if layer_name == "X" and isinstance(layer_data, ch.H5Dict):
             raise TypeError("Cannot convert X layer if it is a sparse matrix.")
 
         if layer_data.attributes.get("encoding-type", "") == "csr_matrix":
             matrix_data = layer_data["data"]
             col = layer_data["indices"]
             # FIXME: implement np.ediff1d on H5Arrays
-            row = np.repeat(np.arange(len(layer_data['indptr']) - 1), np.ediff1d(layer_data['indptr'].copy()))
+            row = np.repeat(np.arange(len(layer_data["indptr"]) - 1), np.ediff1d(layer_data["indptr"].copy()))
 
             # FIXME: proper handling of sparse matrices
             layer_data = sp.csr_matrix((matrix_data, (row, col)), shape=layer_data.attributes["shape"]).toarray()
