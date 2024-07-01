@@ -267,17 +267,18 @@ def convert_anndata_to_vdata(
     progressBar.update()
 
     # var ---------------------------------------------------------------------
+    var_data = data["var"].copy()
+
     if "_index" in data["var"]:
         _var_index = data["var"]["_index"].astype(str)
 
+        del var_data["_index"]
+
     elif "_index" in data["var"].attributes:
-        _var_index = data["var"][data["var"][data["var"].attributes["_index"]]]
+        _var_index = data["var"][data["var"].attributes["_index"]]
 
     else:
         raise ValueError("Could not find index for var dataframe")
-
-    var_data = data["var"].copy()
-    del var_data["_index"]
 
     del data["var"]
 
@@ -299,23 +300,32 @@ def convert_anndata_to_vdata(
             # FIXME: proper handling of sparse matrices
             layer_data = sp.csr_matrix((matrix_data, (row, col)), shape=layer_data.attributes["shape"]).toarray()
 
+            del data["layers"][layer_name]
+
         else:
-            layer_data = layer_data.copy()
+            data["layers"].rename(layer_name, "__h5_TMP__" + layer_name)
+            layer_data = data["layers"]["__h5_TMP__" + layer_name]
 
-        del data["layers"][layer_name]
-
-        ch.write_object(
-            TemporalDataFrame(
-                layer_data,
-                index=_obs_index,
-                columns=_var_index,
-                timepoints=timepoints_list,
-                lock=(True, True),
-                name=layer_name,
-            ),
-            data["layers"],
-            layer_name,
+        data["layers"][layer_name] = {}
+        data["layers"][layer_name].attributes.set(
+            name=layer_name,
+            timepoints_column_name=None,
+            locked_indices=False,
+            locked_columns=False,
+            repeating_index=False,
         )
+        ch.write_objects(data["layers"][layer_name], timepoints_index=(data @ "obs")["timepoints_index"])
+        ch.write_datasets(
+            data["layers"][layer_name],
+            index=(data @ "obs")["index"],
+            columns_numerical=(data @ "var")["index"],
+            columns_string=np.empty(0),
+            numerical_array=layer_data,
+            string_array=np.empty((len((data @ "obs")["index"]), 0)),
+        )
+
+        if "__h5_TMP__" + layer_name in data["layers"].keys():
+            del data["layers"]["__h5_TMP__" + layer_name]
 
         progressBar.update()
 
