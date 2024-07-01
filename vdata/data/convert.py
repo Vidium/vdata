@@ -267,7 +267,14 @@ def convert_anndata_to_vdata(
     progressBar.update()
 
     # var ---------------------------------------------------------------------
-    _var_index = data["var"]["_index"].astype(str)
+    if "_index" in data["var"]:
+        _var_index = data["var"]["_index"].astype(str)
+
+    elif "_index" in data["var"].attributes:
+        _var_index = data["var"][data["var"][data["var"].attributes["_index"]]]
+
+    else:
+        raise ValueError("Could not find index for var dataframe")
 
     var_data = data["var"].copy()
     del var_data["_index"]
