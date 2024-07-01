@@ -51,19 +51,23 @@ name = "ch5mpy"
 version = "0.4.4"
 description = "Collection of helper tools for reading or writing to h5 files using the h5py library."
 optional = false
-python-versions = "<4.0,>=3.10"
-files = [
-    {file = "ch5mpy-0.4.4-py3-none-any.whl", hash = "sha256:93779d2a80119bac1113967a3f04e8de00efb5d0065cc840279858bddc39673e"},
-    {file = "ch5mpy-0.4.4.tar.gz", hash = "sha256:8563240133a7a5d5f5769b0a280507eea0c76dfc0c3ee237dcd8d1a5a46917ec"},
-]
+python-versions = "^3.10"
+files = []
+develop = false
 
 [package.dependencies]
 h5py = "*"
-h5py-stubs = ">=0.1.1,<0.2.0"
+h5py-stubs = "^0.1.1"
 numpy = "*"
-packaging = ">=21.3,<22.0"
+packaging = "^21.3"
 tqdm = "*"
-typing-extensions = ">=4.9.0,<5.0.0"
+typing-extensions = "^4.9.0"
+
+[package.source]
+type = "git"
+url = "git@gitlab.vidium.fr:vidium/ch5mpy.git"
+reference = "HEAD"
+resolved_reference = "5688320a46d3b85eaee86216d82003c54c069f38"
 
 [[package]]
 name = "colorama"
@@ -1317,4 +1321,4 @@ tbb = ["tbb (>=2019.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "511f4b578e6267ea9a3d9a92686cf6deb3d0d4950fef39c415cdab0fa712bf33"
+content-hash = "f28e1c1ca8cb109196ee4553289b979305638971ee5bdb69344bde5fb7eeb5fd"
