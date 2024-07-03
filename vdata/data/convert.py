@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 import shutil
 from pathlib import Path
 from typing import Any, Collection, Iterable, Literal, overload
@@ -177,7 +178,12 @@ def not_categorical(obj: ch.H5Array[Any] | ch.H5Dict) -> ch.H5Array[Any]:
     if "categories" not in obj.keys():
         raise ValueError("Cannot convert object")
 
-    flat = obj["categories"][obj["codes"]]
+    flat = ch.empty(
+        len(obj["codes"]), "tmp", obj.file, dtype=obj["categories"].dtype if len(obj["categories"]) else np.float64
+    )
+    flat[obj["codes"] == -1] = np.NaN
+    flat[obj["codes"] >= 0] = obj["categories"][obj["codes"][obj["codes"] >= 0]]
+
     if flat.dtype == np.dtype(object):
         flat = flat.astype("str")
 
@@ -241,6 +247,7 @@ def convert_anndata_to_vdata(
             raise ValueError(f"Could not find column '{timepoints_column_name}' in obs columns.")
 
         timepoints_list = tp.as_timepointarray(not_categorical(data["obs"][timepoints_column_name]))
+        del data["obs"][timepoints_column_name]
 
     else:
         timepoints_list = tp.TimePointArray(
@@ -313,6 +320,8 @@ def convert_anndata_to_vdata(
             locked_indices=False,
             locked_columns=False,
             repeating_index=False,
+            __h5_type__="object",
+            __h5_class__=np.void(pickle.dumps(TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL)),
         )
         ch.write_objects(data["layers"][layer_name], timepoints_index=(data @ "obs")["timepoints_index"])
         ch.write_datasets(
