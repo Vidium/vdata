@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Collection, cast
+from typing import Collection, Iterable, cast
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from vdata.timepoint import TimePointArray
 
 
 class DataFrameProxy_TDF:
-
     __slots__ = ("_tdf",)
 
     # region magic methods
@@ -34,6 +33,9 @@ class DataFrameProxy_TDF:
         values: IFS | Collection[IFS],
     ) -> None:
         self._tdf[:, :, key] = values
+
+    def __iter__(self) -> Iterable[str]:
+        return iter(self.columns)
 
     # endregion
 
