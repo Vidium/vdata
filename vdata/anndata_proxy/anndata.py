@@ -268,6 +268,10 @@ class AnnDataProxy(AnnData):  # type: ignore[misc]
     def strings_to_categoricals(self, df: pd.DataFrame | None = None) -> None:
         raise NotImplementedError
 
+    def _sanitize(self) -> None:
+        # prevent unwanted data modification in the underlying vdata object
+        return
+
     def _inplace_subset_var(self, index: Any) -> None:
         self._init_from_vdata(self._vdata[skip_time_axis((slice(None), index))])
 
