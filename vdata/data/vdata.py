@@ -893,10 +893,10 @@ class VData(metaclass=PrettyRepr):
         Convert a VData object to an AnnData object.
 
         Args:
-            timepoints_list: a list of time points for which to extract data to build the AnnData. If set to
-                None, all timepoints are selected.
             into_one: Build one AnnData, concatenating the data for multiple time points (True), or build one
                 AnnData for each time point (False) ?
+            timepoints: a list of time points for which to extract data to build the AnnData. If set to
+                None, all timepoints are selected.
             with_timepoints_column: store time points data in the obs DataFrame. This is only used when
                 concatenating the data into a single AnnData (i.e. into_one=True).
             layer_as_X: name of the layer to use as the X matrix. By default, the first layer is used.

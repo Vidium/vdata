@@ -28,7 +28,8 @@ class LazyLoc:
     def get(self) -> H5DataFrame:
         return self.h5df.loc[self.loc]
 
-    def copy(self) -> pd.DataFrame:
+    def copy(self, deep: bool = True) -> pd.DataFrame:
+        del deep  # for API compatibility
         return pd.DataFrame(self.get())
 
     # endregion
