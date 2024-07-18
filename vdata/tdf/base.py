@@ -568,6 +568,9 @@ class TemporalDataFrameBase(ABC, ch.SupportsH5Write):
 
         ch.write_datasets(values, numerical_array=self.values_num, string_array=self.values_str, chunks=True)
 
+    def __array__(self) -> npt.NDArray[Any]:
+        return np.array(self.values)
+
     # endregion
 
     # region attributes

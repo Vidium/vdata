@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Collection, Iterable, Literal, overload
 
 import ch5mpy as ch
+import ch5mpy.sparse as csp
 import numpy as np
 import scipy.sparse as sp
 from anndata import AnnData
@@ -108,15 +109,15 @@ def _convert_vdata_into_one_anndata(
     X = view.layers[layer_as_X].to_pandas()
     X.index = X.index.astype(str)
     X.columns = X.columns.astype(str)
-    if layers_to_export is None:
-        layers_to_export = view.layers.keys()
+
+    layers_to_export_ = view.layers.keys() if layers_to_export is None else layers_to_export
 
     anndata = AnnData(
         X=X,
-        layers={key: view.layers[key].to_pandas(str_index=True) for key in layers_to_export},
+        layers={key: np.array(view.layers[key]) for key in layers_to_export_},
         obs=view.obs.to_pandas(with_timepoints=tp_col_name, str_index=True),
-        obsm={key: arr.values_num for key, arr in view.obsm.items()},
-        obsp={key: arr.values for key, arr in view.obsp.items()},
+        obsm={str(key): np.array(arr) for key, arr in view.obsm.items()},
+        obsp={str(key): np.array(arr.copy()) for key, arr in view.obsp.items()},
         var=view.var.copy(),
         varm=view.varm.dict_copy(),
         varp=view.varp.dict_copy(),
@@ -154,12 +155,12 @@ def _convert_vdata_into_many_anndatas(
         result.append(
             AnnData(
                 X=X,
-                layers={key: layer.to_pandas(str_index=True) for key, layer in view.layers.items()},
+                layers={key: np.array(layer) for key, layer in view.layers.items()},
                 obs=view.obs.to_pandas(str_index=True),
-                obsm={key: arr.to_pandas(str_index=True) for key, arr in view.obsm.items()},
+                obsm={str(key): np.array(arr) for key, arr in view.obsm.items()},
                 var=view.var.copy(),
-                varm={key: arr.copy() for key, arr in view.varm.items()},
-                varp={key: arr.copy() for key, arr in view.varp.items()},
+                varm=view.varm.dict_copy(),
+                varp=view.varp.dict_copy(),
                 uns=view.uns,
             )
         )
@@ -179,7 +180,7 @@ def not_categorical(obj: ch.H5Array[Any] | ch.H5Dict) -> ch.H5Array[Any]:
         raise ValueError("Cannot convert object")
 
     flat = ch.empty(
-        len(obj["codes"]), "tmp", obj.file, dtype=obj["categories"].dtype if len(obj["categories"]) else np.float64
+        len(obj["codes"]), obj.file, "tmp", dtype=obj["categories"].dtype if len(obj["categories"]) else np.float64
     )
     flat[obj["codes"] == -1] = np.NaN
     flat[obj["codes"] >= 0] = obj["categories"][obj["codes"][obj["codes"] >= 0]]
@@ -188,6 +189,44 @@ def not_categorical(obj: ch.H5Array[Any] | ch.H5Dict) -> ch.H5Array[Any]:
         flat = flat.astype("str")
 
     return flat
+
+
+def convert_to_TDF(
+    data: ch.H5Dict[Any],
+    layer_name: str,
+    timepoints: ch.H5Array[Any],
+    index: ch.H5Array[Any],
+    columns: ch.H5Array[Any],
+    progressBar: tqdm,
+) -> None:
+    if data[layer_name].attributes.get("encoding-type", "") == "csr_matrix":
+        data[layer_name].attributes.set(
+            __h5_type__="object",
+            __h5_class__=np.void(pickle.dumps(csp.H5_csr_array, protocol=pickle.HIGHEST_PROTOCOL)),
+            _shape=data[layer_name].attributes["shape"],
+        )
+
+    data.rename(layer_name, layer_name + "/numerical_array")
+
+    data[layer_name].attributes.set(
+        name=layer_name,
+        timepoints_column_name=None,
+        locked_indices=False,
+        locked_columns=False,
+        repeating_index=False,
+        __h5_type__="object",
+        __h5_class__=np.void(pickle.dumps(TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL)),
+    )
+    ch.write_objects(data[layer_name], timepoints_index=timepoints)
+    ch.write_datasets(
+        data[layer_name],
+        index=index,
+        columns_numerical=columns,
+        columns_string=np.empty(0),
+        string_array=np.empty((len(index), 0)),
+    )
+
+    progressBar.update()
 
 
 def convert_anndata_to_vdata(
@@ -223,9 +262,10 @@ def convert_anndata_to_vdata(
 
     # X -----------------------------------------------------------------------
     if not drop_X:
-        data["layers"]["X"] = data["X"]
+        data.rename("X", "layers/X")
 
-    del data["X"]
+    else:
+        del data["X"]
 
     # progress bar ------------------------------------------------------------
     nb_items_to_write = (
@@ -258,6 +298,7 @@ def convert_anndata_to_vdata(
     progressBar.update()
 
     # obs ---------------------------------------------------------------------
+    # TODO: maybe better to convert inplace without creating a whole TDF
     _obs_index = data["obs"]["_index"].astype(str)
     del data["obs"]["_index"]
 
@@ -294,49 +335,10 @@ def convert_anndata_to_vdata(
     progressBar.update()
 
     # layers ------------------------------------------------------------------
-    for layer_name, layer_data in data["layers"].items():
-        if layer_name == "X" and isinstance(layer_data, ch.H5Dict):
-            raise TypeError("Cannot convert X layer if it is a sparse matrix.")
-
-        if layer_data.attributes.get("encoding-type", "") == "csr_matrix":
-            matrix_data = layer_data["data"]
-            col = layer_data["indices"]
-            # FIXME: implement np.ediff1d on H5Arrays
-            row = np.repeat(np.arange(len(layer_data["indptr"]) - 1), np.ediff1d(layer_data["indptr"].copy()))
-
-            # FIXME: proper handling of sparse matrices
-            layer_data = sp.csr_matrix((matrix_data, (row, col)), shape=layer_data.attributes["shape"]).toarray()
-
-            del data["layers"][layer_name]
-
-        else:
-            data["layers"].rename(layer_name, "__h5_TMP__" + layer_name)
-            layer_data = data["layers"]["__h5_TMP__" + layer_name]
-
-        data["layers"][layer_name] = {}
-        data["layers"][layer_name].attributes.set(
-            name=layer_name,
-            timepoints_column_name=None,
-            locked_indices=False,
-            locked_columns=False,
-            repeating_index=False,
-            __h5_type__="object",
-            __h5_class__=np.void(pickle.dumps(TemporalDataFrame, protocol=pickle.HIGHEST_PROTOCOL)),
+    for layer_name in data["layers"].keys():
+        convert_to_TDF(
+            data["layers"], layer_name, (data @ "obs")["timepoints_index"], _obs_index, _var_index, progressBar
         )
-        ch.write_objects(data["layers"][layer_name], timepoints_index=(data @ "obs")["timepoints_index"])
-        ch.write_datasets(
-            data["layers"][layer_name],
-            index=(data @ "obs")["index"],
-            columns_numerical=(data @ "var")["index"],
-            columns_string=np.empty(0),
-            numerical_array=layer_data,
-            string_array=np.empty((len((data @ "obs")["index"]), 0)),
-        )
-
-        if "__h5_TMP__" + layer_name in data["layers"].keys():
-            del data["layers"]["__h5_TMP__" + layer_name]
-
-        progressBar.update()
 
     # obsm --------------------------------------------------------------------
     for array_name, array_data in data["obsm"].items():
