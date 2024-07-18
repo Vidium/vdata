@@ -29,7 +29,6 @@ class LazyLoc:
         return self.h5df.loc[self.loc]
 
     def copy(self, deep: bool = True) -> pd.DataFrame:
-        del deep  # for API compatibility
-        return pd.DataFrame(self.get())
+        return self.get().copy(deep=deep)
 
     # endregion
