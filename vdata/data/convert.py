@@ -119,8 +119,8 @@ def _convert_vdata_into_one_anndata(
         obsm={str(key): np.array(arr) for key, arr in view.obsm.items()},
         obsp={str(key): np.array(arr.copy()) for key, arr in view.obsp.items()},
         var=view.var.copy(),
-        varm=view.varm.dict_copy(),
-        varp=view.varp.dict_copy(),
+        varm=view.varm.dict_copy(str_columns=True),
+        varp=view.varp.dict_copy(str_columns=True),
         uns=view.uns.copy(),
     )
 
