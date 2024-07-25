@@ -1,0 +1,67 @@
+site_name: VData
+site_url: https://vdata.doc.com
+
+nav:
+  - VData: 'index.md'
+  - Overview:
+    - Index: 'overview/df_index.md'
+    - Time point: 'overview/timepoint.md'
+    - TemporalDataFrame: 'overview/tdf.md'
+    - VData: 'overview/vdata.md'
+    - Compatibility with the scverse: 'overview/compatibility.md'
+  - Getting started: 'tutorials.md'
+  - How-To guides: 'how_to.md'
+  - 'reference.md'
+  - Topics:
+    - 'topics/installation.md'
+  - About:
+    - 'about/license.md'
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.footer
+  language: en
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+      primary: custom
+      accent: custom
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default 
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+      primary: custom
+      accent: custom
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to system preference
+      primary: custom
+      accent: custom
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Vidium/vdata
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - mkdocstrings
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+

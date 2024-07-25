@@ -2,7 +2,7 @@
 
 **VData** is used for storing and manipulating multivariate observations of timestamped data.
 
-![The VData structure](doc/vdata_diagram.png)
+![The VData structure](docs/images/vdata_diagram.png)
 
 It extends the [AnnData](https://anndata.readthedocs.io/en/latest/) object by adding the **time** dimension.
 
@@ -49,7 +49,7 @@ thus represented as `observations` x `variables` x `time points` dataframes. Obs
 at each time point or strictly the same (e.g. to store simulated data where a single cell can be recorded multiple 
 times).
 
-![TemporalDataFrames, one with unique observations and one with identical observations at all timepoints](doc/TDF_diagram.png)
+![TemporalDataFrames, one with unique observations and one with identical observations at all timepoints](docs/images/TDF_diagram.png)
 
 Three additional dataframes are used for annotating the observations (**obs**), variables (**var**) and timepoints
 (**timepoints**).
