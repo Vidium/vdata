@@ -21,3 +21,4 @@ vdata.code-workspace
 *.prof
 *.vim
 tests/ref/
+site/
