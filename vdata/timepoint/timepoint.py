@@ -11,7 +11,6 @@ _SECONDS_IN_UNIT = {"s": 1, "m": 60, "h": 3_600, "D": 86_400, "M": 2_592_000, "Y
 
 
 class TimePoint(metaclass=PrettyRepr):
-
     __slots__ = "value", "_unit"
 
     # region magic methods
@@ -35,7 +34,7 @@ class TimePoint(metaclass=PrettyRepr):
             self.value: float = value.value
             self._unit: _TIME_UNIT = value._unit if unit is None else unit
 
-        elif isinstance(value, (int, float, np.int_, np.float_, bool)):
+        elif isinstance(value, (int, float, np.integer, np.floating, bool)):
             self.value = float(value)
             self._unit = "h" if unit is None else unit
 
@@ -76,7 +75,7 @@ class TimePoint(metaclass=PrettyRepr):
         if isinstance(other, TimePoint):
             return self.value_as("s") == other.value_as("s")
 
-        if isinstance(other, (int, float, np.int_, np.float_, str)):
+        if isinstance(other, (int, float, np.integer, np.floating, str)):
             other = TimePoint(other)
 
         return False
@@ -88,13 +87,22 @@ class TimePoint(metaclass=PrettyRepr):
         return self.value_as("s") <= other.value_as("s")
 
     def __add__(self, other: TimePoint | int | float | np.int_ | np.float_) -> TimePoint:
-        if isinstance(other, (int, float, np.int_, np.float_)):
+        if isinstance(other, (int, float, np.integer, np.floating)):
             return TimePoint(self.value + float(other), self.unit)
 
         if _TIME_UNIT_ORDER[self._unit] > _TIME_UNIT_ORDER[other._unit]:
             return TimePoint(self.value + other.value_as(self._unit), self._unit)
 
         return TimePoint(self.value_as(other._unit) + other.value, other._unit)
+
+    def __sub__(self, other: TimePoint | int | float | np.int_ | np.float_) -> TimePoint:
+        if isinstance(other, (int, float, np.integer, np.floating)):
+            return TimePoint(self.value - float(other), self.unit)
+
+        if _TIME_UNIT_ORDER[self._unit] > _TIME_UNIT_ORDER[other._unit]:
+            return TimePoint(self.value - other.value_as(self._unit), self._unit)
+
+        return TimePoint(self.value_as(other._unit) - other.value, other._unit)
 
     def __mul__(self, other: int | float | np.int_ | np.float_) -> TimePoint:
         return TimePoint(self.value * other, unit=self.unit)

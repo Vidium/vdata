@@ -4,16 +4,17 @@ site_url: https://vdata.doc.com
 nav:
   - VData: 'index.md'
   - Overview:
-    - Index: 'overview/df_index.md'
     - Time point: 'overview/timepoint.md'
     - TemporalDataFrame: 'overview/tdf.md'
     - VData: 'overview/vdata.md'
     - Compatibility with the scverse: 'overview/compatibility.md'
   - Getting started: 'tutorials.md'
   - How-To guides: 'how_to.md'
-  - 'reference.md'
+  - API documentation:
+      - VData: 'api/vdata.md'
+      - TimePoint: 'api/timepoint.md'
   - Topics:
-    - 'topics/installation.md'
+    - 'topics/hdf5.md'
   - About:
     - 'about/license.md'
 
@@ -48,6 +49,7 @@ theme:
         name: Switch to system preference
       primary: custom
       accent: custom
+  navigation_depth: 1
 
 extra:
   social:
@@ -64,4 +66,5 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - toc
 
