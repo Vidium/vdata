@@ -9,7 +9,6 @@ nav:
     - TemporalDataFrame: 'overview/tdf.md'
     - VData: 'overview/vdata.md'
     - Compatibility with the scverse: 'overview/compatibility.md'
-  - Getting started: 'tutorials.md'
   - How-To guides: 'how_to.md'
   - API documentation:
       - VData: 'api/vdata.md'
