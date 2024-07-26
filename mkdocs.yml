@@ -4,6 +4,7 @@ site_url: https://vdata.doc.com
 nav:
   - VData: 'index.md'
   - Overview:
+    - Summary: 'overview/index.md'
     - Time point: 'overview/timepoint.md'
     - TemporalDataFrame: 'overview/tdf.md'
     - VData: 'overview/vdata.md'
@@ -13,6 +14,7 @@ nav:
   - API documentation:
       - VData: 'api/vdata.md'
       - TimePoint: 'api/timepoint.md'
+      - RepeatingIndex: 'api/repeating_index.md'
   - Topics:
     - 'topics/hdf5.md'
   - About:
@@ -25,6 +27,8 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.footer
+    - content.code.copy
+    - content.code.select
   language: en
   palette:
     - media: "(prefers-color-scheme)"
@@ -64,6 +68,10 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.details
   - pymdownx.superfences
   - toc

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Iterator, Any, Literal, SupportsIndex, overload, cast
+from typing import Any, Iterator, Literal, cast, overload
 
+import ch5mpy as ch
 import numpy as np
 import numpy.typing as npt
-import ch5mpy as ch
 
 from vdata.array_view import NDArrayView
+from vdata.timepoint._typing import _TIME_UNIT
 from vdata.timepoint.array import TimePointArray
 from vdata.timepoint.timepoint import TimePoint
-from vdata.timepoint._typing import _TIME_UNIT
 
 
 class TimePointIndex:
@@ -32,12 +32,10 @@ class TimePointIndex:
         return "TimePointIndex[0" + "".join([f" --{t}--> {i}" for t, i in zip(self._timepoints, self._ranges)]) + "]"
 
     @overload
-    def __getitem__(self, key: int) -> TimePoint:
-        ...
+    def __getitem__(self, key: int) -> TimePoint: ...
 
     @overload
-    def __getitem__(self, key: slice | ch.indexing.Indexer) -> TimePointIndex:
-        ...
+    def __getitem__(self, key: slice | ch.indexing.Indexer) -> TimePointIndex: ...
 
     def __getitem__(self, key: int | slice | ch.indexing.Indexer) -> TimePoint | TimePointIndex:
         if isinstance(key, (ch.indexing.NewAxisType, ch.indexing.EmptyList)):
@@ -138,12 +136,10 @@ class TimePointIndex:
         return mask
 
     @overload
-    def sort(self, return_indices: Literal[False]) -> TimePointIndex:
-        ...
+    def sort(self, return_indices: Literal[False]) -> TimePointIndex: ...
 
     @overload
-    def sort(self, return_indices: Literal[True]) -> tuple[TimePointIndex, npt.NDArray[np.int_]]:
-        ...
+    def sort(self, return_indices: Literal[True]) -> tuple[TimePointIndex, npt.NDArray[np.int_]]: ...
 
     def sort(self, return_indices: bool = False) -> TimePointIndex | tuple[TimePointIndex, npt.NDArray[np.int_]]:
         order = np.argsort(self._timepoints)

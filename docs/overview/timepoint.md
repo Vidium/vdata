@@ -21,6 +21,16 @@ In the case where the value is a string representation, it must follow the follo
 - or it is of the format `<value><unit>` where `<value>` can be casted to a float and `<unit>` is one of the valid
 units defined above.
 
+``` py
+>>> import vdata
+>>> vdata.TimePoint(1)
+1.0 hour
+>>> vdata.TimePoint('0.1m')
+0.1 minutes
+>>> vdata.TimePoint(vd.TimePoint(0.5))
+0.5 hours
+```
+
 
 `TimePoint` instances can be compared using regular comparison operators (==, <, >, <=, >=), added, subtracted, 
 multiplied and divided together.
@@ -33,6 +43,11 @@ A `TimePoint` can be converted to another unit using the `TimePoint.value_as()` 
 `TimePointArray`s are subclasses of numpy `ndarray`s specialized for storing time points of the same unit. They
 implement regular operations on numpy.ndarrays and support [read/write operations to hdf5 files](../topics/hdf5.md).
 TimePointArrays are limited to 1-dimensional arrays.
+
+``` py
+>>> vdata.timepoint.TimePointArray([0, 1, 2, 3], unit='s')
+TimePointArray([0.0s, 1.0s, 2.0s, 3.0s])
+```
 
 TimePointArrays come with 2 utility functions :
 
@@ -55,7 +70,19 @@ time points.
 You are not likely to create an instance yourself but are used internally by [TemporalDataFrames](./tdf.md) to store the
 `time` dimension which can be accessed with the `TemporalDataFrame.timepoints_index` attribute.
 
+``` py
+>>> timepoints = vdata.timepoint.TimePointArray([0, 1, 2])
+>>> index = vdata.timepoints.TimePointIndex(timepoints, [3, 7, 10])
+>>> index
+TimePointIndex[0 --0.0h--> 3 --1.0h--> 7 --2.0h--> 10]
+```
+
 You can subset and iterate through a TimePointIndex. It support [read/write operations to hdf5 files](../topics/hdf5.md).
 
 TimePointIndices are most usefull for creating masks as arrays of indices in the index where it matches a particular 
 time points value.
+
+``` py
+>>> index.at(vdata.TimePoint('1h'))
+array([3, 4, 5, 6])
+```
