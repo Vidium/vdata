@@ -11,7 +11,7 @@ The **unit** must be one of `s` (seconds), `m` (minutes), `h` (hours), `D` (days
 
 The **value** can be :
 
-- an integer of floating point value
+- an integer or floating point value
 - a string or bytes representation of a timepoint
 - another TimePoint instance
 
@@ -52,10 +52,10 @@ a step time interval. You can then iterate through the TimePointRange as a regul
 `TimePointIndices` resemble `TimePointArray`s but are specialized for efficiently dealing with collections of ordered
 time points. 
 
-You are not likely to create an instance yourslef but are used internally by [TemporalDataFrames](./tdf.md) to store the
+You are not likely to create an instance yourself but are used internally by [TemporalDataFrames](./tdf.md) to store the
 `time` dimension which can be accessed with the `TemporalDataFrame.timepoints_index` attribute.
 
 You can subset and iterate through a TimePointIndex. It support [read/write operations to hdf5 files](../topics/hdf5.md).
 
 TimePointIndices are most usefull for creating masks as arrays of indices in the index where it matches a particular 
-time points value.²
+time points value.

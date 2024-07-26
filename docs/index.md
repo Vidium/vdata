@@ -16,7 +16,7 @@ memory footprint.
 
 ## Features
 
-- explicit handling of timestamped data, especially suited for simulated single-cell datesets
+- explicit handling of timestamped data, especially suited for simulated single-cell datasets
 - complete Python reimplementation based on [ h5py ](https://docs.h5py.org/en/latest)
 - complete compatibility with the [ scverse ](https://scverse.org/) ecosystem 
 - very fast loading of any dataset
