@@ -420,13 +420,13 @@ class VData(metaclass=PrettyRepr):
         return tp.as_timepointarray(self.timepoints.value)
 
     @property
-    def timepoints_strings(self) -> Iterator[str]:
+    def timepoints_strings(self) -> list[str]:
         """
         Get the list of time points as strings.
 
         :return: the list of time points as strings.
         """
-        return map(str, self.timepoints.value.values)
+        return [str(tp.value) for tp in self.timepoints_values]
 
     @property
     def timepoints_numerical(self) -> list[float]:
@@ -435,7 +435,7 @@ class VData(metaclass=PrettyRepr):
 
         :return: the list of bare values from the time points.
         """
-        return [tp.value for tp in self.timepoints.value]
+        return [tp.value for tp in self.timepoints_values]
 
     @property
     def obs(self) -> TemporalDataFrameBase:
