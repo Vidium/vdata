@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "vdata"
+version = "0.1.0"
+description = "Annotated multivariate observation of timestamped data"
+authors = ["Matteo Bouvier <m.bouvier@vidium-solutions.com>"]
+license = "LICENSE"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy-indexed = "^0.3.7"
+anndata = "0.8"
+tqdm = "^4.66.5"
+pympler = "^1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
